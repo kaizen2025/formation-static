@@ -1,0 +1,151 @@
+<!-- templates/index.html -->
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="jumbotron p-5 bg-light rounded-3">
+            <h1 class="display-4">Formation Microsoft 365</h1>
+            <p class="lead">Bienvenue sur la plateforme de gestion des formations Microsoft 365 pour les collaborateurs d'Anecoop France.</p>
+            <hr class="my-4">
+            <p>16 sessions de formations sont proposées entre mai et juillet 2025, sur 4 thématiques différentes.</p>
+            <p class="d-flex gap-2">
+                <a href="#themes" class="btn btn-primary btn-lg"><i class="fas fa-info-circle me-2"></i>Découvrir les thèmes</a>
+                <a href="/sessions" class="btn btn-success btn-lg"><i class="fas fa-calendar-alt me-2"></i>Voir les sessions</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<h2 class="mb-4" id="themes">Les thématiques de formation</h2>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-comments me-2"></i>Communiquer avec Teams</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Apprenez à utiliser Microsoft Teams pour communiquer efficacement avec vos collègues.</p>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">Maîtrisez les conversations individuelles et de groupe</li>
+                    <li class="list-group-item">Apprenez à organiser et participer à des réunions en ligne</li>
+                    <li class="list-group-item">Découvrez comment partager votre écran et collaborer en temps réel</li>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="/sessions?theme=1" class="btn btn-primary">Voir les sessions disponibles</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-purple text-white" style="background-color: #7719aa;">
+                <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Gérer les tâches (Planner)</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Maîtrisez la gestion des tâches d'équipe avec les outils Microsoft.</p>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">Créez et organisez des tâches avec Microsoft Planner</li>
+                    <li class="list-group-item">Assignez des tâches et suivez leur progression</li>
+                    <li class="list-group-item">Intégrez Planner avec Teams pour une meilleure collaboration</li>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="/sessions?theme=2" class="btn btn-primary" style="background-color: #7719aa; border-color: #7719aa;">Voir les sessions disponibles</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header text-white" style="background-color: #0364b8;">
+                <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Gérer mes fichiers (OneDrive)</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Apprenez à organiser et partager vos fichiers avec OneDrive et SharePoint.</p>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">Stockez et synchronisez vos fichiers avec OneDrive</li>
+                    <li class="list-group-item">Partagez vos documents en toute sécurité</li>
+                    <li class="list-group-item">Collaborez sur des fichiers avec vos collègues</li>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="/sessions?theme=3" class="btn btn-primary" style="background-color: #0364b8; border-color: #0364b8;">Voir les sessions disponibles</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header text-white" style="background-color: #038387;">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Collaborer Teams / SharePoint</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Découvrez comment collaborer sur des documents avec Teams et SharePoint.</p>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">Utilisez Teams et SharePoint pour le travail collaboratif</li>
+                    <li class="list-group-item">Créez et gérez des sites d'équipe avec SharePoint</li>
+                    <li class="list-group-item">Intégrez SharePoint dans Teams pour une productivité maximale</li>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="/sessions?theme=4" class="btn btn-primary" style="background-color: #038387; border-color: #038387;">Voir les sessions disponibles</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Calendrier des formations</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Horaire</th>
+                                <th>Thème</th>
+                                <th>Places disponibles</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in sessions %}
+                            <tr>
+                                <td>{{ session.formatage_date }}</td>
+                                <td>{{ session.formatage_horaire }}</td>
+                                <td>
+                                    {% if session.theme.nom == 'Communiquer avec Teams' %}
+                                    <span class="badge theme-badge theme-comm">{{ session.theme.nom }}</span>
+                                    {% elif session.theme.nom == 'Gérer les tâches (Planner)' %}
+                                    <span class="badge theme-badge theme-planner">{{ session.theme.nom }}</span>
+                                    {% elif session.theme.nom == 'Gérer mes fichiers (OneDrive)' %}
+                                    <span class="badge theme-badge theme-onedrive">{{ session.theme.nom }}</span>
+                                    {% elif session.theme.nom == 'Collaborer Teams / SharePoint' %}
+                                    <span class="badge theme-badge theme-sharepoint">{{ session.theme.nom }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="places-dispo {% if session.places_restantes <= 3 %}text-danger{% elif session.places_restantes <= 7 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ session.places_restantes }} / {{ session.max_participants }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="/sessions/{{ session.id }}" class="btn btn-sm btn-outline-primary">Détails</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

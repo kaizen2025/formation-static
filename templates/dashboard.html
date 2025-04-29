@@ -1,0 +1,659 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- En-tête du dashboard -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="fw-bold text-primary mb-0"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
+            <p class="text-muted">Vue d'ensemble des formations Microsoft 365</p>
+        </div>
+        <div>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary" id="refresh-dashboard">
+                    <i class="fas fa-sync-alt me-2"></i>Actualiser
+                </button>
+                {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                <a href="{{ url_for('salles') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-building me-2"></i>Gérer les salles
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Cartes statistiques -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-2">
+            <div class="card border-left-primary h-100 py-2 shadow-sm">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sessions programmées</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800 counter-value">{{ sessions|length|default(0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-alt fa-2x text-primary-light"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-2">
+            <div class="card border-left-success h-100 py-2 shadow-sm">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Participants inscrits</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800 counter-value">{{ total_inscriptions|default(0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-success-light"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-2">
+            <div class="card border-left-warning h-100 py-2 shadow-sm">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">En liste d'attente</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800 counter-value">{{ total_en_attente|default(0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-clock fa-2x text-warning-light"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-2">
+            <div class="card border-left-danger h-100 py-2 shadow-sm">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Sessions complètes</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800 counter-value">{{ total_sessions_completes|default(0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-ban fa-2x text-danger-light"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interface principale de contenu -->
+    <div class="row">
+        <!-- Sessions à venir -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-calendar-alt me-2"></i>Sessions à venir
+                    </h6>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="sessionsFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-filter me-1"></i>Filtrer
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sessionsFilterDropdown">
+                            <li><a class="dropdown-item" href="#" data-filter="all">Toutes les sessions</a></li>
+                            <li><a class="dropdown-item" href="#" data-filter="available">Places disponibles</a></li>
+                            <li><a class="dropdown-item" href="#" data-filter="full">Sessions complètes</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" data-filter="teams">Communiquer avec Teams</a></li>
+                            <li><a class="dropdown-item" href="#" data-filter="planner">Gérer les tâches (Planner)</a></li>
+                            <li><a class="dropdown-item" href="#" data-filter="onedrive">Gérer mes fichiers (OneDrive)</a></li>
+                            <li><a class="dropdown-item" href="#" data-filter="sharepoint">Collaborer Teams / SharePoint</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body px-0 pb-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="sessions-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="px-3">Date / Horaire</th>
+                                    <th>Thème</th>
+                                    <th class="text-center">Places</th>
+                                    <th class="text-center">Inscrits</th>
+                                    <th class="text-center">Salle</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in sessions %}
+                                <tr class="session-row" data-session-id="{{ session.id }}" data-theme="{{ session.theme.nom|replace(' ', '-')|lower }}" data-full="{{ 1 if session.places_restantes == 0 else 0 }}">
+                                    <td class="px-3">
+                                        <div class="fw-bold">{{ session.formatage_date }}</div>
+                                        <small class="text-muted">{{ session.formatage_horaire }}</small>
+                                    </td>
+                                    <td>
+                                        {% if session.theme.nom == 'Communiquer avec Teams' %}
+                                        <span class="badge theme-badge theme-comm">{{ session.theme.nom }}</span>
+                                        {% elif session.theme.nom == 'Gérer les tâches (Planner)' %}
+                                        <span class="badge theme-badge theme-planner">{{ session.theme.nom }}</span>
+                                        {% elif session.theme.nom == 'Gérer mes fichiers (OneDrive)' %}
+                                        <span class="badge theme-badge theme-onedrive">{{ session.theme.nom }}</span>
+                                        {% elif session.theme.nom == 'Collaborer Teams / SharePoint' %}
+                                        <span class="badge theme-badge theme-sharepoint">{{ session.theme.nom }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="places-dispo {% if session.places_restantes <= 3 %}text-danger{% elif session.places_restantes <= 7 %}text-warning{% else %}text-success{% endif %}" 
+                                              data-session-id="{{ session.id }}"
+                                              data-max-participants="{{ session.max_participants }}">
+                                            {{ session.places_restantes|default(0) }} / {{ session.max_participants|default(15) }}
+                                        </span>
+                                        <div class="progress mt-1" style="height: 4px;">
+                                            {% set progress = ((session.max_participants - session.places_restantes) / session.max_participants) * 100 %}
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated {% if session.places_restantes <= 3 %}bg-danger{% elif session.places_restantes <= 7 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ progress }}%;" 
+                                                 aria-valuenow="{{ session.max_participants - session.places_restantes }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="{{ session.max_participants }}"
+                                                 data-session-id="{{ session.id }}"
+                                                 data-max-participants="{{ session.max_participants }}">
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-primary position-relative" data-bs-toggle="modal" data-bs-target="#participantsModal{{ session.id }}">
+                                            <i class="fas fa-users me-1"></i>
+                                            <span class="inscrits-count">{{ session.inscriptions|length|default(0) }}</span>
+                                            {% if session.liste_attente and session.liste_attente|length > 0 %}
+                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning attente-counter" data-session-id="{{ session.id }}">
+                                                {{ session.liste_attente|length|default(0) }}
+                                                <span class="visually-hidden">en attente</span>
+                                            </span>
+                                            {% endif %}
+                                        </button>
+                                        
+                                        <!-- Modal Participants -->
+                                        <div class="modal fade" id="participantsModal{{ session.id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">
+                                                            Participants - {{ session.theme.nom }}
+                                                            <small class="text-muted d-block">{{ session.formatage_date }} | {{ session.formatage_horaire }}</small>
+                                                        </h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <!-- Onglets pour participants et liste d'attente -->
+                                                        <ul class="nav nav-tabs" id="participantsTab{{ session.id }}" role="tablist">
+                                                            <li class="nav-item" role="presentation">
+                                                                <button class="nav-link active" id="inscrits-tab{{ session.id }}" data-bs-toggle="tab" data-bs-target="#inscrits{{ session.id }}" type="button" role="tab" aria-controls="inscrits{{ session.id }}" aria-selected="true">
+                                                                    Inscrits <span class="badge bg-primary ms-1">{{ session.inscriptions|length|default(0) }}</span>
+                                                                </button>
+                                                            </li>
+                                                            <li class="nav-item" role="presentation">
+                                                                <button class="nav-link" id="attente-tab{{ session.id }}" data-bs-toggle="tab" data-bs-target="#attente{{ session.id }}" type="button" role="tab" aria-controls="attente{{ session.id }}" aria-selected="false">
+                                                                    Liste d'attente <span class="badge bg-warning text-dark ms-1">{{ session.liste_attente|length|default(0) }}</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                        <div class="tab-content mt-3" id="participantsTabContent{{ session.id }}">
+                                                            <!-- Onglet des inscrits -->
+                                                            <div class="tab-pane fade show active" id="inscrits{{ session.id }}" role="tabpanel" aria-labelledby="inscrits-tab{{ session.id }}">
+                                                                {% if session.inscriptions and session.inscriptions|length > 0 %}
+                                                                <div class="table-responsive">
+                                                                    <table class="table table-striped">
+                                                                        <thead>
+                                                                            <tr>
+                                                                                <th>Participant</th>
+                                                                                <th>Service</th>
+                                                                                <th>Email</th>
+                                                                                <th>Statut</th>
+                                                                                <th>Actions</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {% for inscription in session.inscriptions %}
+                                                                            <tr data-inscription-id="{{ inscription.id }}">
+                                                                                <td>{{ inscription.participant.prenom }} {{ inscription.participant.nom }}</td>
+                                                                                <td>
+                                                                                    <span class="service-badge {{ inscription.participant.service_id }}"></span>
+                                                                                    {{ inscription.participant.service.nom }}
+                                                                                </td>
+                                                                                <td>{{ inscription.participant.email }}</td>
+                                                                                <td>
+                                                                                    {% if inscription.statut == 'confirmé' %}
+                                                                                    <span class="badge bg-success">Confirmé</span>
+                                                                                    {% elif inscription.statut == 'en attente' %}
+                                                                                    <span class="badge bg-warning">En attente</span>
+                                                                                    {% else %}
+                                                                                    <span class="badge bg-danger">Annulé</span>
+                                                                                    {% endif %}
+                                                                                </td>
+                                                                                <td class="actions-cell">
+                                                                                    {% if inscription.statut == 'en attente' %}
+                                                                                    <div class="btn-group btn-group-sm">
+                                                                                        <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
+                                                                                            <input type="hidden" name="action" value="valider">
+                                                                                            <button type="submit" class="btn btn-sm btn-success">
+                                                                                                <i class="fas fa-check me-1"></i>Valider
+                                                                                            </button>
+                                                                                        </form>
+                                                                                        <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
+                                                                                            <input type="hidden" name="action" value="refuser">
+                                                                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                                                                <i class="fas fa-times me-1"></i>Refuser
+                                                                                            </button>
+                                                                                        </form>
+                                                                                    </div>
+                                                                                    {% endif %}
+                                                                                    
+                                                                                    {% if inscription.statut == 'confirmé' %}
+                                                                                    <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                                                        <i class="far fa-calendar-plus me-1"></i>Outlook
+                                                                                    </a>
+                                                                                    {% endif %}
+                                                                                </td>
+                                                                            </tr>
+                                                                            {% endfor %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                                {% else %}
+                                                                <div class="alert alert-info">
+                                                                    <i class="fas fa-info-circle me-2"></i>Aucun participant inscrit pour cette session.
+                                                                </div>
+                                                                {% endif %}
+                                                            </div>
+                                                            
+                                                            <!-- Onglet liste d'attente -->
+                                                            <div class="tab-pane fade" id="attente{{ session.id }}" role="tabpanel" aria-labelledby="attente-tab{{ session.id }}">
+                                                                {% if session.liste_attente and session.liste_attente|length > 0 %}
+                                                                <div class="table-responsive">
+                                                                    <table class="table table-striped">
+                                                                        <thead>
+                                                                            <tr>
+                                                                                <th>Position</th>
+                                                                                <th>Participant</th>
+                                                                                <th>Service</th>
+                                                                                <th>Date d'inscription</th>
+                                                                                <th>Statut</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {% for attente in session.liste_attente|sort(attribute='position') %}
+                                                                            <tr>
+                                                                                <td><span class="badge bg-secondary">{{ attente.position }}</span></td>
+                                                                                <td>{{ attente.participant.prenom }} {{ attente.participant.nom }}</td>
+                                                                                <td>
+                                                                                    <span class="service-badge {{ attente.participant.service_id }}"></span>
+                                                                                    {{ attente.participant.service.nom }}
+                                                                                </td>
+                                                                                <td>{{ attente.date_inscription.strftime('%d/%m/%Y') }}</td>
+                                                                                <td>
+                                                                                    {% if attente.notification_envoyee %}
+                                                                                    <span class="badge bg-info">Notifié</span>
+                                                                                    {% else %}
+                                                                                    <span class="badge bg-warning text-dark">En attente</span>
+                                                                                    {% endif %}
+                                                                                </td>
+                                                                            </tr>
+                                                                            {% endfor %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                                {% else %}
+                                                                <div class="alert alert-info">
+                                                                    <i class="fas fa-info-circle me-2"></i>Aucun participant en liste d'attente pour cette session.
+                                                                </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session.id }}">
+                                                            <i class="fas fa-user-plus me-1"></i>Ajouter un participant
+                                                        </button>
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if session.salle %}
+                                        <span class="badge bg-info text-white">{{ session.salle.nom }}</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Non définie</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-sm btn-primary btn-inscription" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session.id }}" {% if session.places_restantes == 0 %}style="display: none;"{% endif %}>
+                                                <i class="fas fa-user-plus"></i>
+                                            </button>
+                                            <a href="{{ url_for('liste_attente', session_id=session.id, participant_id=current_user.id if current_user.is_authenticated else '') }}" class="btn btn-sm btn-warning btn-liste-attente" {% if session.places_restantes > 0 %}style="display: none;"{% endif %}>
+                                                <i class="fas fa-clock"></i>
+                                            </a>
+                                            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#attribuerSalleModal{{ session.id }}">
+                                                <i class="fas fa-building"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Graphiques -->
+        <div class="col-lg-4">
+            <!-- Graphique par thème -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-pie me-2"></i>Répartition par thème
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="themeChart" width="100%" height="50"></canvas>
+                </div>
+            </div>
+            
+            <!-- Graphique par service -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-bar me-2"></i>Participants par service
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="serviceChart" width="100%" height="50"></canvas>
+                </div>
+            </div>
+            
+            <!-- Activité récente -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-bell me-2"></i>Activité récente
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="recent-activity">
+                        {% if activites_recentes %}
+                            {% for activite in activites_recentes %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ activite.titre }}</h6>
+                                    <small class="text-muted">{{ activite.date_relative }}</small>
+                                </div>
+                                <p class="mb-1">{{ activite.description }}</p>
+                                <small class="text-muted">{{ activite.details }}</small>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Bienvenue sur le dashboard</h6>
+                                    <small class="text-muted">à l'instant</small>
+                                </div>
+                                <p class="mb-1">Les activités récentes s'afficheront ici.</p>
+                                <small class="text-muted">Commencez par inscrire des participants aux sessions.</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer bg-white py-2 text-center">
+                    <a href="#" class="text-primary">Voir toutes les activités <i class="fas fa-arrow-right ms-1"></i></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Container pour les notifications toast -->
+<div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;"></div>
+
+<!-- Champ caché pour l'ID utilisateur (pour WebSocket) -->
+{% if current_user.is_authenticated %}
+<input type="hidden" id="user-id" value="{{ current_user.id }}">
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Filtrage des sessions
+        const filterLinks = document.querySelectorAll('[data-filter]');
+        filterLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const filter = this.dataset.filter;
+                const rows = document.querySelectorAll('.session-row');
+                
+                rows.forEach(row => {
+                    if (filter === 'all') {
+                        row.style.display = '';
+                    } else if (filter === 'available') {
+                        row.style.display = row.dataset.full === '0' ? '' : 'none';
+                    } else if (filter === 'full') {
+                        row.style.display = row.dataset.full === '1' ? '' : 'none';
+                    } else {
+                        // Filtres par thème
+                        const theme = row.dataset.theme;
+                        row.style.display = theme === filter ? '' : 'none';
+                    }
+                });
+                
+                // Mettre à jour le texte du bouton dropdown
+                document.getElementById('sessionsFilterDropdown').innerHTML = `<i class="fas fa-filter me-1"></i>${this.textContent}`;
+            });
+        });
+        
+        // Initialisation des graphiques
+        const themeChartCtx = document.getElementById('themeChart');
+        const serviceChartCtx = document.getElementById('serviceChart');
+        
+        if (themeChartCtx && serviceChartCtx) {
+            // Détruire les charts existants si présents
+            if (window.themeChart && typeof window.themeChart.destroy === 'function') {
+                window.themeChart.destroy();
+            }
+            if (window.serviceChart && typeof window.serviceChart.destroy === 'function') {
+                window.serviceChart.destroy();
+            }
+            
+            // Créer un objet pour stocker les références aux graphiques
+            window.dashboardCharts = {};
+            
+            // Prétraitement des données pour les graphiques
+            {% set teams_count = 0 %}
+            {% set planner_count = 0 %}
+            {% set onedrive_count = 0 %}
+            {% set sharepoint_count = 0 %}
+            
+            {% for session in sessions %}
+                {% if session.theme.nom == 'Communiquer avec Teams' %}
+                    {% set teams_count = teams_count + session.inscriptions|length %}
+                {% elif session.theme.nom == 'Gérer les tâches (Planner)' %}
+                    {% set planner_count = planner_count + session.inscriptions|length %}
+                {% elif session.theme.nom == 'Gérer mes fichiers (OneDrive)' %}
+                    {% set onedrive_count = onedrive_count + session.inscriptions|length %}
+                {% elif session.theme.nom == 'Collaborer Teams / SharePoint' %}
+                    {% set sharepoint_count = sharepoint_count + session.inscriptions|length %}
+                {% endif %}
+            {% endfor %}
+            
+            // Graphique des thèmes
+            if (themeChartCtx) {
+                const themeChart = new Chart(themeChartCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: [
+                            'Communiquer avec Teams',
+                            'Gérer les tâches (Planner)',
+                            'Gérer mes fichiers (OneDrive)',
+                            'Collaborer Teams / SharePoint'
+                        ],
+                        datasets: [{
+                            data: [
+                                {{ teams_count|default(0) }},
+                                {{ planner_count|default(0) }},
+                                {{ onedrive_count|default(0) }},
+                                {{ sharepoint_count|default(0) }}
+                            ],
+                            backgroundColor: [
+                                '#0078d4',
+                                '#7719aa',
+                                '#0364b8',
+                                '#038387'
+                            ],
+                            borderWidth: 0,
+                            hoverOffset: 15
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 15,
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        animation: {
+                            animateScale: true,
+                            animateRotate: true
+                        }
+                    }
+                });
+                window.themeChart = themeChart;
+                window.dashboardCharts.themeChart = themeChart;
+            }
+            
+            // Graphique des services
+            if (serviceChartCtx) {
+                const serviceChart = new Chart(serviceChartCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: [
+                            {% for service in services %}
+                            '{{ service.nom }}',
+                            {% endfor %}
+                        ],
+                        datasets: [{
+                            label: 'Participants',
+                            data: [
+                                {% for service in services %}
+                                {{ participants|selectattr('service_id', 'equalto', service.id)|list|length|default(0) }},
+                                {% endfor %}
+                            ],
+                            backgroundColor: [
+                                '#FFC107',
+                                '#2196F3',
+                                '#4CAF50',
+                                '#607D8B',
+                                '#9C27B0',
+                                '#F44336',
+                                '#FF9800'
+                            ],
+                            borderRadius: 5,
+                            maxBarThickness: 35
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    drawBorder: false,
+                                    color: 'rgba(0,0,0,0.05)'
+                                },
+                                ticks: {
+                                    precision: 0
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 2000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
+                });
+                window.serviceChart = serviceChart;
+                window.dashboardCharts.serviceChart = serviceChart;
+            }
+            
+            // Animation des compteurs
+            const counterElements = document.querySelectorAll('.counter-value');
+            counterElements.forEach(counter => {
+                const target = parseInt(counter.textContent) || 0;
+                const duration = 1500;
+                const increment = target / (duration / 16);
+                let current = 0;
+                
+                const updateCounter = () => {
+                    if (current < target) {
+                        current += increment;
+                        counter.textContent = Math.ceil(current);
+                        requestAnimationFrame(updateCounter);
+                    } else {
+                        counter.textContent = target;
+                    }
+                };
+                
+                updateCounter();
+            });
+        }
+        
+        // Bouton d'actualisation
+        document.getElementById('refresh-dashboard').addEventListener('click', function() {
+            this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-2"></i>Actualisation...';
+            
+            // Simuler un délai pour l'actualisation
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+<!-- templates/services.html -->
+{% extends "layout.html" %}
+
+{% block content %}
+<h1 class="mb-4"><i class="fas fa-users me-2"></i>Services</h1>
+
+<div class="row">
+    {% for service in services %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header text-white" style="background-color: {{ service.couleur }};">
+                <h5 class="mb-0">{{ service.nom }}</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Responsable:</strong> {{ service.responsable }}</p>
+                <p><strong>Email:</strong> <a href="mailto:{{ service.email_responsable }}">{{ service.email_responsable }}</a></p>
+                
+                <h6 class="mt-4">Participants:</h6>
+                {% if service.participants %}
+                <ul class="list-group">
+                    {% for participant in service.participants %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ participant.prenom }} {{ participant.nom }}
+                        <span class="badge bg-primary rounded-pill">{{ participant.inscriptions|length }} inscriptions</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted">Aucun participant pour ce service.</p>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#addParticipantModal{{ service.id }}">
+                    <i class="fas fa-user-plus me-2"></i>Ajouter un participant
+                </button>
+                
+                <!-- Modal Ajouter Participant -->
+                <div class="modal fade" id="addParticipantModal{{ service.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Ajouter un participant - {{ service.nom }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form action="/add_participant" method="post">
+                                    <input type="hidden" name="service_id" value="{{ service.id }}">
+                                    
+                                    <div class="mb-3">
+                                        <label for="nom" class="form-label">Nom</label>
+                                        <input type="text" class="form-control" id="nom" name="nom" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="prenom" class="form-label">Prénom</label>
+                                        <input type="text" class="form-control" id="prenom" name="prenom" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" name="email" required>
+                                    </div>
+                                    
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary">Ajouter</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
