@@ -57,7 +57,7 @@
 <div class="row">
     {% for session in sessions %}
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 session-card" data-session-id="{{ session.id }}" data-theme="{{ session.theme.nom|replace(' ', '-')|lower }}">
+        <div class="card h-100 session-card" data-session-id="{{ session.id }}" data-theme="{{ session.theme.nom|replace(' ', '-')|lower }}" data-date="{{ session.date }}" data-places="{{ session.places_restantes }}">
             <div class="card-header">
                 <h5 class="mb-0">{{ session.formatage_date }}</h5>
                 <p class="text-muted mb-0">{{ session.formatage_horaire }}</p>
@@ -67,9 +67,9 @@
                 <span class="badge theme-badge theme-comm">{{ session.theme.nom }}</span>
                 {% elif session.theme.nom == 'Gérer les tâches (Planner)' %}
                 <span class="badge theme-badge theme-planner">{{ session.theme.nom }}</span>
-                {% elif session.theme.nom == 'Gérer mes fichiers (OneDrive)' %}
+                {% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}
                 <span class="badge theme-badge theme-onedrive">{{ session.theme.nom }}</span>
-                {% elif session.theme.nom == 'Collaborer Teams / SharePoint' %}
+                {% elif session.theme.nom == 'Collaborer avec Teams' %}
                 <span class="badge theme-badge theme-sharepoint">{{ session.theme.nom }}</span>
                 {% endif %}
                 
@@ -124,7 +124,7 @@
             </div>
             <div class="card-footer">
                 {% if session.places_restantes > 0 %}
-                <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session.id }}">
+                <button type="button" class="btn btn-primary w-100 btn-participant" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session.id }}">
                     <i class="fas fa-user-plus me-2"></i>S'inscrire
                 </button>
                 {% else %}
@@ -269,11 +269,24 @@
                         show = false;
                     }
                     
-                    // Autres filtres ici si nécessaire...
+                    // Filtrer par date si sélectionnée
+                    if (dateValue && card.dataset.date !== dateValue) {
+                        show = false;
+                    }
+                    
+                    // Filtrer par places disponibles
+                    if (placesValue === 'available' && parseInt(card.dataset.places) <= 0) {
+                        show = false;
+                    }
                     
                     card.closest('.col-md-6').style.display = show ? '' : 'none';
                 });
             }
+            
+            // Ajout des écouteurs d'événements sur les filtres
+            themeSelect.addEventListener('change', filterSessions);
+            dateSelect.addEventListener('change', filterSessions);
+            placesSelect.addEventListener('change', filterSessions);
             
             // Mise à jour de la disponibilité des places en temps réel
             function updateAvailability() {
@@ -283,6 +296,9 @@
                         data.forEach(session => {
                             const card = document.querySelector(`.session-card[data-session-id="${session.id}"]`);
                             if (card) {
+                                // Mettre à jour l'attribut data-places
+                                card.dataset.places = session.places_restantes;
+                                
                                 const progressBar = card.querySelector('.progress-bar');
                                 const placesText = card.querySelector('.text-muted small');
                                 const inscriptionBtn = card.querySelector('.btn-primary');
@@ -319,11 +335,35 @@
                                         complet.parentElement.style.display = '';
                                     }
                                 }
+                                
+                                // Appliquer le filtre si nécessaire
+                                if (placesSelect.value === 'available') {
+                                    filterSessions();
+                                }
                             }
                         });
                     })
                     .catch(error => console.error('Erreur lors de la récupération des données de session:', error));
             }
+            
+            // Corrige le problème des modals qui scintillent
+            const buttons = document.querySelectorAll('.btn-participant');
+            buttons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Récupérer l'ID de la modal ciblée
+                    const targetId = this.getAttribute('data-bs-target');
+                    if (!targetId) return;
+                    
+                    const modalElement = document.querySelector(targetId);
+                    if (modalElement) {
+                        const modal = new bootstrap.Modal(modalElement);
+                        modal.show();
+                    }
+                });
+            });
             
             // Mettre à jour toutes les 30 secondes
             setInterval(updateAvailability, 30000);

@@ -7,17 +7,23 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime, timedelta
-import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from datetime import datetime, timedelta
 import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key-for-dev')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://xvcyuaga:rfodwjclemtvhwvqsrpp@alpha.europe.mkdb.sh:5432/usdtdsgq')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Optimize SQLAlchemy connection pool
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 5,           # Maximum number of connections to keep in the pool
+    'max_overflow': 10,       # Maximum number of connections to create beyond pool_size
+    'pool_timeout': 30,       # Seconds to wait before giving up on getting a connection
+    'pool_recycle': 1800,     # Recycle connections after 30 minutes to prevent stale connections
+    'pool_pre_ping': True     # Check connection health before using it
+}
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -158,7 +164,7 @@ class User(UserMixin, db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 # Helpers et utilitaires
 def generate_ics(session, participant, salle=None):
@@ -251,6 +257,24 @@ def add_activity(type, description, details=None):
         'description': activite.description,
         'date_relative': activite.date_relative
     })
+
+def update_theme_names():
+    """Mise à jour des noms de thèmes pour assurer la cohérence"""
+    with app.app_context():
+        # Mettre à jour le thème OneDrive/SharePoint
+        onedrive_theme = Theme.query.filter(Theme.nom.like('%OneDrive%')).first()
+        if onedrive_theme and onedrive_theme.nom != 'Gérer mes fichiers (OneDrive/SharePoint)':
+            onedrive_theme.nom = 'Gérer mes fichiers (OneDrive/SharePoint)'
+            onedrive_theme.description = 'Apprenez à organiser et partager vos fichiers avec OneDrive et SharePoint.'
+            
+        # Mettre à jour le thème Collaborer avec Teams
+        collaborer_theme = Theme.query.filter(Theme.nom.like('%Collaborer%')).first()
+        if collaborer_theme and collaborer_theme.nom != 'Collaborer avec Teams':
+            collaborer_theme.nom = 'Collaborer avec Teams'
+            collaborer_theme.description = 'Découvrez comment collaborer sur des documents avec Microsoft Teams.'
+        
+        db.session.commit()
+        print("Noms des thèmes mis à jour avec succès!")
 
 # Routes pour WebSocket
 @socketio.on('connect')
@@ -822,6 +846,173 @@ def api_salles():
     
     return jsonify(result)
 
+# Route pour le panneau d'administration
+@app.route('/admin')
+@login_required
+def admin():
+    if current_user.role != 'admin':
+        flash('Accès réservé aux administrateurs', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    themes = Theme.query.all()
+    sessions = Session.query.order_by(Session.date, Session.heure_debut).all()
+    services = Service.query.all()
+    participants = Participant.query.all()
+    salles = Salle.query.all()
+    
+    # Statistiques pour le dashboard
+    total_inscriptions = Inscription.query.filter_by(statut='confirmé').count()
+    total_en_attente = ListeAttente.query.count()
+    total_sessions_completes = sum(1 for s in sessions if s.places_restantes == 0)
+    
+    # Récupérer les activités récentes (10 dernières)
+    activites_recentes = Activite.query.order_by(Activite.date.desc()).limit(10).all()
+    
+    return render_template(
+        'admin.html', 
+        themes=themes, 
+        sessions=sessions, 
+        services=services, 
+        participants=participants,
+        salles=salles,
+        total_inscriptions=total_inscriptions,
+        total_en_attente=total_en_attente,
+        total_sessions_completes=total_sessions_completes,
+        activites_recentes=activites_recentes
+    )
+
+# Route pour la gestion des participants
+@app.route('/participants')
+@login_required
+def participants():
+    if current_user.role not in ['admin', 'responsable']:
+        flash('Accès réservé aux administrateurs et responsables', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    participants = Participant.query.all()
+    services = Service.query.all()
+    
+    return render_template('participants.html', participants=participants, services=services)
+
+# Route pour la mise à jour d'un participant
+@app.route('/update_participant/<int:id>', methods=['POST'])
+@login_required
+def update_participant(id):
+    if current_user.role not in ['admin', 'responsable']:
+        flash('Accès réservé aux administrateurs et responsables', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    participant = Participant.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        participant.nom = request.form.get('nom').upper()
+        participant.prenom = request.form.get('prenom').capitalize()
+        participant.email = request.form.get('email').lower()
+        participant.service_id = request.form.get('service_id')
+        
+        db.session.commit()
+        
+        # Enregistrer l'activité
+        add_activity(
+            'modification_participant', 
+            f'Modification du participant {participant.prenom} {participant.nom}',
+            f'Service: {participant.service.nom}'
+        )
+        
+        flash('Participant modifié avec succès', 'success')
+        return redirect(url_for('participants'))
+
+# Route pour la gestion des thèmes
+@app.route('/themes')
+@login_required
+def themes():
+    if current_user.role != 'admin':
+        flash('Accès réservé aux administrateurs', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    themes = Theme.query.all()
+    return render_template('themes.html', themes=themes)
+
+# Route pour ajouter un thème
+@app.route('/add_theme', methods=['POST'])
+@login_required
+def add_theme():
+    if current_user.role != 'admin':
+        flash('Accès réservé aux administrateurs', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        nom = request.form.get('nom')
+        description = request.form.get('description')
+        
+        if not nom:
+            flash('Le nom du thème est obligatoire', 'danger')
+            return redirect(url_for('themes'))
+        
+        theme = Theme(
+            nom=nom,
+            description=description
+        )
+        
+        db.session.add(theme)
+        db.session.commit()
+        
+        # Enregistrer l'activité
+        add_activity(
+            'ajout_theme', 
+            f'Ajout du thème {theme.nom}'
+        )
+        
+        flash('Thème ajouté avec succès', 'success')
+        return redirect(url_for('themes'))
+
+# Route pour mettre à jour un thème
+@app.route('/update_theme/<int:id>', methods=['POST'])
+@login_required
+def update_theme(id):
+    if current_user.role != 'admin':
+        flash('Accès réservé aux administrateurs', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    theme = Theme.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        theme.nom = request.form.get('nom')
+        theme.description = request.form.get('description')
+        
+        db.session.commit()
+        
+        # Enregistrer l'activité
+        add_activity(
+            'modification_theme', 
+            f'Modification du thème {theme.nom}'
+        )
+        
+        flash('Thème mis à jour avec succès', 'success')
+        return redirect(url_for('themes'))
+
+# Route pour le journal d'activité
+@app.route('/activites')
+@login_required
+def activites():
+    if current_user.role != 'admin':
+        flash('Accès réservé aux administrateurs', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Filtre par type si spécifié
+    type_filter = request.args.get('type')
+    query = Activite.query
+    
+    if type_filter:
+        query = query.filter_by(type=type_filter)
+    
+    activites = query.order_by(Activite.date.desc()).paginate(page=page, per_page=per_page)
+    
+    return render_template('activites.html', activites=activites)
+
 @app.route('/api/activites')
 def api_activites():
     activites = Activite.query.order_by(Activite.date.desc()).limit(20).all()
@@ -867,7 +1058,7 @@ def init_db():
             ]
             db.session.add_all(salles)
             
-            # Thèmes (modifications demandées pour SharePoint/OneDrive et Collaborer Teams)
+            # Thèmes
             themes = [
                 Theme(nom='Communiquer avec Teams', description='Apprenez à utiliser Microsoft Teams pour communiquer efficacement avec vos collègues.'),
                 Theme(nom='Gérer les tâches (Planner)', description='Maîtrisez la gestion des tâches d\'équipe avec les outils Microsoft.'),
@@ -877,7 +1068,7 @@ def init_db():
             db.session.add_all(themes)
             db.session.commit()
             
-            # Sessions - NOTA: Inverser les sessions du 1er juillet comme demandé
+            # Sessions
             sessions_data = [
                 # 13 mai 2025
                 {'date': '2025-05-13', 'debut': '09:00', 'fin': '10:30', 'theme': 'Communiquer avec Teams', 'salle': 'Salle Barcelone'},
@@ -894,7 +1085,7 @@ def init_db():
                 {'date': '2025-06-20', 'debut': '10:45', 'fin': '12:15', 'theme': 'Gérer mes fichiers (OneDrive/SharePoint)', 'salle': 'Salle Valence'},
                 {'date': '2025-06-20', 'debut': '14:00', 'fin': '15:30', 'theme': 'Collaborer avec Teams', 'salle': 'Salle Valence'},
                 {'date': '2025-06-20', 'debut': '15:45', 'fin': '17:15', 'theme': 'Collaborer avec Teams', 'salle': 'Salle Valence'},
-                # 1er juillet 2025 - Inversé comme demandé: Communiquer avant Collaborer
+                # 1er juillet 2025
                 {'date': '2025-07-01', 'debut': '09:00', 'fin': '10:30', 'theme': 'Communiquer avec Teams', 'salle': 'Salle Madrid'},
                 {'date': '2025-07-01', 'debut': '10:45', 'fin': '12:15', 'theme': 'Communiquer avec Teams', 'salle': 'Salle Madrid'},
                 {'date': '2025-07-01', 'debut': '14:00', 'fin': '15:30', 'theme': 'Collaborer avec Teams', 'salle': 'Salle Madrid'},
@@ -951,7 +1142,7 @@ def init_db():
             
             db.session.commit()
             
-            # Ajouter les inscriptions d'Élodie (selon l'image)
+            # Ajouter les inscriptions d'Élodie
             theme_collab = Theme.query.filter_by(nom='Collaborer avec Teams').first()
             sessions_elodie = Session.query.filter(
                 ((Session.date == datetime.strptime('2025-05-13', '%Y-%m-%d').date()) |
@@ -979,7 +1170,10 @@ def init_db():
             db.session.add_all(activites)
             
             db.session.commit()
+        
+        # Mettre à jour les noms des thèmes
+        update_theme_names()
 
 if __name__ == '__main__':
     init_db()
-    socketio.run(app, debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    socketio.run(app, debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

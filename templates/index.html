@@ -11,7 +11,7 @@
             <p>16 sessions de formations sont proposées entre mai et juillet 2025, sur 4 thématiques différentes.</p>
             <p class="d-flex gap-2">
                 <a href="#themes" class="btn btn-primary btn-lg"><i class="fas fa-info-circle me-2"></i>Découvrir les thèmes</a>
-                <a href="/sessions" class="btn btn-success btn-lg"><i class="fas fa-calendar-alt me-2"></i>Voir les sessions</a>
+                <a href="/dashboard" class="btn btn-success btn-lg"><i class="fas fa-tachometer-alt me-2"></i>Accéder au tableau de bord</a>
             </p>
         </div>
     </div>
@@ -21,8 +21,8 @@
 
 <div class="row">
     <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-primary text-white">
+        <div class="card h-100 theme-card teams">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-comments me-2"></i>Communiquer avec Teams</h5>
             </div>
             <div class="card-body">
@@ -34,14 +34,14 @@
                 </ul>
             </div>
             <div class="card-footer">
-                <a href="/sessions?theme=1" class="btn btn-primary">Voir les sessions disponibles</a>
+                <a href="/dashboard" class="btn btn-primary">Voir les sessions disponibles</a>
             </div>
         </div>
     </div>
 
     <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-purple text-white" style="background-color: #7719aa;">
+        <div class="card h-100 theme-card planner">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Gérer les tâches (Planner)</h5>
             </div>
             <div class="card-body">
@@ -53,45 +53,45 @@
                 </ul>
             </div>
             <div class="card-footer">
-                <a href="/sessions?theme=2" class="btn btn-primary" style="background-color: #7719aa; border-color: #7719aa;">Voir les sessions disponibles</a>
+                <a href="/dashboard" class="btn btn-primary">Voir les sessions disponibles</a>
             </div>
         </div>
     </div>
 
     <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header text-white" style="background-color: #0364b8;">
-                <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Gérer mes fichiers (OneDrive)</h5>
+        <div class="card h-100 theme-card onedrive">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Gérer mes fichiers (OneDrive/SharePoint)</h5>
             </div>
             <div class="card-body">
                 <p class="card-text">Apprenez à organiser et partager vos fichiers avec OneDrive et SharePoint.</p>
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item">Stockez et synchronisez vos fichiers avec OneDrive</li>
-                    <li class="list-group-item">Partagez vos documents en toute sécurité</li>
+                    <li class="list-group-item">Partagez vos documents en toute sécurité via SharePoint</li>
                     <li class="list-group-item">Collaborez sur des fichiers avec vos collègues</li>
                 </ul>
             </div>
             <div class="card-footer">
-                <a href="/sessions?theme=3" class="btn btn-primary" style="background-color: #0364b8; border-color: #0364b8;">Voir les sessions disponibles</a>
+                <a href="/dashboard" class="btn btn-primary">Voir les sessions disponibles</a>
             </div>
         </div>
     </div>
 
     <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header text-white" style="background-color: #038387;">
-                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Collaborer Teams / SharePoint</h5>
+        <div class="card h-100 theme-card sharepoint">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Collaborer avec Teams</h5>
             </div>
             <div class="card-body">
-                <p class="card-text">Découvrez comment collaborer sur des documents avec Teams et SharePoint.</p>
+                <p class="card-text">Découvrez comment collaborer sur des documents avec Microsoft Teams.</p>
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item">Utilisez Teams et SharePoint pour le travail collaboratif</li>
-                    <li class="list-group-item">Créez et gérez des sites d'équipe avec SharePoint</li>
-                    <li class="list-group-item">Intégrez SharePoint dans Teams pour une productivité maximale</li>
+                    <li class="list-group-item">Utilisez Teams pour le travail collaboratif</li>
+                    <li class="list-group-item">Créez et gérez des canaux et équipes avec Teams</li>
+                    <li class="list-group-item">Intégrez les applications Office 365 dans Teams pour une productivité maximale</li>
                 </ul>
             </div>
             <div class="card-footer">
-                <a href="/sessions?theme=4" class="btn btn-primary" style="background-color: #038387; border-color: #038387;">Voir les sessions disponibles</a>
+                <a href="/dashboard" class="btn btn-primary">Voir les sessions disponibles</a>
             </div>
         </div>
     </div>
@@ -99,7 +99,7 @@
 
 <div class="row mt-5">
     <div class="col-md-12">
-        <div class="card">
+        <div class="card shadow-sm">
             <div class="card-header bg-secondary text-white">
                 <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Calendrier des formations</h5>
             </div>
@@ -125,9 +125,9 @@
                                     <span class="badge theme-badge theme-comm">{{ session.theme.nom }}</span>
                                     {% elif session.theme.nom == 'Gérer les tâches (Planner)' %}
                                     <span class="badge theme-badge theme-planner">{{ session.theme.nom }}</span>
-                                    {% elif session.theme.nom == 'Gérer mes fichiers (OneDrive)' %}
+                                    {% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}
                                     <span class="badge theme-badge theme-onedrive">{{ session.theme.nom }}</span>
-                                    {% elif session.theme.nom == 'Collaborer Teams / SharePoint' %}
+                                    {% elif session.theme.nom == 'Collaborer avec Teams' %}
                                     <span class="badge theme-badge theme-sharepoint">{{ session.theme.nom }}</span>
                                     {% endif %}
                                 </td>
@@ -137,7 +137,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <a href="/sessions/{{ session.id }}" class="btn btn-sm btn-outline-primary">Détails</a>
+                                    <a href="/dashboard" class="btn btn-sm btn-outline-primary">Accéder au dashboard</a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -148,4 +148,181 @@
         </div>
     </div>
 </div>
+
+<!-- Bloc de statistiques en temps réel à afficher sur la page d'accueil -->
+<div class="row mt-5">
+    <div class="col-md-12">
+        <h2 class="mb-4">Statistiques des formations</h2>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow-sm py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sessions programmées</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 counter-value" id="sessions_programmees">{{ sessions|length|default(0) }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar-alt fa-2x text-primary-light"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow-sm py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Participants inscrits</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 counter-value" id="total_inscriptions">{{ total_inscriptions|default(0) }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-success-light"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow-sm py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">En liste d'attente</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 counter-value" id="total_en_attente">{{ total_en_attente|default(0) }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-user-clock fa-2x text-warning-light"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-danger shadow-sm py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Sessions complètes</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 counter-value" id="total_sessions_completes">{{ total_sessions_completes|default(0) }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-ban fa-2x text-danger-light"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animation des compteurs
+        const counterElements = document.querySelectorAll('.counter-value');
+        counterElements.forEach(counter => {
+            const target = parseInt(counter.textContent) || 0;
+            const duration = 1500;
+            const increment = target / (duration / 16);
+            let current = 0;
+            
+            const updateCounter = () => {
+                if (current < target) {
+                    current += increment;
+                    counter.textContent = Math.ceil(current);
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    counter.textContent = target;
+                }
+            };
+            
+            updateCounter();
+        });
+        
+        // Mettre à jour les données périodiquement via WebSocket
+        if (typeof io !== 'undefined') {
+            const socket = io({
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 20000
+            });
+            
+            socket.on('connect', function() {
+                console.log('Connecté au serveur WebSocket');
+                socket.emit('join', { room: 'general' });
+            });
+            
+            // Récupérer les données actualisées
+            function refreshCounters() {
+                fetch('/api/sessions')
+                    .then(response => response.json())
+                    .then(data => {
+                        // Compter les sessions complètes
+                        const sessionsCompletes = data.filter(session => session.places_restantes === 0).length;
+                        updateCounter('total_sessions_completes', sessionsCompletes);
+                        
+                        // Mettre à jour le compteur de sessions programmées
+                        updateCounter('sessions_programmees', data.length);
+                        
+                        // Calculer le total des inscriptions
+                        const totalInscrits = data.reduce((total, session) => total + session.inscrits, 0);
+                        updateCounter('total_inscriptions', totalInscrits);
+                        
+                        // Calculer le total en liste d'attente
+                        const totalAttente = data.reduce((total, session) => total + (session.liste_attente || 0), 0);
+                        updateCounter('total_en_attente', totalAttente);
+                    })
+                    .catch(error => console.error('Erreur:', error));
+            }
+            
+            // Fonction pour mettre à jour un compteur spécifique
+            function updateCounter(id, value) {
+                const counter = document.getElementById(id);
+                if (counter) {
+                    // Animation du compteur
+                    const currentValue = parseInt(counter.textContent) || 0;
+                    if (currentValue !== value) {
+                        animateCounter(counter, currentValue, value);
+                    }
+                }
+            }
+            
+            // Fonction pour animer un compteur
+            function animateCounter(element, startValue, endValue) {
+                if (startValue === endValue) return;
+                
+                const duration = 1000;
+                const steps = 20;
+                const increment = (endValue - startValue) / steps;
+                let current = startValue;
+                const interval = duration / steps;
+                
+                const timer = setInterval(() => {
+                    current += increment;
+                    if ((increment > 0 && current >= endValue) || (increment < 0 && current <= endValue)) {
+                        clearInterval(timer);
+                        element.textContent = endValue;
+                    } else {
+                        element.textContent = Math.round(current);
+                    }
+                }, interval);
+            }
+            
+            // Mettre à jour toutes les 30 secondes
+            setInterval(refreshCounters, 30000);
+            
+            // Première mise à jour
+            setTimeout(refreshCounters, 1000);
+        }
+    });
+</script>
 {% endblock %}
