@@ -1,6 +1,6 @@
 // static/js/websocket.js
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialisation de Socket.IO
+    // Initialisation de Socket.IO avec options de reconnexion
     const socket = io({
         reconnection: true,
         reconnectionAttempts: 5,
@@ -22,6 +22,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (userId) {
             socket.emit('join', { room: `user_${userId.value}` });
         }
+        
+        // Forcer une mise à jour des données à la connexion
+        setTimeout(function() {
+            updateCharts();
+            updateSessionPlaces();
+            updateCounters();
+        }, 1000);
     });
     
     // Déconnexion
@@ -34,11 +41,17 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('reconnect', function(attemptNumber) {
         console.log(`Reconnecté au serveur après ${attemptNumber} tentatives`);
         showToast('Connexion rétablie!', 'success');
+        
+        // Forcer un rafraîchissement des données
+        updateCharts();
+        updateSessionPlaces();
+        updateCounters();
     });
     
     // Erreur de reconnexion
     socket.on('reconnect_error', function(error) {
         console.error('Erreur de reconnexion:', error);
+        showToast('Impossible de se reconnecter au serveur', 'danger');
     });
     
     // Notification générale
@@ -67,6 +80,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Actualiser les compteurs
         updateStatsCounter('total_inscriptions');
+        
+        // Actualiser la répartition par thème et par service
+        updateCharts();
+        
+        // Ajouter à l'activité récente
+        refreshRecentActivity();
     });
     
     // Inscription validée
@@ -90,6 +109,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 actionsCell.appendChild(invitationBtn);
             }
         }
+        
+        // Mettre à jour le compteur d'inscriptions
+        if (data.total_inscriptions) {
+            updateCounter('total_inscriptions', data.total_inscriptions);
+        }
+        
+        // Actualiser la répartition par thème
+        updateCharts();
+        
+        // Actualiser l'activité récente
+        refreshRecentActivity();
     });
     
     // Inscription refusée
@@ -112,6 +142,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Mettre à jour les places disponibles
         updateSessionPlaces(data.session_id);
+        
+        // Actualiser l'activité récente
+        refreshRecentActivity();
     });
     
     // Nouvelle entrée en liste d'attente
@@ -123,36 +156,179 @@ document.addEventListener('DOMContentLoaded', function() {
             attenteCounter.textContent = currentCount + 1;
         }
         
-        // Actualiser les compteurs
-        updateStatsCounter('total_en_attente');
+        // Mettre à jour le compteur global de liste d'attente
+        if (data.total_en_attente) {
+            updateCounter('total_en_attente', data.total_en_attente);
+        }
+        
+        // Actualiser l'activité récente
+        refreshRecentActivity();
     });
     
-    // Fonction pour mettre à jour l'affichage des places disponibles
-    function updateSessionPlaces(sessionId, placesRestantes) {
-        // Si places_restantes n'est pas fourni, faire une requête API pour l'obtenir
-        if (placesRestantes === undefined) {
-            fetch(`/api/sessions`)
-                .then(response => response.json())
-                .then(data => {
-                    const session = data.find(s => s.id == sessionId);
-                    if (session) {
-                        updatePlacesDisplay(sessionId, session.places_restantes);
-                    }
-                })
-                .catch(error => console.error('Erreur lors de la récupération des données:', error));
-        } else {
-            updatePlacesDisplay(sessionId, placesRestantes);
+    // Attribution de salle
+    socket.on('attribution_salle', function(data) {
+        // Mettre à jour le nom de la salle dans l'interface
+        const salleElements = document.querySelectorAll(`.salle-badge[data-session-id="${data.session_id}"]`);
+        
+        salleElements.forEach(element => {
+            element.textContent = data.salle_nom;
+            element.classList.remove('bg-secondary');
+            element.classList.add('bg-info');
+        });
+        
+        // Actualiser l'activité récente
+        refreshRecentActivity();
+    });
+    
+    // Nouvelle activité
+    socket.on('nouvelle_activite', function(data) {
+        // Ajouter l'activité à la liste des activités récentes
+        const activitesList = document.getElementById('recent-activity');
+        if (activitesList) {
+            // Créer un nouvel élément pour l'activité
+            const newActivity = document.createElement('div');
+            newActivity.className = 'list-group-item slide-in-right';
+            
+            // Déterminer le titre en fonction du type
+            let titre = 'Nouvelle activité';
+            switch (data.type) {
+                case 'inscription':
+                    titre = 'Nouvelle inscription';
+                    break;
+                case 'validation':
+                    titre = 'Validation d\'inscription';
+                    break;
+                case 'refus':
+                    titre = 'Refus d\'inscription';
+                    break;
+                case 'liste_attente':
+                    titre = 'Ajout en liste d\'attente';
+                    break;
+                case 'attribution_salle':
+                    titre = 'Attribution de salle';
+                    break;
+                case 'ajout_participant':
+                    titre = 'Nouveau participant';
+                    break;
+            }
+            
+            // Construire le contenu
+            newActivity.innerHTML = `
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${titre}</h6>
+                    <small class="text-muted">${data.date_relative || 'à l\'instant'}</small>
+                </div>
+                <p class="mb-1">${data.description}</p>
+                ${data.details ? `<small class="text-muted">${data.details}</small>` : ''}
+            `;
+            
+            // Ajouter au début de la liste
+            if (activitesList.firstChild) {
+                activitesList.insertBefore(newActivity, activitesList.firstChild);
+            } else {
+                activitesList.appendChild(newActivity);
+            }
+            
+            // Limiter à 5 activités affichées
+            if (activitesList.children.length > 5) {
+                activitesList.removeChild(activitesList.lastChild);
+            }
         }
+    });
+    
+    // Fonction pour actualiser l'activité récente
+    function refreshRecentActivity() {
+        const activitesList = document.getElementById('recent-activity');
+        if (!activitesList) return;
+        
+        fetch('/api/activites')
+            .then(response => response.json())
+            .then(data => {
+                // Vider la liste actuelle
+                activitesList.innerHTML = '';
+                
+                // Limiter aux 5 premières activités
+                const activities = data.slice(0, 5);
+                
+                if (activities.length > 0) {
+                    // Ajouter les activités
+                    activities.forEach(activite => {
+                        // Déterminer le titre en fonction du type
+                        let titre = 'Activité';
+                        switch (activite.type) {
+                            case 'inscription':
+                                titre = 'Nouvelle inscription';
+                                break;
+                            case 'validation':
+                                titre = 'Validation d\'inscription';
+                                break;
+                            case 'refus':
+                                titre = 'Refus d\'inscription';
+                                break;
+                            case 'liste_attente':
+                                titre = 'Ajout en liste d\'attente';
+                                break;
+                            case 'attribution_salle':
+                                titre = 'Attribution de salle';
+                                break;
+                            case 'ajout_participant':
+                                titre = 'Nouveau participant';
+                                break;
+                        }
+                        
+                        const activityItem = document.createElement('div');
+                        activityItem.className = 'list-group-item';
+                        activityItem.innerHTML = `
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${titre}</h6>
+                                <small class="text-muted">${activite.date_relative}</small>
+                            </div>
+                            <p class="mb-1">${activite.description}</p>
+                            ${activite.details ? `<small class="text-muted">${activite.details}</small>` : ''}
+                        `;
+                        
+                        activitesList.appendChild(activityItem);
+                    });
+                } else {
+                    // Message par défaut si aucune activité
+                    const defaultActivity = document.createElement('div');
+                    defaultActivity.className = 'list-group-item';
+                    defaultActivity.innerHTML = `
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Bienvenue sur le dashboard</h6>
+                            <small class="text-muted">à l'instant</small>
+                        </div>
+                        <p class="mb-1">Les activités récentes s'afficheront ici.</p>
+                        <small class="text-muted">Commencez par inscrire des participants aux sessions.</small>
+                    `;
+                    
+                    activitesList.appendChild(defaultActivity);
+                }
+            })
+            .catch(error => console.error('Erreur lors de la récupération des activités:', error));
     }
     
-    // Mettre à jour l'affichage des places
-    function updatePlacesDisplay(sessionId, placesRestantes) {
+    // Fonction pour mettre à jour l'affichage des places disponibles pour toutes les sessions
+    function updateSessionPlaces() {
+        fetch('/api/sessions')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(session => {
+                    updatePlacesDisplay(session.id, session.places_restantes, session.inscrits, session.max_participants);
+                });
+            })
+            .catch(error => console.error('Erreur lors de la récupération des données des sessions:', error));
+    }
+    
+    // Fonction pour mettre à jour l'affichage des places pour une session spécifique
+    function updatePlacesDisplay(sessionId, placesRestantes, inscrits, maxParticipants) {
         // Mettre à jour tous les éléments qui affichent les places pour cette session
         const placesElements = document.querySelectorAll(`.places-dispo[data-session-id="${sessionId}"]`);
         
         placesElements.forEach(element => {
-            const maxParticipants = parseInt(element.getAttribute('data-max-participants') || 15);
-            element.textContent = `${placesRestantes} / ${maxParticipants}`;
+            // Utiliser les valeurs fournies ou celles de l'élément
+            const max = maxParticipants || parseInt(element.getAttribute('data-max-participants') || 15);
+            element.textContent = `${placesRestantes} / ${max}`;
             
             // Mettre à jour la classe CSS en fonction des places restantes
             element.classList.remove('text-success', 'text-warning', 'text-danger');
@@ -163,34 +339,23 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 element.classList.add('text-success');
             }
-            
-            // Mettre à jour les boutons d'inscription si nécessaire
-            const sessionCard = document.querySelector(`.card[data-session-id="${sessionId}"]`);
-            if (sessionCard) {
-                const inscriptionBtn = sessionCard.querySelector('.btn-inscription');
-                const listeAttenteBtn = sessionCard.querySelector('.btn-liste-attente');
-                
-                if (inscriptionBtn && listeAttenteBtn) {
-                    if (placesRestantes > 0) {
-                        inscriptionBtn.classList.remove('d-none');
-                        listeAttenteBtn.classList.add('d-none');
-                    } else {
-                        inscriptionBtn.classList.add('d-none');
-                        listeAttenteBtn.classList.remove('d-none');
-                    }
-                }
-            }
+        });
+        
+        // Mettre à jour les compteurs d'inscrits
+        const inscritsElements = document.querySelectorAll(`.inscrits-count[data-session-id="${sessionId}"]`);
+        inscritsElements.forEach(element => {
+            element.textContent = inscrits || 0;
         });
         
         // Mettre à jour les barres de progression
         const progressBars = document.querySelectorAll(`.progress-bar[data-session-id="${sessionId}"]`);
         progressBars.forEach(bar => {
-            const maxParticipants = parseInt(bar.getAttribute('data-max-participants') || 15);
-            const inscrits = maxParticipants - placesRestantes;
-            const progressPercent = (inscrits / maxParticipants) * 100;
+            const max = maxParticipants || parseInt(bar.getAttribute('data-max-participants') || 15);
+            const inscr = inscrits || (max - placesRestantes);
+            const progressPercent = (inscr / max) * 100;
             
             bar.style.width = `${progressPercent}%`;
-            bar.textContent = `${inscrits} / ${maxParticipants}`;
+            bar.textContent = `${inscr} / ${max}`;
             
             // Mettre à jour la classe CSS
             bar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
@@ -202,33 +367,88 @@ document.addEventListener('DOMContentLoaded', function() {
                 bar.classList.add('bg-success');
             }
         });
+        
+        // Mettre à jour les boutons d'inscription
+        const sessionRows = document.querySelectorAll(`[data-session-id="${sessionId}"]`);
+        sessionRows.forEach(row => {
+            const inscriptionBtn = row.querySelector('.btn-inscription');
+            const listeAttenteBtn = row.querySelector('.btn-liste-attente');
+            
+            if (inscriptionBtn && listeAttenteBtn) {
+                if (placesRestantes > 0) {
+                    inscriptionBtn.style.display = '';
+                    listeAttenteBtn.style.display = 'none';
+                } else {
+                    inscriptionBtn.style.display = 'none';
+                    listeAttenteBtn.style.display = '';
+                }
+            }
+        });
     }
     
-    // Fonction pour mettre à jour les compteurs
-    function updateStatsCounter(counterId) {
-        const counterElement = document.getElementById(counterId);
-        if (counterElement) {
-            let currentValue = parseInt(counterElement.textContent) || 0;
-            currentValue++;
-            
-            // Animation de compteur
-            const duration = 1000;
-            const steps = 20;
-            const increment = 1 / steps;
-            let current = 0;
-            const interval = duration / steps;
-            
-            const timer = setInterval(() => {
-                current += increment;
-                if (current >= 1) {
-                    clearInterval(timer);
-                    counterElement.textContent = currentValue;
-                } else {
-                    const intermediateValue = Math.floor(current * currentValue + (1 - current) * (currentValue - 1));
-                    counterElement.textContent = intermediateValue;
-                }
-            }, interval);
-        }
+    // Fonction pour mettre à jour tous les compteurs
+    function updateCounters() {
+        // Statistiques des sessions
+        fetch('/api/sessions')
+            .then(response => response.json())
+            .then(data => {
+                // Compter les sessions complètes
+                const sessionsCompletes = data.filter(session => session.places_restantes === 0).length;
+                updateCounter('total_sessions_completes', sessionsCompletes);
+                
+                // Mettre à jour le compteur de sessions programmées
+                updateCounter('sessions_programmees', data.length);
+                
+                // Calculer le total des inscriptions
+                const totalInscrits = data.reduce((total, session) => total + session.inscrits, 0);
+                updateCounter('total_inscriptions', totalInscrits);
+                
+                // Calculer le total en liste d'attente
+                const totalAttente = data.reduce((total, session) => total + (session.liste_attente || 0), 0);
+                updateCounter('total_en_attente', totalAttente);
+            })
+            .catch(error => console.error('Erreur lors de la récupération des données des sessions:', error));
+        
+        // Participants inscrits
+        fetch('/api/participants')
+            .then(response => response.json())
+            .then(data => {
+                updateCounter('participants_inscrits', data.length);
+            })
+            .catch(error => console.error('Erreur lors de la récupération des données des participants:', error));
+    }
+    
+    // Fonction pour mettre à jour un compteur spécifique
+    function updateCounter(id, value) {
+        // Trouver tous les éléments qui affichent ce compteur
+        const counters = document.querySelectorAll(`.counter-${id}, #${id}`);
+        
+        counters.forEach(counter => {
+            // Animation du compteur
+            const currentValue = parseInt(counter.textContent) || 0;
+            animateCounter(counter, currentValue, value);
+        });
+    }
+    
+    // Fonction pour animer un compteur
+    function animateCounter(element, startValue, endValue) {
+        if (startValue === endValue) return;
+        
+        const duration = 1000;
+        const steps = 20;
+        const increment = (endValue - startValue) / steps;
+        let current = startValue;
+        const interval = duration / steps;
+        
+        const timer = setInterval(() => {
+            current += increment;
+            if ((increment > 0 && current >= endValue) || (increment < 0 && current <= endValue)) {
+                clearInterval(timer);
+                element.textContent = endValue;
+            } else {
+                element.textContent = Math.round(current);
+            }
+        }, interval);
     }
     
     // Fonction pour afficher un toast
@@ -312,199 +532,232 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.show();
     }
     
-    // Initialisation des charts avec mises à jour en temps réel
-    // Si la page contient des graphiques, les initialiser
-    const themeChartCanvas = document.getElementById('themeChart');
-    const serviceChartCanvas = document.getElementById('serviceChart');
-    
-    if (themeChartCanvas && serviceChartCanvas) {
-        // Créer un objet pour stocker les références aux graphiques
-        window.dashboardCharts = {};
-        
-        // Détruire les charts existants si présents
-        if (window.themeChart && typeof window.themeChart.destroy === 'function') {
-            window.themeChart.destroy();
-        }
-        if (window.serviceChart && typeof window.serviceChart.destroy === 'function') {
-            window.serviceChart.destroy();
-        }
-        
-        // Initialiser les graphiques
-        initCharts();
-        
-        // Mettre à jour les graphiques périodiquement
-        setInterval(updateCharts, 30000);
-    }
-    
-    function initCharts() {
-        // Initialisation du graphique des thèmes
-        if (themeChartCanvas) {
-            const ctxTheme = themeChartCanvas.getContext('2d');
-            window.dashboardCharts.themeChart = new Chart(ctxTheme, {
-                type: 'doughnut',
-                data: {
-                    labels: [
-                        'Communiquer avec Teams',
-                        'Gérer les tâches (Planner)',
-                        'Gérer mes fichiers (OneDrive)',
-                        'Collaborer Teams / SharePoint'
-                    ],
-                    datasets: [{
-                        data: [0, 0, 0, 0], // Valeurs par défaut
-                        backgroundColor: [
-                            '#0078d4',
-                            '#7719aa',
-                            '#0364b8',
-                            '#038387'
-                        ],
-                        borderWidth: 0,
-                        hoverOffset: 15
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 15,
-                                usePointStyle: true
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Répartition par thème'
-                        }
-                    },
-                    animation: {
-                        animateScale: true,
-                        animateRotate: true
-                    }
-                }
-            });
-            
-            // Stocker la référence
-            window.themeChart = window.dashboardCharts.themeChart;
-        }
-        
-        // Initialisation du graphique des services
-        if (serviceChartCanvas) {
-            const ctxService = serviceChartCanvas.getContext('2d');
-            window.dashboardCharts.serviceChart = new Chart(ctxService, {
-                type: 'bar',
-                data: {
-                    labels: [], // Sera rempli dynamiquement
-                    datasets: [{
-                        label: 'Participants par service',
-                        data: [], // Sera rempli dynamiquement
-                        backgroundColor: [
-                            '#FFC107',
-                            '#2196F3',
-                            '#4CAF50',
-                            '#607D8B',
-                            '#9C27B0',
-                            '#F44336',
-                            '#FF9800'
-                        ],
-                        borderRadius: 5
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        title: {
-                            display: true,
-                            text: 'Participants par service'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
-                        }
-                    }
-                }
-            });
-            
-            // Stocker la référence
-            window.serviceChart = window.dashboardCharts.serviceChart;
-        }
-        
-        // Mettre à jour les données des graphiques
-        updateCharts();
-    }
-    
+    // Initialisation des graphiques avec mises à jour en temps réel
     function updateCharts() {
-        try {
-            // Récupérer les données actuelles des sessions
+        // Récupérer les éléments de graphique
+        const themeChartCanvas = document.getElementById('themeChart');
+        const serviceChartCanvas = document.getElementById('serviceChart');
+        
+        // Si les graphiques existent, les mettre à jour
+        if (themeChartCanvas || serviceChartCanvas) {
+            try {
+                // Initialiser ou mettre à jour les graphiques
+                initializeOrUpdateCharts(themeChartCanvas, serviceChartCanvas);
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour des graphiques:', error);
+            }
+        }
+    }
+    
+    // Fonction pour initialiser ou mettre à jour les graphiques
+    function initializeOrUpdateCharts(themeCanvas, serviceCanvas) {
+        // Si les graphiques n'existent pas encore
+        if (!window.dashboardCharts) {
+            window.dashboardCharts = {};
+        }
+        
+        // Graphique des thèmes
+        if (themeCanvas) {
+            // Détruire l'existant si nécessaire
+            if (window.themeChart && typeof window.themeChart.destroy === 'function') {
+                window.themeChart.destroy();
+            }
+            
+            // Récupérer les données des sessions pour les thèmes
             fetch('/api/sessions')
                 .then(response => response.json())
                 .then(sessions => {
-                    // Compter les inscriptions par thème
-                    const themeCounts = {
-                        'Communiquer avec Teams': 0,
-                        'Gérer les tâches (Planner)': 0,
-                        'Gérer mes fichiers (OneDrive)': 0,
-                        'Collaborer Teams / SharePoint': 0
-                    };
+                    // Compter par thème
+                    const themeCounts = {};
+                    const themeLabels = [];
                     
                     sessions.forEach(session => {
-                        if (themeCounts[session.theme] !== undefined) {
-                            themeCounts[session.theme] += session.inscrits || 0;
+                        if (!themeCounts[session.theme]) {
+                            themeCounts[session.theme] = 0;
+                            themeLabels.push(session.theme);
+                        }
+                        themeCounts[session.theme] += session.inscrits || 0;
+                    });
+                    
+                    // Couleurs pour les thèmes
+                    const themeColors = {
+                        'Communiquer avec Teams': '#0078d4',
+                        'Gérer les tâches (Planner)': '#7719aa',
+                        'Gérer mes fichiers (OneDrive/SharePoint)': '#0364b8',
+                        'Collaborer avec Teams': '#038387'
+                    };
+                    
+                    // Créer le graphique
+                    const ctx = themeCanvas.getContext('2d');
+                    window.themeChart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: themeLabels,
+                            datasets: [{
+                                data: themeLabels.map(label => themeCounts[label]),
+                                backgroundColor: themeLabels.map(label => themeColors[label] || '#777777'),
+                                borderWidth: 0,
+                                hoverOffset: 15
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '70%',
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 15,
+                                        usePointStyle: true
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const label = context.label || '';
+                                            const value = context.parsed || 0;
+                                            const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                                            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                            return `${label}: ${value} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            },
+                            animation: {
+                                animateScale: true,
+                                animateRotate: true
+                            }
                         }
                     });
                     
-                    // Mettre à jour le graphique des thèmes si disponible
-                    if (window.dashboardCharts && window.dashboardCharts.themeChart) {
-                        window.dashboardCharts.themeChart.data.datasets[0].data = [
-                            themeCounts['Communiquer avec Teams'],
-                            themeCounts['Gérer les tâches (Planner)'],
-                            themeCounts['Gérer mes fichiers (OneDrive)'],
-                            themeCounts['Collaborer Teams / SharePoint']
-                        ];
-                        window.dashboardCharts.themeChart.update();
-                    }
+                    // Stocker dans l'objet global
+                    window.dashboardCharts.themeChart = window.themeChart;
                 })
-                .catch(error => {
-                    console.error('Erreur lors de la récupération des données des sessions:', error);
-                });
+                .catch(error => console.error('Erreur lors de la récupération des données pour le graphique des thèmes:', error));
+        }
+        
+        // Graphique des services
+        if (serviceCanvas) {
+            // Détruire l'existant si nécessaire
+            if (window.serviceChart && typeof window.serviceChart.destroy === 'function') {
+                window.serviceChart.destroy();
+            }
             
             // Récupérer les données des participants
             fetch('/api/participants')
                 .then(response => response.json())
                 .then(participants => {
-                    // Compter les participants par service
+                    // Compter par service
                     const serviceCounts = {};
-                    const serviceLabels = [];
                     
                     participants.forEach(participant => {
-                        if (participant.service) {
-                            if (!serviceCounts[participant.service]) {
-                                serviceCounts[participant.service] = 0;
-                                serviceLabels.push(participant.service);
+                        if (!serviceCounts[participant.service]) {
+                            serviceCounts[participant.service] = 0;
+                        }
+                        serviceCounts[participant.service]++;
+                    });
+                    
+                    // Extraire les labels et les données
+                    const serviceLabels = Object.keys(serviceCounts);
+                    const serviceData = serviceLabels.map(label => serviceCounts[label]);
+                    
+                    // Couleurs pour les services
+                    const serviceColors = [
+                        '#FFC107', '#2196F3', '#4CAF50', '#607D8B', 
+                        '#9C27B0', '#F44336', '#FF9800'
+                    ];
+                    
+                    // Créer le graphique
+                    const ctx = serviceCanvas.getContext('2d');
+                    window.serviceChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: serviceLabels,
+                            datasets: [{
+                                label: 'Participants',
+                                data: serviceData,
+                                backgroundColor: serviceColors.slice(0, serviceLabels.length),
+                                borderRadius: 5,
+                                maxBarThickness: 35
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        drawBorder: false,
+                                        color: 'rgba(0,0,0,0.05)'
+                                    },
+                                    ticks: {
+                                        precision: 0
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                }
+                            },
+                            animation: {
+                                duration: 2000,
+                                easing: 'easeOutQuart'
                             }
-                            serviceCounts[participant.service]++;
                         }
                     });
                     
-                    // Mettre à jour le graphique des services si disponible
-                    if (window.dashboardCharts && window.dashboardCharts.serviceChart) {
-                        window.dashboardCharts.serviceChart.data.labels = serviceLabels;
-                        window.dashboardCharts.serviceChart.data.datasets[0].data = Object.values(serviceCounts);
-                        window.dashboardCharts.serviceChart.update();
-                    }
+                    // Stocker dans l'objet global
+                    window.dashboardCharts.serviceChart = window.serviceChart;
                 })
-                .catch(error => {
-                    console.error('Erreur lors de la récupération des données des participants:', error);
-                });
-                
-        } catch (error) {
-            console.error('Erreur lors de la mise à jour des graphiques:', error);
+                .catch(error => console.error('Erreur lors de la récupération des données pour le graphique des services:', error));
         }
     }
+
+    // Gestion des modales qui scintillent
+    const modalOpenButtons = document.querySelectorAll('[data-bs-toggle="modal"]');
+    modalOpenButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const modalId = this.getAttribute('data-bs-target');
+            if (!modalId) return;
+            
+            // Récupérer la modal et l'ouvrir via Bootstrap
+            const modalElement = document.querySelector(modalId);
+            if (modalElement) {
+                const modal = new bootstrap.Modal(modalElement, {
+                    keyboard: true,
+                    backdrop: true,
+                    focus: true
+                });
+                
+                try {
+                    modal.show();
+                } catch (error) {
+                    console.error('Erreur lors de l\'ouverture de la modal:', error);
+                }
+            }
+        });
+    });
+    
+    // Actualiser les données périodiquement
+    setInterval(updateSessionPlaces, 30000); // Toutes les 30 secondes
+    setInterval(updateCharts, 60000); // Toutes les 60 secondes
+    setInterval(updateCounters, 30000); // Toutes les 30 secondes
+    setInterval(refreshRecentActivity, 60000); // Toutes les 60 secondes
+    
+    // Initialisation au chargement
+    updateSessionPlaces();
+    updateCharts();
+    updateCounters();
+    setTimeout(refreshRecentActivity, 1000); // Léger délai pour éviter les problèmes de rendu
 });
