@@ -1,10 +1,23 @@
+# --- Flask core ---
 flask==2.3.3
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.5
 Flask-Login==0.6.3
 Flask-SocketIO==5.3.6
-psycopg2-binary==2.9.9
+
+# --- async back-end (choisis-en un seul en prod) ---
+eventlet==0.39.1            # compatible Py 3.13
+gevent==24.11.1
+greenlet>=3.2.1             # roue cp313
+
+# --- base de données ---
+psycopg2-binary==2.9.10
+
+# --- serveur de prod ---
 gunicorn==21.2.0
 Werkzeug==2.3.7
-eventlet==0.33.3
+
+# --- divers utilitaires ---
 ics==0.7.2
+python-socketio>=5.13.0
+python-engineio>=4.12.0

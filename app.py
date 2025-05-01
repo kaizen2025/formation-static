@@ -6,7 +6,7 @@ import psycopg2
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC  # Ajout de UTC pour corriger l'avertissement de dépréciation
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -29,7 +29,9 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Utiliser le mode threading (plus stable que eventlet avec Python 3.13)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Modèles de base de données
 class Service(db.Model):
@@ -104,7 +106,7 @@ class Inscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
     session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
-    date_inscription = db.Column(db.DateTime, default=datetime.utcnow)
+    date_inscription = db.Column(db.DateTime, default=lambda: datetime.now(UTC))  # Correction utcnow
     statut = db.Column(db.String(20), default='confirmé')  # confirmé, en attente, annulé
     validation_responsable = db.Column(db.Boolean, default=False)
     presence = db.Column(db.Boolean, default=False)
@@ -116,7 +118,7 @@ class ListeAttente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
     session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
-    date_inscription = db.Column(db.DateTime, default=datetime.utcnow)
+    date_inscription = db.Column(db.DateTime, default=lambda: datetime.now(UTC))  # Correction utcnow
     position = db.Column(db.Integer, nullable=False)
     notification_envoyee = db.Column(db.Boolean, default=False)
     
@@ -127,13 +129,13 @@ class Activite(db.Model):
     type = db.Column(db.String(50), nullable=False)  # inscription, validation, liste_attente
     description = db.Column(db.Text, nullable=False)
     details = db.Column(db.Text, nullable=True)
-    date = db.Column(db.DateTime, default=datetime.utcnow)
+    date = db.Column(db.DateTime, default=lambda: datetime.now(UTC))  # Correction utcnow
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     
     @property
     def date_relative(self):
         """Renvoie la date relative (il y a X minutes/heures/jours)"""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)  # Correction utcnow
         diff = now - self.date
         
         if diff.days > 0:
@@ -290,6 +292,11 @@ def handle_join(data):
     room = data.get('room')
     join_room(room)
     print(f'Client joined room: {room}')
+
+@socketio.on('heartbeat')
+def handle_heartbeat(data):
+    # Répondre au heartbeat pour maintenir la connexion active
+    emit('heartbeat_response', {'timestamp': datetime.now(UTC).timestamp()})
 
 # Routes de l'application
 @app.route('/')

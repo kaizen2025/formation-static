@@ -1,3 +1,4 @@
+<!-- FICHIER SALLES.HTML AMÉLIORÉ -->
 {% extends "layout.html" %}
 
 {% block content %}
@@ -120,26 +121,117 @@
 
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Corrige le problème des modals qui scintillent
-        const editButtons = document.querySelectorAll('.btn-edit-salle');
-        editButtons.forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
+{% endblock %}
+
+<!-- FICHIER THEMES.HTML AMÉLIORÉ -->
+{% extends "layout.html" %}
+
+{% block content %}
+<h1 class="mb-4"><i class="fas fa-book me-2"></i>Gestion des thèmes</h1>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Ajouter un thème</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('add_theme') }}" method="post" class="row g-3">
+                    <div class="col-md-6">
+                        <label for="nom" class="form-label">Nom du thème</label>
+                        <input type="text" class="form-control" id="nom" name="nom" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="style" class="form-label">Style (couleur)</label>
+                        <select class="form-select" id="style" name="style">
+                            <option value="theme-comm">Teams (Bleu)</option>
+                            <option value="theme-planner">Planner (Violet)</option>
+                            <option value="theme-onedrive">OneDrive (Bleu foncé)</option>
+                            <option value="theme-sharepoint">SharePoint (Turquoise)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle me-2"></i>Ajouter le thème
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {% for theme in themes %}
+    <div class="col-md-6 mb-4">
+        <div class="card theme-card h-100 {% if theme.nom == 'Communiquer avec Teams' %}teams{% elif theme.nom == 'Gérer les tâches (Planner)' %}planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}onedrive{% elif theme.nom == 'Collaborer avec Teams' %}sharepoint{% endif %}">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ theme.nom }}</h5>
+                    <button type="button" class="btn btn-sm btn-light btn-edit-theme" data-bs-toggle="modal" data-bs-target="#editThemeModal{{ theme.id }}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <p>{{ theme.description }}</p>
                 
-                // Récupérer l'ID de la modal ciblée
-                const targetId = this.getAttribute('data-bs-target');
-                if (!targetId) return;
-                
-                const modalElement = document.querySelector(targetId);
-                if (modalElement) {
-                    const modal = new bootstrap.Modal(modalElement);
-                    modal.show();
-                }
-            });
-        });
-    });
-</script>
+                <h6 class="mt-3 mb-2">Sessions associées :</h6>
+                {% if theme.sessions and theme.sessions|length > 0 %}
+                <ul class="list-group">
+                    {% for session in theme.sessions %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ session.formatage_date }} ({{ session.formatage_horaire }})
+                        <span class="badge {% if session.places_restantes <= 3 %}bg-danger{% elif session.places_restantes <= 7 %}bg-warning{% else %}bg-success{% endif %} rounded-pill">
+                            {{ session.max_participants - session.places_restantes }} / {{ session.max_participants }}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted">Aucune session programmée pour ce thème.</p>
+                {% endif %}
+            </div>
+            <div class="card-footer text-center">
+                <span class="badge {% if theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %} mb-2">{{ theme.sessions|length }} sessions</span>
+            </div>
+            
+            <!-- Modal d'édition -->
+            <div class="modal fade" id="editThemeModal{{ theme.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Modifier le thème</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form action="{{ url_for('update_theme', id=theme.id) }}" method="post">
+                                <div class="mb-3">
+                                    <label for="nom{{ theme.id }}" class="form-label">Nom</label>
+                                    <input type="text" class="form-control" id="nom{{ theme.id }}" name="nom" value="{{ theme.nom }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="description{{ theme.id }}" class="form-label">Description</label>
+                                    <textarea class="form-control" id="description{{ theme.id }}" name="description" rows="3">{{ theme.description or '' }}</textarea>
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
 {% endblock %}

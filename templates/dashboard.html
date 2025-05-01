@@ -668,25 +668,6 @@
                 window.location.reload();
             }, 500);
         });
-        
-        // Corrige le problème des modals qui scintillent
-        const buttons = document.querySelectorAll('.btn-participant');
-        buttons.forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Récupérer l'ID de la modal ciblée
-                const targetId = this.getAttribute('data-bs-target');
-                if (!targetId) return;
-                
-                const modalElement = document.querySelector(targetId);
-                if (modalElement) {
-                    const modal = new bootstrap.Modal(modalElement);
-                    modal.show();
-                }
-            });
-        });
     });
 </script>
 {% endblock %}

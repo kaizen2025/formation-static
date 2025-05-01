@@ -1,254 +1,13 @@
 // static/js/websocket.js
 
-// SOLUTION D'URGENCE POUR LES MODALES QUI SCINTILLENT
-document.addEventListener('DOMContentLoaded', function() {
-    // Désactiver complètement les transitions Bootstrap
-    window.bootstrap = window.bootstrap || {};
-    window.bootstrap.Util = window.bootstrap.Util || {};
-    window.bootstrap.Util.getTransitionDurationFromElement = function() { return 0; };
-    
-    // Stocker les modales déjà initialisées
-    var initializedModals = {};
-    
-    // Intercepter tous les clics dans l'application
-    document.addEventListener('click', function(e) {
-        // Empêcher le scintillement en bloquant les événements pendant les manipulations de modales
-        if (document.body.classList.contains('modal-opening')) {
-            e.stopPropagation();
-            return;
-        }
-        
-        // Chercher si le clic est sur un bouton modal
-        var target = e.target;
-        while (target && target !== document) {
-            if (target.hasAttribute && (
-                (target.hasAttribute('data-bs-toggle') && target.getAttribute('data-bs-toggle') === 'modal') ||
-                target.classList.contains('btn-participant') ||
-                (target.hasAttribute('data-bs-target') && target.getAttribute('data-bs-target').includes('Modal'))
-            )) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Marquer le corps comme en cours d'ouverture
-                document.body.classList.add('modal-opening');
-                
-                // Récupérer l'ID de la modale cible
-                var modalId = target.getAttribute('data-bs-target') || 
-                              target.getAttribute('href') || 
-                              target.dataset.target;
-                
-                if (!modalId) {
-                    // Chercher un attribut data-bs-target sur les éléments parents
-                    var parent = target.closest('[data-bs-target]');
-                    if (parent) {
-                        modalId = parent.getAttribute('data-bs-target');
-                    }
-                }
-                
-                if (!modalId) {
-                    document.body.classList.remove('modal-opening');
-                    return;
-                }
-                
-                // Assurer que modalId commence par #
-                if (!modalId.startsWith('#')) {
-                    modalId = '#' + modalId;
-                }
-                
-                var modalElement = document.querySelector(modalId);
-                if (!modalElement) {
-                    document.body.classList.remove('modal-opening');
-                    return;
-                }
-                
-                // Créer un backdrop si nécessaire
-                var backdropElement = document.querySelector('.modal-backdrop');
-                if (!backdropElement) {
-                    backdropElement = document.createElement('div');
-                    backdropElement.className = 'modal-backdrop fade show';
-                    document.body.appendChild(backdropElement);
-                }
-                
-                // Configurer la modale
-                modalElement.style.display = 'block';
-                modalElement.classList.add('show');
-                document.body.classList.add('modal-open');
-                
-                // Gérer le clic sur le backdrop
-                backdropElement.addEventListener('click', function() {
-                    closeModal(modalElement, backdropElement);
-                });
-                
-                // Gérer le clic sur les boutons de fermeture
-                var closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
-                closeButtons.forEach(function(button) {
-                    button.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        closeModal(modalElement, backdropElement);
-                    });
-                });
-                
-                // Réactiver les événements après un délai
-                setTimeout(function() {
-                    document.body.classList.remove('modal-opening');
-                }, 500);
-                
-                return;
-            }
-            target = target.parentNode;
-        }
-    }, true);
-    
-    // Fonction pour fermer une modale
-    function closeModal(modalElement, backdropElement) {
-        modalElement.style.display = 'none';
-        modalElement.classList.remove('show');
-        document.body.classList.remove('modal-open');
-        
-        if (backdropElement) {
-            backdropElement.remove();
-        }
-    }
-    
-    // Fonction pour initialiser correctement les graphiques
-    window.initializeOrUpdateCharts = function(themeCanvas, serviceCanvas) {
-        // Détruire les instances existantes pour éviter les conflits
-        if (window.themeChart) {
-            try {
-                window.themeChart.destroy();
-            } catch (e) {
-                console.error("Erreur lors de la destruction du graphique des thèmes:", e);
-            }
-            window.themeChart = null;
-        }
-        
-        if (window.serviceChart) {
-            try {
-                window.serviceChart.destroy();
-            } catch (e) {
-                console.error("Erreur lors de la destruction du graphique des services:", e);
-            }
-            window.serviceChart = null;
-        }
-        
-        // Initialiser les nouveaux graphiques avec un délai
-        setTimeout(function() {
-            try {
-                if (themeCanvas) {
-                    var themeCtx = themeCanvas.getContext('2d');
-                    window.themeChart = new Chart(themeCtx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Communiquer avec Teams', 'Gérer les tâches (Planner)', 'Gérer mes fichiers (OneDrive/SharePoint)', 'Collaborer avec Teams'],
-                            datasets: [{
-                                data: [4, 4, 4, 4],
-                                backgroundColor: ['#0078d4', '#7719aa', '#0364b8', '#038387']
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            animation: false
-                        }
-                    });
-                }
-                
-                if (serviceCanvas) {
-                    var serviceCtx = serviceCanvas.getContext('2d');
-                    window.serviceChart = new Chart(serviceCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: ['Qualité', 'Commerce', 'Informatique', 'RH', 'Marketing', 'Comptabilité', 'Florensud'],
-                            datasets: [{
-                                label: 'Participants',
-                                data: [4, 0, 0, 0, 0, 0, 0],
-                                backgroundColor: ['#F44336', '#FFC107', '#607D8B', '#FF9800', '#9C27B0', '#2196F3', '#4CAF50']
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            animation: false
-                        }
-                    });
-                }
-                
-                // Cacher les overlays si présents
-                var themeOverlay = document.getElementById('theme-chart-overlay');
-                var serviceOverlay = document.getElementById('service-chart-overlay');
-                
-                if (themeOverlay) themeOverlay.classList.add('hidden');
-                if (serviceOverlay) serviceOverlay.classList.add('hidden');
-            } catch (error) {
-                console.error("Erreur lors de l'initialisation des graphiques:", error);
-            }
-        }, 200);
-    };
-    
-    // Exécuter après un délai pour permettre le chargement complet
-    setTimeout(function() {
-        // Désactiver toutes les transitions dans l'application
-        var style = document.createElement('style');
-        style.textContent = `
-            *, *::before, *::after {
-                -webkit-transition: none !important;
-                -moz-transition: none !important;
-                -o-transition: none !important;
-                transition: none !important;
-                animation: none !important;
-            }
-            
-            .modal {
-                -webkit-transition: none !important;
-                -moz-transition: none !important;
-                -o-transition: none !important;
-                transition: none !important;
-            }
-            
-            .modal-backdrop {
-                -webkit-transition: none !important;
-                -moz-transition: none !important;
-                -o-transition: none !important;
-                transition: none !important;
-            }
-            
-            .modal-opening * {
-                pointer-events: none !important;
-            }
-            
-            .modal-opening .modal.show,
-            .modal-opening .modal.show *,
-            .modal-opening .modal-backdrop {
-                pointer-events: auto !important;
-            }
-        `;
-        document.head.appendChild(style);
-        
-        // Remplacer les gestionnaires d'événements pour éviter les conflits
-        document.querySelectorAll('[data-bs-toggle="modal"]').forEach(function(button) {
-            var newButton = button.cloneNode(true);
-            if (button.parentNode) {
-                button.parentNode.replaceChild(newButton, button);
-            }
-        });
-        
-        // Initialiser les graphiques s'ils existent
-        var themeCanvas = document.getElementById('themeChart');
-        var serviceCanvas = document.getElementById('serviceChart');
-        
-        if (themeCanvas || serviceCanvas) {
-            window.initializeOrUpdateCharts(themeCanvas, serviceCanvas);
-        }
-    }, 500);
-});
-
 // Main WebSocket logic
 document.addEventListener('DOMContentLoaded', function() {
     // Initialisation de Socket.IO avec options de reconnexion
     const socket = io({
         reconnection: true,
-        reconnectionAttempts: 10, // Increased attempts
+        reconnectionAttempts: 10, 
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 10000, // Increased max delay
+        reconnectionDelayMax: 10000,
         timeout: 20000
     });
 
@@ -276,6 +35,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Start heartbeat
         startHeartbeat();
+        
+        // Initialiser les graphiques après connexion WebSocket
+        initializeCharts();
     });
     
     // Réponse au heartbeat
@@ -295,6 +57,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`Reconnecté au serveur après ${attemptNumber} tentatives`);
         showToast('Connexion rétablie!', 'success');
         startHeartbeat(); // Restart heartbeat on reconnect
+        
+        // Réinitialiser les graphiques après reconnexion
+        initializeCharts();
     });
     
     // Échec de reconnexion après toutes les tentatives
@@ -748,42 +513,63 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Fonction pour afficher un toast
     function showToast(message, type = 'info') {
-        const toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            const container = document.createElement('div');
-            container.id = 'toast-container';
-            container.className = 'position-fixed bottom-0 end-0 p-3';
-            container.style.zIndex = '5';
-            document.body.appendChild(container);
-        }
-        
-        const toastId = `toast-${Date.now()}`;
-        const toastElement = document.createElement('div');
-        toastElement.id = toastId;
-        toastElement.className = `toast align-items-center text-white bg-${type} border-0`;
-        toastElement.setAttribute('role', 'alert');
-        toastElement.setAttribute('aria-live', 'assertive');
-        toastElement.setAttribute('aria-atomic', 'true');
-        
-        toastElement.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    ${message}
+        if (typeof window.showToast === 'function') {
+            // Utiliser la fonction globale si disponible
+            window.showToast(message, type);
+        } else {
+            // Fallback si la fonction globale n'est pas disponible
+            const toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) return;
+            
+            const toastId = `toast-${Date.now()}`;
+            const toastElement = document.createElement('div');
+            toastElement.id = toastId;
+            toastElement.className = `toast align-items-center text-white bg-${type} border-0`;
+            toastElement.setAttribute('role', 'alert');
+            toastElement.setAttribute('aria-live', 'assertive');
+            toastElement.setAttribute('aria-atomic', 'true');
+            
+            // Déterminer l'icône en fonction du type
+            let icon = 'fas fa-info-circle';
+            switch (type) {
+                case 'success':
+                    icon = 'fas fa-check-circle';
+                    break;
+                case 'danger':
+                    icon = 'fas fa-exclamation-circle';
+                    break;
+                case 'warning':
+                    icon = 'fas fa-exclamation-triangle';
+                    break;
+            }
+            
+            toastElement.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="${icon} me-2"></i>${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        `;
-        
-        const toastContainerEl = document.getElementById('toast-container');
-        if (toastContainerEl) {
-            toastContainerEl.appendChild(toastElement);
-            const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 5000 });
-            toast.show();
+            `;
+            
+            toastContainer.appendChild(toastElement);
+            
+            // Initialiser et afficher le toast
+            if (typeof bootstrap !== 'undefined') {
+                const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 5000 });
+                toast.show();
+            } else {
+                // Fallback si Bootstrap n'est pas disponible
+                setTimeout(() => {
+                    toastElement.remove();
+                }, 5000);
+            }
         }
     }
     
     // Fonction pour afficher une modal
     function showModal(title, content) {
+        // Cette fonction est un fallback simple, les modales sont maintenant gérées par modal-fix-extreme.js
         let modalElement = document.getElementById('dynamic-modal');
         
         if (!modalElement) {
@@ -814,32 +600,128 @@ document.addEventListener('DOMContentLoaded', function() {
         modalElement.querySelector('.modal-title').textContent = title;
         modalElement.querySelector('.modal-body').innerHTML = content;
         
-        modalElement.style.display = 'block';
-        modalElement.classList.add('show');
-        document.body.classList.add('modal-open');
+        // Utiliser modal-fix-extreme.js si disponible
+        if (modalElement && modalElement.style) {
+            modalElement.style.display = 'block';
+            modalElement.classList.add('show');
+            document.body.classList.add('modal-open');
+            
+            // Ajouter un backdrop simple
+            let backdrop = document.querySelector('.manual-modal-backdrop');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.className = 'manual-modal-backdrop';
+                backdrop.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1040;';
+                document.body.appendChild(backdrop);
+            }
+            
+            // Ajouter un gestionnaire pour fermer
+            const closeBtn = modalElement.querySelector('.btn-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    modalElement.style.display = 'none';
+                    modalElement.classList.remove('show');
+                    document.body.classList.remove('modal-open');
+                    if (backdrop) backdrop.style.display = 'none';
+                });
+            }
+        }
     }
     
-    // Fonction pour mettre à jour tous les graphiques
-    function updateCharts() {
-        clearTimeout(window.chartUpdateTimeout);
+    // Fonction pour initialiser les graphiques
+    function initializeCharts() {
+        const themeChartCanvas = document.getElementById('themeChart');
+        const serviceChartCanvas = document.getElementById('serviceChart');
         
-        window.chartUpdateTimeout = setTimeout(function() {
-            const themeChartCanvas = document.getElementById('themeChart');
-            const serviceChartCanvas = document.getElementById('serviceChart');
-            
-            if (themeChartCanvas || serviceChartCanvas) {
-                try {
-                    window.initializeOrUpdateCharts(themeChartCanvas, serviceChartCanvas);
-                } catch (error) {
-                    console.error('Erreur lors de la mise à jour des graphiques:', error);
-                }
+        // Seulement continuer si nous avons au moins un des canvas
+        if (!themeChartCanvas && !serviceChartCanvas) return;
+        
+        try {
+            // Cleanup des anciens graphiques s'ils existent
+            if (window.themeChart && typeof window.themeChart.destroy === 'function') {
+                window.themeChart.destroy();
             }
-        }, 200);
+            
+            if (window.serviceChart && typeof window.serviceChart.destroy === 'function') {
+                window.serviceChart.destroy();
+            }
+            
+            // On s'assure que Chart.js est chargé
+            if (typeof Chart === 'undefined') {
+                console.error("Chart.js n'est pas chargé");
+                return;
+            }
+            
+            // Initialiser les graphiques
+            if (themeChartCanvas) {
+                const themeCtx = themeChartCanvas.getContext('2d');
+                window.themeChart = new Chart(themeCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Communiquer avec Teams', 'Gérer les tâches (Planner)', 'Gérer mes fichiers (OneDrive/SharePoint)', 'Collaborer avec Teams'],
+                        datasets: [{
+                            data: [4, 4, 4, 4],
+                            backgroundColor: ['#0078d4', '#7719aa', '#0364b8', '#038387']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        animation: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+                
+                // Cacher l'overlay
+                const themeOverlay = document.getElementById('theme-chart-overlay');
+                if (themeOverlay) themeOverlay.classList.add('hidden');
+            }
+            
+            if (serviceChartCanvas) {
+                const serviceCtx = serviceChartCanvas.getContext('2d');
+                window.serviceChart = new Chart(serviceCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Qualité', 'Commerce', 'Informatique', 'RH', 'Marketing', 'Comptabilité', 'Florensud'],
+                        datasets: [{
+                            label: 'Participants',
+                            data: [4, 0, 0, 0, 0, 0, 0],
+                            backgroundColor: ['#F44336', '#FFC107', '#607D8B', '#FF9800', '#9C27B0', '#2196F3', '#4CAF50']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        animation: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+                
+                // Cacher l'overlay
+                const serviceOverlay = document.getElementById('service-chart-overlay');
+                if (serviceOverlay) serviceOverlay.classList.add('hidden');
+            }
+            
+            console.log('Graphiques initialisés avec succès');
+        } catch (error) {
+            console.error('Erreur lors de l\'initialisation des graphiques:', error);
+            // Ne pas masquer les overlays en cas d'erreur
+        }
     }
     
     // Actualiser les données périodiquement
     setInterval(updateSessionPlaces, 30000); // Toutes les 30 secondes
     setInterval(updateCounters, 30000); // Toutes les 30 secondes
     setInterval(refreshRecentActivity, 60000); // Toutes les 60 secondes
-    setInterval(updateCharts, 120000); // Toutes les 2 minutes
+    
+    // Charger les données initiales
+    updateSessionPlaces();
+    updateCounters();
+    refreshRecentActivity();
 });
