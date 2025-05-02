@@ -1,40 +1,51 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<h1 class="mb-4"><i class="fas fa-users me-2"></i>Gestion des participants</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0"><i class="fas fa-users me-2"></i>Gestion des Participants</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">
+        <i class="fas fa-user-plus me-2"></i>Ajouter un Participant
+    </button>
+</div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Ajouter un participant</h5>
+
+<!-- Add Participant Modal (Global) -->
+<div class="modal fade" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addParticipantModalGlobalLabel">Ajouter un Nouveau Participant</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="card-body">
-                <form action="{{ url_for('add_participant') }}" method="post" class="row g-3">
-                    <div class="col-md-6">
-                        <label for="nom" class="form-label">Nom</label>
-                        <input type="text" class="form-control" id="nom" name="nom" required>
+            <div class="modal-body">
+                 <form action="{{ url_for('add_participant') }}" method="post">
+                    <input type="hidden" name="from_page" value="participants"> <!-- Optional -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="add_nom_global" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="add_nom_global" name="nom" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_prenom_global" class="form-label">Prénom*</label>
+                            <input type="text" class="form-control" id="add_prenom_global" name="prenom" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_email_global" class="form-label">Email*</label>
+                            <input type="email" class="form-control" id="add_email_global" name="email" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_service_id_global" class="form-label">Service*</label>
+                            <select class="form-select" id="add_service_id_global" name="service_id" required>
+                                <option value="" disabled selected>-- Choisir --</option>
+                                {% for service in services|sort(attribute='nom') %}
+                                <option value="{{ service.id }}">{{ service.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <label for="prenom" class="form-label">Prénom</label>
-                        <input type="text" class="form-control" id="prenom" name="prenom" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="service_id" class="form-label">Service</label>
-                        <select class="form-select" id="service_id" name="service_id" required>
-                            <option value="">-- Choisir un service --</option>
-                            {% for service in services %}
-                            <option value="{{ service.id }}">{{ service.nom }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12">
+                    <div class="d-grid">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-plus-circle me-2"></i>Ajouter le participant
+                            <i class="fas fa-plus me-2"></i>Ajouter Participant
                         </button>
                     </div>
                 </form>
@@ -43,17 +54,16 @@
     </div>
 </div>
 
+
 <!-- Tableau des participants -->
 <div class="card shadow-sm mb-4">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-list me-2"></i>Liste des participants
+    <div class="card-header bg-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary mb-2 mb-md-0">
+            <i class="fas fa-list me-2"></i>Liste des {{ participants|length }} participants
         </h6>
-        <div class="input-group w-50">
-            <input type="text" class="form-control" placeholder="Rechercher un participant..." id="searchParticipant">
-            <button class="btn btn-outline-secondary" type="button" id="btnSearch">
-                <i class="fas fa-search"></i>
-            </button>
+        <div class="input-group w-100 w-md-50"> <!-- Full width on small, 50% on medium+ -->
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" class="form-control" placeholder="Rechercher (Nom, Prénom, Email, Service)..." id="searchParticipant" aria-label="Rechercher participant">
         </div>
     </div>
     <div class="card-body p-0">
@@ -61,193 +71,188 @@
             <table class="table table-hover align-middle mb-0" id="participants-table">
                 <thead class="table-light">
                     <tr>
-                        <th>Nom</th>
-                        <th>Service</th>
-                        <th>Email</th>
-                        <th class="text-center">Inscriptions</th>
-                        <th class="text-center">En attente</th>
-                        <th class="text-center">Actions</th>
+                        <th scope="col">Nom Prénom</th>
+                        <th scope="col">Service</th>
+                        <th scope="col">Email</th>
+                        <th scope="col" class="text-center">Inscriptions Confirmées</th>
+                        <th scope="col" class="text-center">En Liste d'attente</th>
+                        <th scope="col" class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for participant in participants %}
-                    <tr data-participant-id="{{ participant.id }}">
+                    {% for participant in participants|sort(attribute='nom') %}
+                    <tr data-participant-id="{{ participant.id }}" class="participant-row">
                         <td>
-                            <div class="fw-bold">{{ participant.prenom }} {{ participant.nom }}</div>
+                            <div class="fw-bold">{{ participant.nom }} {{ participant.prenom }}</div>
                         </td>
                         <td>
-                            <span class="service-badge {{ participant.service_id }}"></span>
-                            {{ participant.service.nom }}
+                            <span class="service-badge {{ participant.service.id }}" style="background-color: {{ participant.service.couleur or '#6c757d' }};"></span>
+                            <span class="service-name">{{ participant.service.nom }}</span>
                         </td>
-                        <td>{{ participant.email }}</td>
+                        <td><a href="mailto:{{ participant.email }}" class="participant-email">{{ participant.email }}</a></td>
                         <td class="text-center">
-                            <span class="badge bg-primary">{{ participant.inscriptions|selectattr('statut', 'equalto', 'confirmé')|list|length }}</span>
-                        </td>
-                        <td class="text-center">
-                            <span class="badge bg-warning text-dark">{{ participant.liste_attente|length }}</span>
+                            <span class="badge bg-success rounded-pill">{{ participant.inscriptions.filter_by(statut='confirmé').count() }}</span>
                         </td>
                         <td class="text-center">
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-sm btn-outline-primary btn-participant" data-bs-toggle="modal" data-bs-target="#viewParticipantModal{{ participant.id }}">
+                             <span class="badge bg-warning text-dark rounded-pill">{{ participant.liste_attente.count() }}</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Actions participant">
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewParticipantModal{{ participant.id }}" title="Voir détails">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-warning btn-participant" data-bs-toggle="modal" data-bs-target="#editParticipantModal{{ participant.id }}">
+                                {% if current_user.role in ['admin', 'responsable'] %}
+                                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editParticipantModal{{ participant.id }}" title="Modifier">
                                     <i class="fas fa-edit"></i>
                                 </button>
+                                {% endif %}
+                                 {% if current_user.role == 'admin' %}
+                                 <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteParticipantModal{{ participant.id }}" title="Supprimer">
+                                     <i class="fas fa-trash"></i>
+                                 </button>
+                                 {% endif %}
                             </div>
-                            
-                            <!-- Modal Voir Participant -->
-                            <div class="modal fade" id="viewParticipantModal{{ participant.id }}" tabindex="-1" aria-hidden="true">
-                                <div class="modal-dialog modal-lg">
+
+                             <!-- Modal Voir Participant -->
+                            <div class="modal fade" id="viewParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="viewParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+                                <div class="modal-dialog modal-lg modal-dialog-scrollable">
                                     <div class="modal-content">
                                         <div class="modal-header">
-                                            <h5 class="modal-title">
-                                                {{ participant.prenom }} {{ participant.nom }}
-                                                <small class="text-muted d-block">{{ participant.email }}</small>
+                                            <h5 class="modal-title" id="viewParticipantModalLabel{{ participant.id }}">
+                                                 <i class="fas fa-user-circle me-2"></i>{{ participant.prenom }} {{ participant.nom }}
+                                                <small class="text-muted d-block fw-normal">{{ participant.email }}</small>
                                             </h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                         </div>
                                         <div class="modal-body">
-                                            <!-- Informations du participant -->
                                             <div class="row mb-4">
                                                 <div class="col-md-6">
-                                                    <h6 class="fw-bold">Service :</h6>
+                                                    <h6><i class="fas fa-sitemap me-2"></i>Service</h6>
                                                     <p>
-                                                        <span class="service-badge {{ participant.service_id }}"></span>
+                                                        <span class="service-badge {{ participant.service.id }}" style="background-color: {{ participant.service.couleur or '#6c757d' }};"></span>
                                                         {{ participant.service.nom }}
                                                     </p>
                                                 </div>
                                                 <div class="col-md-6">
-                                                    <h6 class="fw-bold">Responsable :</h6>
-                                                    <p>{{ participant.service.responsable }}</p>
-                                                    <p><a href="mailto:{{ participant.service.email_responsable }}">{{ participant.service.email_responsable }}</a></p>
+                                                    <h6><i class="fas fa-user-tie me-2"></i>Responsable Service</h6>
+                                                    <p>{{ participant.service.responsable }}
+                                                       (<a href="mailto:{{ participant.service.email_responsable }}">{{ participant.service.email_responsable }}</a>)
+                                                    </p>
                                                 </div>
                                             </div>
-                                            
-                                            <!-- Onglets pour inscriptions -->
-                                            <ul class="nav nav-tabs" id="participantTabs{{ participant.id }}" role="tablist">
+
+                                            <ul class="nav nav-tabs mb-3" id="participantTabs{{ participant.id }}" role="tablist">
                                                 <li class="nav-item" role="presentation">
-                                                    <button class="nav-link active" id="inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#inscriptions{{ participant.id }}" type="button" role="tab">
-                                                        Inscriptions <span class="badge bg-primary ms-1">{{ participant.inscriptions|length }}</span>
+                                                    <button class="nav-link active" id="view-inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-inscriptions{{ participant.id }}" type="button" role="tab">
+                                                        Inscriptions Confirmées <span class="badge bg-success ms-1">{{ participant.inscriptions.filter_by(statut='confirmé').count() }}</span>
+                                                    </button>
+                                                </li>
+                                                 <li class="nav-item" role="presentation">
+                                                    <button class="nav-link" id="view-pending-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-pending{{ participant.id }}" type="button" role="tab">
+                                                        En Attente Validation <span class="badge bg-secondary ms-1">{{ participant.inscriptions.filter_by(statut='en attente').count() }}</span>
                                                     </button>
                                                 </li>
                                                 <li class="nav-item" role="presentation">
-                                                    <button class="nav-link" id="attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#attente{{ participant.id }}" type="button" role="tab">
-                                                        Liste d'attente <span class="badge bg-warning text-dark ms-1">{{ participant.liste_attente|length }}</span>
+                                                    <button class="nav-link" id="view-attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-attente{{ participant.id }}" type="button" role="tab">
+                                                        Liste d'attente <span class="badge bg-warning text-dark ms-1">{{ participant.liste_attente.count() }}</span>
                                                     </button>
                                                 </li>
                                             </ul>
-                                            <div class="tab-content mt-3" id="participantTabsContent{{ participant.id }}">
-                                                <!-- Onglet inscriptions -->
-                                                <div class="tab-pane fade show active" id="inscriptions{{ participant.id }}" role="tabpanel">
-                                                    {% if participant.inscriptions|length > 0 %}
+                                            <div class="tab-content" id="participantTabsContent{{ participant.id }}">
+                                                <!-- Onglet inscriptions confirmées -->
+                                                <div class="tab-pane fade show active" id="view-inscriptions{{ participant.id }}" role="tabpanel">
+                                                     {% set confirmed_inscriptions = participant.inscriptions.filter_by(statut='confirmé').all() %}
+                                                    {% if confirmed_inscriptions %}
                                                     <div class="table-responsive">
-                                                        <table class="table table-striped">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Session</th>
-                                                                    <th>Date</th>
-                                                                    <th>Horaire</th>
-                                                                    <th>Statut</th>
-                                                                    <th>Actions</th>
-                                                                </tr>
-                                                            </thead>
+                                                        <table class="table table-sm table-striped">
+                                                            <thead><tr><th>Session</th><th>Date</th><th>Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
                                                             <tbody>
-                                                                {% for inscription in participant.inscriptions %}
+                                                            {% for inscription in confirmed_inscriptions|sort(attribute='session.date') %}
                                                                 <tr>
-                                                                    <td>
-                                                                        <span class="badge {% if inscription.session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif inscription.session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif inscription.session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif inscription.session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %}">
-                                                                            {{ inscription.session.theme.nom }}
-                                                                        </span>
-                                                                    </td>
+                                                                    <td><span class="badge theme-badge {% if inscription.session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif inscription.session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif inscription.session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif inscription.session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %}">{{ inscription.session.theme.nom }}</span></td>
                                                                     <td>{{ inscription.session.formatage_date }}</td>
                                                                     <td>{{ inscription.session.formatage_horaire }}</td>
+                                                                     <td>{{ inscription.session.salle.nom if inscription.session.salle else '-' }}</td>
                                                                     <td>
-                                                                        {% if inscription.statut == 'confirmé' %}
-                                                                        <span class="badge bg-success">Confirmé</span>
-                                                                        {% elif inscription.statut == 'en attente' %}
-                                                                        <span class="badge bg-warning">En attente</span>
-                                                                        {% else %}
-                                                                        <span class="badge bg-danger">Annulé</span>
-                                                                        {% endif %}
-                                                                    </td>
-                                                                    <td>
-                                                                        {% if inscription.statut == 'confirmé' %}
-                                                                        <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
-                                                                            <i class="far fa-calendar-plus me-1"></i>Invitation
-                                                                        </a>
-                                                                        {% elif inscription.statut == 'en attente' %}
-                                                                        <div class="btn-group btn-group-sm">
-                                                                            <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
-                                                                                <input type="hidden" name="action" value="valider">
-                                                                                <button type="submit" class="btn btn-sm btn-success">
-                                                                                    <i class="fas fa-check me-1"></i>Valider
-                                                                                </button>
-                                                                            </form>
-                                                                            <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
-                                                                                <input type="hidden" name="action" value="refuser">
-                                                                                <button type="submit" class="btn btn-sm btn-danger">
-                                                                                    <i class="fas fa-times me-1"></i>Refuser
-                                                                                </button>
-                                                                            </form>
-                                                                        </div>
-                                                                        {% endif %}
+                                                                        <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation Outlook"><i class="far fa-calendar-plus"></i></a>
+                                                                         {% if current_user.role == 'admin' %}
+                                                                         <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
+                                                                             <input type="hidden" name="action" value="annuler"> <!-- Or similar action -->
+                                                                             <button type="button" class="btn btn-sm btn-outline-danger btn-cancel-inscription" title="Annuler"><i class="fas fa-times"></i></button>
+                                                                         </form>
+                                                                         {% endif %}
                                                                     </td>
                                                                 </tr>
-                                                                {% endfor %}
+                                                            {% endfor %}
                                                             </tbody>
                                                         </table>
                                                     </div>
                                                     {% else %}
-                                                    <div class="alert alert-info">
-                                                        <i class="fas fa-info-circle me-2"></i>Aucune inscription pour ce participant.
-                                                    </div>
+                                                    <p class="text-muted text-center fst-italic mt-3">Aucune inscription confirmée.</p>
                                                     {% endif %}
                                                 </div>
-                                                
-                                                <!-- Onglet liste d'attente -->
-                                                <div class="tab-pane fade" id="attente{{ participant.id }}" role="tabpanel">
-                                                    {% if participant.liste_attente|length > 0 %}
+                                                 <!-- Onglet inscriptions en attente -->
+                                                <div class="tab-pane fade" id="view-pending{{ participant.id }}" role="tabpanel">
+                                                      {% set pending_inscriptions = participant.inscriptions.filter_by(statut='en attente').all() %}
+                                                    {% if pending_inscriptions %}
                                                     <div class="table-responsive">
-                                                        <table class="table table-striped">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Session</th>
-                                                                    <th>Date</th>
-                                                                    <th>Position</th>
-                                                                    <th>Date d'inscription</th>
-                                                                    <th>Statut</th>
-                                                                </tr>
-                                                            </thead>
+                                                        <table class="table table-sm table-striped">
+                                                             <thead><tr><th>Session</th><th>Date</th><th>Demandé le</th><th>Actions</th></tr></thead>
                                                             <tbody>
-                                                                {% for attente in participant.liste_attente %}
+                                                               {% for inscription in pending_inscriptions|sort(attribute='date_inscription', reverse=True) %}
                                                                 <tr>
+                                                                     <td><span class="badge theme-badge {% if inscription.session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif inscription.session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif inscription.session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif inscription.session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %}">{{ inscription.session.theme.nom }}</span></td>
+                                                                    <td>{{ inscription.session.formatage_date }}</td>
+                                                                    <td>{{ inscription.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
                                                                     <td>
-                                                                        <span class="badge {% if attente.session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif attente.session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif attente.session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif attente.session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %}">
-                                                                            {{ attente.session.theme.nom }}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td>{{ attente.session.formatage_date }}</td>
-                                                                    <td>
-                                                                        <span class="badge bg-secondary">{{ attente.position }}</span>
-                                                                    </td>
-                                                                    <td>{{ attente.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
-                                                                    <td>
-                                                                        {% if attente.notification_envoyee %}
-                                                                        <span class="badge bg-info">Notifié</span>
+                                                                        {% if current_user.role in ['admin', 'responsable'] %}
+                                                                            <div class="btn-group btn-group-sm">
+                                                                                <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
+                                                                                    <input type="hidden" name="action" value="valider">
+                                                                                    <button type="submit" class="btn btn-success" title="Valider"><i class="fas fa-check"></i></button>
+                                                                                </form>
+                                                                                <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
+                                                                                    <input type="hidden" name="action" value="refuser">
+                                                                                    <button type="submit" class="btn btn-danger" title="Refuser"><i class="fas fa-times"></i></button>
+                                                                                </form>
+                                                                            </div>
                                                                         {% else %}
-                                                                        <span class="badge bg-warning text-dark">En attente</span>
+                                                                            <span class="text-muted small">Validation requise</span>
                                                                         {% endif %}
                                                                     </td>
                                                                 </tr>
-                                                                {% endfor %}
+                                                               {% endfor %}
                                                             </tbody>
                                                         </table>
                                                     </div>
                                                     {% else %}
-                                                    <div class="alert alert-info">
-                                                        <i class="fas fa-info-circle me-2"></i>Aucune inscription en liste d'attente pour ce participant.
+                                                    <p class="text-muted text-center fst-italic mt-3">Aucune inscription en attente de validation.</p>
+                                                    {% endif %}
+                                                </div>
+                                                <!-- Onglet liste d'attente -->
+                                                <div class="tab-pane fade" id="view-attente{{ participant.id }}" role="tabpanel">
+                                                    {% if participant.liste_attente.count() > 0 %}
+                                                    <div class="table-responsive">
+                                                         <table class="table table-sm table-striped">
+                                                            <thead><tr><th>Session</th><th>Date</th><th>Position</th><th>Inscrit le</th><th>Statut</th></tr></thead>
+                                                            <tbody>
+                                                               {% for attente in participant.liste_attente.order_by(ListeAttente.position).all() %}
+                                                                <tr>
+                                                                     <td><span class="badge theme-badge {% if attente.session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif attente.session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif attente.session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif attente.session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %}">{{ attente.session.theme.nom }}</span></td>
+                                                                    <td>{{ attente.session.formatage_date }}</td>
+                                                                    <td><span class="badge bg-secondary">{{ attente.position }}</span></td>
+                                                                    <td>{{ attente.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
+                                                                    <td>
+                                                                        {% if attente.notification_envoyee %}<span class="badge bg-info">Notifié</span>
+                                                                        {% else %}<span class="badge bg-light text-dark">En attente</span>{% endif %}
+                                                                    </td>
+                                                                </tr>
+                                                               {% endfor %}
+                                                            </tbody>
+                                                         </table>
                                                     </div>
+                                                    {% else %}
+                                                    <p class="text-muted text-center fst-italic mt-3">Aucune inscription en liste d'attente.</p>
                                                     {% endif %}
                                                 </div>
                                             </div>
@@ -258,85 +263,133 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Modal Modifier Participant -->
-                            <div class="modal fade" id="editParticipantModal{{ participant.id }}" tabindex="-1" aria-hidden="true">
+                            {% if current_user.role in ['admin', 'responsable'] %}
+                            <div class="modal fade" id="editParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="editParticipantModalLabel{{ participant.id }}" aria-hidden="true">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
                                         <div class="modal-header">
-                                            <h5 class="modal-title">Modifier le participant</h5>
+                                            <h5 class="modal-title" id="editParticipantModalLabel{{ participant.id }}">Modifier - {{ participant.prenom }} {{ participant.nom }}</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                         </div>
                                         <div class="modal-body">
                                             <form action="{{ url_for('update_participant', id=participant.id) }}" method="post">
-                                                <div class="mb-3">
-                                                    <label for="nom{{ participant.id }}" class="form-label">Nom</label>
-                                                    <input type="text" class="form-control" id="nom{{ participant.id }}" name="nom" value="{{ participant.nom }}" required>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="prenom{{ participant.id }}" class="form-label">Prénom</label>
-                                                    <input type="text" class="form-control" id="prenom{{ participant.id }}" name="prenom" value="{{ participant.prenom }}" required>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="email{{ participant.id }}" class="form-label">Email</label>
-                                                    <input type="email" class="form-control" id="email{{ participant.id }}" name="email" value="{{ participant.email }}" required>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="service_id{{ participant.id }}" class="form-label">Service</label>
-                                                    <select class="form-select" id="service_id{{ participant.id }}" name="service_id" required>
-                                                        {% for service in services %}
-                                                        <option value="{{ service.id }}" {% if service.id == participant.service_id %}selected{% endif %}>{{ service.nom }}</option>
-                                                        {% endfor %}
-                                                    </select>
-                                                </div>
+                                                 <div class="row g-3 mb-3">
+                                                    <div class="col-md-6">
+                                                        <label for="edit_nom_{{ participant.id }}" class="form-label">Nom*</label>
+                                                        <input type="text" class="form-control" id="edit_nom_{{ participant.id }}" name="nom" value="{{ participant.nom }}" required>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label for="edit_prenom_{{ participant.id }}" class="form-label">Prénom*</label>
+                                                        <input type="text" class="form-control" id="edit_prenom_{{ participant.id }}" name="prenom" value="{{ participant.prenom }}" required>
+                                                    </div>
+                                                     <div class="col-md-6">
+                                                        <label for="edit_email_{{ participant.id }}" class="form-label">Email*</label>
+                                                        <input type="email" class="form-control" id="edit_email_{{ participant.id }}" name="email" value="{{ participant.email }}" required>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label for="edit_service_id_{{ participant.id }}" class="form-label">Service*</label>
+                                                        <select class="form-select" id="edit_service_id_{{ participant.id }}" name="service_id" required>
+                                                            {% for service in services|sort(attribute='nom') %}
+                                                            <option value="{{ service.id }}" {% if service.id == participant.service_id %}selected{% endif %}>{{ service.nom }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                 </div>
                                                 <div class="d-grid">
-                                                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                                                    <button type="submit" class="btn btn-primary">Enregistrer</button>
                                                 </div>
                                             </form>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                             {% endif %}
+                             <!-- Modal Delete Participant -->
+                             {% if current_user.role == 'admin' %}
+                              <div class="modal fade" id="deleteParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="deleteParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+                                 <!-- Delete confirmation structure -->
+                              </div>
+                             {% endif %}
+
                         </td>
                     </tr>
+                     {% else %}
+                      <tr>
+                          <td colspan="6" class="text-center text-muted p-4">
+                              Aucun participant trouvé. <a href="#" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">Ajouter un participant</a>.
+                          </td>
+                      </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+     <div class="card-footer bg-light text-muted small">
+         Total: {{ participants|length }} participant(s)
+     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+{{ super() }} <!-- Include scripts from layout.html -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Recherche de participants
+        console.log('Participants JS loaded');
+
+        // 1. Live Search Filter
         const searchInput = document.getElementById('searchParticipant');
-        const btnSearch = document.getElementById('btnSearch');
-        const participantsTable = document.getElementById('participants-table');
-        
+        const participantsTableBody = document.getElementById('participants-table')?.querySelector('tbody'); // Added optional chaining
+
         function filterParticipants() {
-            const searchValue = searchInput.value.toLowerCase();
-            const rows = participantsTable.querySelectorAll('tbody tr');
-            
+             if (!searchInput || !participantsTableBody) return; // Exit if elements not found
+
+            const searchValue = searchInput.value.toLowerCase().trim();
+            const rows = participantsTableBody.querySelectorAll('tr.participant-row');
+            let visibleCount = 0;
+
             rows.forEach(row => {
                 const name = row.querySelector('td:first-child').textContent.toLowerCase();
-                const service = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
-                const email = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
-                
-                if (name.includes(searchValue) || service.includes(searchValue) || email.includes(searchValue)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
+                const service = row.querySelector('.service-name').textContent.toLowerCase();
+                const email = row.querySelector('.participant-email').textContent.toLowerCase();
+                const isVisible = name.includes(searchValue) || service.includes(searchValue) || email.includes(searchValue);
+                row.style.display = isVisible ? '' : 'none';
+                if (isVisible) visibleCount++;
             });
+             // Optional: Display message if no results
+             // const noResultsRow = document.getElementById('no-results-row'); // Need to add this row if desired
+             // if (noResultsRow) noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
         }
-        
-        if (searchInput && btnSearch) {
-            searchInput.addEventListener('keyup', filterParticipants);
-            btnSearch.addEventListener('click', filterParticipants);
+
+        if (searchInput) {
+            searchInput.addEventListener('input', filterParticipants); // Use 'input' for live filtering
         }
+
+        // 2. Apply specific JS fixes for modals on this page
+         function applyParticipantModalFixes() {
+            // Target selects in edit/add modals
+             document.querySelectorAll('#editParticipantModal select, #addParticipantModalGlobal select').forEach(select => {
+                 select.style.display = 'block';
+                 select.style.visibility = 'visible';
+                 select.style.opacity = '1';
+                 select.style.position = 'relative';
+                 select.style.zIndex = '2000';
+                 select.style.pointerEvents = 'auto';
+             });
+              // Target buttons in all participant modals
+             document.querySelectorAll('[id^="viewParticipantModal"] button, [id^="viewParticipantModal"] .btn, [id^="editParticipantModal"] button, [id^="editParticipantModal"] .btn, #addParticipantModalGlobal button, #addParticipantModalGlobal .btn').forEach(button => {
+                button.style.position = 'relative';
+                button.style.zIndex = '2001';
+                button.style.pointerEvents = 'auto';
+             });
+             if (typeof config !== 'undefined' && config.debugMode) console.log('Participants specific modal JS fixes applied.');
+         }
+         // Apply fixes after a short delay
+         setTimeout(applyParticipantModalFixes, 500);
+
+         // Add confirmation logic for delete button if implemented
+         // document.body.addEventListener('click', function(e) { ... });
     });
 </script>
 {% endblock %}

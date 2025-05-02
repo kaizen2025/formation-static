@@ -1,0 +1,97 @@
+<!-- templates/modals/_inscription_modal.html -->
+{#
+    Expects in context:
+    - session: The session object.
+    - participants: List of all participant objects.
+    - services: List of all service objects.
+    - places_restantes: Pre-calculated remaining places (passed via 'with')
+#}
+<div class="modal fade" id="inscriptionModal{{ session.id }}" tabindex="-1" aria-labelledby="inscriptionModalLabel{{ session.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="inscriptionModalLabel{{ session.id }}"><i class="fas fa-user-plus me-2"></i>Inscription - {{ session.theme.nom }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer" style="z-index: 2005 !important; position: relative !important;"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Session Info Alert -->
+                <div class="alert alert-info d-flex align-items-center mb-3 shadow-sm">
+                    <i class="fas fa-info-circle fa-2x me-3"></i>
+                    <div>
+                        <p class="mb-1"><strong>Session :</strong> {{ session.formatage_date }} | {{ session.formatage_horaire }}</p>
+                        {# ***** FIX: Use passed places_restantes ***** #}
+                        <p class="mb-1"><strong>Places :</strong> <span class="fw-bold places-dispo" data-session-id="{{ session.id }}">{{ places_restantes|default(0) }}</span> / {{ session.max_participants|default(15) }} disponibles</p>
+                        {% if session.salle %}<p class="mb-0"><i class="fas fa-map-marker-alt me-1"></i><strong>Salle :</strong> {{ session.salle.nom }}</p>{% endif %}
+                    </div>
+                </div>
+                <!-- Nav tabs -->
+                 <ul class="nav nav-tabs mb-3" id="inscriptionTab{{ session.id }}" role="tablist">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="existant-tab{{ session.id }}" data-bs-toggle="tab" data-bs-target="#existantContent{{ session.id }}" type="button" role="tab" aria-controls="existantContent{{ session.id }}" aria-selected="true" style="z-index: 2001 !important; position: relative !important;"><i class="fas fa-user-check me-1"></i>Participant existant</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="nouveau-tab{{ session.id }}" data-bs-toggle="tab" data-bs-target="#nouveauContent{{ session.id }}" type="button" role="tab" aria-controls="nouveauContent{{ session.id }}" aria-selected="false" style="z-index: 2001 !important; position: relative !important;"><i class="fas fa-user-plus me-1"></i>Nouveau participant</button></li>
+                </ul>
+                 <!-- Tab Content -->
+                 <div class="tab-content pt-2" id="inscriptionTabContent{{ session.id }}">
+                    <!-- Tab Existant -->
+                    <div class="tab-pane fade show active" id="existantContent{{ session.id }}" role="tabpanel">
+                         <form action="{{ url_for('inscription') }}" method="post" class="inscription-form-existing">
+                            <input type="hidden" name="session_id" value="{{ session.id }}">
+                            <div class="mb-3">
+                                <label for="participant_id_{{ session.id }}" class="form-label">Sélectionner un participant*</label>
+                                <select class="form-select participant-select" id="participant_id_{{ session.id }}" name="participant_id" required style="display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important;">
+                                    <option value="" disabled selected>-- Rechercher ou choisir --</option>
+                                    {% for p in participants|sort(attribute='prenom') %}
+                                    <option value="{{ p.id }}" data-service="{{ p.service.nom }}">{{ p.prenom }} {{ p.nom }} ({{ p.service.nom }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                             <div class="d-grid">
+                                {# ***** FIX: Use passed places_restantes ***** #}
+                                {% if places_restantes > 0 %}
+                                <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;"><i class="fas fa-check me-2"></i>Confirmer l'inscription</button>
+                                {% else %}
+                                <button type="submit" formaction="{{ url_for('liste_attente') }}" class="btn btn-warning" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;"><i class="fas fa-clock me-2"></i>S'inscrire en liste d'attente</button>
+                                <p class="text-center text-danger small mt-2 mb-0"><i class="fas fa-exclamation-triangle me-1"></i>Session complète.</p>
+                                {% endif %}
+                            </div>
+                        </form>
+                    </div>
+                     <!-- Tab Nouveau -->
+                     <div class="tab-pane fade" id="nouveauContent{{ session.id }}" role="tabpanel">
+                         <form action="{{ url_for('add_participant') }}" method="post" class="inscription-form-new">
+                             <input type="hidden" name="redirect_session_id" value="{{ session.id }}">
+                             <input type="hidden" name="from_modal" value="true">
+                             {# ***** FIX: Use passed places_restantes ***** #}
+                             <input type="hidden" name="action_after_add" value="{{ 'liste_attente' if places_restantes == 0 else 'inscription' }}">
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6"><label for="nom_new_{{ session.id }}" class="form-label">Nom*</label><input type="text" class="form-control" id="nom_new_{{ session.id }}" name="nom" required></div>
+                                <div class="col-md-6"><label for="prenom_new_{{ session.id }}" class="form-label">Prénom*</label><input type="text" class="form-control" id="prenom_new_{{ session.id }}" name="prenom" required></div>
+                                <div class="col-md-6"><label for="email_new_{{ session.id }}" class="form-label">Email*</label><input type="email" class="form-control" id="email_new_{{ session.id }}" name="email" required></div>
+                                <div class="col-md-6">
+                                    <label for="service_id_new_{{ session.id }}" class="form-label">Service*</label>
+                                    <select class="form-select" id="service_id_new_{{ session.id }}" name="service_id" required style="display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important;">
+                                        <option value="" disabled selected>-- Choisir --</option>
+                                        {% for s in services|sort(attribute='nom') %}
+                                        <option value="{{ s.id }}">{{ s.nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="d-grid">
+                                {# ***** FIX: Use passed places_restantes ***** #}
+                                {% if places_restantes > 0 %}
+                                <button type="submit" class="btn btn-success" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;"><i class="fas fa-user-plus me-2"></i>Ajouter et Inscrire</button>
+                                {% else %}
+                                <button type="submit" class="btn btn-warning" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;"><i class="fas fa-user-clock me-2"></i>Ajouter et Mettre en Attente</button>
+                                <p class="text-center text-danger small mt-2 mb-0"><i class="fas fa-exclamation-triangle me-1"></i>Session complète.</p>
+                                {% endif %}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+             <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>

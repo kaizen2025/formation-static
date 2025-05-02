@@ -1,0 +1,476 @@
+2025-05-02 02:09:45,762 INFO: Application logging initialized [in c:\formation-static\app.py:102]
+2025-05-02 02:09:54,428 ERROR: Unexpected error in dashboard route: expected token 'end of statement block', got 'with' [in c:\formation-static\app.py:567]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 541, in dashboard
+    return render_template(
+        'dashboard.html',
+    ...<7 lines>...
+        total_sessions_completes=total_sessions_completes
+    )
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    template = app.jinja_env.get_or_select_template(template_name_or_list)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1081, in get_or_select_template
+    return self.get_template(template_name_or_list, parent, globals)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1010, in get_template
+    return self._load_template(name, globals)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 969, in _load_template
+    template = self.loader.load(self, name, self.make_globals(globals))
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\loaders.py", line 138, in load
+    code = environment.compile(source, name, filename)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 768, in compile
+    self.handle_exception(source=source_hint)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\dashboard.html", line 133, in template
+    {% include 'modals/_inscription_modal.html' with session=session places_restantes=item.places_restantes participants=participants services=services %}
+    ^^^^^^^^^^^^^^^^^
+jinja2.exceptions.TemplateSyntaxError: expected token 'end of statement block', got 'with'
+2025-05-02 02:09:56,739 ERROR: Unexpected error in dashboard route: expected token 'end of statement block', got 'with' [in c:\formation-static\app.py:567]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 541, in dashboard
+    return render_template(
+        'dashboard.html',
+    ...<7 lines>...
+        total_sessions_completes=total_sessions_completes
+    )
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    template = app.jinja_env.get_or_select_template(template_name_or_list)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1081, in get_or_select_template
+    return self.get_template(template_name_or_list, parent, globals)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1010, in get_template
+    return self._load_template(name, globals)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 969, in _load_template
+    template = self.loader.load(self, name, self.make_globals(globals))
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\loaders.py", line 138, in load
+    code = environment.compile(source, name, filename)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 768, in compile
+    self.handle_exception(source=source_hint)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\dashboard.html", line 133, in template
+    {% include 'modals/_inscription_modal.html' with session=session places_restantes=item.places_restantes participants=participants services=services %}
+    ^^^^^^^^^^^^^^^^^
+jinja2.exceptions.TemplateSyntaxError: expected token 'end of statement block', got 'with'
+2025-05-02 02:09:57,164 INFO: Client connected: OBsohX6WFWyI8JnmAAAB [in c:\formation-static\app.py:431]
+2025-05-02 02:09:57,166 INFO: Client OBsohX6WFWyI8JnmAAAB joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:13:17,208 INFO: Client disconnected: OBsohX6WFWyI8JnmAAAB [in c:\formation-static\app.py:445]
+2025-05-02 02:13:30,278 INFO: Application logging initialized [in c:\formation-static\app.py:102]
+2025-05-02 02:13:31,473 INFO: Client connected: fptsAVbDOWfKaxmHAAAB [in c:\formation-static\app.py:431]
+2025-05-02 02:13:31,476 INFO: Client fptsAVbDOWfKaxmHAAAB joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:13:34,932 INFO: Client disconnected: fptsAVbDOWfKaxmHAAAB [in c:\formation-static\app.py:445]
+2025-05-02 02:13:39,707 INFO: Client connected: 4gm1AHym16bVbEFNAAAD [in c:\formation-static\app.py:431]
+2025-05-02 02:13:39,712 INFO: Client 4gm1AHym16bVbEFNAAAD joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:13:55,423 INFO: Client disconnected: 4gm1AHym16bVbEFNAAAD [in c:\formation-static\app.py:445]
+2025-05-02 02:13:57,884 ERROR: Unexpected error in sessions route: expected token 'end of statement block', got 'with' [in c:\formation-static\app.py:740]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 717, in sessions
+    return render_template(
+        'sessions.html',
+    ...<4 lines>...
+        salles=salles
+    )
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    template = app.jinja_env.get_or_select_template(template_name_or_list)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1081, in get_or_select_template
+    return self.get_template(template_name_or_list, parent, globals)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1010, in get_template
+    return self._load_template(name, globals)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 969, in _load_template
+    template = self.loader.load(self, name, self.make_globals(globals))
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\loaders.py", line 138, in load
+    code = environment.compile(source, name, filename)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 768, in compile
+    self.handle_exception(source=source_hint)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\sessions.html", line 75, in template
+    {% include 'modals/_inscription_modal.html' with session=session places_restantes=item.places_restantes participants=participants services=services %}
+    ^^^^^^^^^^^^^
+jinja2.exceptions.TemplateSyntaxError: expected token 'end of statement block', got 'with'
+2025-05-02 02:14:01,026 INFO: Client connected: i6r9vOEeGkcC1fOxAAAF [in c:\formation-static\app.py:431]
+2025-05-02 02:14:01,029 INFO: Client i6r9vOEeGkcC1fOxAAAF joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:14:05,914 INFO: Client disconnected: i6r9vOEeGkcC1fOxAAAF [in c:\formation-static\app.py:445]
+2025-05-02 02:14:08,158 ERROR: Unexpected error in sessions route: expected token 'end of statement block', got 'with' [in c:\formation-static\app.py:740]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 717, in sessions
+    return render_template(
+        'sessions.html',
+    ...<4 lines>...
+        salles=salles
+    )
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    template = app.jinja_env.get_or_select_template(template_name_or_list)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1081, in get_or_select_template
+    return self.get_template(template_name_or_list, parent, globals)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1010, in get_template
+    return self._load_template(name, globals)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 969, in _load_template
+    template = self.loader.load(self, name, self.make_globals(globals))
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\loaders.py", line 138, in load
+    code = environment.compile(source, name, filename)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 768, in compile
+    self.handle_exception(source=source_hint)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\sessions.html", line 75, in template
+    {% include 'modals/_inscription_modal.html' with session=session places_restantes=item.places_restantes participants=participants services=services %}
+    ^^^^^^^^^^^^^
+jinja2.exceptions.TemplateSyntaxError: expected token 'end of statement block', got 'with'
+2025-05-02 02:14:11,286 INFO: Client connected: cwFRSSt_YWts-AISAAAH [in c:\formation-static\app.py:431]
+2025-05-02 02:14:11,288 INFO: Client cwFRSSt_YWts-AISAAAH joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:14:11,723 INFO: Client disconnected: cwFRSSt_YWts-AISAAAH [in c:\formation-static\app.py:445]
+2025-05-02 02:14:12,285 ERROR: Exception on /services [GET] [in C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1414]
+Traceback (most recent call last):
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 2190, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1486, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "c:\formation-static\app.py", line 627, in services
+    return render_template('services.html', services_data=service_data, participants=participants)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 132, in _render
+    rv = template.render(context)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1301, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\services.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 121, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\services.html", line 45, in block 'content'
+    {% for participant in service.participants.all()|sort(attribute='prenom') %}
+    ^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\utils.py", line 83, in from_obj
+    if hasattr(obj, "jinja_pass_arg"):
+       ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+jinja2.exceptions.UndefinedError: 'sqlalchemy.orm.collections.InstrumentedList object' has no attribute 'all'
+2025-05-02 02:14:47,187 INFO: Client connected: 1cMhGIvcnGLRw46QAAAJ [in c:\formation-static\app.py:431]
+2025-05-02 02:14:47,190 INFO: Client 1cMhGIvcnGLRw46QAAAJ joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:18:42,259 INFO: Client disconnected: 1cMhGIvcnGLRw46QAAAJ [in c:\formation-static\app.py:445]
+2025-05-02 02:19:04,109 INFO: Application logging initialized [in c:\formation-static\app.py:102]
+2025-05-02 02:19:05,123 ERROR: DB Pool/Conn Error updating theme names: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:419]
+2025-05-02 02:19:05,498 INFO: Client connected: 1GZOIJHaW2TuuPlqAAAB [in c:\formation-static\app.py:431]
+2025-05-02 02:19:05,501 INFO: Client 1GZOIJHaW2TuuPlqAAAB joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:19:06,041 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:1847]
+2025-05-02 02:19:06,266 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:1847]
+2025-05-02 02:19:07,167 ERROR: API Pool/Conn Error sessions list: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:1731]
+2025-05-02 02:19:45,522 INFO: Client disconnected: 1GZOIJHaW2TuuPlqAAAB [in c:\formation-static\app.py:445]
+2025-05-02 02:20:00,271 INFO: Application logging initialized [in c:\formation-static\app.py:102]
+2025-05-02 02:20:11,491 INFO: Client connected: GJpBuTLbkKzyhT5pAAAB [in c:\formation-static\app.py:431]
+2025-05-02 02:20:11,496 INFO: Client GJpBuTLbkKzyhT5pAAAB joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:20:16,086 INFO: Client disconnected: GJpBuTLbkKzyhT5pAAAB [in c:\formation-static\app.py:445]
+2025-05-02 02:20:19,158 INFO: Client connected: rhrHTJahyLshE2vdAAAD [in c:\formation-static\app.py:431]
+2025-05-02 02:20:19,161 INFO: Client rhrHTJahyLshE2vdAAAD joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:20:25,511 INFO: Client disconnected: rhrHTJahyLshE2vdAAAD [in c:\formation-static\app.py:445]
+2025-05-02 02:20:26,130 INFO: Client connected: eO1akgai8ASvLLDzAAAF [in c:\formation-static\app.py:431]
+2025-05-02 02:20:26,133 INFO: Client eO1akgai8ASvLLDzAAAF joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:20:42,919 INFO: Client disconnected: eO1akgai8ASvLLDzAAAF [in c:\formation-static\app.py:445]
+2025-05-02 02:20:46,137 INFO: Client connected: 24H-N45xNL3AnCJvAAAH [in c:\formation-static\app.py:431]
+2025-05-02 02:20:46,140 INFO: Client 24H-N45xNL3AnCJvAAAH joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:20:54,079 INFO: Client disconnected: 24H-N45xNL3AnCJvAAAH [in c:\formation-static\app.py:445]
+2025-05-02 02:20:57,188 INFO: Client connected: u8iVmq4YjpuQ5iL5AAAJ [in c:\formation-static\app.py:431]
+2025-05-02 02:20:57,190 INFO: Client u8iVmq4YjpuQ5iL5AAAJ joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:21:23,545 INFO: Client disconnected: u8iVmq4YjpuQ5iL5AAAJ [in c:\formation-static\app.py:445]
+2025-05-02 02:21:26,708 INFO: Client connected: 6_fHi8U6u2CVzfoFAAAL [in c:\formation-static\app.py:431]
+2025-05-02 02:21:26,710 INFO: Client 6_fHi8U6u2CVzfoFAAAL joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:21:40,882 INFO: Client disconnected: 6_fHi8U6u2CVzfoFAAAL [in c:\formation-static\app.py:445]
+2025-05-02 02:21:41,471 INFO: Client connected: kljlOQmrajvgD5-fAAAN [in c:\formation-static\app.py:431]
+2025-05-02 02:21:41,473 INFO: Client kljlOQmrajvgD5-fAAAN joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:21:58,155 INFO: Client disconnected: kljlOQmrajvgD5-fAAAN [in c:\formation-static\app.py:445]
+2025-05-02 02:22:17,602 INFO: Client connected: Ik9jg2DwfOAgGKjoAAAP [in c:\formation-static\app.py:431]
+2025-05-02 02:22:17,604 INFO: Client Ik9jg2DwfOAgGKjoAAAP joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:22:17,805 ERROR: Error calculating counts: (psycopg2.OperationalError) server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+[SQL: SELECT count(inscription.id) AS count_1 
+FROM inscription 
+WHERE inscription.statut = %(statut_1)s]
+[parameters: {'statut_1': 'confirmé'}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:495]
+2025-05-02 02:22:17,806 ERROR: Err get_places_restantes S:1: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,807 ERROR: Error processing session 1: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,807 ERROR: Err get_places_restantes S:2: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,808 ERROR: Error processing session 2: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,809 ERROR: Err get_places_restantes S:3: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,809 ERROR: Error processing session 3: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,810 ERROR: Err get_places_restantes S:4: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,810 ERROR: Error processing session 4: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,811 ERROR: Err get_places_restantes S:5: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,811 ERROR: Error processing session 5: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,812 ERROR: Err get_places_restantes S:6: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,813 ERROR: Error processing session 6: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,813 ERROR: Err get_places_restantes S:7: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,814 ERROR: Error processing session 7: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,814 ERROR: Err get_places_restantes S:8: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,815 ERROR: Error processing session 8: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,816 ERROR: Err get_places_restantes S:9: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,816 ERROR: Error processing session 9: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,817 ERROR: Err get_places_restantes S:10: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,817 ERROR: Error processing session 10: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,818 ERROR: Err get_places_restantes S:11: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,819 ERROR: Error processing session 11: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,819 ERROR: Err get_places_restantes S:12: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,820 ERROR: Error processing session 12: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,820 ERROR: Err get_places_restantes S:13: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,821 ERROR: Error processing session 13: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,821 ERROR: Err get_places_restantes S:14: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,822 ERROR: Error processing session 14: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,822 ERROR: Err get_places_restantes S:15: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,823 ERROR: Error processing session 15: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,823 ERROR: Err get_places_restantes S:16: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:22:17,824 ERROR: Error processing session 16: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:22:17,843 INFO: Client disconnected: Ik9jg2DwfOAgGKjoAAAP [in c:\formation-static\app.py:445]
+2025-05-02 02:22:18,190 INFO: Client connected: 1RyBDFKPfMO4S6puAAAR [in c:\formation-static\app.py:431]
+2025-05-02 02:22:18,193 INFO: Client 1RyBDFKPfMO4S6puAAAR joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:22:40,802 INFO: Client disconnected: 1RyBDFKPfMO4S6puAAAR [in c:\formation-static\app.py:445]
+2025-05-02 02:22:44,100 INFO: Client connected: xljB4pg-GiVLYBRQAAAT [in c:\formation-static\app.py:431]
+2025-05-02 02:22:44,103 INFO: Client xljB4pg-GiVLYBRQAAAT joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:31:11,883 INFO: Client disconnected: xljB4pg-GiVLYBRQAAAT [in c:\formation-static\app.py:445]
+2025-05-02 02:31:17,084 INFO: Application logging initialized [in c:\formation-static\app.py:102]
+2025-05-02 02:31:18,483 INFO: Client connected: Kr3Z14FAnRHJ-dI5AAAB [in c:\formation-static\app.py:431]
+2025-05-02 02:31:18,486 INFO: Client Kr3Z14FAnRHJ-dI5AAAB joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:31:21,126 INFO: Client disconnected: Kr3Z14FAnRHJ-dI5AAAB [in c:\formation-static\app.py:445]
+2025-05-02 02:31:25,781 INFO: Client connected: 5Osutn0EHxbqtWZ7AAAD [in c:\formation-static\app.py:431]
+2025-05-02 02:31:25,786 INFO: Client 5Osutn0EHxbqtWZ7AAAD joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:31:32,240 INFO: Client disconnected: 5Osutn0EHxbqtWZ7AAAD [in c:\formation-static\app.py:445]
+2025-05-02 02:31:35,256 INFO: Client connected: 7VNybeFhkhQI6cEAAAAF [in c:\formation-static\app.py:431]
+2025-05-02 02:31:35,259 INFO: Client 7VNybeFhkhQI6cEAAAAF joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:31:38,755 INFO: Client disconnected: 7VNybeFhkhQI6cEAAAAF [in c:\formation-static\app.py:445]
+2025-05-02 02:31:42,035 INFO: Client connected: ulex4z53OcHzbYf1AAAH [in c:\formation-static\app.py:431]
+2025-05-02 02:31:42,037 INFO: Client ulex4z53OcHzbYf1AAAH joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:34:17,660 INFO: Client disconnected: ulex4z53OcHzbYf1AAAH [in c:\formation-static\app.py:445]
+2025-05-02 02:34:20,507 INFO: Application logging initialized [in c:\formation-static\app.py:102]
+2025-05-02 02:34:23,965 INFO: Client connected: qLe6wOfes0Oo8vvCAAAB [in c:\formation-static\app.py:431]
+2025-05-02 02:34:23,968 INFO: Client qLe6wOfes0Oo8vvCAAAB joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:34:25,058 INFO: Client disconnected: qLe6wOfes0Oo8vvCAAAB [in c:\formation-static\app.py:445]
+2025-05-02 02:34:32,620 INFO: Client connected: ldTLuPzgbDrINXS2AAAD [in c:\formation-static\app.py:431]
+2025-05-02 02:34:32,625 INFO: Client ldTLuPzgbDrINXS2AAAD joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:35:00,306 INFO: Client disconnected: ldTLuPzgbDrINXS2AAAD [in c:\formation-static\app.py:445]
+2025-05-02 02:35:13,202 INFO: Client connected: cHJaoB8d6WpVTiy6AAAF [in c:\formation-static\app.py:431]
+2025-05-02 02:35:13,207 INFO: Client cHJaoB8d6WpVTiy6AAAF joined room: general [in c:\formation-static\app.py:454]
+2025-05-02 02:39:19,660 INFO: Client disconnected: cHJaoB8d6WpVTiy6AAAF [in c:\formation-static\app.py:445]
+2025-05-02 02:39:26,791 INFO: Application logging initialized [in c:\formation-static\app.py:102]
+2025-05-02 02:46:41,007 ERROR: Error calculating counts: (psycopg2.OperationalError) server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+[SQL: SELECT count(inscription.id) AS count_1 
+FROM inscription 
+WHERE inscription.statut = %(statut_1)s]
+[parameters: {'statut_1': 'confirmé'}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:495]
+2025-05-02 02:46:41,008 ERROR: Err get_places_restantes S:1: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,009 ERROR: Error processing session 1: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,009 ERROR: Err get_places_restantes S:2: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,010 ERROR: Error processing session 2: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,011 ERROR: Err get_places_restantes S:3: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,011 ERROR: Error processing session 3: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,012 ERROR: Err get_places_restantes S:4: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,012 ERROR: Error processing session 4: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,013 ERROR: Err get_places_restantes S:5: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,013 ERROR: Error processing session 5: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,014 ERROR: Err get_places_restantes S:6: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,014 ERROR: Error processing session 6: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,015 ERROR: Err get_places_restantes S:7: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,015 ERROR: Error processing session 7: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,016 ERROR: Err get_places_restantes S:8: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,016 ERROR: Error processing session 8: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,017 ERROR: Err get_places_restantes S:9: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,017 ERROR: Error processing session 9: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,018 ERROR: Err get_places_restantes S:10: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,018 ERROR: Error processing session 10: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,019 ERROR: Err get_places_restantes S:11: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,020 ERROR: Error processing session 11: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,020 ERROR: Err get_places_restantes S:12: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,021 ERROR: Error processing session 12: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,021 ERROR: Err get_places_restantes S:13: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,022 ERROR: Error processing session 13: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,022 ERROR: Err get_places_restantes S:14: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,023 ERROR: Error processing session 14: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,023 ERROR: Err get_places_restantes S:15: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,024 ERROR: Error processing session 15: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,024 ERROR: Err get_places_restantes S:16: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:41,025 ERROR: Error processing session 16: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:41,025 ERROR: Error loading user 1: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:291]
+2025-05-02 02:46:43,370 ERROR: Error calculating counts: (psycopg2.OperationalError) server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+[SQL: SELECT count(inscription.id) AS count_1 
+FROM inscription 
+WHERE inscription.statut = %(statut_1)s]
+[parameters: {'statut_1': 'confirmé'}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:495]
+2025-05-02 02:46:43,371 ERROR: Err get_places_restantes S:1: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,371 ERROR: Error processing session 1: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,372 ERROR: Err get_places_restantes S:2: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,372 ERROR: Error processing session 2: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,373 ERROR: Err get_places_restantes S:3: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,374 ERROR: Error processing session 3: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,374 ERROR: Err get_places_restantes S:4: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,375 ERROR: Error processing session 4: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,375 ERROR: Err get_places_restantes S:5: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,376 ERROR: Error processing session 5: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,377 ERROR: Err get_places_restantes S:6: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,377 ERROR: Error processing session 6: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,378 ERROR: Err get_places_restantes S:7: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,378 ERROR: Error processing session 7: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,379 ERROR: Err get_places_restantes S:8: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,379 ERROR: Error processing session 8: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,380 ERROR: Err get_places_restantes S:9: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,380 ERROR: Error processing session 9: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,381 ERROR: Err get_places_restantes S:10: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,381 ERROR: Error processing session 10: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,382 ERROR: Err get_places_restantes S:11: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,382 ERROR: Error processing session 11: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,383 ERROR: Err get_places_restantes S:12: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,383 ERROR: Error processing session 12: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,384 ERROR: Err get_places_restantes S:13: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,384 ERROR: Error processing session 13: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,385 ERROR: Err get_places_restantes S:14: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,385 ERROR: Error processing session 14: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,386 ERROR: Err get_places_restantes S:15: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,386 ERROR: Error processing session 15: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,387 ERROR: Err get_places_restantes S:16: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:189]
+2025-05-02 02:46:43,387 ERROR: Error processing session 16: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:528]
+2025-05-02 02:46:43,388 ERROR: Error loading user 1: Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b) [in c:\formation-static\app.py:291]
+2025-05-02 02:46:44,168 ERROR: API Pool/Conn Error sessions list: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:1731]
+2025-05-02 02:46:44,392 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:1847]
+2025-05-02 02:46:49,191 ERROR: DB Pool/Connection Error on dashboard: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:555]
+2025-05-02 02:46:49,423 ERROR: Error loading user 1: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:291]
+2025-05-02 02:46:57,693 ERROR: DB Pool/Connection Error on dashboard: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:555]
+2025-05-02 02:46:57,913 ERROR: Error loading user 1: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:291]
+2025-05-02 02:46:58,618 ERROR: DB Pool/Connection Error on dashboard: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:555]
+2025-05-02 02:46:58,845 ERROR: Error loading user 1: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:291]
+2025-05-02 02:47:02,202 ERROR: DB Pool/Connection Error on dashboard: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:555]
+2025-05-02 02:47:02,422 ERROR: Error loading user 1: (psycopg2.OperationalError) FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:291]
+2025-05-02 02:48:04,891 ERROR: Exception on /participants [GET] [in C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1414]
+Traceback (most recent call last):
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 2190, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1486, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\app.py", line 1112, in participants
+    return render_template('participants.html', participants=participants, services=services)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 132, in _render
+    rv = template.render(context)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1301, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\participants.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 121, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\participants.html", line 97, in block 'content'
+    <span class="badge bg-warning text-dark rounded-pill">{{ participant.liste_attente|length }}</span>
+    
+TypeError: object of type 'AppenderQuery' has no len()
+2025-05-02 02:49:01,412 ERROR: Exception on /participants [GET] [in C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1414]
+Traceback (most recent call last):
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 2190, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1486, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\app.py", line 1112, in participants
+    return render_template('participants.html', participants=participants, services=services)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\templating.py", line 132, in _render
+    rv = template.render(context)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 1301, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\participants.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 121, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\participants.html", line 97, in block 'content'
+    <span class="badge bg-warning text-dark rounded-pill">{{ participant.liste_attente|length }}</span>
+    
+TypeError: object of type 'AppenderQuery' has no len()

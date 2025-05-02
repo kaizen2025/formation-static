@@ -1,0 +1,37 @@
+<!-- templates/error.html -->
+{% extends "layout.html" %}
+
+{% block title %}Erreur - Formation Microsoft 365{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Une Erreur Est Survenue</h4>
+                </div>
+                <div class="card-body">
+                    <p class="lead">Désolé, une erreur inattendue s'est produite.</p>
+                    {% if error_message %}
+                        <div class="alert alert-danger-subtle border border-danger-subtle">
+                            <strong>Détails :</strong> {{ error_message }}
+                        </div>
+                    {% endif %}
+                    <p>Veuillez essayer les actions suivantes :</p>
+                    <ul>
+                        <li>Rechargez la page (<kbd>F5</kbd> ou <kbd>Ctrl+R</kbd>).</li>
+                        <li>Retournez à la <a href="{{ url_for('dashboard') }}">page d'accueil</a>.</li>
+                        <li>Si le problème persiste, veuillez contacter l'administrateur.</li>
+                    </ul>
+                </div>
+                <div class="card-footer text-center">
+                     <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                         <i class="fas fa-home me-1"></i> Retour à l'accueil
+                     </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

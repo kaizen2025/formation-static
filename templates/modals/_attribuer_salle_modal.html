@@ -1,0 +1,66 @@
+<!-- templates/modals/_attribuer_salle_modal.html -->
+{#
+    Modal for Admins to assign a room to a session.
+
+    Expects in context:
+    - session: The session object.
+    - salles: List of all salle objects.
+    - current_user: The logged-in user (checked before including this file).
+#}
+{% if current_user.is_authenticated and current_user.role == 'admin' %}
+<div class="modal fade" id="attribuerSalleModal{{ session.id }}" tabindex="-1" aria-labelledby="attribuerSalleModalLabel{{ session.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="attribuerSalleModalLabel{{ session.id }}"><i class="fas fa-building me-2"></i>Attribuer Salle - {{ session.theme.nom }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer" style="z-index: 2005 !important; position: relative !important;"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Session Info -->
+                 <div class="alert alert-secondary d-flex align-items-center mb-3">
+                    <i class="fas fa-calendar-alt fa-2x me-3"></i>
+                    <div>
+                        <p class="mb-1"><strong>Session :</strong> {{ session.formatage_date }} | {{ session.formatage_horaire }}</p>
+                        <p class="mb-0"><strong>Thème :</strong> {{ session.theme.nom }}</p>
+                    </div>
+                </div>
+
+                 <!-- Form -->
+                 <form action="{{ url_for('attribuer_salle') }}" method="post" id="attribuer_salle_form_{{ session.id }}">
+                    <input type="hidden" name="session_id" value="{{ session.id }}">
+                    <div class="mb-3">
+                         <label for="salle_id_assign_{{ session.id }}" class="form-label">Choisir une salle*</label>
+                        <select class="form-select salle-select" id="salle_id_assign_{{ session.id }}" name="salle_id" required
+                                style="display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important;">
+                            {# Ensure salles is passed and sorted #}
+                            <option value="" disabled {% if not session.salle_id %}selected{% endif %}>-- Sélectionner une salle --</option>
+                            {% for salle in salles|sort(attribute='nom') %}
+                            <option value="{{ salle.id }}" {% if session.salle_id == salle.id %}selected{% endif %}>
+                                {{ salle.nom }} (Capacité: {{ salle.capacite }})
+                            </option>
+                            {% endfor %}
+                             {# Option to remove assignment #}
+                             <option value="">-- Aucune salle (Retirer l'attribution) --</option>
+                        </select>
+                    </div>
+
+                    {% if session.salle %}
+                    <div class="alert alert-light border small p-2 mb-3">
+                         <i class="fas fa-info-circle me-1"></i>Salle actuellement attribuée : <strong>{{ session.salle.nom }}</strong>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">
+                            <i class="fas fa-check me-2"></i>Confirmer l'Attribution / Modification
+                        </button>
+                    </div>
+                </form>
+            </div>
+             <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %} {# End Admin Check #}

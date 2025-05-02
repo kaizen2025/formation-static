@@ -1,36 +1,46 @@
-<!-- FICHIER SALLES.HTML AMÉLIORÉ -->
 {% extends "layout.html" %}
 
 {% block content %}
-<h1 class="mb-4"><i class="fas fa-building me-2"></i>Gestion des salles</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0"><i class="fas fa-building me-2"></i>Gestion des Salles</h1>
+    {% if current_user.role == 'admin' %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSalleModal">
+        <i class="fas fa-plus me-2"></i>Ajouter une Salle
+    </button>
+    {% endif %}
+</div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Ajouter une salle</h5>
+
+<!-- Add Salle Modal -->
+{% if current_user.role == 'admin' %}
+<div class="modal fade" id="addSalleModal" tabindex="-1" aria-labelledby="addSalleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSalleModalLabel">Ajouter une Nouvelle Salle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="card-body">
-                <form action="{{ url_for('add_salle') }}" method="post" class="row g-3">
-                    <div class="col-md-6">
-                        <label for="nom" class="form-label">Nom de la salle</label>
-                        <input type="text" class="form-control" id="nom" name="nom" required>
+            <div class="modal-body">
+                <form action="{{ url_for('add_salle') }}" method="post">
+                    <div class="mb-3">
+                        <label for="add_nom_salle" class="form-label">Nom de la salle*</label>
+                        <input type="text" class="form-control" id="add_nom_salle" name="nom" required>
                     </div>
-                    <div class="col-md-6">
-                        <label for="capacite" class="form-label">Capacité</label>
-                        <input type="number" class="form-control" id="capacite" name="capacite" min="1" value="15" required>
+                    <div class="mb-3">
+                        <label for="add_capacite_salle" class="form-label">Capacité*</label>
+                        <input type="number" class="form-control" id="add_capacite_salle" name="capacite" min="1" value="15" required>
                     </div>
-                    <div class="col-md-12">
-                        <label for="lieu" class="form-label">Emplacement</label>
-                        <input type="text" class="form-control" id="lieu" name="lieu" placeholder="Ex: Bâtiment A, 2ème étage">
+                    <div class="mb-3">
+                        <label for="add_lieu_salle" class="form-label">Emplacement</label>
+                        <input type="text" class="form-control" id="add_lieu_salle" name="lieu" placeholder="Ex: Bâtiment A, 1er étage">
                     </div>
-                    <div class="col-md-12">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    <div class="mb-3">
+                        <label for="add_description_salle" class="form-label">Description</label>
+                        <textarea class="form-control" id="add_description_salle" name="description" rows="3" placeholder="Équipement, particularités..."></textarea>
                     </div>
-                    <div class="col-12">
+                    <div class="d-grid">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-plus-circle me-2"></i>Ajouter la salle
+                            <i class="fas fa-plus-circle me-2"></i>Ajouter la Salle
                         </button>
                     </div>
                 </form>
@@ -38,81 +48,105 @@
         </div>
     </div>
 </div>
+{% endif %}
 
-<div class="row">
-    {% for salle in salles %}
-    <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">{{ salle.nom }}</h5>
-                    <span class="badge bg-light text-dark">{{ salle.capacite }} places</span>
-                </div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for salle in salles|sort(attribute='nom') %}
+    <div class="col">
+        <div class="card h-100 shadow-sm salle-card">
+             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-truncate"><i class="fas fa-door-open me-2"></i>{{ salle.nom }}</h5>
+                <span class="badge bg-light text-dark rounded-pill">{{ salle.capacite }} places</span>
             </div>
             <div class="card-body">
-                {% if salle.lieu %}
-                <p><i class="fas fa-map-marker-alt me-2"></i>{{ salle.lieu }}</p>
+                 {% if salle.lieu %}
+                <p class="card-text"><i class="fas fa-map-marker-alt text-secondary me-2"></i>{{ salle.lieu }}</p>
                 {% endif %}
-                
-                {% if salle.description %}
-                <p>{{ salle.description }}</p>
+                 {% if salle.description %}
+                <p class="card-text small text-muted">{{ salle.description }}</p>
                 {% endif %}
-                
-                <h6 class="mt-3 mb-2">Sessions programmées :</h6>
-                {% set sessions = salle.sessions %}
-                {% if sessions and sessions|length > 0 %}
-                <ul class="list-group">
-                    {% for session in sessions %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ session.theme.nom }} 
-                        <span class="text-muted">{{ session.formatage_date }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted">Aucune session programmée dans cette salle.</p>
-                {% endif %}
+
+                <h6 class="mt-3 mb-2 text-muted">Sessions programmées :</h6>
+                 <div style="max-height: 150px; overflow-y: auto;">
+                    {% set sessions_associees = salle.sessions|sort(attribute='date') %}
+                    {% if sessions_associees %}
+                    <ul class="list-group list-group-flush">
+                        {% for session in sessions_associees %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
+                            <span class="small text-truncate">
+                                <span class="badge theme-badge {% if session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %} me-1" title="{{ session.theme.nom }}"></span>
+                                {{ session.formatage_date }}
+                            </span>
+                            <span class="badge bg-info rounded-pill small">{{ session.formatage_horaire }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted small fst-italic">Aucune session programmée.</p>
+                    {% endif %}
+                </div>
             </div>
-            <div class="card-footer">
-                <button type="button" class="btn btn-outline-primary w-100 btn-edit-salle" data-bs-toggle="modal" data-bs-target="#editSalleModal{{ salle.id }}">
-                    <i class="fas fa-edit me-2"></i>Modifier
-                </button>
-                
-                <!-- Modal d'édition -->
-                <div class="modal fade" id="editSalleModal{{ salle.id }}" tabindex="-1" aria-hidden="true">
+             {% if current_user.role == 'admin' %}
+            <div class="card-footer bg-light">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editSalleModal{{ salle.id }}">
+                        <i class="fas fa-edit me-1"></i>Modifier
+                    </button>
+                     <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteSalleModal{{ salle.id }}">
+                        <i class="fas fa-trash me-1"></i>Supprimer
+                    </button>
+                </div>
+
+                 <!-- Modal d'édition -->
+                <div class="modal fade" id="editSalleModal{{ salle.id }}" tabindex="-1" aria-labelledby="editSalleModalLabel{{ salle.id }}" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">Modifier la salle</h5>
+                                <h5 class="modal-title" id="editSalleModalLabel{{ salle.id }}">Modifier - {{ salle.nom }}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <form action="{{ url_for('update_salle', id=salle.id) }}" method="post">
+                                 <form action="{{ url_for('update_salle', id=salle.id) }}" method="post">
                                     <div class="mb-3">
-                                        <label for="nom{{ salle.id }}" class="form-label">Nom</label>
-                                        <input type="text" class="form-control" id="nom{{ salle.id }}" name="nom" value="{{ salle.nom }}" required>
+                                        <label for="edit_nom{{ salle.id }}" class="form-label">Nom*</label>
+                                        <input type="text" class="form-control" id="edit_nom{{ salle.id }}" name="nom" value="{{ salle.nom }}" required>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="capacite{{ salle.id }}" class="form-label">Capacité</label>
-                                        <input type="number" class="form-control" id="capacite{{ salle.id }}" name="capacite" value="{{ salle.capacite }}" min="1" required>
+                                        <label for="edit_capacite{{ salle.id }}" class="form-label">Capacité*</label>
+                                        <input type="number" class="form-control" id="edit_capacite{{ salle.id }}" name="capacite" value="{{ salle.capacite }}" min="1" required>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="lieu{{ salle.id }}" class="form-label">Emplacement</label>
-                                        <input type="text" class="form-control" id="lieu{{ salle.id }}" name="lieu" value="{{ salle.lieu or '' }}">
+                                        <label for="edit_lieu{{ salle.id }}" class="form-label">Emplacement</label>
+                                        <input type="text" class="form-control" id="edit_lieu{{ salle.id }}" name="lieu" value="{{ salle.lieu or '' }}">
                                     </div>
                                     <div class="mb-3">
-                                        <label for="description{{ salle.id }}" class="form-label">Description</label>
-                                        <textarea class="form-control" id="description{{ salle.id }}" name="description" rows="3">{{ salle.description or '' }}</textarea>
+                                        <label for="edit_description{{ salle.id }}" class="form-label">Description</label>
+                                        <textarea class="form-control" id="edit_description{{ salle.id }}" name="description" rows="3">{{ salle.description or '' }}</textarea>
                                     </div>
                                     <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                                        <button type="submit" class="btn btn-primary">Enregistrer</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
                     </div>
                 </div>
+                 <!-- Modal de suppression -->
+                 <div class="modal fade" id="deleteSalleModal{{ salle.id }}" tabindex="-1" aria-labelledby="deleteSalleModalLabel{{ salle.id }}" aria-hidden="true">
+                     <!-- Delete confirmation structure -->
+                 </div>
             </div>
+            {% endif %}
+        </div>
+    </div>
+     {% else %}
+     <div class="col-12">
+        <div class="alert alert-light text-center" role="alert">
+           <i class="fas fa-info-circle me-2"></i> Aucune salle n'a été configurée.
+             {% if current_user.role == 'admin' %}
+                <a href="#" data-bs-toggle="modal" data-bs-target="#addSalleModal">Ajouter une salle</a>.
+            {% endif %}
         </div>
     </div>
     {% endfor %}
@@ -120,118 +154,27 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
-{% endblock %}
+{{ super() }} <!-- Include scripts from layout.html -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Salles JS loaded');
+        // Apply specific JS fixes for modals on this page
+         function applySalleModalFixes() {
+             // No selects in these modals currently, but target buttons
+              {% if current_user.role == 'admin' %}
+                document.querySelectorAll('#addSalleModal button, #addSalleModal .btn, #editSalleModal button, #editSalleModal .btn').forEach(button => {
+                    button.style.position = 'relative';
+                    button.style.zIndex = '2001';
+                     button.style.pointerEvents = 'auto';
+                 });
+              {% endif %}
+             if (typeof config !== 'undefined' && config.debugMode) console.log('Salles specific modal JS fixes applied.');
+         }
+        // Apply fixes after a short delay
+         setTimeout(applySalleModalFixes, 500);
 
-<!-- FICHIER THEMES.HTML AMÉLIORÉ -->
-{% extends "layout.html" %}
-
-{% block content %}
-<h1 class="mb-4"><i class="fas fa-book me-2"></i>Gestion des thèmes</h1>
-
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Ajouter un thème</h5>
-            </div>
-            <div class="card-body">
-                <form action="{{ url_for('add_theme') }}" method="post" class="row g-3">
-                    <div class="col-md-6">
-                        <label for="nom" class="form-label">Nom du thème</label>
-                        <input type="text" class="form-control" id="nom" name="nom" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="style" class="form-label">Style (couleur)</label>
-                        <select class="form-select" id="style" name="style">
-                            <option value="theme-comm">Teams (Bleu)</option>
-                            <option value="theme-planner">Planner (Violet)</option>
-                            <option value="theme-onedrive">OneDrive (Bleu foncé)</option>
-                            <option value="theme-sharepoint">SharePoint (Turquoise)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-12">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                    </div>
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-plus-circle me-2"></i>Ajouter le thème
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    {% for theme in themes %}
-    <div class="col-md-6 mb-4">
-        <div class="card theme-card h-100 {% if theme.nom == 'Communiquer avec Teams' %}teams{% elif theme.nom == 'Gérer les tâches (Planner)' %}planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}onedrive{% elif theme.nom == 'Collaborer avec Teams' %}sharepoint{% endif %}">
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">{{ theme.nom }}</h5>
-                    <button type="button" class="btn btn-sm btn-light btn-edit-theme" data-bs-toggle="modal" data-bs-target="#editThemeModal{{ theme.id }}">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <p>{{ theme.description }}</p>
-                
-                <h6 class="mt-3 mb-2">Sessions associées :</h6>
-                {% if theme.sessions and theme.sessions|length > 0 %}
-                <ul class="list-group">
-                    {% for session in theme.sessions %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ session.formatage_date }} ({{ session.formatage_horaire }})
-                        <span class="badge {% if session.places_restantes <= 3 %}bg-danger{% elif session.places_restantes <= 7 %}bg-warning{% else %}bg-success{% endif %} rounded-pill">
-                            {{ session.max_participants - session.places_restantes }} / {{ session.max_participants }}
-                        </span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted">Aucune session programmée pour ce thème.</p>
-                {% endif %}
-            </div>
-            <div class="card-footer text-center">
-                <span class="badge {% if theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %} mb-2">{{ theme.sessions|length }} sessions</span>
-            </div>
-            
-            <!-- Modal d'édition -->
-            <div class="modal fade" id="editThemeModal{{ theme.id }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Modifier le thème</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <form action="{{ url_for('update_theme', id=theme.id) }}" method="post">
-                                <div class="mb-3">
-                                    <label for="nom{{ theme.id }}" class="form-label">Nom</label>
-                                    <input type="text" class="form-control" id="nom{{ theme.id }}" name="nom" value="{{ theme.nom }}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="description{{ theme.id }}" class="form-label">Description</label>
-                                    <textarea class="form-control" id="description{{ theme.id }}" name="description" rows="3">{{ theme.description or '' }}</textarea>
-                                </div>
-                                <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+         // Add confirmation logic for delete button if implemented
+         // document.body.addEventListener('click', function(e) { ... });
+    });
+</script>
 {% endblock %}

@@ -1,0 +1,116 @@
+<!-- 
+    templates/modals/salle.html 
+    Ce fichier contient la structure de modale d'attribution de salle optimisée.
+    Il peut être utilisé via include dans vos templates Flask.
+-->
+
+<!-- Modale d'attribution de salle -->
+<div class="modal fade" id="attribuerSalleModal{{ session.id }}" tabindex="-1" aria-labelledby="attribuerSalleModalLabel{{ session.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- En-tête de la modale -->
+            <div class="modal-header">
+                <h5 class="modal-title" id="attribuerSalleModalLabel{{ session.id }}">Attribuer une salle - {{ session.theme.nom }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            
+            <!-- Corps de la modale -->
+            <div class="modal-body">
+                <!-- Information sur la session -->
+                <div class="alert alert-info mb-3">
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="fas fa-calendar-alt fa-2x"></i>
+                        </div>
+                        <div>
+                            <p class="mb-1">{{ session.formatage_date }} | {{ session.formatage_horaire }}</p>
+                            <p class="mb-0">Thème: <strong>{{ session.theme.nom }}</strong></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Formulaire d'attribution de salle -->
+                <form action="{{ url_for('attribuer_salle') }}" method="post" id="attribuer_salle_{{ session.id }}" autocomplete="off">
+                    <input type="hidden" name="session_id" value="{{ session.id }}">
+                    
+                    <div class="mb-3">
+                        <label for="salle_id_{{ session.id }}" class="form-label">Salle</label>
+                        <select class="form-select" id="salle_id_{{ session.id }}" name="salle_id" required
+                               style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                            <option value="">-- Choisir une salle --</option>
+                            {% for salle in salles %}
+                            <option value="{{ salle.id }}" {% if session.salle_id == salle.id %}selected{% endif %}>
+                                {{ salle.nom }} ({{ salle.capacite }} places)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Afficher la salle actuellement attribuée si elle existe -->
+                    {% if session.salle %}
+                    <div class="alert alert-success mb-3">
+                        <p class="mb-0"><i class="fas fa-info-circle me-2"></i>Salle actuellement attribuée: <strong>{{ session.salle.nom }}</strong></p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check me-2"></i>Attribuer la salle
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script pour améliorer spécifiquement cette modale -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Assurer que le select dans cette modale spécifique fonctionne correctement
+        const modal = document.getElementById('attribuerSalleModal{{ session.id }}');
+        if (!modal) return;
+        
+        const selects = modal.querySelectorAll('select');
+        selects.forEach(select => {
+            // Assurer la visibilité
+            select.style.display = 'block';
+            select.style.visibility = 'visible';
+            select.style.opacity = '1';
+            select.style.position = 'relative';
+            select.style.zIndex = '2000';
+            
+            // Forcer le recalcul des dimensions
+            select.offsetHeight;
+        });
+        
+        // Assurer que la modale fonctionne correctement
+        const modalButton = document.querySelector('[data-bs-target="#attribuerSalleModal{{ session.id }}"]');
+        if (modalButton) {
+            modalButton.addEventListener('click', function(e) {
+                // S'assurer que le modal est visible avant de continuer
+                setTimeout(function() {
+                    if (!modal.classList.contains('show')) {
+                        modal.classList.add('show');
+                        modal.style.display = 'block';
+                        document.body.classList.add('modal-open');
+                        
+                        // Activer le backdrop si nécessaire
+                        let backdrop = document.querySelector('.modal-backdrop');
+                        if (!backdrop) {
+                            backdrop = document.createElement('div');
+                            backdrop.className = 'modal-backdrop fade show';
+                            document.body.appendChild(backdrop);
+                        }
+                    }
+                    
+                    // Focus sur le select une fois la modale visible
+                    const selectInput = modal.querySelector('select');
+                    if (selectInput) {
+                        selectInput.focus();
+                    }
+                }, 300);
+            });
+        }
+    });
+</script>

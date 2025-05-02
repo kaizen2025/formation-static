@@ -1,36 +1,38 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<h1 class="mb-4"><i class="fas fa-book me-2"></i>Gestion des thèmes</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h1> <!-- Changed icon -->
+    {% if current_user.role == 'admin' %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addThemeModal">
+        <i class="fas fa-plus me-2"></i>Ajouter un Thème
+    </button>
+    {% endif %}
+</div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Ajouter un thème</h5>
+<!-- Add Theme Modal -->
+{% if current_user.role == 'admin' %}
+<div class="modal fade" id="addThemeModal" tabindex="-1" aria-labelledby="addThemeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addThemeModalLabel">Ajouter un Nouveau Thème</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="card-body">
-                <form action="{{ url_for('add_theme') }}" method="post" class="row g-3">
-                    <div class="col-md-6">
-                        <label for="nom" class="form-label">Nom du thème</label>
-                        <input type="text" class="form-control" id="nom" name="nom" required>
+            <div class="modal-body">
+                <form action="{{ url_for('add_theme') }}" method="post">
+                    <div class="mb-3">
+                        <label for="add_nom_theme" class="form-label">Nom du thème*</label>
+                        <input type="text" class="form-control" id="add_nom_theme" name="nom" required>
                     </div>
-                    <div class="col-md-6">
-                        <label for="style" class="form-label">Style (couleur)</label>
-                        <select class="form-select" id="style" name="style">
-                            <option value="theme-comm">Teams (Bleu)</option>
-                            <option value="theme-planner">Planner (Violet)</option>
-                            <option value="theme-onedrive">OneDrive (Bleu foncé)</option>
-                            <option value="theme-sharepoint">SharePoint (Turquoise)</option>
-                        </select>
+                    <!-- Style selection removed, handled by CSS based on name -->
+                    <div class="mb-3">
+                        <label for="add_description_theme" class="form-label">Description</label>
+                        <textarea class="form-control" id="add_description_theme" name="description" rows="4" placeholder="Décrivez brièvement le contenu de la formation..."></textarea>
                     </div>
-                    <div class="col-md-12">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                    </div>
-                    <div class="col-12">
+                    <div class="d-grid">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-plus-circle me-2"></i>Ajouter le thème
+                            <i class="fas fa-plus-circle me-2"></i>Ajouter le Thème
                         </button>
                     </div>
                 </form>
@@ -38,68 +40,94 @@
         </div>
     </div>
 </div>
+{% endif %}
 
-<div class="row">
-    {% for theme in themes %}
-    <div class="col-md-6 mb-4">
+<div class="row row-cols-1 row-cols-md-2 g-4">
+    {% for theme in themes|sort(attribute='nom') %}
+    <div class="col">
         <div class="card theme-card h-100 {% if theme.nom == 'Communiquer avec Teams' %}teams{% elif theme.nom == 'Gérer les tâches (Planner)' %}planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}onedrive{% elif theme.nom == 'Collaborer avec Teams' %}sharepoint{% endif %}">
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">{{ theme.nom }}</h5>
-                    <button type="button" class="btn btn-sm btn-light btn-edit-theme" data-bs-toggle="modal" data-bs-target="#editThemeModal{{ theme.id }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                 <h5 class="mb-0 text-truncate">{{ theme.nom }}</h5>
+                 {% if current_user.role == 'admin' %}
+                 <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#editThemeModal{{ theme.id }}" title="Modifier le thème">
                         <i class="fas fa-edit"></i>
                     </button>
-                </div>
+                      <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#deleteThemeModal{{ theme.id }}" title="Supprimer le thème">
+                         <i class="fas fa-trash"></i>
+                     </button>
+                 </div>
+                 {% endif %}
             </div>
             <div class="card-body">
-                <p>{{ theme.description }}</p>
-                
-                <h6 class="mt-3 mb-2">Sessions associées :</h6>
-                {% if theme.sessions and theme.sessions|length > 0 %}
-                <ul class="list-group">
-                    {% for session in theme.sessions %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ session.formatage_date }} ({{ session.formatage_horaire }})
-                        <span class="badge {% if session.places_restantes <= 3 %}bg-danger{% elif session.places_restantes <= 7 %}bg-warning{% else %}bg-success{% endif %} rounded-pill">
-                            {{ session.max_participants - session.places_restantes }} / {{ session.max_participants }}
-                        </span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted">Aucune session programmée pour ce thème.</p>
-                {% endif %}
+                <p class="card-text">{{ theme.description or 'Aucune description fournie.' }}</p>
+
+                <h6 class="mt-3 mb-2 text-muted">Sessions associées :</h6>
+                 <div style="max-height: 150px; overflow-y: auto;">
+                    {% set theme_sessions = theme.sessions|sort(attribute='date') %}
+                    {% if theme_sessions %}
+                    <ul class="list-group list-group-flush">
+                        {% for session in theme_sessions %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
+                            <span class="small">{{ session.formatage_date }} ({{ session.formatage_horaire }})</span>
+                             {% set inscrits_count = session.inscriptions|selectattr('statut', 'equalto', 'confirmé')|list|length %}
+                            <span class="badge {% if session.places_restantes == 0 %}bg-danger{% elif (inscrits_count / session.max_participants * 100) >= 75 %}bg-warning text-dark{% else %}bg-success{% endif %} rounded-pill small">
+                                {{ inscrits_count }} / {{ session.max_participants }}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted small fst-italic">Aucune session programmée.</p>
+                    {% endif %}
+                 </div>
             </div>
-            <div class="card-footer text-center">
-                <span class="badge {% if theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %} mb-2">{{ theme.sessions|length }} sessions</span>
+             <div class="card-footer bg-light text-center small text-muted">
+                {{ theme.sessions|length }} session(s)
             </div>
-            
-            <!-- Modal d'édition -->
-            <div class="modal fade" id="editThemeModal{{ theme.id }}" tabindex="-1" aria-hidden="true">
+
+             <!-- Modal d'édition -->
+             {% if current_user.role == 'admin' %}
+            <div class="modal fade" id="editThemeModal{{ theme.id }}" tabindex="-1" aria-labelledby="editThemeModalLabel{{ theme.id }}" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Modifier le thème</h5>
+                            <h5 class="modal-title" id="editThemeModalLabel{{ theme.id }}">Modifier - {{ theme.nom }}</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
                             <form action="{{ url_for('update_theme', id=theme.id) }}" method="post">
                                 <div class="mb-3">
-                                    <label for="nom{{ theme.id }}" class="form-label">Nom</label>
-                                    <input type="text" class="form-control" id="nom{{ theme.id }}" name="nom" value="{{ theme.nom }}" required>
+                                    <label for="edit_nom{{ theme.id }}" class="form-label">Nom*</label>
+                                    <input type="text" class="form-control" id="edit_nom{{ theme.id }}" name="nom" value="{{ theme.nom }}" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="description{{ theme.id }}" class="form-label">Description</label>
-                                    <textarea class="form-control" id="description{{ theme.id }}" name="description" rows="3">{{ theme.description or '' }}</textarea>
+                                    <label for="edit_description{{ theme.id }}" class="form-label">Description</label>
+                                    <textarea class="form-control" id="edit_description{{ theme.id }}" name="description" rows="4">{{ theme.description or '' }}</textarea>
                                 </div>
                                 <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                                    <button type="submit" class="btn btn-primary">Enregistrer</button>
                                 </div>
                             </form>
                         </div>
                     </div>
                 </div>
             </div>
+             <!-- Modal de suppression -->
+             <div class="modal fade" id="deleteThemeModal{{ theme.id }}" tabindex="-1" aria-labelledby="deleteThemeModalLabel{{ theme.id }}" aria-hidden="true">
+                 <!-- Delete confirmation structure -->
+             </div>
+             {% endif %}
+
+        </div>
+    </div>
+     {% else %}
+     <div class="col-12">
+        <div class="alert alert-light text-center" role="alert">
+            <i class="fas fa-info-circle me-2"></i> Aucun thème n'a été configuré.
+            {% if current_user.role == 'admin' %}
+               <a href="#" data-bs-toggle="modal" data-bs-target="#addThemeModal">Ajouter un thème</a>.
+            {% endif %}
         </div>
     </div>
     {% endfor %}
@@ -107,5 +135,27 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+{{ super() }} <!-- Include scripts from layout.html -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Themes JS loaded');
+        // Apply specific JS fixes for modals on this page
+         function applyThemeModalFixes() {
+             // No selects here, but target buttons
+              {% if current_user.role == 'admin' %}
+                document.querySelectorAll('#addThemeModal button, #addThemeModal .btn, #editThemeModal button, #editThemeModal .btn').forEach(button => {
+                    button.style.position = 'relative';
+                    button.style.zIndex = '2001';
+                    button.style.pointerEvents = 'auto';
+                 });
+              {% endif %}
+             if (typeof config !== 'undefined' && config.debugMode) console.log('Themes specific modal JS fixes applied.');
+         }
+        // Apply fixes after a short delay
+        setTimeout(applyThemeModalFixes, 500);
+
+         // Add confirmation logic for delete button if implemented
+         // document.body.addEventListener('click', function(e) { ... });
+    });
+</script>
 {% endblock %}

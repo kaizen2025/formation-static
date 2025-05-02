@@ -1,293 +1,258 @@
+--- START OF FILE templates/admin.html ---
 {% extends "layout.html" %}
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mb-4"><i class="fas fa-cogs me-2"></i>Administration</h1>
-    
+    <h1 class="mb-4"><i class="fas fa-cogs me-2"></i>Panneau d'Administration</h1>
+
     <div class="row mb-4">
         <div class="col-md-12">
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>Bienvenue dans le panneau d'administration. Vous pouvez gérer ici tous les aspects de la plateforme de formation.
+            <div class="alert alert-info d-flex align-items-center shadow-sm">
+                 <i class="fas fa-info-circle fa-2x me-3"></i>
+                 <div>
+                    Bienvenue dans le panneau d'administration. Gérez ici les sessions, participants, salles, thèmes, services et consultez les activités.
+                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="row">
-        <!-- Gestion des sessions -->
+
+    <!-- Stats Overview Cards -->
+    <div class="row mb-4">
+        <!-- Sessions Card -->
         <div class="col-md-6 col-xl-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Sessions</h5>
-                </div>
+            <div class="card h-100 shadow-sm border-left-primary">
                 <div class="card-body">
-                    <p>Gérez les sessions de formation, attribuez des salles et suivez les inscriptions.</p>
-                    <ul class="list-group mb-3">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Sessions programmées
-                            <span class="badge bg-primary rounded-pill" id="counter-sessions">{{ sessions|length }}</span>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                         <h5 class="card-title text-primary mb-0"><i class="fas fa-calendar-alt me-2"></i>Sessions</h5>
+                         <i class="fas fa-calendar-alt fa-2x text-primary-light"></i>
+                    </div>
+                    <p class="small text-muted">Gérer les sessions, salles et inscriptions.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Programmées <span class="badge bg-primary rounded-pill" id="counter-sessions">{{ sessions|length }}</span> {# OK: sessions is list #}
                         </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Sessions complètes
-                            <span class="badge bg-danger rounded-pill" id="counter-sessions-completes">{{ total_sessions_completes }}</span>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Complètes <span class="badge bg-danger rounded-pill" id="counter-sessions-completes">{{ total_sessions_completes }}</span> {# OK: Python var #}
                         </li>
                     </ul>
-                </div>
-                <div class="card-footer">
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary w-100">
-                        <i class="fas fa-tasks me-2"></i>Gérer les sessions
+                     <a href="{{ url_for('dashboard') }}" class="btn btn-primary w-100 btn-sm mt-auto">
+                        <i class="fas fa-tasks me-1"></i>Gérer les Sessions
                     </a>
                 </div>
             </div>
         </div>
-        
-        <!-- Gestion des participants -->
+
+        <!-- Participants Card -->
         <div class="col-md-6 col-xl-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Participants</h5>
-                </div>
-                <div class="card-body">
-                    <p>Ajoutez, modifiez et suivez les participants aux formations.</p>
-                    <ul class="list-group mb-3">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Participants inscrits
-                            <span class="badge bg-success rounded-pill" id="counter-participants">{{ participants|length }}</span>
+            <div class="card h-100 shadow-sm border-left-success">
+                 <div class="card-body">
+                     <div class="d-flex justify-content-between align-items-center mb-2">
+                         <h5 class="card-title text-success mb-0"><i class="fas fa-users me-2"></i>Participants</h5>
+                          <i class="fas fa-users fa-2x text-success-light"></i>
+                    </div>
+                    <p class="small text-muted">Ajouter, modifier et suivre les participants.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Inscrits (Total) <span class="badge bg-success rounded-pill" id="counter-participants">{{ participants|length }}</span> {# OK: participants is list #}
                         </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            En liste d'attente
-                            <span class="badge bg-warning rounded-pill" id="counter-attente">{{ total_en_attente }}</span>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            En liste d'attente <span class="badge bg-warning text-dark rounded-pill" id="counter-attente">{{ total_en_attente }}</span> {# OK: Python var #}
                         </li>
                     </ul>
-                </div>
-                <div class="card-footer">
-                    <a href="{{ url_for('participants') }}" class="btn btn-success w-100">
-                        <i class="fas fa-user-edit me-2"></i>Gérer les participants
+                     <a href="{{ url_for('participants') }}" class="btn btn-success w-100 btn-sm mt-auto">
+                        <i class="fas fa-user-edit me-1"></i>Gérer Participants
                     </a>
                 </div>
             </div>
         </div>
-        
-        <!-- Gestion des salles -->
+
+         <!-- Salles Card -->
         <div class="col-md-6 col-xl-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-building me-2"></i>Salles</h5>
-                </div>
+            <div class="card h-100 shadow-sm border-left-info">
                 <div class="card-body">
-                    <p>Gérez les salles disponibles pour les formations, leur capacité et leur emplacement.</p>
-                    <ul class="list-group mb-3">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Salles disponibles
-                            <span class="badge bg-info rounded-pill" id="counter-salles">{{ salles|length }}</span>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                         <h5 class="card-title text-info mb-0"><i class="fas fa-building me-2"></i>Salles</h5>
+                         <i class="fas fa-building fa-2x text-info-light"></i>
+                    </div>
+                    <p class="small text-muted">Gérer les salles et leur capacité.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Disponibles <span class="badge bg-info rounded-pill" id="counter-salles">{{ salles|length }}</span> {# OK: salles is list #}
                         </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Capacité totale
-                            <span class="badge bg-secondary rounded-pill" id="counter-capacite">{{ salles|sum(attribute='capacite') }}</span>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Capacité totale <span class="badge bg-secondary rounded-pill" id="counter-capacite">{{ salles|sum(attribute='capacite') }}</span> {# OK: Jinja sum filter #}
                         </li>
                     </ul>
-                </div>
-                <div class="card-footer">
-                    <a href="{{ url_for('salles') }}" class="btn btn-info w-100">
-                        <i class="fas fa-door-open me-2"></i>Gérer les salles
+                     <a href="{{ url_for('salles') }}" class="btn btn-info w-100 btn-sm mt-auto">
+                        <i class="fas fa-door-open me-1"></i>Gérer les Salles
                     </a>
                 </div>
             </div>
         </div>
-        
-        <!-- Gestion des thèmes -->
-        <div class="col-md-6 col-xl-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0"><i class="fas fa-book me-2"></i>Thèmes</h5>
-                </div>
-                <div class="card-body">
-                    <p>Gérez les thèmes de formation disponibles et leurs descriptions.</p>
-                    <ul class="list-group mb-3">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Thèmes disponibles
-                            <span class="badge bg-warning text-dark rounded-pill" id="counter-themes">{{ themes|length }}</span>
+
+         <!-- Thèmes Card -->
+         <div class="col-md-6 col-xl-4 mb-4">
+            <div class="card h-100 shadow-sm border-left-warning">
+                 <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title text-warning mb-0"><i class="fas fa-book-open me-2"></i>Thèmes</h5>
+                        <i class="fas fa-book-open fa-2x text-warning-light"></i>
+                    </div>
+                    <p class="small text-muted">Gérer les thèmes de formation.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                             Disponibles <span class="badge bg-warning text-dark rounded-pill" id="counter-themes">{{ themes|length }}</span> {# OK: themes is list #}
+                        </li>
+                        {# ***** FIX: Use .count() for dynamic relationship ***** #}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                             Total Sessions <span class="badge bg-secondary rounded-pill">{{ themes|sum(attribute='sessions.count()') if themes else 0 }}</span> {# Use sum on counts #}
                         </li>
                     </ul>
-                    <div class="mt-3">
+                    <div class="mt-2">
                         {% for theme in themes %}
-                        <span class="badge {% if theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %} mb-2">{{ theme.nom }}</span>
+                        <span class="badge {% if theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% else %}bg-secondary{% endif %} me-1 mb-1">
+                            {{ theme.nom }} ({{ theme.sessions.count() }}) {# Display count per theme #}
+                        </span>
                         {% endfor %}
                     </div>
-                </div>
-                <div class="card-footer">
-                    <a href="{{ url_for('themes') }}" class="btn btn-warning text-dark w-100">
-                        <i class="fas fa-edit me-2"></i>Gérer les thèmes
+                     <a href="{{ url_for('themes') }}" class="btn btn-warning text-dark w-100 btn-sm mt-3">
+                        <i class="fas fa-edit me-1"></i>Gérer les Thèmes
                     </a>
                 </div>
             </div>
         </div>
-        
-        <!-- Gestion des services -->
+
+         <!-- Services Card -->
         <div class="col-md-6 col-xl-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-purple text-white" style="background-color: #7719aa;">
-                    <h5 class="mb-0"><i class="fas fa-sitemap me-2"></i>Services</h5>
-                </div>
-                <div class="card-body">
-                    <p>Gérez les différents services de l'entreprise et leurs responsables.</p>
-                    <ul class="list-group mb-3">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Services enregistrés
-                            <span class="badge bg-purple rounded-pill" id="counter-services" style="background-color: #7719aa;">{{ services|length }}</span>
+             <div class="card h-100 shadow-sm border-left-secondary">
+                 <div class="card-body">
+                     <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title text-secondary mb-0"><i class="fas fa-sitemap me-2"></i>Services</h5>
+                        <i class="fas fa-sitemap fa-2x text-secondary"></i>
+                    </div>
+                    <p class="small text-muted">Gérer les services et responsables.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Enregistrés <span class="badge bg-secondary rounded-pill" id="counter-services">{{ services|length }}</span> {# OK: services is list #}
                         </li>
                     </ul>
-                    <div class="mt-3">
-                        {% for service in services %}
-                        <div class="mb-2">
-                            <span class="service-badge {{ service.id }}"></span>
+                     <div class="mt-2" style="max-height: 80px; overflow-y: auto;">
+                        {% for service in services|sort(attribute='nom') %}
+                        <div class="mb-1 small">
+                            <span class="service-badge {{ service.id }}" style="background-color: {{ service.couleur or '#6c757d' }};"></span>
                             {{ service.nom }}
                         </div>
                         {% endfor %}
                     </div>
-                </div>
-                <div class="card-footer">
-                    <a href="{{ url_for('services') }}" class="btn text-white w-100" style="background-color: #7719aa; border-color: #7719aa;">
-                        <i class="fas fa-users-cog me-2"></i>Gérer les services
+                     <a href="{{ url_for('services') }}" class="btn btn-secondary w-100 btn-sm mt-3">
+                        <i class="fas fa-users-cog me-1"></i>Gérer les Services
                     </a>
                 </div>
             </div>
         </div>
-        
-        <!-- Journal d'activité -->
+
+         <!-- Activity Log Card -->
         <div class="col-md-6 col-xl-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Journal d'activité</h5>
-                </div>
-                <div class="card-body">
-                    <p>Consultez l'historique des activités sur la plateforme.</p>
-                    <div class="list-group list-group-flush" id="recent-activity">
-                        {% if activites_recentes %}
-                            {% for activite in activites_recentes[:5] %}
-                            <div class="list-group-item px-0">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">
-                                        {% if activite.type == 'inscription' %}
-                                            <i class="fas fa-user-plus text-success me-2"></i>Nouvelle inscription
-                                        {% elif activite.type == 'validation' %}
-                                            <i class="fas fa-check-circle text-primary me-2"></i>Validation d'inscription
-                                        {% elif activite.type == 'refus' %}
-                                            <i class="fas fa-times-circle text-danger me-2"></i>Refus d'inscription
-                                        {% elif activite.type == 'liste_attente' %}
-                                            <i class="fas fa-clock text-warning me-2"></i>Ajout en liste d'attente
-                                        {% elif activite.type == 'attribution_salle' %}
-                                            <i class="fas fa-building text-info me-2"></i>Attribution de salle
-                                        {% elif activite.type == 'ajout_participant' %}
-                                            <i class="fas fa-user-plus text-success me-2"></i>Nouveau participant
-                                        {% elif activite.type == 'connexion' %}
-                                            <i class="fas fa-sign-in-alt text-primary me-2"></i>Connexion
-                                        {% elif activite.type == 'deconnexion' %}
-                                            <i class="fas fa-sign-out-alt text-secondary me-2"></i>Déconnexion
-                                        {% else %}
-                                            <i class="fas fa-info-circle me-2"></i>{{ activite.type|title }}
-                                        {% endif %}
-                                    </h6>
-                                    <small class="text-muted">{{ activite.date_relative }}</small>
-                                </div>
-                                <p class="mb-1">{{ activite.description }}</p>
-                                {% if activite.details %}
-                                <small class="text-muted">{{ activite.details }}</small>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="list-group-item px-0">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">Aucune activité récente</h6>
-                                    <small class="text-muted">-</small>
-                                </div>
-                                <p class="mb-1">Les activités récentes s'afficheront ici.</p>
-                            </div>
-                        {% endif %}
+             <div class="card h-100 shadow-sm border-left-dark">
+                 <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title text-dark mb-0"><i class="fas fa-history me-2"></i>Journal d'activité</h5>
+                        <i class="fas fa-history fa-2x text-dark opacity-50"></i>
                     </div>
-                </div>
-                <div class="card-footer">
-                    <a href="{{ url_for('activites') }}" class="btn btn-secondary w-100">
-                        <i class="fas fa-list me-2"></i>Voir toutes les activités
+                    <p class="small text-muted flex-grow-0">Consulter l'historique des actions.</p>
+                     <div class="list-group list-group-flush small flex-grow-1" style="max-height: 150px; overflow-y: auto;" id="recent-activity-admin">
+                         <div class="list-group-item px-0 text-center text-muted">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            Chargement...
+                        </div>
+                     </div>
+                     <a href="{{ url_for('activites') }}" class="btn btn-dark w-100 btn-sm mt-3">
+                        <i class="fas fa-list me-1"></i>Voir Tout le Journal
                     </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Section pour la gestion rapide -->
+    <!-- Quick Actions Section -->
     <div class="row mt-4">
         <div class="col-md-12">
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Actions rapides</h5>
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Actions rapides</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="card h-100">
+                    <div class="row g-4">
+                         <!-- Quick Room Assignment -->
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-light">
                                 <div class="card-body">
-                                    <h5 class="card-title"><i class="fas fa-building me-2"></i>Attribution de salle</h5>
+                                    <h6 class="card-title text-primary"><i class="fas fa-building me-2"></i>Attribution rapide de salle</h6>
+                                    <hr class="mt-1 mb-3">
                                     <form action="{{ url_for('attribuer_salle') }}" method="post" class="row g-3">
                                         <div class="col-md-6">
-                                            <label for="session_id" class="form-label">Session</label>
-                                            <select class="form-select" id="session_id" name="session_id" required>
-                                                <option value="">-- Choisir une session --</option>
-                                                {% for session in sessions %}
-                                                <option value="{{ session.id }}">
-                                                    {{ session.formatage_date }} | {{ session.formatage_horaire }} | {{ session.theme.nom }}
+                                            <label for="quick_session_id" class="form-label form-label-sm">Session</label>
+                                            <select class="form-select form-select-sm" id="quick_session_id" name="session_id" required style="z-index: 1; position: relative;">
+                                                <option value="" disabled selected>-- Choisir Session (sans salle) --</option>
+                                                {# Only show sessions without a room assigned #}
+                                                {% for session in sessions|selectattr("salle_id", "none")|sort(attribute='date') %}
+                                                 <option value="{{ session.id }}">
+                                                    {{ session.formatage_date }} | {{ session.theme.nom|truncate(20) }}
                                                 </option>
                                                 {% endfor %}
                                             </select>
                                         </div>
                                         <div class="col-md-6">
-                                            <label for="salle_id" class="form-label">Salle</label>
-                                            <select class="form-select" id="salle_id" name="salle_id" required>
-                                                <option value="">-- Choisir une salle --</option>
-                                                {% for salle in salles %}
-                                                <option value="{{ salle.id }}">{{ salle.nom }} ({{ salle.capacite }} places)</option>
+                                            <label for="quick_salle_id" class="form-label form-label-sm">Salle</label>
+                                            <select class="form-select form-select-sm" id="quick_salle_id" name="salle_id" required style="z-index: 1; position: relative;">
+                                                 <option value="" disabled selected>-- Choisir Salle --</option>
+                                                {% for salle in salles|sort(attribute='nom') %}
+                                                <option value="{{ salle.id }}">{{ salle.nom }} ({{ salle.capacite }})</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
                                         <div class="col-12">
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="fas fa-check me-2"></i>Attribuer la salle
+                                            <button type="submit" class="btn btn-primary btn-sm w-100" style="z-index: 1; position: relative;">
+                                                <i class="fas fa-check me-1"></i>Attribuer
                                             </button>
                                         </div>
                                     </form>
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="card h-100">
+
+                         <!-- Quick Participant Add -->
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-light">
                                 <div class="card-body">
-                                    <h5 class="card-title"><i class="fas fa-user-plus me-2"></i>Ajout rapide de participant</h5>
+                                     <h6 class="card-title text-success"><i class="fas fa-user-plus me-2"></i>Ajout rapide de participant</h6>
+                                     <hr class="mt-1 mb-3">
                                     <form action="{{ url_for('add_participant') }}" method="post" class="row g-3">
+                                         <input type="hidden" name="from_page" value="admin">
                                         <div class="col-md-6">
-                                            <label for="nom" class="form-label">Nom</label>
-                                            <input type="text" class="form-control" id="nom" name="nom" required>
+                                            <label for="quick_nom" class="form-label form-label-sm">Nom*</label>
+                                            <input type="text" class="form-control form-control-sm" id="quick_nom" name="nom" required>
                                         </div>
                                         <div class="col-md-6">
-                                            <label for="prenom" class="form-label">Prénom</label>
-                                            <input type="text" class="form-control" id="prenom" name="prenom" required>
+                                            <label for="quick_prenom" class="form-label form-label-sm">Prénom*</label>
+                                            <input type="text" class="form-control form-control-sm" id="quick_prenom" name="prenom" required>
                                         </div>
                                         <div class="col-md-6">
-                                            <label for="email" class="form-label">Email</label>
-                                            <input type="email" class="form-control" id="email" name="email" required>
+                                            <label for="quick_email" class="form-label form-label-sm">Email*</label>
+                                            <input type="email" class="form-control form-control-sm" id="quick_email" name="email" required>
                                         </div>
                                         <div class="col-md-6">
-                                            <label for="service_id" class="form-label">Service</label>
-                                            <select class="form-select" id="service_id" name="service_id" required>
-                                                <option value="">-- Choisir un service --</option>
-                                                {% for service in services %}
+                                            <label for="quick_service_id" class="form-label form-label-sm">Service*</label>
+                                            <select class="form-select form-select-sm" id="quick_service_id" name="service_id" required style="z-index: 1; position: relative;">
+                                                <option value="" disabled selected>-- Choisir Service --</option>
+                                                {% for service in services|sort(attribute='nom') %}
                                                 <option value="{{ service.id }}">{{ service.nom }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
                                         <div class="col-12">
-                                            <button type="submit" class="btn btn-success">
-                                                <i class="fas fa-plus-circle me-2"></i>Ajouter le participant
+                                            <button type="submit" class="btn btn-success btn-sm w-100" style="z-index: 1; position: relative;">
+                                                <i class="fas fa-plus-circle me-1"></i>Ajouter
                                             </button>
                                         </div>
                                     </form>
@@ -303,30 +268,49 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+{{ super() }}
+{# Keep the specific admin JS from previous correction #}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Animation des compteurs
-        const counterElements = document.querySelectorAll('[id^="counter-"]');
-        counterElements.forEach(counter => {
-            const target = parseInt(counter.textContent) || 0;
-            const duration = 1500;
-            const increment = target / (duration / 16);
-            let current = 0;
-            
-            const updateCounter = () => {
-                if (current < target) {
-                    current += increment;
-                    counter.textContent = Math.ceil(current);
-                    requestAnimationFrame(updateCounter);
-                } else {
-                    counter.textContent = target;
-                }
-            };
-            
-            updateCounter();
-        });
+        console.log('Admin JS loaded');
+        const config = window.config || { debugMode: false }; // Use global config
+
+         // Apply specific JS fixes for admin page forms/modals (if any)
+         function applyAdminPageFixes() {
+             document.querySelectorAll('#quick_session_id, #quick_salle_id, #quick_service_id').forEach(select => {
+                 select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;'; // Ensure dropdowns work
+             });
+             document.querySelectorAll('.card-body form button, .card-body form .btn').forEach(button => {
+                 button.style.cssText = 'position: relative !important; z-index: 2 !important; pointer-events: auto !important;';
+             });
+              if (config.debugMode) console.log('Admin specific form JS fixes applied.');
+         }
+         setTimeout(applyAdminPageFixes, 300);
+
+         // Counter Animation
+          function animateAdminCounters() {
+            const counterElements = document.querySelectorAll('[id^="counter-"]');
+             counterElements.forEach(counter => {
+                 const target = parseInt(counter.textContent.replace(/,/g, ''), 10) || 0;
+                 if (typeof animateCounter === 'function') { // Check if global func exists
+                    const current = parseInt(counter.dataset.currentValue || '0', 10);
+                     animateCounter(counter, current, target);
+                     counter.dataset.currentValue = target;
+                 } else { counter.textContent = target; } // Fallback
+             });
+         }
+        animateAdminCounters(); // Initial animation
+
+         // Refresh Recent Activity (using global func if available)
+         if (typeof refreshRecentActivity === 'function') {
+            refreshRecentActivity(); // Initial load for admin panel's list
+         } else {
+            // Fallback or specific implementation if needed
+            console.warn("refreshRecentActivity function not found globally.");
+         }
+         // Note: Real-time updates are handled by the global websocket.js listener
+
     });
 </script>
 {% endblock %}
+--- END OF FILE templates/admin.html ---

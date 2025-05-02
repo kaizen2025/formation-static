@@ -1,0 +1,153 @@
+<!-- 
+    templates/modals/inscription.html 
+    Ce fichier contient la structure de modale d'inscription optimisée.
+    Il peut être utilisé via include dans vos templates Flask.
+-->
+
+<!-- Modale d'inscription -->
+<div class="modal fade" id="inscriptionModal{{ session.id }}" tabindex="-1" aria-labelledby="inscriptionModalLabel{{ session.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- En-tête de la modale -->
+            <div class="modal-header">
+                <h5 class="modal-title" id="inscriptionModalLabel{{ session.id }}">Inscription - {{ session.theme.nom }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            
+            <!-- Corps de la modale -->
+            <div class="modal-body">
+                <!-- Information sur la session -->
+                <div class="alert alert-info mb-3">
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="fas fa-info-circle fa-2x"></i>
+                        </div>
+                        <div>
+                            <p class="mb-1">{{ session.formatage_date }} | {{ session.formatage_horaire }}</p>
+                            <p class="mb-1">Places disponibles: <strong>{{ session.places_restantes|default(0) }} / {{ session.max_participants|default(15) }}</strong></p>
+                            {% if session.salle %}
+                            <p class="mb-0"><i class="fas fa-map-marker-alt me-1"></i> {{ session.salle.nom }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Formulaire d'inscription participant existant -->
+                <form action="{{ url_for('inscription') }}" method="post" id="inscription_existant_{{ session.id }}" autocomplete="off">
+                    <input type="hidden" name="session_id" value="{{ session.id }}">
+                    
+                    <div class="mb-3">
+                        <label for="participant_id_{{ session.id }}" class="form-label">Sélectionner un participant</label>
+                        <select class="form-select" id="participant_id_{{ session.id }}" name="participant_id" required 
+                                style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                            <option value="">-- Choisir un participant --</option>
+                            {% for participant in participants %}
+                            <option value="{{ participant.id }}">
+                                {{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check me-2"></i>Confirmer l'inscription
+                        </button>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <!-- Formulaire d'ajout de nouveau participant -->
+                <h6 class="mb-3">Ou ajouter un nouveau participant</h6>
+                <form action="{{ url_for('add_participant') }}" method="post" id="nouveau_participant_{{ session.id }}" autocomplete="off">
+                    <input type="hidden" name="session_id" value="{{ session.id }}">
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nom_{{ session.id }}" class="form-label">Nom</label>
+                            <input type="text" class="form-control" id="nom_{{ session.id }}" name="nom" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="prenom_{{ session.id }}" class="form-label">Prénom</label>
+                            <input type="text" class="form-control" id="prenom_{{ session.id }}" name="prenom" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email_{{ session.id }}" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email_{{ session.id }}" name="email" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="service_id_{{ session.id }}" class="form-label">Service</label>
+                        <select class="form-select" id="service_id_{{ session.id }}" name="service_id" required
+                                style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                            <option value="">-- Choisir un service --</option>
+                            {% for service in services %}
+                            <option value="{{ service.id }}">{{ service.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-user-plus me-2"></i>Ajouter et inscrire
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script pour améliorer spécifiquement cette modale -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Assurer que les select dans cette modale spécifique fonctionnent correctement
+        const modal = document.getElementById('inscriptionModal{{ session.id }}');
+        if (!modal) return;
+        
+        const selects = modal.querySelectorAll('select');
+        selects.forEach(select => {
+            // Assurer la visibilité
+            select.style.display = 'block';
+            select.style.visibility = 'visible';
+            select.style.opacity = '1';
+            select.style.position = 'relative';
+            select.style.zIndex = '2000';
+            
+            // Forcer le recalcul des dimensions
+            select.offsetHeight;
+        });
+        
+        // Assurer que la modale fonctionne correctement
+        const modalButton = document.querySelector('[data-bs-target="#inscriptionModal{{ session.id }}"]');
+        if (modalButton) {
+            modalButton.addEventListener('click', function(e) {
+                // S'assurer que le modal est visible avant de continuer
+                setTimeout(function() {
+                    if (!modal.classList.contains('show')) {
+                        modal.classList.add('show');
+                        modal.style.display = 'block';
+                        document.body.classList.add('modal-open');
+                        
+                        // Activer le backdrop si nécessaire
+                        let backdrop = document.querySelector('.modal-backdrop');
+                        if (!backdrop) {
+                            backdrop = document.createElement('div');
+                            backdrop.className = 'modal-backdrop fade show';
+                            document.body.appendChild(backdrop);
+                        }
+                    }
+                    
+                    // Focus sur le premier champ une fois la modale visible
+                    const firstInput = modal.querySelector('select, input');
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
+                }, 300);
+            });
+        }
+    });
+</script>

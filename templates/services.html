@@ -2,76 +2,214 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<h1 class="mb-4"><i class="fas fa-users me-2"></i>Services</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0"><i class="fas fa-sitemap me-2"></i>Gestion des Services</h1>
+     {% if current_user.is_authenticated and current_user.role == 'admin' %}
+     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServiceModal">
+         <i class="fas fa-plus me-2"></i>Ajouter un Service
+     </button>
+     {% endif %}
+</div>
 
-<div class="row">
-    {% for service in services %}
-    <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100">
-            <div class="card-header text-white" style="background-color: {{ service.couleur }};">
-                <h5 class="mb-0">{{ service.nom }}</h5>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {# Itérer sur services_data passé depuis app.py #}
+    {% for item in services_data|sort(attribute='obj.nom') %}
+    {% set service = item.obj %} {# Accéder à l'objet service #}
+    {% set participant_count = item.participant_count %} {# Accéder au compte pré-calculé #}
+    <div class="col">
+        <div class="card h-100 shadow-sm service-card">
+            <div class="card-header text-white d-flex justify-content-between align-items-center" style="background-color: {{ service.couleur or '#6c757d' }};">
+                <h5 class="mb-0 text-truncate">{{ service.nom }}</h5>
+                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                 <div class="btn-group btn-group-sm">
+                    <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#editServiceModal{{ service.id }}" title="Modifier le service">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                 </div>
+                 {% endif %}
             </div>
             <div class="card-body">
-                <p><strong>Responsable:</strong> {{ service.responsable }}</p>
-                <p><strong>Email:</strong> <a href="mailto:{{ service.email_responsable }}">{{ service.email_responsable }}</a></p>
-                
-                <h6 class="mt-4">Participants:</h6>
-                {% if service.participants %}
-                <ul class="list-group">
-                    {% for participant in service.participants %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ participant.prenom }} {{ participant.nom }}
-                        <span class="badge bg-primary rounded-pill">{{ participant.inscriptions|length }} inscriptions</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted">Aucun participant pour ce service.</p>
-                {% endif %}
+                 <h6 class="card-subtitle mb-2 text-muted">Responsable</h6>
+                 <p><i class="fas fa-user-tie me-2"></i>{{ service.responsable }}</p>
+                 <p><i class="fas fa-envelope me-2"></i><a href="mailto:{{ service.email_responsable }}">{{ service.email_responsable }}</a></p>
+
+                {# Utiliser le compte pré-calculé #}
+                <h6 class="mt-4 mb-2 text-muted">Participants ({% if participant_count >= 0 %}{{ participant_count }}{% else %}Erreur{% endif %})</h6>
+                 <div style="max-height: 150px; overflow-y: auto;">
+                    {% if participant_count > 0 %}
+                    <ul class="list-group list-group-flush">
+                        {# CORRECTION: Suppression de .all() qui cause l'erreur #}
+                        {% for participant in service.participants|sort(attribute='prenom') %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
+                            <span class="text-truncate small">{{ participant.prenom }} {{ participant.nom }}</span>
+                            {# Compter les inscriptions confirmées pour ce participant #}
+                            {% set confirmed_count = participant.inscriptions.filter_by(statut='confirmé').count() %}
+                            <span class="badge bg-primary rounded-pill small" title="{{ confirmed_count }} inscription(s) confirmée(s)">{{ confirmed_count }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% elif participant_count == 0 %}
+                         <p class="text-muted small fst-italic">Aucun participant.</p>
+                    {% else %} {# participant_count < 0 indique une erreur #}
+                         <p class="text-danger small fst-italic">Erreur chargement participants.</p>
+                    {% endif %}
+                 </div>
             </div>
-            <div class="card-footer">
-                <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#addParticipantModal{{ service.id }}">
-                    <i class="fas fa-user-plus me-2"></i>Ajouter un participant
+             {% if current_user.is_authenticated %}
+            <div class="card-footer bg-light">
+                <button type="button" class="btn btn-outline-primary w-100 btn-sm" data-bs-toggle="modal" data-bs-target="#addParticipantModal{{ service.id }}">
+                    <i class="fas fa-user-plus me-2"></i>Ajouter un participant à ce service
                 </button>
-                
-                <!-- Modal Ajouter Participant -->
-                <div class="modal fade" id="addParticipantModal{{ service.id }}" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Ajouter un participant - {{ service.nom }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <form action="/add_participant" method="post">
-                                    <input type="hidden" name="service_id" value="{{ service.id }}">
-                                    
-                                    <div class="mb-3">
-                                        <label for="nom" class="form-label">Nom</label>
-                                        <input type="text" class="form-control" id="nom" name="nom" required>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="prenom" class="form-label">Prénom</label>
-                                        <input type="text" class="form-control" id="prenom" name="prenom" required>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="email" class="form-label">Email</label>
-                                        <input type="email" class="form-control" id="email" name="email" required>
-                                    </div>
-                                    
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary">Ajouter</button>
-                                    </div>
-                                </form>
-                            </div>
+            </div>
+             {% endif %}
+        </div>
+    </div>
+
+    <!-- Modal Ajouter Participant (Spécifique à ce service) -->
+     {% if current_user.is_authenticated %}
+    <div class="modal fade" id="addParticipantModal{{ service.id }}" tabindex="-1" aria-labelledby="addParticipantModalLabel{{ service.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addParticipantModalLabel{{ service.id }}">Ajouter Participant - {{ service.nom }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ url_for('add_participant') }}" method="post">
+                        <input type="hidden" name="service_id" value="{{ service.id }}">
+                         <input type="hidden" name="from_page" value="services">
+                        <div class="mb-3">
+                            <label for="nom_{{service.id}}" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="nom_{{service.id}}" name="nom" required>
                         </div>
-                    </div>
+                        <div class="mb-3">
+                            <label for="prenom_{{service.id}}" class="form-label">Prénom*</label>
+                            <input type="text" class="form-control" id="prenom_{{service.id}}" name="prenom" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email_{{service.id}}" class="form-label">Email*</label>
+                            <input type="email" class="form-control" id="email_{{service.id}}" name="email" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">
+                                <i class="fas fa-plus me-2"></i>Ajouter Participant
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
-    {% endfor %}
+     {% endif %}
+
+     <!-- Modal Edit Service (Admin only) -->
+     {% if current_user.is_authenticated and current_user.role == 'admin' %}
+     <div class="modal fade" id="editServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="editServiceModalLabel{{ service.id }}" aria-hidden="true">
+         <div class="modal-dialog">
+             <div class="modal-content">
+                 <div class="modal-header">
+                     <h5 class="modal-title" id="editServiceModalLabel{{ service.id }}">Modifier - {{ service.nom }}</h5>
+                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                 </div>
+                 <div class="modal-body">
+                     <form action="{{ url_for('update_service', service_id=service.id) }}" method="post">
+                         <div class="mb-3">
+                             <label for="edit_nom_{{service.id}}" class="form-label">Nom Service*</label>
+                             <input type="text" class="form-control" id="edit_nom_{{service.id}}" name="nom" value="{{ service.nom }}" required>
+                         </div>
+                         <div class="mb-3">
+                             <label for="edit_responsable_{{service.id}}" class="form-label">Responsable*</label>
+                             <input type="text" class="form-control" id="edit_responsable_{{service.id}}" name="responsable" value="{{ service.responsable }}" required>
+                         </div>
+                         <div class="mb-3">
+                             <label for="edit_email_{{service.id}}" class="form-label">Email Responsable*</label>
+                             <input type="email" class="form-control" id="edit_email_{{service.id}}" name="email_responsable" value="{{ service.email_responsable }}" required>
+                         </div>
+                         <div class="mb-3">
+                            <label for="edit_couleur_{{service.id}}" class="form-label">Couleur</label>
+                            <input type="color" class="form-control form-control-color" id="edit_couleur_{{service.id}}" name="couleur" value="{{ service.couleur or '#6c757d' }}" title="Choisir une couleur">
+                        </div>
+                         <div class="d-grid">
+                             <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">Enregistrer</button>
+                         </div>
+                     </form>
+                 </div>
+             </div>
+         </div>
+     </div>
+     {% endif %}
+
+    {% else %} {# Fin de la boucle for item in services_data #}
+     <div class="col-12">
+        <div class="alert alert-light text-center" role="alert">
+            <i class="fas fa-info-circle me-2"></i> Aucun service n'a été configuré pour le moment.
+             {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                <a href="#" data-bs-toggle="modal" data-bs-target="#addServiceModal">Ajouter un service</a>.
+             {% endif %}
+        </div>
+    </div>
+    {% endfor %} {# Fin de la boucle principale #}
 </div>
+
+<!-- Modal Add Service (Admin only) -->
+{% if current_user.is_authenticated and current_user.role == 'admin' %}
+<div class="modal fade" id="addServiceModal" tabindex="-1" aria-labelledby="addServiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addServiceModalLabel">Ajouter un Nouveau Service</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('add_service') }}" method="post">
+                    <div class="mb-3">
+                        <label for="add_nom" class="form-label">Nom Service*</label>
+                        <input type="text" class="form-control" id="add_nom" name="nom" required>
+                    </div>
+                     <div class="mb-3">
+                        <label for="add_id" class="form-label">ID Service* <small>(court, minuscules, ex: 'qualite')</small></label>
+                        <input type="text" class="form-control" id="add_id" name="id" pattern="[a-z0-9_]+" title="Utiliser uniquement minuscules, chiffres et underscores" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="add_responsable" class="form-label">Responsable*</label>
+                        <input type="text" class="form-control" id="add_responsable" name="responsable" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="add_email" class="form-label">Email Responsable*</label>
+                        <input type="email" class="form-control" id="add_email" name="email_responsable" required>
+                    </div>
+                     <div class="mb-3">
+                        <label for="add_couleur" class="form-label">Couleur</label>
+                        <input type="color" class="form-control form-control-color" id="add_couleur" name="couleur" value="#6c757d" title="Choisir une couleur">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">Ajouter Service</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Services JS loaded');
+        const config = window.config || { debugMode: false };
+         function applyServiceModalFixes() {
+            document.querySelectorAll('.modal button, .modal .btn').forEach(button => {
+                 button.style.cssText = 'position: relative !important; z-index: 2001 !important; pointer-events: auto !important;';
+             });
+             const closeButtons = document.querySelectorAll('.modal .btn-close');
+             closeButtons.forEach(btn => btn.style.zIndex = '2005 !important');
+             if (config.debugMode) console.log('Services specific modal JS fixes applied.');
+         }
+         setTimeout(applyServiceModalFixes, 300);
+    });
+</script>
 {% endblock %}

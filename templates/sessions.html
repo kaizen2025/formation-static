@@ -1,357 +1,195 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<h1 class="mb-4"><i class="fas fa-calendar-alt me-2"></i>Sessions de formation</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+     <h1 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Sessions de Formation</h1>
+      {% if current_user.is_authenticated and current_user.role == 'admin' %}
+       <a href="{{ url_for('admin') }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-plus me-1"></i> Ajouter/Gérer (Admin)</a>
+      {% endif %}
+</div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Filtrer les sessions</h5>
-            </div>
-            <div class="card-body">
-                <form action="{{ url_for('sessions') }}" method="get" class="row g-3">
-                    <div class="col-md-4">
-                        <label for="theme" class="form-label">Thème</label>
-                        <select class="form-select" id="theme" name="theme">
-                            <option value="">Tous les thèmes</option>
-                            {% for theme in themes %}
-                            <option value="{{ theme.id }}" {% if request.args.get('theme') == theme.id|string %}selected{% endif %}>{{ theme.nom }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="date" class="form-label">Date</label>
-                        <select class="form-select" id="date" name="date">
-                            <option value="">Toutes les dates</option>
-                            {% set dates = [] %}
-                            {% for session in sessions %}
-                                {% if session.formatage_date not in dates %}
-                                    {% set dates = dates + [session.formatage_date] %}
-                                    <option value="{{ session.date }}" {% if request.args.get('date') == session.date|string %}selected{% endif %}>{{ session.formatage_date }}</option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="places" class="form-label">Places disponibles</label>
-                        <select class="form-select" id="places" name="places">
-                            <option value="">Toutes les sessions</option>
-                            <option value="available" {% if request.args.get('places') == 'available' %}selected{% endif %}>Places disponibles uniquement</option>
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-filter me-2"></i>Filtrer
-                        </button>
-                        <a href="{{ url_for('sessions') }}" class="btn btn-secondary">
-                            <i class="fas fa-undo me-2"></i>Réinitialiser
-                        </a>
-                    </div>
-                </form>
-            </div>
-        </div>
+<!-- Filtering Card -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light"><h5 class="mb-0 text-primary"><i class="fas fa-filter me-2"></i>Filtrer les sessions</h5></div>
+    <div class="card-body">
+        <form id="filter-form" action="{{ url_for('sessions') }}" method="get" class="row g-3 align-items-end">
+            <div class="col-md-6 col-lg-3"><label for="theme_filter" class="form-label small fw-bold">Thème</label><select class="form-select form-select-sm" id="theme_filter" name="theme" style="z-index: 1; position: relative;"><option value="">Tous les thèmes</option>{% for theme in themes|sort(attribute='nom') %}<option value="{{ theme.id }}" {% if request.args.get('theme') and request.args.get('theme') == theme.id|string %}selected{% endif %}>{{ theme.nom }}</option>{% endfor %}</select></div>
+            <div class="col-md-6 col-lg-3"><label for="date_filter" class="form-label small fw-bold">Date (après le)</label><input type="date" class="form-control form-control-sm" id="date_filter" name="date" value="{{ request.args.get('date', '') }}" style="z-index: 1; position: relative;"></div>
+            <div class="col-md-6 col-lg-3"><label for="places_filter" class="form-label small fw-bold">Disponibilité</label><select class="form-select form-select-sm" id="places_filter" name="places" style="z-index: 1; position: relative;"><option value="">Toutes</option><option value="available" {% if request.args.get('places') == 'available' %}selected{% endif %}>Places disponibles</option><option value="full" {% if request.args.get('places') == 'full' %}selected{% endif %}>Complètes</option></select></div>
+            <div class="col-md-6 col-lg-3 d-flex justify-content-start align-items-center pt-3 pt-lg-0"><button type="submit" class="btn btn-primary btn-sm me-2 flex-grow-1" style="z-index: 1; position: relative;"><i class="fas fa-search me-1"></i>Filtrer</button><a href="{{ url_for('sessions') }}" class="btn btn-outline-secondary btn-sm flex-grow-1" style="z-index: 1; position: relative;"><i class="fas fa-undo me-1"></i>Reset</a></div>
+        </form>
     </div>
 </div>
 
-<div class="row">
-    {% for session in sessions %}
-    <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 session-card" data-session-id="{{ session.id }}" data-theme="{{ session.theme.nom|replace(' ', '-')|lower }}" data-date="{{ session.date }}" data-places="{{ session.places_restantes }}">
-            <div class="card-header">
-                <h5 class="mb-0">{{ session.formatage_date }}</h5>
-                <p class="text-muted mb-0">{{ session.formatage_horaire }}</p>
-            </div>
-            <div class="card-body">
-                {% if session.theme.nom == 'Communiquer avec Teams' %}
-                <span class="badge theme-badge theme-comm">{{ session.theme.nom }}</span>
-                {% elif session.theme.nom == 'Gérer les tâches (Planner)' %}
-                <span class="badge theme-badge theme-planner">{{ session.theme.nom }}</span>
-                {% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}
-                <span class="badge theme-badge theme-onedrive">{{ session.theme.nom }}</span>
-                {% elif session.theme.nom == 'Collaborer avec Teams' %}
-                <span class="badge theme-badge theme-sharepoint">{{ session.theme.nom }}</span>
-                {% endif %}
-                
-                <div class="mt-3">
-                    <p>{{ session.theme.description|default('Description non disponible') }}</p>
+<!-- Session List -->
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4" id="session-list">
+    {% if sessions_data is defined and sessions_data %}
+        {% for item in sessions_data %}
+        {% set session = item.obj %}
+        {% set places_restantes = item.places_restantes %}
+        {% set inscrits_count = item.inscrits_confirmes_count %}
+        {% set liste_attente_count = item.liste_attente_count %}
+        {% set progress = (inscrits_count / session.max_participants * 100) if session.max_participants > 0 else 0 %}
+        {% set card_header_bg = 'bg-success-subtle' %}
+        {% if places_restantes == 0 %}{% set card_header_bg = 'bg-danger-subtle' %}
+        {% elif progress >= 75 %}{% set card_header_bg = 'bg-warning-subtle' %}
+        {% endif %}
+
+        <div class="col session-card-col" data-session-id="{{ session.id }}">
+            <div class="card h-100 session-card shadow-sm border-start-0">
+                <div class="card-header {{ card_header_bg }}">
+                    <h5 class="mb-0 fw-bold fs-6">{{ session.formatage_date }}</h5>
+                    <p class="text-muted mb-0 small">{{ session.formatage_horaire }}</p>
                 </div>
-                
-                <div class="mt-3">
-                    <h6>Places disponibles:</h6>
-                    <div class="progress">
-                        {% set progress = (session.inscriptions|length / session.max_participants) * 100 %}
-                        <div class="progress-bar {% if session.places_restantes <= 3 %}bg-danger{% elif session.places_restantes <= 7 %}bg-warning{% else %}bg-success{% endif %}" 
-                             role="progressbar" 
-                             style="width: {{ progress }}%;" 
-                             aria-valuenow="{{ session.inscriptions|length }}" 
-                             aria-valuemin="0" 
-                             aria-valuemax="{{ session.max_participants }}">
-                            {{ session.inscriptions|length|default(0) }} / {{ session.max_participants|default(15) }}
-                        </div>
+                <div class="card-body d-flex flex-column small">
+                    <span class="badge theme-badge mb-2 align-self-start {% if session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %}">{{ session.theme.nom }}</span>
+                    <div class="mt-auto pt-2">
+                        <div class="d-flex justify-content-between mb-1"><span>Places:</span><span class="fw-bold places-dispo {% if places_restantes <= 3 %}text-danger{% elif places_restantes <= 7 %}text-warning{% else %}text-success{% endif %}"><strong>{{ places_restantes|default(0) }}</strong> / {{ session.max_participants|default(15) }}</span></div>
+                        <div class="progress mb-2" style="height: 5px;"><div class="progress-bar {% if places_restantes == 0 %}bg-danger{% elif progress >= 75 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ progress }}%;" aria-valuenow="{{ inscrits_count }}" aria-valuemin="0" aria-valuemax="{{ session.max_participants }}"></div></div>
+                         <div class="d-flex justify-content-between mb-1"><span>Inscrits:</span><span class="inscrits-count fw-bold">{{ inscrits_count }}</span></div>
+                         {% if liste_attente_count > 0 %}<div class="d-flex justify-content-between mb-1"><span>En Attente:</span><span class="badge bg-warning text-dark attente-counter">{{ liste_attente_count }}</span></div>{% endif %}
+                         <div class="d-flex justify-content-between"><span>Salle:</span>{% if session.salle %}<span class="badge bg-info text-dark salle-badge">{{ session.salle.nom }}</span>{% else %}<span class="badge bg-secondary salle-badge">Non définie</span>{% endif %}</div>
                     </div>
-                    <p class="text-muted mt-2">
-                        <small>{{ session.places_restantes|default(0) }} places restantes</small>
-                    </p>
                 </div>
-                
-                {% if session.salle %}
-                <div class="mt-3">
-                    <h6>Salle:</h6>
-                    <p class="mb-1">
-                        <span class="badge bg-info text-white">{{ session.salle.nom }}</span>
-                        {% if session.salle.lieu %}
-                        <small class="text-muted">{{ session.salle.lieu }}</small>
+                <div class="card-footer bg-light">
+                    <div class="d-grid gap-1">
+                        {% if places_restantes > 0 %}
+                        <button type="button" class="btn btn-primary btn-sm btn-action-inscription" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session.id }}" title="Inscrire ou ajouter un nouveau participant"><i class="fas fa-user-plus me-1"></i>S'inscrire / Gérer</button>
+                        {% else %}
+                        <button type="button" class="btn btn-warning btn-sm btn-action-attente" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session.id }}" data-go-to-attente="true" title="S'inscrire sur la liste d'attente"><i class="fas fa-clock me-1"></i>Liste d'attente</button>
                         {% endif %}
-                    </p>
-                </div>
-                {% endif %}
-                
-                {% if session.inscriptions and session.inscriptions|length > 0 %}
-                <div class="mt-3">
-                    <h6>Services représentés:</h6>
-                    <div class="d-flex flex-wrap gap-1">
-                        {% set service_ids = [] %}
-                        {% for inscription in session.inscriptions %}
-                            {% if inscription.participant.service_id not in service_ids %}
-                                {% set service_ids = service_ids + [inscription.participant.service_id] %}
-                                <span class="service-badge {{ inscription.participant.service_id }}" title="{{ inscription.participant.service.nom }}"></span>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-            <div class="card-footer">
-                {% if session.places_restantes > 0 %}
-                <button type="button" class="btn btn-primary w-100 btn-participant" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session.id }}">
-                    <i class="fas fa-user-plus me-2"></i>S'inscrire
-                </button>
-                {% else %}
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-secondary flex-grow-1" disabled>
-                        <i class="fas fa-ban me-2"></i>Complet
-                    </button>
-                    <a href="{{ url_for('liste_attente', session_id=session.id, participant_id=current_user.id if current_user.is_authenticated else '') }}" class="btn btn-warning">
-                        <i class="fas fa-clock me-2"></i>Liste d'attente
-                    </a>
-                </div>
-                {% endif %}
-                
-                <!-- Modal Inscription -->
-                <div class="modal fade" id="inscriptionModal{{ session.id }}" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Inscription - {{ session.theme.nom }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="alert alert-info mb-3">
-                                    <div class="d-flex">
-                                        <div class="me-3">
-                                            <i class="fas fa-info-circle fa-2x"></i>
-                                        </div>
-                                        <div>
-                                            <p class="mb-1">{{ session.formatage_date }} | {{ session.formatage_horaire }}</p>
-                                            <p class="mb-1">Places disponibles: <strong>{{ session.places_restantes|default(0) }} / {{ session.max_participants|default(15) }}</strong></p>
-                                            {% if session.salle %}
-                                            <p class="mb-0"><i class="fas fa-map-marker-alt me-1"></i> {{ session.salle.nom }}</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <form action="{{ url_for('inscription') }}" method="post">
-                                    <input type="hidden" name="session_id" value="{{ session.id }}">
-                                    
-                                    <div class="mb-3">
-                                        <label for="participant_id_{{ session.id }}" class="form-label">Sélectionner un participant</label>
-                                        <select class="form-select" id="participant_id_{{ session.id }}" name="participant_id" required>
-                                            <option value="">-- Choisir un participant --</option>
-                                            {% for participant in participants %}
-                                            <option value="{{ participant.id }}">
-                                                {{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})
-                                            </option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-check me-2"></i>Confirmer l'inscription
-                                        </button>
-                                    </div>
-                                </form>
-                                
-                                <hr>
-                                
-                                <h6 class="mb-3">Ou ajouter un nouveau participant</h6>
-                                <form action="{{ url_for('add_participant') }}" method="post">
-                                    <input type="hidden" name="session_id" value="{{ session.id }}">
-                                    
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="nom_{{ session.id }}" class="form-label">Nom</label>
-                                            <input type="text" class="form-control" id="nom_{{ session.id }}" name="nom" required>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label for="prenom_{{ session.id }}" class="form-label">Prénom</label>
-                                            <input type="text" class="form-control" id="prenom_{{ session.id }}" name="prenom" required>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="email_{{ session.id }}" class="form-label">Email</label>
-                                        <input type="email" class="form-control" id="email_{{ session.id }}" name="email" required>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="service_id_{{ session.id }}" class="form-label">Service</label>
-                                        <select class="form-select" id="service_id_{{ session.id }}" name="service_id" required>
-                                            <option value="">-- Choisir un service --</option>
-                                            {% for service in services %}
-                                            <option value="{{ service.id }}">{{ service.nom }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-success">
-                                            <i class="fas fa-user-plus me-2"></i>Ajouter et inscrire
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
+                         <button type="button" class="btn btn-outline-secondary btn-sm btn-view-participants" data-bs-toggle="modal" data-bs-target="#participantsModal{{ session.id }}" title="Voir les inscrits et la liste d'attente"><i class="fas fa-users me-1"></i>Voir Participants</button>
+                          {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                            <button type="button" class="btn btn-outline-info btn-sm btn-action-salle" data-bs-toggle="modal" data-bs-target="#attribuerSalleModal{{ session.id }}" title="Attribuer/Modifier la salle"><i class="fas fa-building me-1"></i>Gérer Salle</button>
+                          {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+        {% endfor %} {# Fin Session Loop for Cards #}
+
+        {# --- INCLUDE MODALS --- #}
+         {% for item in sessions_data %} {# Loop again just for modals #}
+            {% set session = item.obj %} {# Define session variable for includes #}
+            {# CORRECTION: Utilisation de blocs with appropriés pour Jinja2 #}
+            {% with %}
+                {% set session = session %}
+                {% set places_restantes = item.places_restantes %}
+                {% set participants = participants %}
+                {% set services = services %}
+                {% include 'modals/_inscription_modal.html' %}
+            {% endwith %}
+            
+            {% with %}
+                {% set session = session %}
+                {% set count_confirmed = item.inscrits_confirmes_count %}
+                {% set count_pending = item.pending_count %}
+                {% set count_waitlist = item.liste_attente_count %}
+                {% include 'modals/_participants_modal.html' %}
+            {% endwith %}
+            
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                {% with %}
+                    {% set session = session %}
+                    {% set salles = salles %}
+                    {% include 'modals/_attribuer_salle_modal.html' %}
+                {% endwith %}
+            {% endif %}
+        {% endfor %}
+        {# --- END MODAL INCLUDES --- #}
+
     {% else %}
-    <div class="col-12">
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>Aucune session ne correspond aux critères de filtrage.
+        <div class="col-12">
+            <div class="alert alert-secondary text-center" role="alert">
+                 <i class="fas fa-info-circle me-2"></i>
+                 {% if request.args %}
+                     Aucune session ne correspond à vos critères de recherche. <a href="{{ url_for('sessions') }}">Voir toutes les sessions</a>.
+                 {% else %}
+                     Aucune session n'est programmée pour le moment.
+                 {% endif %}
+            </div>
         </div>
-    </div>
-    {% endfor %}
+    {% endif %} {# End if sessions_data #}
 </div>
 
-<!-- Container pour les notifications toast -->
-<div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;"></div>
-{% endblock %}
+{% endblock %} {# End Block Content #}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+{{ super() }}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Filtres dynamiques
-        const themeSelect = document.getElementById('theme');
-        const dateSelect = document.getElementById('date');
-        const placesSelect = document.getElementById('places');
-        
-        if (themeSelect && dateSelect && placesSelect) {
-            // Fonction de filtrage en temps réel (optionnel, complémentaire au filtrage côté serveur)
-            function filterSessions() {
-                const themeValue = themeSelect.value;
-                const dateValue = dateSelect.value;
-                const placesValue = placesSelect.value;
-                
-                const cards = document.querySelectorAll('.session-card');
-                
-                cards.forEach(card => {
-                    let show = true;
-                    
-                    // Filtrer par thème si sélectionné
-                    if (themeValue && card.dataset.themeId !== themeValue) {
-                        show = false;
-                    }
-                    
-                    // Filtrer par date si sélectionnée
-                    if (dateValue && card.dataset.date !== dateValue) {
-                        show = false;
-                    }
-                    
-                    // Filtrer par places disponibles
-                    if (placesValue === 'available' && parseInt(card.dataset.places) <= 0) {
-                        show = false;
-                    }
-                    
-                    card.closest('.col-md-6').style.display = show ? '' : 'none';
+        console.log('Sessions Page JS Initialized (Includes Version)');
+        const config = window.config || { debugMode: false }; // Utiliser la config globale si définie
+
+        // Appliquer les correctifs JS spécifiques aux modales de cette page
+        function applySessionPageModalFixes() {
+            document.querySelectorAll('.modal[id^="inscriptionModal"], .modal[id^="participantsModal"], .modal[id^="attribuerSalleModal"]').forEach(modal => {
+                // Corriger les selects
+                modal.querySelectorAll('select, .form-select').forEach(select => {
+                    select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
                 });
-            }
-            
-            // Ajout des écouteurs d'événements sur les filtres
-            themeSelect.addEventListener('change', filterSessions);
-            dateSelect.addEventListener('change', filterSessions);
-            placesSelect.addEventListener('change', filterSessions);
-            
-            // Mise à jour de la disponibilité des places en temps réel
-            function updateAvailability() {
-                fetch('/api/sessions')
-                    .then(response => response.json())
-                    .then(data => {
-                        data.forEach(session => {
-                            const card = document.querySelector(`.session-card[data-session-id="${session.id}"]`);
-                            if (card) {
-                                // Mettre à jour l'attribut data-places
-                                card.dataset.places = session.places_restantes;
-                                
-                                const progressBar = card.querySelector('.progress-bar');
-                                const placesText = card.querySelector('.text-muted small');
-                                const inscriptionBtn = card.querySelector('.btn-primary');
-                                const complet = card.querySelector('.btn-secondary');
-                                const listeAttente = card.querySelector('.btn-warning');
-                                
-                                if (progressBar) {
-                                    const progress = (session.inscrits / session.max_participants) * 100;
-                                    progressBar.style.width = `${progress}%`;
-                                    progressBar.textContent = `${session.inscrits} / ${session.max_participants}`;
-                                    
-                                    // Mise à jour de la classe
-                                    progressBar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
-                                    if (session.places_restantes <= 3) {
-                                        progressBar.classList.add('bg-danger');
-                                    } else if (session.places_restantes <= 7) {
-                                        progressBar.classList.add('bg-warning');
-                                    } else {
-                                        progressBar.classList.add('bg-success');
-                                    }
-                                }
-                                
-                                if (placesText) {
-                                    placesText.textContent = `${session.places_restantes} places restantes`;
-                                }
-                                
-                                // Mettre à jour les boutons
-                                if (inscriptionBtn && complet && listeAttente) {
-                                    if (session.places_restantes > 0) {
-                                        inscriptionBtn.style.display = '';
-                                        complet.parentElement.style.display = 'none';
-                                    } else {
-                                        inscriptionBtn.style.display = 'none';
-                                        complet.parentElement.style.display = '';
-                                    }
-                                }
-                                
-                                // Appliquer le filtre si nécessaire
-                                if (placesSelect.value === 'available') {
-                                    filterSessions();
-                                }
-                            }
-                        });
-                    })
-                    .catch(error => console.error('Erreur lors de la récupération des données de session:', error));
-            }
-            
-            // Mettre à jour toutes les 30 secondes
-            setInterval(updateAvailability, 30000);
-            
-            // Mise à jour initiale
-            updateAvailability();
+                 // Corriger les boutons
+                 modal.querySelectorAll('button, .btn').forEach(button => {
+                     button.style.cssText = 'position: relative !important; z-index: 2001 !important; pointer-events: auto !important;';
+                 });
+                 // Corriger le bouton de fermeture
+                 const btnClose = modal.querySelector('.btn-close');
+                 if (btnClose) btnClose.style.zIndex = '2005 !important';
+            });
+             if (config.debugMode) {
+                 console.log('Sessions page specific modal JS fixes applied (Includes Version).');
+             }
         }
+        // Appliquer après un court délai pour s'assurer que les modales sont dans le DOM
+        setTimeout(applySessionPageModalFixes, 300);
+
+        // Gérer l'activation des onglets dans la modale Participants
+        const participantModals = document.querySelectorAll('[id^="participantsModal"]');
+        participantModals.forEach(modal => {
+             modal.addEventListener('show.bs.modal', function (event) {
+                 const triggerButton = event.relatedTarget;
+                 const sessionId = modal.id.replace('participantsModal','');
+                 let targetTabId = '#inscrits-tab' + sessionId; // Onglet par défaut
+                 if (triggerButton && triggerButton.dataset.showTab === 'attente') {
+                     targetTabId = '#attente-tab' + sessionId;
+                 } else if (triggerButton && triggerButton.dataset.showTab === 'pending') {
+                     targetTabId = '#pending-tab' + sessionId;
+                 }
+                 const targetTab = modal.querySelector(targetTabId);
+                 if(targetTab) {
+                     try {
+                        // Utiliser l'API Bootstrap pour activer l'onglet
+                        const tabTrigger = new bootstrap.Tab(targetTab);
+                        tabTrigger.show();
+                     } catch (e) { console.error("Erreur activation onglet:", e); }
+                 }
+                 // Rafraîchir les données de la modale si la fonction existe (définie dans websocket.js)
+                 if (typeof updateParticipantModalData === 'function') {
+                     updateParticipantModalData(sessionId);
+                 }
+             });
+         });
+
+         // Gérer l'intention d'ajout à la liste d'attente depuis la modale d'inscription
+        const inscriptionModals = document.querySelectorAll('[id^="inscriptionModal"]');
+         inscriptionModals.forEach(modal => {
+             modal.addEventListener('show.bs.modal', function (event) {
+                 const triggerButton = event.relatedTarget;
+                 // Activer l'onglet "Participant existant" par défaut
+                 const defaultTabId = '#existant-tab' + modal.id.replace('inscriptionModal', '');
+                 const defaultTab = modal.querySelector(defaultTabId);
+                 if (defaultTab) {
+                     try {
+                        const tabTrigger = new bootstrap.Tab(defaultTab);
+                        tabTrigger.show();
+                     } catch (e) { console.error("Erreur activation onglet par défaut:", e); }
+                 }
+                 // Log si ouvert pour la liste d'attente
+                 if (triggerButton && triggerButton.dataset.goToAttente === 'true') {
+                     if (config.debugMode) console.log('Modal inscription ouverte pour ajout liste attente:', modal.id);
+                 }
+             });
+         });
     });
 </script>
 {% endblock %}
