@@ -488,7 +488,7 @@ def get_all_salles():
 @db_operation_with_retry(max_retries=3)
 def get_all_participants():
     """Récupérer tous les participants avec mise en cache"""
-    return Participant.query.order_by(Participant.nom, Participant.prenom).all()
+    return Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).all()
 
 # === WebSocket Event Handlers ===
 @socketio.on('connect')
