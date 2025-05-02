@@ -326,10 +326,9 @@
         });
     </script>
 
-    <!-- Script WebSocket Principal -->
-    <script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
 	<!-- Script Chart.js optimisé -->
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/polling-updates.js') }}"></script>
 
     {% block scripts %}{% endblock %}
 </body>

@@ -1,7 +1,7 @@
 /**
- * Formation Microsoft 365 - charts.js (version améliorée)
- * Correction des erreurs de réutilisation de canvas et d'API manquante
- * v1.3.0
+ * Formation Microsoft 365 - charts.js (version complète améliorée)
+ * Correction des erreurs de réutilisation de canvas et gestion robuste des erreurs
+ * v1.4.0
  */
 
 // Configuration globale
@@ -21,6 +21,11 @@ const chartConfig = {
             'qualite': '#F44336',
             'rh': '#FF9800'
         }
+    },
+    // Prévenir les initialisations multiples
+    initStatus: {
+        themeInitializing: false,
+        serviceInitializing: false
     }
 };
 
@@ -28,21 +33,114 @@ const chartConfig = {
 let themeChartInstance = null;
 let serviceChartInstance = null;
 
+// Fonction utilitaire pour les requêtes fetch avec retry
+async function fetchWithRetry(url, options = {}, maxRetries = 3, initialDelay = 500) {
+    let retries = 0;
+    let delay = initialDelay;
+    
+    while (retries < maxRetries) {
+        try {
+            const response = await fetch(url, options);
+            if (response.ok) return response.json();
+            throw new Error(`Erreur HTTP ${response.status}`);
+        } catch (error) {
+            retries++;
+            if (retries >= maxRetries) throw error;
+            
+            console.log(`Erreur fetch, tentative ${retries}/${maxRetries} dans ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            
+            // Délai exponentiel avec jitter pour éviter la congestion
+            delay = delay * 1.5 + Math.random() * 200;
+        }
+    }
+}
+
 /**
- * Initialise tous les graphiques
+ * Initialise les graphiques présents sur la page avec prévention des initialisations multiples
+ * @returns {Promise<boolean>} True si l'initialisation a réussi ou si aucun graphique n'est présent, False en cas d'erreur
  */
 async function initializeCharts() {
     console.log('Initialisation des graphiques...');
     
+    // Protection contre les initialisations multiples
+    if (chartConfig.initStatus.initializing) {
+        console.log('Une initialisation des graphiques est déjà en cours, ignoré');
+        return false;
+    }
+    
+    // Marquer comme en cours d'initialisation
+    chartConfig.initStatus.initializing = true;
+    
     try {
-        // Initialiser en séquence pour éviter les conflits
-        await initThemeChart();
-        await initServiceChart();
+        // 1. Vérifier si on est sur une page avec des graphiques
+        const themeChart = document.getElementById('themeChart');
+        const serviceChart = document.getElementById('serviceChart');
         
-        console.log('Tous les graphiques initialisés avec succès');
-        return true;
+        // Si aucun graphique n'est présent sur cette page, sortir proprement
+        if (!themeChart && !serviceChart) {
+            console.log("Aucun canvas de graphique trouvé sur cette page (normal)");
+            chartConfig.initStatus.initializing = false;
+            return true; // Succès, même s'il n'y a rien à faire
+        }
+        
+        // 2. Vérifier si Chart.js est disponible
+        if (typeof Chart === 'undefined') {
+            console.error("Chart.js n'est pas chargé!");
+            const overlays = document.querySelectorAll('#theme-chart-overlay, #service-chart-overlay');
+            overlays.forEach(overlay => {
+                if (overlay) {
+                    overlay.innerHTML = '<p class="text-danger">Erreur: Chart.js manquant</p>';
+                    overlay.style.display = 'flex';
+                }
+            });
+            chartConfig.initStatus.initializing = false;
+            return false;
+        }
+        
+        // 3. Initialiser uniquement les graphiques présents sur la page
+        let success = true;
+        
+        if (themeChart) {
+            try {
+                const themeSuccess = await initThemeChart();
+                if (!themeSuccess) {
+                    console.warn("Échec de l'initialisation du graphique thème");
+                    success = false;
+                }
+            } catch (themeError) {
+                console.error("Erreur lors de l'initialisation du graphique thème:", themeError);
+                success = false;
+            }
+        }
+        
+        if (serviceChart) {
+            try {
+                const serviceSuccess = await initServiceChart();
+                if (!serviceSuccess) {
+                    console.warn("Échec de l'initialisation du graphique service");
+                    success = false;
+                }
+            } catch (serviceError) {
+                console.error("Erreur lors de l'initialisation du graphique service:", serviceError);
+                success = false;
+            }
+        }
+        
+        // 4. Rapport sur le résultat global
+        if (success) {
+            console.log('Tous les graphiques présents ont été initialisés avec succès');
+        } else {
+            console.warn("Certains graphiques n'ont pas pu être initialisés correctement");
+        }
+        
+        // 5. Libérer le verrou d'initialisation
+        chartConfig.initStatus.initializing = false;
+        return success;
     } catch (error) {
-        console.error('Erreur initialisation graphiques:', error);
+        // En cas d'erreur générale, assurer que le verrou est libéré
+        console.error('Erreur générale lors de l\'initialisation des graphiques:', error);
+        chartConfig.initStatus.initializing = false;
         return false;
     }
 }
@@ -51,23 +149,61 @@ async function initializeCharts() {
  * Initialise le graphique de répartition par thème
  */
 async function initThemeChart() {
+    // Éviter les initialisations simultanées
+    if (chartConfig.initStatus.themeInitializing) {
+        console.log('Initialisation du graphique thème déjà en cours, ignoré');
+        return false;
+    }
+    
+    chartConfig.initStatus.themeInitializing = true;
+    
     try {
         const ctx = document.getElementById('themeChart');
-        if (!ctx) return false;
-
-        // Afficher l'overlay de chargement
-        toggleChartOverlay('theme-chart-overlay', true);
-        
-        // IMPORTANT: Détruire l'instance existante pour éviter l'erreur "Canvas is already in use"
-        if (themeChartInstance) {
-            themeChartInstance.destroy();
-            themeChartInstance = null;
+        if (!ctx) {
+            console.log("Canvas 'themeChart' non trouvé");
+            chartConfig.initStatus.themeInitializing = false;
+            return false;
         }
 
-        // Récupérer les données via l'API
-        const sessionsResponse = await fetch('/api/sessions');
-        if (!sessionsResponse.ok) throw new Error(`Erreur API sessions: ${sessionsResponse.status}`);
-        const sessions = await sessionsResponse.json();
+        // Afficher l'overlay de chargement
+        const overlay = document.getElementById('theme-chart-overlay');
+        if (overlay) overlay.style.display = 'flex';
+        
+        // SOLUTION ROBUSTE: Détruire TOUTE instance Chart.js associée à ce canvas
+        try {
+            const existingChart = Chart.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+                console.log("Instance de graphique thème existante détruite");
+            }
+        } catch (destroyError) {
+            console.warn("Erreur lors de la destruction du graphique thème:", destroyError);
+            // Continuer malgré l'erreur
+        }
+        
+        // Réinitialiser notre référence dans tous les cas
+        themeChartInstance = null;
+
+        // Récupérer les données via l'API avec retry
+        let sessions;
+        try {
+            sessions = await fetchWithRetry('/api/sessions');
+        } catch (fetchError) {
+            console.error('Erreur récupération données sessions:', fetchError);
+            if (overlay) {
+                overlay.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-exclamation-circle text-danger mb-2"></i>
+                        <p class="text-muted mb-0">Erreur chargement données</p>
+                        <button class="btn btn-sm btn-outline-primary mt-2" onclick="chartModule.refreshThemeChart()">
+                            <i class="fas fa-sync-alt me-1"></i>Réessayer
+                        </button>
+                    </div>`;
+                overlay.style.display = 'flex';
+            }
+            chartConfig.initStatus.themeInitializing = false;
+            return false;
+        }
         
         // Traitement des données
         const themeCounts = {};
@@ -86,6 +222,46 @@ async function initThemeChart() {
 
         // Préparation des données
         const labels = Object.keys(themeCounts);
+        
+        // Si pas de données, afficher un message et créer un graphique minimal
+        if (labels.length === 0) {
+            // Créer des données fictives pour éviter les erreurs
+            const fallbackData = {
+                labels: ['Aucune donnée'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#cccccc'],
+                    borderWidth: 1
+                }]
+            };
+            
+            themeChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: fallbackData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+            
+            if (overlay) {
+                overlay.innerHTML = '<div class="text-center"><p class="text-muted mb-0">Aucune donnée disponible</p></div>';
+                overlay.style.display = 'flex';
+            }
+            
+            chartConfig.initStatus.themeInitializing = false;
+            return true;
+        }
+        
         const data = labels.map(theme => themeCounts[theme].count);
         const colors = labels.map(theme => themeCounts[theme].color);
         
@@ -125,42 +301,91 @@ async function initThemeChart() {
             }
         });
         
-        toggleChartOverlay('theme-chart-overlay', false);
+        if (overlay) overlay.style.display = 'none';
+        chartConfig.initStatus.themeInitializing = false;
         return true;
     } catch (error) {
         console.error('Erreur initialisation graphique thème:', error);
-        toggleChartOverlay('theme-chart-overlay', false, 'Erreur de chargement');
+        const overlay = document.getElementById('theme-chart-overlay');
+        if (overlay) {
+            overlay.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-exclamation-circle text-danger mb-2"></i>
+                    <p class="text-muted mb-0">Erreur graphique thème</p>
+                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="chartModule.refreshThemeChart()">
+                        <i class="fas fa-sync-alt me-1"></i>Réessayer
+                    </button>
+                </div>`;
+            overlay.style.display = 'flex';
+        }
+        chartConfig.initStatus.themeInitializing = false;
         return false;
     }
 }
 
 /**
  * Initialise le graphique des participants par service
- * CORRECTION: Utilise les données de participants directement sans passer par l'API services
  */
 async function initServiceChart() {
+    // Éviter les initialisations simultanées
+    if (chartConfig.initStatus.serviceInitializing) {
+        console.log('Initialisation du graphique service déjà en cours, ignoré');
+        return false;
+    }
+    
+    chartConfig.initStatus.serviceInitializing = true;
+    
     try {
         const ctx = document.getElementById('serviceChart');
-        if (!ctx) return false;
-
-        // Afficher l'overlay
-        toggleChartOverlay('service-chart-overlay', true);
-        
-        // IMPORTANT: Détruire l'instance existante
-        if (serviceChartInstance) {
-            serviceChartInstance.destroy();
-            serviceChartInstance = null;
+        if (!ctx) {
+            console.log("Canvas 'serviceChart' non trouvé");
+            chartConfig.initStatus.serviceInitializing = false;
+            return false;
         }
 
-        // Récupérer les données des participants (contient déjà le service_id et le nom du service)
-        const participantsResponse = await fetch('/api/participants');
-        if (!participantsResponse.ok) throw new Error(`Erreur API participants: ${participantsResponse.status}`);
-        const participants = await participantsResponse.json();
+        // Afficher l'overlay
+        const overlay = document.getElementById('service-chart-overlay');
+        if (overlay) overlay.style.display = 'flex';
         
-        // Récupérer les données des sessions pour calculer les inscriptions
-        const sessionsResponse = await fetch('/api/sessions');
-        if (!sessionsResponse.ok) throw new Error(`Erreur API sessions: ${sessionsResponse.status}`);
-        const sessions = await sessionsResponse.json();
+        // SOLUTION ROBUSTE: Détruire TOUTE instance Chart.js associée à ce canvas
+        try {
+            const existingChart = Chart.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+                console.log("Instance de graphique service existante détruite");
+            }
+        } catch (destroyError) {
+            console.warn("Erreur lors de la destruction du graphique service:", destroyError);
+            // Continuer malgré l'erreur
+        }
+        
+        // Réinitialiser notre référence dans tous les cas
+        serviceChartInstance = null;
+
+        // Récupérer les données nécessaires avec retry
+        let participants, sessions;
+        try {
+            // Récupérer en parallèle pour optimiser
+            [participants, sessions] = await Promise.all([
+                fetchWithRetry('/api/participants'),
+                fetchWithRetry('/api/sessions')
+            ]);
+        } catch (fetchError) {
+            console.error('Erreur récupération données:', fetchError);
+            if (overlay) {
+                overlay.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-exclamation-circle text-danger mb-2"></i>
+                        <p class="text-muted mb-0">Erreur chargement données</p>
+                        <button class="btn btn-sm btn-outline-primary mt-2" onclick="chartModule.refreshServiceChart()">
+                            <i class="fas fa-sync-alt me-1"></i>Réessayer
+                        </button>
+                    </div>`;
+                overlay.style.display = 'flex';
+            }
+            chartConfig.initStatus.serviceInitializing = false;
+            return false;
+        }
 
         // Calculer les participants uniques et les inscriptions par service
         const serviceMap = {};
@@ -169,6 +394,8 @@ async function initServiceChart() {
         participants.forEach(participant => {
             const serviceId = participant.service_id;
             const serviceName = participant.service;
+            
+            if (!serviceId || !serviceName) return;
             
             if (!serviceMap[serviceId]) {
                 serviceMap[serviceId] = {
@@ -181,15 +408,10 @@ async function initServiceChart() {
             
             // Ajouter le participant à son service
             serviceMap[serviceId].uniqueParticipants.add(participant.id);
-        });
-        
-        // Calculer les inscriptions par service
-        participants.forEach(participant => {
-            const inscriptions = participant.inscriptions || 0;
-            const serviceId = participant.service_id;
             
-            if (serviceMap[serviceId]) {
-                serviceMap[serviceId].totalInscriptions += inscriptions;
+            // Ajouter les inscriptions si disponibles
+            if (typeof participant.inscriptions === 'number') {
+                serviceMap[serviceId].totalInscriptions += participant.inscriptions;
             }
         });
         
@@ -197,6 +419,53 @@ async function initServiceChart() {
         const servicesData = Object.values(serviceMap)
             .filter(s => s.uniqueParticipants.size > 0)
             .sort((a, b) => a.nom.localeCompare(b.nom));
+        
+        // Si pas de données, afficher un message et créer un graphique minimal
+        if (servicesData.length === 0) {
+            // Créer des données fictives pour éviter les erreurs
+            const fallbackData = {
+                labels: ['Aucune donnée'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#cccccc'],
+                    borderWidth: 1
+                }]
+            };
+            
+            serviceChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: fallbackData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false
+                        },
+                        y: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            if (overlay) {
+                overlay.innerHTML = '<div class="text-center"><p class="text-muted mb-0">Aucune donnée disponible</p></div>';
+                overlay.style.display = 'flex';
+            }
+            
+            chartConfig.initStatus.serviceInitializing = false;
+            return true;
+        }
             
         const labels = servicesData.map(s => s.nom);
         const uniqueParticipants = servicesData.map(s => s.uniqueParticipants.size);
@@ -248,11 +517,24 @@ async function initServiceChart() {
             }
         });
         
-        toggleChartOverlay('service-chart-overlay', false);
+        if (overlay) overlay.style.display = 'none';
+        chartConfig.initStatus.serviceInitializing = false;
         return true;
     } catch (error) {
         console.error('Erreur initialisation graphique service:', error);
-        toggleChartOverlay('service-chart-overlay', false, 'Erreur de chargement');
+        const overlay = document.getElementById('service-chart-overlay');
+        if (overlay) {
+            overlay.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-exclamation-circle text-danger mb-2"></i>
+                    <p class="text-muted mb-0">Erreur graphique service</p>
+                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="chartModule.refreshServiceChart()">
+                        <i class="fas fa-sync-alt me-1"></i>Réessayer
+                    </button>
+                </div>`;
+            overlay.style.display = 'flex';
+        }
+        chartConfig.initStatus.serviceInitializing = false;
         return false;
     }
 }
@@ -284,13 +566,13 @@ function getServiceColor(serviceName) {
     if (!serviceName) return '#6c757d';
     
     const name = serviceName.toLowerCase();
-    if (name.includes('qualité') || name.includes('qualite')) return '#F44336';
-    if (name.includes('commerce')) return '#FFC107';
-    if (name.includes('informatique')) return '#607D8B';
-    if (name.includes('rh')) return '#FF9800';
-    if (name.includes('marketing')) return '#9C27B0';
-    if (name.includes('comptabilité') || name.includes('comptabilite')) return '#2196F3';
-    if (name.includes('florensud')) return '#4CAF50';
+    if (name.includes('qualité') || name.includes('qualite')) return chartConfig.colors.services.qualite;
+    if (name.includes('commerce')) return chartConfig.colors.services.commerce;
+    if (name.includes('informatique')) return chartConfig.colors.services.informatique;
+    if (name.includes('rh')) return chartConfig.colors.services.rh;
+    if (name.includes('marketing')) return chartConfig.colors.services.marketing;
+    if (name.includes('comptabilité') || name.includes('comptabilite')) return chartConfig.colors.services.comptabilite;
+    if (name.includes('florensud')) return chartConfig.colors.services.florensud;
     return '#6c757d';
 }
 
@@ -311,15 +593,53 @@ function toggleChartOverlay(id, show, message = '') {
     }
 }
 
+/**
+ * Nettoyage de toutes les instances de graphiques
+ */
+function cleanupCharts() {
+    // Nettoyer le graphique thème
+    try {
+        const themeCanvas = document.getElementById('themeChart');
+        if (themeCanvas) {
+            const themeChartExisting = Chart.getChart(themeCanvas);
+            if (themeChartExisting) {
+                themeChartExisting.destroy();
+                console.log("Graphique thème détruit");
+            }
+        }
+    } catch (e) {
+        console.warn("Erreur lors du nettoyage du graphique thème:", e);
+    }
+    
+    // Nettoyer le graphique service
+    try {
+        const serviceCanvas = document.getElementById('serviceChart');
+        if (serviceCanvas) {
+            const serviceChartExisting = Chart.getChart(serviceCanvas);
+            if (serviceChartExisting) {
+                serviceChartExisting.destroy();
+                console.log("Graphique service détruit");
+            }
+        }
+    } catch (e) {
+        console.warn("Erreur lors du nettoyage du graphique service:", e);
+    }
+    
+    // Réinitialiser les variables
+    themeChartInstance = null;
+    serviceChartInstance = null;
+}
+
 // Exposer les fonctions pour utilisation externe
 window.chartModule = {
     initialize: initializeCharts,
     refreshThemeChart: initThemeChart,
-    refreshServiceChart: initServiceChart
+    refreshServiceChart: initServiceChart,
+    cleanup: cleanupCharts
 };
 
-// Attendre que le DOM soit chargé et que Chart.js soit disponible
-document.addEventListener('DOMContentLoaded', () => {
+// Événement lors du chargement du DOM pour éviter les initialisations multiples
+const initChartsOnLoad = () => {
     // Vérifier si Chart.js est chargé
     if (typeof Chart === 'undefined') {
         console.error("Chart.js n'est pas chargé !");
@@ -333,4 +653,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialiser après un court délai pour éviter les conflits
     setTimeout(initializeCharts, 500);
-});
+};
+
+// S'assurer que l'événement n'est pas enregistré plusieurs fois
+document.removeEventListener('DOMContentLoaded', initChartsOnLoad);
+document.addEventListener('DOMContentLoaded', initChartsOnLoad);
+
+// Nettoyage des graphiques avant la fermeture de la page
+window.addEventListener('beforeunload', cleanupCharts);

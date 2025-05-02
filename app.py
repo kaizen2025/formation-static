@@ -6,11 +6,12 @@ try:
     ASYNC_MODE = 'eventlet'
     print("Eventlet monkey patching appliqué.")
 except ImportError:
-    ASYNC_MODE = 'threading' # Fallback si eventlet n'est pas installé
-    print("Eventlet non trouvé, utilisation du mode 'threading'.")
+    ASYNC_MODE = 'threading'
+print(f"Mode asynchrone: {ASYNC_MODE}")
 # ***** END EVENTLET PATCHING *****
 
 import os
+import sys
 import psycopg2
 import functools
 import random
@@ -131,16 +132,26 @@ login_manager.login_message = "Veuillez vous connecter pour accéder à cette pa
 login_manager.login_message_category = "info"
 cache = Cache(app)
 
+# Modifiez cette section (vers la ligne ~215-225)
 socketio = SocketIO(
     app, 
     cors_allowed_origins="*", 
     async_mode=ASYNC_MODE, 
     engineio_logger=False, 
     logger=False,
-    ping_timeout=10,     # Shorter ping timeout
-    ping_interval=25     # Adjusted ping interval
+    ping_timeout=10,
+    ping_interval=25,
+    # Forcer polling uniquement, sans WebSocket
+    transports=['polling'],
+    # Options supplémentaires pour stabilité
+    manage_session=False,
+    always_connect=False
 )
-print(f"SocketIO initialisé avec async_mode='{ASYNC_MODE}'")
+
+# Si en production (détecté par la présence de la variable d'environnement RENDER)
+if os.environ.get('RENDER') or os.environ.get('PRODUCTION'):
+    # Utiliser app.run() standard
+    print("Mode production détecté, utilisation du serveur standard sans WebSocket")
 
 # Setup logging
 configure_logging(app)
@@ -475,8 +486,8 @@ def get_all_themes():
 @cache.cached(timeout=60, key_prefix='all_services')
 @db_operation_with_retry(max_retries=3)
 def get_all_services():
-    """Récupérer tous les services avec mise en cache"""
-    return Service.query.order_by(Service.nom).all()
+    """Récupérer tous les services avec mise en cache ET eager loading"""
+    return Service.query.options(joinedload(Service.participants)).order_by(Service.nom).all()
 
 @cache.cached(timeout=30, key_prefix='all_salles')
 @db_operation_with_retry(max_retries=3)
@@ -488,7 +499,10 @@ def get_all_salles():
 @db_operation_with_retry(max_retries=3)
 def get_all_participants():
     """Récupérer tous les participants avec mise en cache"""
-    return Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).all()
+    # Correction: utiliser seulement joinedload pour service, pas pour inscriptions
+    return Participant.query.options(
+        joinedload(Participant.service)
+    ).order_by(Participant.nom, Participant.prenom).all()
 
 # === WebSocket Event Handlers ===
 @socketio.on('connect')
@@ -686,39 +700,33 @@ def logout():
     flash('Déconnecté avec succès.', 'success')
     return redirect(url_for('login'))
 
-# --- Public/User Views ---
+# Remplacez cette fonction dans app.py:
 @app.route('/services')
 @db_operation_with_retry(max_retries=3)
 def services():
     try:
-        services = get_all_services()
+        # Utiliser seulement joinedload pour les participants, pas pour leurs inscriptions
+        services = Service.query.options(
+            joinedload(Service.participants)
+        ).order_by(Service.nom).all()
+        
         service_data = []
         for s in services:
             try: 
-                cache_key = f'service_participant_count_{s.id}'
-                p_count = cache.get(cache_key)
-                
-                if p_count is None:
-                    p_count = len(s.participants)
-                    cache.set(cache_key, p_count, timeout=60)
-            except (OperationalError, TimeoutError) as oe_inner: 
-                db.session.rollback()
-                app.logger.error(f"DB Pool/Conn Error counting participants for service {s.id}: {oe_inner}")
-                p_count = -1
+                # Accéder aux données déjà chargées
+                p_count = len(s.participants)
             except Exception as e_inner: 
                 db.session.rollback()
-                app.logger.error(f"Error counting participants for service {s.id}: {e_inner}")
+                app.logger.error(f"Error with service data: {e_inner}")
                 p_count = -1
+                
             service_data.append({'obj': s, 'participant_count': p_count})
+            
         participants = get_all_participants()
         return render_template('services.html', services_data=service_data, participants=participants)
-    except (OperationalError, TimeoutError) as oe: 
+    except Exception as e:
         db.session.rollback()
-        app.logger.error(f"DB Pool/Conn Error loading services: {oe}")
-        flash("Erreur connexion/pool DB.", "danger")
-        return render_template('error.html', error_message="Erreur connexion base de données."), 503
-    except SQLAlchemyError as e: 
-        app.logger.error(f"DB error loading services: {e}")
+        app.logger.error(f"Error loading services: {e}")
         flash("Erreur chargement services.", "danger")
         return redirect(url_for('dashboard'))
 
@@ -2472,6 +2480,13 @@ if __name__ == '__main__':
         console.setFormatter(formatter)
         app.logger.addHandler(console)
     
+    # Détection de l'environnement (production vs développement)
+    is_production = os.environ.get('RENDER') or os.environ.get('PRODUCTION')
+    
+    # Configuration du serveur
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_DEBUG') == '1'
+    
     with app.app_context():
         try:
             # 1. Vérifier la connexion DB
@@ -2509,23 +2524,41 @@ if __name__ == '__main__':
                 db.session.rollback()
             except Exception as rb_e:
                 print(f"Erreur supplémentaire pendant le rollback: {rb_e}")
-
-    # Configuration du serveur
-    port = int(os.environ.get('PORT', 5000))
-    debug_mode = os.environ.get('FLASK_DEBUG') == '1'
     
-    # Informations de démarrage
-    print(f"Démarrage serveur avec {ASYNC_MODE} sur http://0.0.0.0:{port} (Debug: {debug_mode})")
-    print(f"Version optimisée avec gestion d'erreurs améliorée")
-    
-    # Exécute avec SocketIO, en utilisant eventlet si disponible
-    socketio.run(
-        app, 
-        host='0.0.0.0', 
-        port=port, 
-        use_reloader=False,  # use_reloader=False avec eventlet
-        debug=debug_mode,
-        log_output=False     # Désactiver la sortie log SocketIO brute
-    )
+    # --- Démarrage du serveur ---
+    try:
+        if is_production:
+            # --- MODE PRODUCTION: Serveur Flask standard sans WebSocket ---
+            print(f"Démarrage serveur en MODE PRODUCTION sur http://0.0.0.0:{port} (Debug: {debug_mode})")
+            print("Version optimisée avec gestion d'erreurs améliorée pour l'environnement de production")
+            app.run(
+                host='0.0.0.0', 
+                port=port, 
+                debug=debug_mode,
+                threaded=True,     # Activer le multithreading pour gérer plus de requêtes simultanées
+                use_reloader=False # Éviter les problèmes de redémarrage
+            )
+        else:
+            # --- MODE DÉVELOPPEMENT: Serveur avec SocketIO ---
+            print(f"Démarrage serveur en MODE DÉVELOPPEMENT avec {ASYNC_MODE} sur http://0.0.0.0:{port} (Debug: {debug_mode})")
+            print("Version optimisée avec gestion d'erreurs améliorée")
+            
+            socketio.run(
+                app, 
+                host='0.0.0.0', 
+                port=port, 
+                use_reloader=False,  # Éviter les doubles démarrages
+                debug=debug_mode,
+                log_output=False,    # Désactiver la sortie log SocketIO brute
+                allow_unsafe_werkzeug=True  # Fix pour compatibilité Werkzeug récent
+            )
+    except Exception as e:
+        print(f"⚠️ ERREUR CRITIQUE au démarrage du serveur: {e}")
+        import traceback
+        traceback.print_exc()
+        print("Tentative de démarrage en mode de secours...")
+        
+        # Mode de secours: toujours utiliser le serveur Flask standard
+        app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
 
 # --- END OF COMPLETE app.py (Optimized Version) ---
