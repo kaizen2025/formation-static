@@ -16,39 +16,102 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 
-    <!-- CRITICAL MODAL FIXES (CSS) -->
-    <style>
-        /* Styles CSS pour les modales - inchangés */
-        .modal { position: fixed !important; top: 0 !important; left: 0 !important; z-index: 1055 !important; width: 100% !important; height: 100% !important; overflow-x: hidden !important; overflow-y: auto !important; outline: 0 !important; display: none; }
-        .modal.show { display: block !important; opacity: 1 !important; }
-        .modal.fade { transition: opacity 0.15s linear !important; }
-        .modal.fade .modal-dialog { transition: transform 0.15s ease-out !important; transform: translate(0, -50px) !important; }
-        .modal.show .modal-dialog { transform: none !important; }
-        .modal-backdrop { position: fixed !important; top: 0 !important; left: 0 !important; z-index: 1050 !important; width: 100vw !important; height: 100vh !important; background-color: #000 !important; }
-        .modal-backdrop.show { opacity: 0.5 !important; }
-        body.modal-open { overflow: hidden !important; padding-right: 0 !important; }
-        .modal-content { border: none !important; border-radius: 0.5rem !important; box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5) !important; }
-        .modal-header { border-bottom: none !important; padding: 1.5rem 1.5rem 0.75rem !important; }
-        .modal-footer { border-top: none !important; padding: 0.75rem 1.5rem 1.5rem !important; }
-        .modal-body { padding: 1.25rem 1.5rem !important; }
-        .modal select, .modal .form-select { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important; }
-        .modal button, .modal .btn { position: relative !important; z-index: 2001 !important; pointer-events: auto !important; }
-        .modal .btn-close { position: relative !important; z-index: 2005 !important; pointer-events: auto !important; }
-        @media (max-width: 576px) { .modal-dialog { margin: 0.5rem auto !important; max-width: calc(100% - 1rem) !important; } .modal-content { max-height: calc(100vh - 1rem) !important; overflow-y: auto !important; } .modal-body input, .modal-body select, .modal-body textarea { font-size: 16px !important; } }
-        .no-transition * { transition: none !important; animation: none !important; }
-        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.7); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-    </style>
-
     <!-- Scripts de tête -->
     <script> document.documentElement.classList.add('no-transition'); window.addEventListener('load', () => { setTimeout(() => { document.documentElement.classList.remove('no-transition'); }, 100); }); </script>
 
     {% block styles %}{% endblock %}
+    
+    <style>
+        /* Styles inline pour les badges de thèmes */
+        /* Ces styles garantissent que les badges s'affichent correctement sur toutes les pages */
+        .theme-badge {
+            display: inline-block;
+            padding: 0.35em 0.75em;
+            font-size: 0.85em;
+            font-weight: 500;
+            line-height: 1.2;
+            color: #fff !important; 
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: var(--border-radius, 0.35rem);
+            box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.1));
+            transition: all 0.2s ease-in-out;
+            margin: 0.15rem 0;
+            position: relative;
+            cursor: help;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 1;
+        }
+        
+        .theme-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .theme-badge.theme-comm { background-color: var(--theme-teams, #0078d4); }
+        .theme-badge.theme-planner { background-color: var(--theme-planner, #7719aa); }
+        .theme-badge.theme-onedrive { background-color: var(--theme-onedrive, #0364b8); }
+        .theme-badge.theme-sharepoint { background-color: var(--theme-sharepoint, #038387); }
+        
+        .theme-badge .theme-tooltip {
+            visibility: hidden;
+            width: 280px;
+            background-color: rgba(33, 37, 41, 0.95);
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px 12px;
+            position: absolute;
+            z-index: 1080;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -140px;
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+            font-weight: normal;
+            font-size: 0.85rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            pointer-events: none;
+        }
+        
+        .theme-badge .theme-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(33, 37, 41, 0.95) transparent transparent transparent;
+        }
+        
+        .theme-badge:hover .theme-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .theme-badge .theme-tooltip {
+                width: 220px;
+                margin-left: -110px;
+                font-size: 0.75rem;
+            }
+            
+            .theme-badge {
+                font-size: 0.75em;
+                padding: 0.25em 0.5em;
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="loading-overlay" style="display: none;"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div></div>
 
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <!-- Contenu Navbar inchangé -->
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('dashboard') }}"><i class="fab fa-microsoft me-2"></i>Formation Microsoft 365</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
@@ -134,202 +197,221 @@
     </div>
 
     <!-- Scripts globaux -->
+    <!-- Librairies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+    <!-- socket.io.min.js Supprimé -->
 
     {% if current_user.is_authenticated %}<input type="hidden" id="user-id" value="{{ current_user.id }}" data-role="{{ current_user.role }}">{% endif %}
 
-    <!-- Simplified Modal Fix Script -->
+    <!-- Scripts Utilitaires Globaux -->
+    <!-- Inclusion de modal-fix.js -->
+    <script src="{{ url_for('static', filename='js/modal-fix.js') }}"></script>
     <script>
-        /* 
-         * Simplified Modal Fix - Reliable solution for Bootstrap modals
-         */
+        // --- Fonctions Globales (Toast, Confirmation) ---
+        // (Code inchangé pour showToast et showConfirmation)
+        window.showToast = function(message, type = 'info') { /* ... code ... */
+            const toastContainer = document.getElementById('toast-container-dynamic');
+            if (!toastContainer) { console.error('Toast container #toast-container-dynamic not found!'); return; }
+            const toastId = `toast-${Date.now()}`;
+            const toastElement = document.createElement('div');
+            const bsClass = `bg-${type === 'message' ? 'info' : type}`;
+            let iconClass = 'fas fa-info-circle';
+            if (type === 'success') iconClass = 'fas fa-check-circle';
+            else if (type === 'danger') iconClass = 'fas fa-exclamation-circle';
+            else if (type === 'warning') iconClass = 'fas fa-exclamation-triangle';
+            toastElement.id = toastId;
+            toastElement.className = `toast align-items-center text-white ${bsClass} border-0 mb-2`;
+            toastElement.setAttribute('role', 'alert'); toastElement.setAttribute('aria-live', 'assertive'); toastElement.setAttribute('aria-atomic', 'true');
+            toastElement.innerHTML = `<div class="d-flex"><div class="toast-body"><i class="${iconClass} me-2"></i>${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>`;
+            toastContainer.appendChild(toastElement);
+            const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 5000 });
+            toast.show();
+            toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
+        };
+        window.showConfirmation = function(message, callback) { /* ... code ... */
+            const modalElement = document.getElementById('confirmModal');
+            const confirmMessageEl = document.getElementById('confirmMessage');
+            const confirmButton = document.getElementById('confirmButton');
+            if (!modalElement || !confirmMessageEl || !confirmButton) { console.error('Confirmation modal elements not found!'); return; }
+            confirmMessageEl.textContent = message;
+            const newConfirmButton = confirmButton.cloneNode(true);
+            confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+            const modalInstance = new bootstrap.Modal(modalElement);
+            newConfirmButton.onclick = function() { modalInstance.hide(); if (typeof callback === 'function') { callback(); } };
+            modalInstance.show();
+        };
+        // Initialiser les toasts statiques
+        var toastElList = [].slice.call(document.querySelectorAll('.toast-container .toast'));
+        var toastList = toastElList.map(function (toastEl) { return new bootstrap.Toast(toastEl, { autohide: true, delay: 7000 }); });
+        toastList.forEach(toast => { try { toast.show(); } catch(e) { console.error("Error showing static toast", e); } });
+    </script>
+
+    <!-- Modules Applicatifs Globaux -->
+    <script src="{{ url_for('static', filename='js/static-charts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/polling-updates.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-fixers.js') }}"></script>
+
+    <!-- Script global pour restaurer les badges de thèmes -->
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Modal Fix Initialized');
+            console.log('Global theme badges enhancement initialized');
             
-            // Apply fixes to all modals
-            function applyModalFixes() {
-                document.querySelectorAll('.modal').forEach(modal => {
-                    if (!modal) return;
-                    
-                    // Fix the modal's z-index
-                    modal.style.zIndex = '1055';
-                    
-                    // Fix <select> elements
-                    modal.querySelectorAll('select, .form-select').forEach(select => {
-                        select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
-                    });
-                    
-                    // Fix buttons
-                    modal.querySelectorAll('button, .btn').forEach(button => {
-                        button.style.cssText = 'position: relative !important; z-index: 2001 !important; pointer-events: auto !important;';
-                    });
-                    
-                    // Fix close buttons specifically
-                    modal.querySelectorAll('.btn-close').forEach(closeBtn => {
-                        closeBtn.style.cssText = 'position: relative !important; z-index: 2005 !important; pointer-events: auto !important;';
-                    });
-                    
-                    // Force recalculation of layout
-                    modal.offsetHeight;
-                });
+            // Données des thèmes avec descriptions pour les tooltips
+            const themesData = {
+                'Communiquer avec Teams': {
+                    description: 'Maîtrisez la communication en ligne avec Microsoft Teams. Apprenez à créer des conversations, organiser des réunions virtuelles et partager des fichiers efficacement.',
+                    color: 'var(--theme-teams)',
+                    icon: 'fas fa-comments',
+                    class: 'theme-comm'
+                },
+                'Gérer les tâches (Planner)': {
+                    description: 'Organisez et suivez vos tâches d\'équipe avec Microsoft Planner. Créez des plans, assignez des tâches et visualisez la progression de vos projets.',
+                    color: 'var(--theme-planner)',
+                    icon: 'fas fa-tasks',
+                    class: 'theme-planner'
+                },
+                'Gérer mes fichiers (OneDrive/SharePoint)': {
+                    description: 'Stockez, partagez et collaborez sur vos documents avec OneDrive et SharePoint. Apprenez à synchroniser vos fichiers et à gérer les autorisations d\'accès.',
+                    color: 'var(--theme-onedrive)',
+                    icon: 'fas fa-file-alt',
+                    class: 'theme-onedrive'
+                },
+                'Collaborer avec Teams': {
+                    description: 'Travaillez en équipe efficacement grâce aux fonctionnalités collaboratives de Teams. Créez des canaux, partagez des documents et intégrez d\'autres applications Office 365.',
+                    color: 'var(--theme-sharepoint)',
+                    icon: 'fas fa-users',
+                    class: 'theme-sharepoint'
+                }
+            };
+            
+            // Fonction pour créer un badge de thème
+            function createThemeBadge(themeName) {
+                const themeData = themesData[themeName] || {
+                    description: 'Formation Microsoft 365',
+                    color: '#6c757d',
+                    icon: 'fas fa-info-circle',
+                    class: 'bg-secondary'
+                };
+                
+                return `<span class="theme-badge ${themeData.class}" data-theme="${themeName}">
+                    <i class="${themeData.icon} me-1"></i>${themeName}
+                    <span class="theme-tooltip">
+                        <strong>${themeName}</strong><br>
+                        ${themeData.description}
+                    </span>
+                </span>`;
             }
             
-            // Apply on DOMContentLoaded
-            applyModalFixes();
-            
-            // Apply when modal is shown/hidden
-            document.addEventListener('shown.bs.modal', function(e) {
-                setTimeout(() => {
-                    if (e.target && !e.target.classList.contains('show')) {
-                        e.target.classList.add('show');
-                        e.target.style.display = 'block';
-                        
-                        // Check for backdrop
-                        if (!document.querySelector('.modal-backdrop')) {
-                            const backdrop = document.createElement('div');
-                            backdrop.className = 'modal-backdrop fade show';
-                            document.body.appendChild(backdrop);
-                        }
-                    }
-                    applyModalFixes();
-                    
-                    // Focus on first form element
-                    const firstInput = e.target.querySelector('input, select, textarea');
-                    if (firstInput) {
-                        try {
-                            firstInput.focus();
-                        } catch(e) {}
-                    }
-                }, 50);
-            });
-            
-            // Fix modal buttons
-            document.addEventListener('click', function(e) {
-                const modalToggle = e.target.closest('[data-bs-toggle="modal"]');
-                if (modalToggle) {
-                    const targetSelector = modalToggle.getAttribute('data-bs-target') || modalToggle.getAttribute('href');
-                    const modalElement = document.querySelector(targetSelector);
-                    
-                    if (modalElement) {
-                        setTimeout(() => {
-                            // Ensure modal is shown properly
-                            if (!modalElement.classList.contains('show')) {
-                                console.log('Force showing modal:', targetSelector);
-                                modalElement.classList.add('show');
-                                modalElement.style.display = 'block';
-                                document.body.classList.add('modal-open');
-                                
-                                // Create backdrop if needed
-                                if (!document.querySelector('.modal-backdrop')) {
-                                    const backdrop = document.createElement('div');
-                                    backdrop.className = 'modal-backdrop fade show';
-                                    document.body.appendChild(backdrop);
-                                }
-                            }
-                            applyModalFixes();
-                        }, 150);
-                    }
-                }
-            });
-            
-            // Watch for new modals added to the DOM
-            if (window.MutationObserver) {
-                const observer = new MutationObserver(function(mutations) {
-                    let modalAdded = false;
-                    
-                    mutations.forEach(function(mutation) {
-                        if (mutation.addedNodes && mutation.addedNodes.length > 0) {
-                            for (let i = 0; i < mutation.addedNodes.length; i++) {
-                                const node = mutation.addedNodes[i];
-                                if (node.nodeType === 1 && 
-                                    (node.classList && node.classList.contains('modal') || 
-                                     node.querySelector && node.querySelector('.modal'))) {
-                                    modalAdded = true;
-                                }
-                            }
-                        }
-                    });
-                    
-                    if (modalAdded) {
-                        setTimeout(applyModalFixes, 10);
+            // Fonction pour restaurer les badges dans tous les contextes
+            function enhanceThemeBadgesGlobally() {
+                // Dans les tableaux
+                document.querySelectorAll('table td:nth-child(2), th:contains("Thème") + td, td.theme-cell').forEach(cell => {
+                    const themeName = cell.textContent.trim();
+                    if (themeName && !cell.innerHTML.includes('theme-badge') && themesData[themeName]) {
+                        cell.innerHTML = createThemeBadge(themeName);
                     }
                 });
                 
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true
+                // Dans les cartes et autres contextes
+                Object.keys(themesData).forEach(themeName => {
+                    document.querySelectorAll(`span:contains("${themeName}"), div:contains("${themeName}")`).forEach(el => {
+                        // Vérifier si l'élément contient EXACTEMENT ce texte (pas un élément parent)
+                        if (el.childNodes.length === 1 && 
+                            el.childNodes[0].nodeType === Node.TEXT_NODE && 
+                            el.textContent.trim() === themeName &&
+                            !el.classList.contains('theme-badge') &&
+                            !el.closest('.theme-badge')) {
+                            
+                            el.outerHTML = createThemeBadge(themeName);
+                        }
+                    });
                 });
+                
+                // S'assurer que tous les badges ont les tooltips
+                document.querySelectorAll('.theme-badge').forEach(badge => {
+                    const themeName = badge.textContent.trim();
+                    if (!badge.querySelector('.theme-tooltip') && themesData[themeName]) {
+                        const themeData = themesData[themeName];
+                        badge.innerHTML = `<i class="${themeData.icon} me-1"></i>${themeName}<span class="theme-tooltip"><strong>${themeName}</strong><br>${themeData.description}</span>`;
+                    }
+                });
+                
+                // Initialiser les tooltips Bootstrap
+                if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(tooltipTriggerEl) {
+                        try {
+                            new bootstrap.Tooltip(tooltipTriggerEl);
+                        } catch (e) { /* ignorer les erreurs - sera initialisé plus tard */ }
+                    });
+                }
             }
-        });
-
-        // Fonction Globale pour Toasts
-        window.showToast = function(message, type = 'info') { 
-            const toastContainer = document.getElementById('toast-container-dynamic'); 
-            if (!toastContainer) { 
-                console.error('Toast container #toast-container-dynamic not found!'); 
-                return; 
-            } 
-            const toastId = `toast-${Date.now()}`; 
-            const toastElement = document.createElement('div'); 
-            const bsClass = `bg-${type === 'message' ? 'info' : type}`; 
-            let iconClass = 'fas fa-info-circle'; 
-            if (type === 'success') iconClass = 'fas fa-check-circle'; 
-            else if (type === 'danger') iconClass = 'fas fa-exclamation-circle'; 
-            else if (type === 'warning') iconClass = 'fas fa-exclamation-triangle'; 
-            toastElement.id = toastId; 
-            toastElement.className = `toast align-items-center text-white ${bsClass} border-0 mb-2`; 
-            toastElement.setAttribute('role', 'alert'); 
-            toastElement.setAttribute('aria-live', 'assertive'); 
-            toastElement.setAttribute('aria-atomic', 'true'); 
-            toastElement.innerHTML = `<div class="d-flex"><div class="toast-body"><i class="${iconClass} me-2"></i>${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>`; 
-            toastContainer.appendChild(toastElement); 
-            const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 5000 }); 
-            toast.show(); 
-            toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove()); 
-        };
-
-        // Fonction Globale pour Confirmations
-        window.showConfirmation = function(message, callback) { 
-            const modalElement = document.getElementById('confirmModal'); 
-            const confirmMessageEl = document.getElementById('confirmMessage'); 
-            const confirmButton = document.getElementById('confirmButton'); 
-            if (!modalElement || !confirmMessageEl || !confirmButton) { 
-                console.error('Confirmation modal elements not found!'); 
-                return; 
-            } 
-            confirmMessageEl.textContent = message; 
-            const newConfirmButton = confirmButton.cloneNode(true); 
-            confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton); 
-            const modalInstance = new bootstrap.Modal(modalElement); 
-            newConfirmButton.onclick = function() { 
-                modalInstance.hide(); 
-                if (typeof callback === 'function') { 
-                    callback(); 
-                } 
-            }; 
-            modalInstance.show(); 
-        };
-
-        // Initialiser les toasts statiques (flash messages)
-        var toastElList = [].slice.call(document.querySelectorAll('.toast-container .toast'));
-        var toastList = toastElList.map(function (toastEl) { 
-            return new bootstrap.Toast(toastEl, { autohide: true, delay: 7000 }); 
-        });
-        toastList.forEach(toast => { 
-            try { 
-                toast.show(); 
-            } catch(e) { 
-                console.error("Error showing static toast", e); 
-            } 
+            
+            // Appliquer immédiatement et après un délai
+            enhanceThemeBadgesGlobally();
+            setTimeout(enhanceThemeBadgesGlobally, 500);
+            
+            // Observer les changements du DOM
+            const observer = new MutationObserver(function(mutations) {
+                let needsUpdate = false;
+                
+                mutations.forEach(function(mutation) {
+                    if (mutation.addedNodes.length > 0) {
+                        for (let i = 0; i < mutation.addedNodes.length; i++) {
+                            const node = mutation.addedNodes[i];
+                            if (node.nodeType === 1) { // Element Node
+                                needsUpdate = true;
+                                break;
+                            }
+                        }
+                    }
+                });
+                
+                if (needsUpdate) {
+                    setTimeout(enhanceThemeBadgesGlobally, 50);
+                }
+            });
+            
+            // Observer les changements
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            // Réappliquer après les requêtes AJAX
+            const originalFetch = window.fetch;
+            window.fetch = function() {
+                return originalFetch.apply(this, arguments)
+                    .then(response => {
+                        setTimeout(enhanceThemeBadgesGlobally, 200);
+                        return response;
+                    });
+            };
+            
+            // Exposer globalement
+            window.enhanceThemeBadgesGlobally = enhanceThemeBadgesGlobally;
         });
     </script>
 
-	<!-- Script Chart.js optimisé -->
-<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
-<script src="{{ url_for('static', filename='js/polling-updates.js') }}"></script>
+    <!-- Initialiser les tooltips Bootstrap -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialiser tous les tooltips Bootstrap sur la page
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                tooltipTriggerList.forEach(function(tooltipTriggerEl) {
+                    try {
+                        new bootstrap.Tooltip(tooltipTriggerEl);
+                    } catch (e) { 
+                        console.warn("Erreur d'initialisation de tooltip:", e);
+                    }
+                });
+            }
+        });
+    </script>
+	<script src="{{ url_for('static', filename='js/charts-enhanced.js') }}"></script>
 
+    <!-- Placeholder for Page-Specific Scripts -->
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -20,8 +20,8 @@
     <div class="row mb-4">
         <!-- Sessions Card -->
         <div class="col-md-6 col-xl-4 mb-4">
-            <div class="card h-100 shadow-sm border-left-primary">
                 <div class="card-body">
+            <div class="card h-100 shadow-sm border-left-primary">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                          <h5 class="card-title text-primary mb-0"><i class="fas fa-calendar-alt me-2"></i>Sessions</h5>
                          <i class="fas fa-calendar-alt fa-2x text-primary-light"></i>
@@ -105,13 +105,13 @@
                         </li>
                         {# ***** FIX: Use .count() for dynamic relationship ***** #}
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
-                             Total Sessions <span class="badge bg-secondary rounded-pill">{{ themes|sum(attribute='sessions.count()') if themes else 0 }}</span> {# Use sum on counts #}
+                             Total Sessions <span class="badge bg-secondary rounded-pill">{{ total_sessions_count }}</span>
                         </li>
                     </ul>
                     <div class="mt-2">
                         {% for theme in themes %}
                         <span class="badge {% if theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% else %}bg-secondary{% endif %} me-1 mb-1">
-                            {{ theme.nom }} ({{ theme.sessions.count() }}) {# Display count per theme #}
+                            {{ theme.nom }} ({{ theme.sessions|length }}) {# Display count per theme #}
                         </span>
                         {% endfor %}
                     </div>

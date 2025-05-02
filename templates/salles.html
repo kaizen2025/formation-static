@@ -52,7 +52,9 @@
 
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-    {% for salle in salles|sort(attribute='nom') %}
+    {# Itération sur salles_data au lieu de salles #}
+    {% for s_data in salles_data|sort(attribute='obj.nom') %}
+    {% set salle = s_data.obj %} {# Accès à l'objet salle #}
     <div class="col">
         <div class="card h-100 shadow-sm salle-card">
              <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
@@ -67,14 +69,20 @@
                 <p class="card-text small text-muted">{{ salle.description }}</p>
                 {% endif %}
 
-                <h6 class="mt-3 mb-2 text-muted">Sessions programmées :</h6>
+                {# Utilisation du compteur pré-calculé #}
+                <h6 class="mt-3 mb-2 text-muted">
+                    Sessions programmées :
+                    <span class="badge bg-secondary ms-1">{{ s_data.sessions_count if s_data.sessions_count != -1 else 'Erreur' }}</span>
+                </h6>
                  <div style="max-height: 150px; overflow-y: auto;">
-                    {% set sessions_associees = salle.sessions|sort(attribute='date') %}
+                    {# Utilisation de la liste pré-chargée #}
+                    {% set sessions_associees = s_data.sessions_associees %}
                     {% if sessions_associees %}
                     <ul class="list-group list-group-flush">
-                        {% for session in sessions_associees %}
+                        {% for session in sessions_associees %} {# Pas besoin de sort ici, déjà trié dans la route #}
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
                             <span class="small text-truncate">
+                                {# Accès au thème via la relation chargée #}
                                 <span class="badge theme-badge {% if session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %} me-1" title="{{ session.theme.nom }}"></span>
                                 {{ session.formatage_date }}
                             </span>
@@ -134,7 +142,24 @@
                 </div>
                  <!-- Modal de suppression -->
                  <div class="modal fade" id="deleteSalleModal{{ salle.id }}" tabindex="-1" aria-labelledby="deleteSalleModalLabel{{ salle.id }}" aria-hidden="true">
-                     <!-- Delete confirmation structure -->
+                     <!-- Structure de confirmation de suppression -->
+                      <div class="modal-dialog">
+                         <div class="modal-content">
+                             <div class="modal-header">
+                                 <h5 class="modal-title" id="deleteSalleModalLabel{{ salle.id }}">Confirmer Suppression</h5>
+                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                             </div>
+                             <div class="modal-body">
+                                 Êtes-vous sûr de vouloir supprimer la salle "{{ salle.nom }}" ? Les sessions associées devront être réassignées.
+                             </div>
+                             <div class="modal-footer">
+                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                 <form action="{{ url_for('delete_salle', id=salle.id) }}" method="post" class="d-inline"> {# Assurez-vous que cette route existe #}
+                                     <button type="submit" class="btn btn-danger">Supprimer</button>
+                                 </form>
+                             </div>
+                         </div>
+                     </div>
                  </div>
             </div>
             {% endif %}
@@ -162,13 +187,15 @@
          function applySalleModalFixes() {
              // No selects in these modals currently, but target buttons
               {% if current_user.role == 'admin' %}
-                document.querySelectorAll('#addSalleModal button, #addSalleModal .btn, #editSalleModal button, #editSalleModal .btn').forEach(button => {
+                document.querySelectorAll('#addSalleModal button, #addSalleModal .btn, [id^="editSalleModal"] button, [id^="editSalleModal"] .btn, [id^="deleteSalleModal"] button, [id^="deleteSalleModal"] .btn').forEach(button => {
                     button.style.position = 'relative';
                     button.style.zIndex = '2001';
                      button.style.pointerEvents = 'auto';
                  });
               {% endif %}
-             if (typeof config !== 'undefined' && config.debugMode) console.log('Salles specific modal JS fixes applied.');
+             // Utiliser la config globale pour le debug mode
+             const isDebug = window.dashboardConfig && window.dashboardConfig.debugMode;
+             if (isDebug) console.log('Salles specific modal JS fixes applied.');
          }
         // Apply fixes after a short delay
          setTimeout(applySalleModalFixes, 500);

@@ -1,343 +1,184 @@
 // static/js/dashboard.js
 document.addEventListener('DOMContentLoaded', function() {
-    // Actualiser les données en temps réel (toutes les 30 secondes)
-    setInterval(function() {
-        fetchSessionData();
-        fetchParticipantData();
-    }, 30000);
+    console.log('Dashboard core script loaded.'); // Added log for confirmation
 
-    // Fonction pour récupérer les données des sessions
-    function fetchSessionData() {
-        fetch('/api/sessions')
-            .then(response => response.json())
-            .then(data => {
-                updateSessionTable(data);
-                updateCharts(data);
-            })
-            .catch(error => console.error('Erreur lors de la récupération des données des sessions:', error));
+    // --- Configuration ---
+    // Centralized configuration for easier management
+    const config = {
+        fetchInterval: 30000, // 30 seconds
+        apiEndpoints: {
+            sessions: '/api/sessions',
+            participants: '/api/participants'
+        },
+        selectors: {
+            sessionTableBody: '.session-table tbody', // More specific if needed
+            participantSelects: 'select[name="participant_id"]'
+        },
+        cssClasses: {
+            placesAvailable: 'text-success',
+            placesWarning: 'text-warning',
+            placesDanger: 'text-danger'
+        },
+        thresholds: {
+            danger: 3,
+            warning: 7
+        }
+    };
+
+    // --- Core Functions ---
+
+    // Function to fetch data from a given URL
+    async function fetchData(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Erreur lors de la récupération des données de ${url}:`, error);
+            // Optionally: display a user-friendly error message on the page
+            return null; // Return null to indicate failure
+        }
     }
 
-    // Fonction pour récupérer les données des participants
-    function fetchParticipantData() {
-        fetch('/api/participants')
-            .then(response => response.json())
-            .then(data => {
-                updateParticipantData(data);
-            })
-            .catch(error => console.error('Erreur lors de la récupération des données des participants:', error));
+    // Function to fetch and update session data
+    async function fetchAndUpdateSessionData() {
+        const data = await fetchData(config.apiEndpoints.sessions);
+        if (data) {
+            updateSessionTable(data);
+            updateCharts(data); // Keep chart update hook
+        }
     }
 
-    // Fonction pour mettre à jour le tableau des sessions
-    function updateSessionTable(data) {
-        const sessionTable = document.querySelector('.session-table tbody');
-        if (!sessionTable) return;
+    // Function to fetch and update participant data
+    async function fetchAndUpdateParticipantData() {
+        const data = await fetchData(config.apiEndpoints.participants);
+        if (data) {
+            updateParticipantDropdowns(data);
+        }
+    }
 
-        // Mettre à jour les places disponibles pour chaque session
-        data.forEach(session => {
-            const row = document.querySelector(`tr[data-session-id="${session.id}"]`);
+    // Function to update the session table in the dashboard/admin area
+    function updateSessionTable(sessions) {
+        const sessionTableBody = document.querySelector(config.selectors.sessionTableBody);
+        if (!sessionTableBody) {
+            // console.warn('Session table body not found.'); // Optional warning
+            return;
+        }
+
+        sessions.forEach(session => {
+            // Find row using data attribute (assuming it exists from server-side rendering)
+            const row = sessionTableBody.querySelector(`tr[data-session-id="${session.id}"]`);
             if (row) {
-                const placesCell = row.querySelector('.places-dispo');
+                // Update places available cell
+                const placesCell = row.querySelector('.places-dispo'); // Assuming this class identifies the cell
                 if (placesCell) {
                     placesCell.textContent = `${session.places_restantes} / ${session.max_participants}`;
-                    
-                    // Mettre à jour la classe CSS en fonction des places restantes
-                    placesCell.classList.remove('text-success', 'text-warning', 'text-danger');
-                    if (session.places_restantes <= 3) {
-                        placesCell.classList.add('text-danger');
-                    } else if (session.places_restantes <= 7) {
-                        placesCell.classList.add('text-warning');
+
+                    // Update styling based on remaining places
+                    placesCell.classList.remove(config.cssClasses.placesAvailable, config.cssClasses.placesWarning, config.cssClasses.placesDanger);
+                    if (session.places_restantes <= config.thresholds.danger) {
+                        placesCell.classList.add(config.cssClasses.placesDanger);
+                    } else if (session.places_restantes <= config.thresholds.warning) {
+                        placesCell.classList.add(config.cssClasses.placesWarning);
                     } else {
-                        placesCell.classList.add('text-success');
+                        placesCell.classList.add(config.cssClasses.placesAvailable);
                     }
                 }
-                
-                // Mettre à jour le nombre de participants
-                const participantsBtn = row.querySelector('.btn-outline-secondary');
+
+                // Update participant count in the button badge (adjust selector if needed)
+                const participantsBtn = row.querySelector('.btn-view-participants, .btn-outline-secondary'); // Example selectors
                 if (participantsBtn) {
                     const badge = participantsBtn.querySelector('.badge');
                     if (badge) {
-                        badge.textContent = session.inscrits;
+                        badge.textContent = session.inscrits; // Assuming 'inscrits' is the count
                     }
                 }
+
+                // Update data attribute used by the new filter logic (from HTML snippet)
+                row.dataset.full = (session.places_restantes <= 0) ? '1' : '0';
+                // Ensure row.dataset.theme is already set correctly by the server-side template
             }
         });
     }
 
-    // Fonction pour mettre à jour les graphiques
+    // Function to update charts (Placeholder - requires specific chart library integration)
     function updateCharts(data) {
-        // Mettre à jour les graphiques si nécessaire
-        if (window.themeChart) {
-            // Mettre à jour les données du graphique des thèmes
-            // Code spécifique selon les besoins
+        // Check if chart instances exist before updating
+        if (window.themeChart && typeof window.themeChart.update === 'function') {
+            // console.log('Updating theme chart...');
+            // Example: window.themeChart.data.labels = newLabels;
+            // Example: window.themeChart.data.datasets[0].data = newData;
+            // window.themeChart.update();
+        } else {
+            // console.log('Theme chart instance not found or update method missing.');
         }
-        
-        if (window.serviceChart) {
-            // Mettre à jour les données du graphique des services
-            // Code spécifique selon les besoins
+
+        if (window.serviceChart && typeof window.serviceChart.update === 'function') {
+            // console.log('Updating service chart...');
+            // Similar update logic for the service chart
+            // window.serviceChart.update();
+        } else {
+            // console.log('Service chart instance not found or update method missing.');
         }
     }
 
-    // Fonction pour mettre à jour les données des participants
-    function updateParticipantData(data) {
-        // Mettre à jour les listes déroulantes des participants
-        const participantSelects = document.querySelectorAll('select[name="participant_id"]');
-        
+    // Function to update participant dropdowns found on the page
+    function updateParticipantDropdowns(participants) {
+        const participantSelects = document.querySelectorAll(config.selectors.participantSelects);
+        if (participantSelects.length === 0) {
+            // console.log('No participant dropdowns found to update.'); // Optional log
+            return;
+        }
+
         participantSelects.forEach(select => {
-            const selectedValue = select.value;
-            
-            // Vider la liste
-            select.innerHTML = '<option value="">-- Choisir un participant --</option>';
-            
-            // Remplir avec les nouvelles données
-            data.forEach(participant => {
+            const selectedValue = select.value; // Preserve selected value if possible
+
+            // Clear existing options (except the placeholder)
+            const placeholder = select.querySelector('option[value=""]');
+            select.innerHTML = ''; // Clear all
+            if (placeholder) {
+                select.appendChild(placeholder); // Add placeholder back
+            } else {
+                 // Add a default placeholder if none existed
+                const defaultPlaceholder = document.createElement('option');
+                defaultPlaceholder.value = "";
+                defaultPlaceholder.textContent = "-- Choisir un participant --";
+                select.appendChild(defaultPlaceholder);
+            }
+
+
+            // Populate with new participant data
+            participants.forEach(participant => {
                 const option = document.createElement('option');
                 option.value = participant.id;
-                option.textContent = `${participant.prenom} ${participant.nom} (${participant.service})`;
-                
+                // Adjust textContent based on available participant fields
+                option.textContent = `${participant.prenom || ''} ${participant.nom || ''} (${participant.service || 'N/A'})`.trim();
+
+                // Re-select the previously selected value, if it still exists
                 if (participant.id.toString() === selectedValue) {
                     option.selected = true;
                 }
-                
+
                 select.appendChild(option);
             });
         });
     }
 
-    // Initialiser les filtres dans la page des sessions
-    const themeFilter = document.getElementById('theme');
-    const dateFilter = document.getElementById('date');
-    const placesFilter = document.getElementById('places');
-    
-    if (themeFilter && dateFilter && placesFilter) {
-        themeFilter.addEventListener('change', updateSessionDisplay);
-        dateFilter.addEventListener('change', updateSessionDisplay);
-        placesFilter.addEventListener('change', updateSessionDisplay);
-        
-        function updateSessionDisplay() {
-            const themeValue = themeFilter.value;
-            const dateValue = dateFilter.value;
-            const placesValue = placesFilter.value;
-            
-            const sessionCards = document.querySelectorAll('.session-card');
-            
-            sessionCards.forEach(card => {
-                let showCard = true;
-                
-                // Filtrer par thème
-                if (themeValue && card.dataset.theme !== themeValue) {
-                    showCard = false;
-                }
-                
-                // Filtrer par date
-                if (dateValue && card.dataset.date !== dateValue) {
-                    showCard = false;
-                }
-                
-                // Filtrer par places disponibles
-                if (placesValue === 'available' && parseInt(card.dataset.places) <= 0) {
-                    showCard = false;
-                }
-                
-                card.closest('.col-md-6').style.display = showCard ? 'block' : 'none';
-            });
-        }
-    }
-});
+    // --- Initialization ---
 
-// static/css/custom.css
-:root {
-    --primary-color: #0078d4;
-    --secondary-color: #69afe5;
-    --light-color: #f3f3f3;
-    --dark-color: #333;
-    --success-color: #4caf50;
-    --warning-color: #ff9800;
-    --danger-color: #f44336;
-}
+    // Initial data fetch on page load
+    fetchAndUpdateSessionData();
+    fetchAndUpdateParticipantData();
 
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f8f9fa;
-}
+    // Set up periodic updates
+    setInterval(() => {
+        fetchAndUpdateSessionData();
+        fetchAndUpdateParticipantData();
+    }, config.fetchInterval);
 
-.navbar {
-    background-color: var(--primary-color);
-}
+    // Note: The filtering logic previously here (for .session-card) has been removed.
+    // The filtering logic provided in the HTML snippet for #sessions-table should be used instead.
 
-.navbar-brand {
-    font-weight: bold;
-}
-
-.card {
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s;
-    margin-bottom: 20px;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-}
-
-.session-card {
-    border-left: 5px solid var(--primary-color);
-}
-
-.theme-badge {
-    font-size: 0.8rem;
-    padding: 5px 10px;
-    border-radius: 20px;
-    margin-right: 5px;
-}
-
-.theme-comm {
-    background-color: #0078d4;
-    color: white;
-}
-
-.theme-planner {
-    background-color: #7719aa;
-    color: white;
-}
-
-.theme-onedrive {
-    background-color: #0364b8;
-    color: white;
-}
-
-.theme-sharepoint {
-    background-color: #038387;
-    color: white;
-}
-
-.service-badge {
-    display: inline-block;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    margin-right: 5px;
-}
-
-.dashboard-stats {
-    background-color: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
-}
-
-.stat-item {
-    text-align: center;
-    padding: 15px;
-}
-
-.stat-number {
-    font-size: 2rem;
-    font-weight: bold;
-    color: var(--primary-color);
-}
-
-.stat-label {
-    color: var(--dark-color);
-    font-size: 0.9rem;
-}
-
-.session-table th {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-.places-dispo {
-    font-weight: bold;
-}
-
-.footer {
-    background-color: var(--dark-color);
-    color: white;
-    padding: 20px 0;
-    margin-top: 50px;
-}
-
-.theme-description {
-    margin-bottom: 30px;
-    padding: 15px;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Couleurs des services */
-.commerce { background-color: #FFC107; }
-.comptabilite { background-color: #2196F3; }
-.florensud { background-color: #4CAF50; }
-.informatique { background-color: #607D8B; }
-.marketing { background-color: #9C27B0; }
-.qualite { background-color: #F44336; }
-.rh { background-color: #FF9800; }
-
-/* Animations */
-.fade-in {
-    animation: fadeIn 0.5s ease-in-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-/* Style pour les boutons */
-.btn-primary {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-.btn-primary:hover {
-    background-color: #005a9e;
-    border-color: #005a9e;
-}
-
-/* Style pour les alertes */
-.alert {
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Style pour les modals */
-.modal-content {
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-.modal-header {
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-}
-
-/* Style pour les tableaux */
-.table {
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.table th:first-child {
-    border-top-left-radius: 10px;
-}
-
-.table th:last-child {
-    border-top-right-radius: 10px;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .stat-number {
-        font-size: 1.5rem;
-    }
-    
-    .card {
-        margin-bottom: 15px;
-    }
-    
-    .session-table {
-        font-size: 0.9rem;
-    }
-}
+}); // End DOMContentLoaded

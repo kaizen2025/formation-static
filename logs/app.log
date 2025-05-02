@@ -526,3 +526,286 @@ TypeError: object of type 'AppenderQuery' has no len()
 2025-05-02 10:27:52,296 INFO: Application logging initialized [in c:\formation-static\app.py:115]
 2025-05-02 10:27:57,893 ERROR: DB error loading dashboard: 'Participant.inscriptions' does not support object population - eager loading cannot be applied. [in c:\formation-static\app.py:655]
 2025-05-02 10:27:58,365 ERROR: DB error loading dashboard: 'Participant.inscriptions' does not support object population - eager loading cannot be applied. [in c:\formation-static\app.py:655]
+2025-05-02 10:31:31,196 INFO: Application logging initialized [in c:\formation-static\app.py:115]
+2025-05-02 11:51:26,869 INFO: Application logging initialized [in c:\formation-static\app.py:115]
+2025-05-02 11:53:15,438 ERROR: DB error loading admin: Parent instance <Theme at 0x24be5c60e50> is not bound to a Session; lazy load operation of attribute 'sessions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in c:\formation-static\app.py:1392]
+2025-05-02 11:53:18,660 ERROR: DB error loading participants: Parent instance <Participant at 0x24be5c7add0> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in c:\formation-static\app.py:1259]
+2025-05-02 11:53:31,505 ERROR: DB error loading themes: Parent instance <Theme at 0x24be5d0fc40> is not bound to a Session; lazy load operation of attribute 'sessions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in c:\formation-static\app.py:1638]
+2025-05-02 11:53:32,063 ERROR: DB error loading admin: Parent instance <Theme at 0x24be5d0cf30> is not bound to a Session; lazy load operation of attribute 'sessions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in c:\formation-static\app.py:1392]
+2025-05-02 12:14:58,301 INFO: Application logging initialized [in c:\formation-static\app.py:115]
+2025-05-02 12:16:20,346 ERROR: DB error loading admin: Parent instance <Theme at 0x29f2f3a39a0> is not bound to a Session; lazy load operation of attribute 'sessions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in c:\formation-static\app.py:1437]
+2025-05-02 12:16:23,558 ERROR: DB error loading participants: Parent instance <Participant at 0x29f2f30b950> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in c:\formation-static\app.py:1285]
+2025-05-02 12:16:33,587 ERROR: Unexpected error loading salles: Could not build url for endpoint 'delete_salle' with values ['id']. Did you mean 'update_salle' instead? [in c:\formation-static\app.py:1490]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1475, in salles
+    return render_template('salles.html', salles_data=salles_data) # Passer la liste enrichie
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\salles.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 99, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\salles.html", line 157, in block 'content'
+    <form action="{{ url_for('delete_salle', id=salle.id) }}" method="post" class="d-inline"> {# Assurez-vous que cette route existe #}
+    
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'delete_salle' with values ['id']. Did you mean 'update_salle' instead?
+2025-05-02 12:16:34,215 ERROR: DB error loading admin: Parent instance <Theme at 0x29f2f4b38c0> is not bound to a Session; lazy load operation of attribute 'sessions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in c:\formation-static\app.py:1437]
+2025-05-02 12:25:20,096 INFO: Application logging initialized [in c:\formation-static\app.py:115]
+2025-05-02 12:25:43,180 ERROR: Unexpected error loading admin: 'sqlalchemy.orm.collections.InstrumentedList object' has no attribute 'count()' [in c:\formation-static\app.py:1417]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1390, in admin
+    return render_template(
+        'admin.html',
+    ...<9 lines>...
+    
+        )
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\admin.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 99, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\admin.html", line 108, in block 'content'
+    Total Sessions <span class="badge bg-secondary rounded-pill">{{ themes|sum(attribute='sessions.count()') if themes else 0 }}</span> {# Use sum on counts #}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\async_utils.py", line 48, in wrapper
+    return normal_func(*args, **kwargs)
+  File "C:\Python313\Lib\site-packages\jinja2\filters.py", line 1336, in sync_do_sum
+    return sum(iterable, start)  # type: ignore[no-any-return, call-overload]
+jinja2.exceptions.UndefinedError: 'sqlalchemy.orm.collections.InstrumentedList object' has no attribute 'count()'
+2025-05-02 12:25:44,858 ERROR: DB error loading participants: 'Participant.inscriptions' does not support object population - eager loading cannot be applied. [in c:\formation-static\app.py:1277]
+2025-05-02 12:26:50,047 ERROR: Unexpected error loading admin: 'sqlalchemy.orm.collections.InstrumentedList object' has no attribute 'count()' [in c:\formation-static\app.py:1417]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1390, in admin
+    return render_template(
+        'admin.html',
+    ...<9 lines>...
+    
+        )
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\admin.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 99, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\admin.html", line 108, in block 'content'
+    Total Sessions <span class="badge bg-secondary rounded-pill">{{ themes|sum(attribute='sessions.count()') if themes else 0 }}</span> {# Use sum on counts #}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\async_utils.py", line 48, in wrapper
+    return normal_func(*args, **kwargs)
+  File "C:\Python313\Lib\site-packages\jinja2\filters.py", line 1336, in sync_do_sum
+    return sum(iterable, start)  # type: ignore[no-any-return, call-overload]
+jinja2.exceptions.UndefinedError: 'sqlalchemy.orm.collections.InstrumentedList object' has no attribute 'count()'
+2025-05-02 12:26:58,436 ERROR: DB error loading participants: 'Participant.inscriptions' does not support object population - eager loading cannot be applied. [in c:\formation-static\app.py:1277]
+2025-05-02 16:44:24,623 INFO: Application logging initialized for production [in c:\formation-static\app.py:105]
+2025-05-02 16:45:45,430 ERROR: Unexpected error loading admin: InstrumentedList.count() takes exactly one argument (0 given) [in c:\formation-static\app.py:1437]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1411, in admin
+    return render_template('admin.html',
+                         themes=themes,
+    ...<7 lines>...
+                         activites_recentes=activites_recentes,
+                         total_sessions_count=total_sessions_count)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\admin.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 99, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\admin.html", line 114, in block 'content'
+    {{ theme.nom }} ({{ theme.sessions.count() }}) {# Display count per theme #}
+    
+TypeError: InstrumentedList.count() takes exactly one argument (0 given)
+2025-05-02 16:45:48,363 ERROR: Unexpected error loading participants: 'ListeAttente' is undefined [in c:\formation-static\app.py:1293]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1277, in participants
+    return render_template('participants.html', participants_data=participants_data, services=services)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\participants.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 99, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\participants.html", line 246, in block 'content'
+    {% set waitlist_entries = participant.liste_attente.order_by(ListeAttente.position).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'ListeAttente' is undefined
+2025-05-02 16:52:48,293 INFO: Application logging initialized for production [in c:\formation-static\app.py:105]
+2025-05-02 16:59:22,039 INFO: Application logging initialized for production [in c:\formation-static\app.py:105]
+2025-05-02 17:00:04,797 ERROR: Unexpected error loading participants: Could not build url for endpoint 'delete_participant' with values ['id']. Did you mean 'update_participant' instead? [in c:\formation-static\app.py:1297]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1278, in participants
+    return render_template('participants.html',
+                          participants_data=participants_data,
+                          services=services,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\participants.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 99, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\participants.html", line 337, in block 'content'
+    <form action="{{ url_for('delete_participant', id=participant.id) }}" method="post" class="d-inline"> {# Assurez-vous que cette route existe #}
+    
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'delete_participant' with values ['id']. Did you mean 'update_participant' instead?
+2025-05-02 17:02:42,764 INFO: Application logging initialized for production [in c:\formation-static\app.py:105]
+2025-05-02 17:02:59,259 ERROR: Unexpected error loading participants: Could not build url for endpoint 'delete_participant' with values ['id']. Did you mean 'update_participant' instead? [in c:\formation-static\app.py:1297]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1278, in participants
+    return render_template('participants.html',
+                          participants_data=participants_data,
+                          services=services,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\participants.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 99, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\participants.html", line 337, in block 'content'
+    <form action="{{ url_for('delete_participant', id=participant.id) }}" method="post" class="d-inline"> {# Assurez-vous que cette route existe #}
+    
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'delete_participant' with values ['id']. Did you mean 'update_participant' instead?
+2025-05-02 17:03:48,241 ERROR: Unexpected error loading participants: Could not build url for endpoint 'delete_participant' with values ['id']. Did you mean 'update_participant' instead? [in c:\formation-static\app.py:1297]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1278, in participants
+    return render_template('participants.html',
+                          participants_data=participants_data,
+                          services=services,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\participants.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 99, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\participants.html", line 337, in block 'content'
+    <form action="{{ url_for('delete_participant', id=participant.id) }}" method="post" class="d-inline"> {# Assurez-vous que cette route existe #}
+    
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'delete_participant' with values ['id']. Did you mean 'update_participant' instead?
+2025-05-02 17:08:18,604 INFO: Application logging initialized for production [in c:\formation-static\app.py:105]
+2025-05-02 17:18:38,191 INFO: Application logging initialized for production [in c:\formation-static\app.py:105]
+2025-05-02 17:33:56,837 INFO: Application logging initialized for production [in c:\formation-static\app.py:105]
+2025-05-02 17:54:35,307 INFO: Application logging initialized for production [in c:\formation-static\app.py:105]
+2025-05-02 17:54:44,039 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:2297]
