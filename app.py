@@ -1823,8 +1823,11 @@ def update_salle(id):
     if not salle:
         flash('Salle introuvable.', 'danger')
         return redirect(redirect_url)
+
+    original_capacite = salle.capacite # Stocker l'ancienne capacité
+
     try:
-        original_nom = salle.nom
+        original_nom = salle.nom # Gardé de votre code original
         new_nom = request.form.get('nom', '').strip()
         capacite_str = request.form.get('capacite', '').strip()
 
@@ -1838,7 +1841,6 @@ def update_salle(id):
             flash('La capacité doit être un nombre entier positif.', 'danger')
             return redirect(redirect_url)
 
-        # Check if new name conflicts with another existing room
         if new_nom.lower() != original_nom.lower() and Salle.query.filter(
                 func.lower(Salle.nom) == func.lower(new_nom),
                 Salle.id != id).first():
@@ -1846,14 +1848,29 @@ def update_salle(id):
             return redirect(redirect_url)
 
         salle.nom = new_nom
-        salle.capacite = capacite
+        salle.capacite = capacite # Nouvelle capacité
         salle.lieu = request.form.get('lieu', '').strip() or None
         salle.description = request.form.get('description', '').strip() or None
-        db.session.commit()
-        cache.delete('all_salles') # Invalidate cache
+        
+        db.session.commit() # Sauvegarder les changements de la salle
+
+        # *** NOUVELLE PARTIE : Mettre à jour les sessions associées ***
+        if salle.capacite != original_capacite:
+            updated_session_count = 0
+            # salle.sessions est la relation backref définie dans le modèle Salle
+            for session_associee in salle.sessions: 
+                session_associee.max_participants = salle.capacite
+                updated_session_count +=1
+            
+            if updated_session_count > 0:
+                db.session.commit() # Sauvegarder les changements des sessions
+                app.logger.info(f"Mis à jour max_participants pour {updated_session_count} sessions liées à la salle '{salle.nom}' à {salle.capacite}.")
+        # *** FIN NOUVELLE PARTIE ***
+
+        cache.delete('all_salles') 
 
         add_activity('modification_salle', f'Modification salle: {salle.nom}', user=current_user)
-        flash('Salle mise à jour avec succès.', 'success')
+        flash('Salle mise à jour avec succès. Les sessions associées ont également été mises à jour.', 'success') # Message modifié
 
     except SQLAlchemyError as e:
         db.session.rollback()
