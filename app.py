@@ -1930,7 +1930,7 @@ def attribuer_salle():
     redirect_url = request.referrer or url_for('admin')
     try:
         session_id = request.form.get('session_id', type=int)
-        salle_id_str = request.form.get('salle_id', '').strip() # Can be empty string
+        salle_id_str = request.form.get('salle_id', '').strip()
 
         if not session_id:
             flash('ID de session manquant.', 'danger')
@@ -1943,31 +1943,34 @@ def attribuer_salle():
 
         new_salle_id = None
         new_salle_nom = "Aucune"
-        if salle_id_str: # If a room is selected (not the empty "-- Aucune salle --" option)
+        new_salle_capacite = 10 # Valeur par défaut si aucune salle n'est sélectionnée (ou votre ancien défaut 15)
+
+        if salle_id_str:
             try:
                 new_salle_id = int(salle_id_str)
-                new_salle = db.session.get(Salle, new_salle_id)
+                new_salle = db.session.get(Salle, new_salle_id) # Récupérer l'objet Salle
                 if not new_salle:
                     flash(f"Salle avec ID {new_salle_id} introuvable.", 'danger')
                     return redirect(redirect_url)
                 new_salle_nom = new_salle.nom
+                new_salle_capacite = new_salle.capacite # *** Utiliser la capacité de la salle assignée ***
             except ValueError:
                 flash("ID de salle invalide.", 'danger')
                 return redirect(redirect_url)
 
-        # Assign or remove the room
         session.salle_id = new_salle_id
+        session.max_participants = new_salle_capacite # *** Mettre à jour max_participants de la session ***
         db.session.commit()
 
-        add_activity('attribution_salle', f'Attribution salle: {new_salle_nom}',
+        add_activity('attribution_salle', f'Attribution salle: {new_salle_nom} (Cap: {new_salle_capacite})', # Log avec capacité
                     f'Session: {session.theme.nom} ({session.formatage_date})', user=current_user)
-        flash(f'Salle "{new_salle_nom}" attribuée à la session.', 'success')
+        flash(f'Salle "{new_salle_nom}" attribuée à la session. Capacité mise à {new_salle_capacite} places.', 'success') # Message modifié
 
-        # Notify via SocketIO
         socketio.emit('attribution_salle', {
             'session_id': session_id,
             'salle_id': new_salle_id,
-            'salle_nom': new_salle_nom if new_salle_id else None
+            'salle_nom': new_salle_nom if new_salle_id else None,
+            'max_participants': new_salle_capacite # Envoyer la nouvelle capacité via socket
         }, room='general')
 
     except SQLAlchemyError as e:
