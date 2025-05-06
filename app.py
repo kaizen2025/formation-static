@@ -230,7 +230,7 @@ class Salle(db.Model):
     __tablename__ = 'salle'
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(100), nullable=False, unique=True)
-    capacite = db.Column(db.Integer, default=15, nullable=False)
+    capacite = db.Column(db.Integer, default=10, nullable=False)
     lieu = db.Column(db.String(200), nullable=True)
     description = db.Column(db.Text, nullable=True)
     sessions = db.relationship('Session', backref='salle', lazy='dynamic') # lazy='dynamic' for potential filtering
@@ -256,7 +256,7 @@ class Session(db.Model):
     heure_debut = db.Column(db.Time, nullable=False)
     heure_fin = db.Column(db.Time, nullable=False)
     theme_id = db.Column(db.Integer, db.ForeignKey('theme.id'), nullable=False, index=True) # Index foreign key
-    max_participants = db.Column(db.Integer, default=15, nullable=False)
+    max_participants = db.Column(db.Integer, default=10, nullable=False)
     salle_id = db.Column(db.Integer, db.ForeignKey('salle.id'), nullable=True, index=True) # Index foreign key
     # Use dynamic for potentially large collections that need filtering/counting
     inscriptions = db.relationship('Inscription', backref='session', lazy='selectin', cascade="all, delete-orphan")
