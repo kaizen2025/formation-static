@@ -1,23 +1,23 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <!-- Contenu HTML du dashboard inchangé -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid px-4" id="dashboard-content"> {# Added ID for easier JS targeting #}
+    <!-- En-tête du Dashboard -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2"> {# Added flex-wrap and gap #}
         <div>
             <h1 class="fw-bold text-primary mb-0"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
-            <p class="text-muted">Vue d'ensemble des formations Microsoft 365</p>
+            <p class="text-muted mb-0">Vue d'ensemble des formations Microsoft 365</p> {# Removed margin #}
         </div>
         <div>
-            <div class="btn-group" role="group">
-                <button type="button" class="btn btn-outline-primary" id="refresh-dashboard">
-                    <i class="fas fa-sync-alt me-1"></i>Actualiser <!-- Icon updated -->
+            <div class="btn-group" role="group" aria-label="Actions Dashboard">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="refresh-dashboard"> {# Smaller button #}
+                    <i class="fas fa-sync-alt me-1"></i>Actualiser
                 </button>
                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                <a href="{{ url_for('salles') }}" class="btn btn-outline-primary">
+                <a href="{{ url_for('salles') }}" class="btn btn-outline-primary btn-sm"> {# Smaller button #}
                     <i class="fas fa-building me-2"></i>Gérer les salles
                 </a>
-                 <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary"> <!-- Link to Admin Panel -->
+                <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary btn-sm"> {# Smaller button #}
                     <i class="fas fa-cogs me-2"></i>Admin Panel
                 </a>
                 {% endif %}
@@ -27,172 +27,279 @@
 
     <!-- Cartes statistiques -->
     <div class="row mb-4">
-         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-left-primary h-100 py-2 shadow-sm stats-card">
-                <div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2"><div class="text-xs font-weight-bold text-primary text-uppercase mb-1 title">Sessions programmées</div><div class="h5 mb-0 font-weight-bold text-gray-800 counter-value value" id="sessions_programmees">{{ sessions_data|length|default(0) }}</div></div><div class="col-auto"><i class="fas fa-calendar-alt fa-2x text-primary-light icon"></i></div></div></div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-start border-primary border-4 h-100 shadow-sm stats-card"> {# Changed border style #}
+                <div class="card-body p-3"> {# Adjusted padding #}
+                    <div class="row g-0 align-items-center"> {# Use g-0 for no gutters #}
+                        <div class="col">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1 title">Sessions programmées</div>
+                            {# Ensure ID matches JS if used for updates #}
+                            <div class="h5 mb-0 fw-bold text-gray-800 counter-value value" id="stat-sessions-programmees">{{ sessions_data|length|default(0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-alt fa-2x text-gray-300 icon"></i> {# Adjusted color #}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-left-success h-100 py-2 shadow-sm stats-card">
-                <div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2"><div class="text-xs font-weight-bold text-success text-uppercase mb-1 title">Participants inscrits (Conf.)</div><div class="h5 mb-0 font-weight-bold text-gray-800 counter-value value" id="total_inscriptions">{{ total_inscriptions|default(0) }}</div></div><div class="col-auto"><i class="fas fa-users fa-2x text-success-light icon"></i></div></div></div>
+            <div class="card border-start border-success border-4 h-100 shadow-sm stats-card">
+                <div class="card-body p-3">
+                    <div class="row g-0 align-items-center">
+                        <div class="col">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1 title">Participants inscrits (Conf.)</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800 counter-value value" id="stat-total-inscriptions">{{ total_inscriptions|default(0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300 icon"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-left-warning h-100 py-2 shadow-sm stats-card">
-                <div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2"><div class="text-xs font-weight-bold text-warning text-uppercase mb-1 title">En liste d'attente (Total)</div><div class="h5 mb-0 font-weight-bold text-gray-800 counter-value value" id="total_en_attente">{{ total_en_attente|default(0) }}</div></div><div class="col-auto"><i class="fas fa-user-clock fa-2x text-warning-light icon"></i></div></div></div>
+            <div class="card border-start border-warning border-4 h-100 shadow-sm stats-card">
+                <div class="card-body p-3">
+                    <div class="row g-0 align-items-center">
+                        <div class="col">
+                            <div class="text-xs fw-bold text-warning text-uppercase mb-1 title">En liste d'attente (Total)</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800 counter-value value" id="stat-total-en-attente">{{ total_en_attente|default(0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-clock fa-2x text-gray-300 icon"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card border-left-danger h-100 py-2 shadow-sm stats-card">
-                <div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2"><div class="text-xs font-weight-bold text-danger text-uppercase mb-1 title">Sessions complètes</div><div class="h5 mb-0 font-weight-bold text-gray-800 counter-value value" id="total_sessions_completes">{{ total_sessions_completes|default(0) }}</div></div><div class="col-auto"><i class="fas fa-ban fa-2x text-danger-light icon"></i></div></div></div>
+            <div class="card border-start border-danger border-4 h-100 shadow-sm stats-card">
+                <div class="card-body p-3">
+                    <div class="row g-0 align-items-center">
+                        <div class="col">
+                            <div class="text-xs fw-bold text-danger text-uppercase mb-1 title">Sessions complètes</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800 counter-value value" id="stat-total-sessions-completes">{{ total_sessions_completes|default(0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-ban fa-2x text-gray-300 icon"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Interface principale de contenu -->
+    <!-- Interface principale -->
     <div class="row">
         <!-- Sessions à venir -->
         <div class="col-lg-8">
             <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-calendar-check me-2"></i>Sessions à venir</h6>
+                <div class="card-header bg-light py-3 border-bottom d-flex justify-content-between align-items-center"> {# Lighter header #}
+                    <h6 class="m-0 fw-bold text-primary"><i class="fas fa-calendar-check me-2"></i>Sessions à venir</h6>
                     <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="sessionsFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="sessionsFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false"> {# Secondary color #}
                             <i class="fas fa-filter me-1"></i>Filtrer
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sessionsFilterDropdown">
-                             <li><h6 class="dropdown-header">Statut</h6></li>
-                            <li><a class="dropdown-item filter-link" href="#" data-filter="all">Toutes les sessions</a></li>
-                            <li><a class="dropdown-item filter-link" href="#" data-filter="available">Places disponibles</a></li>
-                            <li><a class="dropdown-item filter-link" href="#" data-filter="full">Sessions complètes</a></li>
+                            <li><h6 class="dropdown-header">Statut</h6></li>
+                            <li><a class="dropdown-item filter-link small" href="#" data-filter="all">Toutes les sessions</a></li> {# Smaller items #}
+                            <li><a class="dropdown-item filter-link small" href="#" data-filter="available">Places disponibles</a></li>
+                            <li><a class="dropdown-item filter-link small" href="#" data-filter="full">Sessions complètes</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">Thème</h6></li>
-                            <!-- Theme filters - ensure data-filter matches data-theme on <tr> -->
-                            <li><a class="dropdown-item filter-link" href="#" data-filter="communiquer-avec-teams">Communiquer avec Teams</a></li>
-                            <li><a class="dropdown-item filter-link" href="#" data-filter="gerer-les-taches-planner">Gérer les tâches (Planner)</a></li>
-                            <li><a class="dropdown-item filter-link" href="#" data-filter="gerer-mes-fichiers-onedrive-sharepoint">Gérer mes fichiers (OneDrive/SharePoint)</a></li>
-                            <li><a class="dropdown-item filter-link" href="#" data-filter="collaborer-avec-teams">Collaborer avec Teams</a></li>
+                            {% for theme in themes %}
+                            <li><a class="dropdown-item filter-link small" href="#" data-filter="{{ theme.nom|lower|replace(' ', '-')|replace('(', '')|replace(')', '')|replace('/', '-') }}">{{ theme.nom }}</a></li>
+                            {% endfor %}
                         </ul>
                     </div>
                 </div>
-                <div class="card-body px-0 pb-0">
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" id="sessions-table">
-                            <thead class="table-light">
+                        <table class="table table-hover table-striped mb-0" id="sessions-table"> {# Added striped #}
+                            <thead class="table-light small"> {# Smaller header text #}
                                 <tr>
-                                    <th class="px-3">Date / Horaire</th>
-                                    <th>Thème</th>
-                                    <th class="text-center">Places</th>
-                                    <th class="text-center">Inscrits / Attente</th>
-                                    <th class="text-center">Salle</th>
-                                    <th class="text-center">Actions</th>
+                                    <th style="width: 22%">Date / Horaire</th>
+                                    <th style="width: 30%">Thème</th>
+                                    <th style="width: 15%" class="text-center">Places</th> {# Centered #}
+                                    <th style="width: 15%">Salle</th>
+                                    <th style="width: 18%" class="text-center">Actions</th> {# Centered #}
                                 </tr>
                             </thead>
-                            <!-- CORRECTION: Ajout class="session-table" -->
                             <tbody class="session-table">
                                 {% if sessions_data %}
-                                {% for item in sessions_data %}
-                                {% set session = item.obj %}
-                                {% set inscrits_confirmes_count = item.inscrits_confirmes_count %}
-                                {% set liste_attente_count = item.liste_attente_count %}
-                                {% set places_restantes = item.places_restantes %}
-                                {% set progress = (inscrits_confirmes_count / session.max_participants * 100) if session.max_participants > 0 else 0 %}
-                                <!-- IMPORTANT: data-theme needs to match filter values -->
-                                <tr class="session-row align-middle"
-                                    data-session-id="{{ session.id }}"
-                                    data-theme="{{ session.theme.nom|replace('(', '')|replace(')', '')|replace('/', '-')|replace(' ', '-')|lower }}"
-                                    data-full="{{ 1 if places_restantes == 0 else 0 }}">
-                                     <td class="px-3"><div class="fw-bold">{{ session.formatage_date }}</div><small class="text-muted">{{ session.formatage_horaire }}</small></td>
-                                    <td><span class="badge theme-badge {% if 'Teams' in session.theme.nom and 'Communiquer' in session.theme.nom %}theme-comm{% elif 'Planner' in session.theme.nom %}theme-planner{% elif 'OneDrive' in session.theme.nom or 'SharePoint' in session.theme.nom %}theme-onedrive{% elif 'Teams' in session.theme.nom and 'Collaborer' in session.theme.nom %}theme-sharepoint{% endif %}">{{ session.theme.nom }}</span></td>
-                                    <td class="text-center">
-                                        <span class="fw-bold places-dispo {% if places_restantes <= 3 %}text-danger{% elif places_restantes <= 7 %}text-warning{% else %}text-success{% endif %}" data-session-id="{{ session.id }}" data-max-participants="{{ session.max_participants }}">{{ places_restantes|default(0) }}</span><span class="text-muted">/ {{ session.max_participants|default(15) }}</span>
-                                        <div class="progress mt-1" style="height: 5px;">
-                                            <div class="progress-bar progress-bar-striped {% if places_restantes == 0 %}bg-danger{% elif progress >= 75 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ progress }}%;" aria-valuenow="{{ inscrits_confirmes_count }}" aria-valuemin="0" aria-valuemax="{{ session.max_participants }}" data-session-id="{{ session.id }}" data-max-participants="{{ session.max_participants }}"></div>
-                                        </div>
-                                    </td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-primary position-relative btn-view-participants" data-bs-toggle="modal" data-bs-target="#participantsModal{{ session.id }}" title="Voir les inscrits">
-                                            <i class="fas fa-users me-1"></i><span class="badge bg-secondary ms-1 inscrits-count" data-session-id="{{ session.id }}">{{ inscrits_confirmes_count }}</span> <!-- Added badge class -->
-                                        </button>
-                                        {% if liste_attente_count > 0 %}
-                                        <button type="button" class="btn btn-sm btn-outline-warning position-relative ms-1 btn-view-attente" data-bs-toggle="modal" data-bs-target="#participantsModal{{ session.id }}" data-show-tab="attente" title="Voir la liste d'attente">
-                                            <i class="fas fa-user-clock me-1"></i><span class="badge bg-secondary ms-1 attente-counter" data-session-id="{{ session.id }}">{{ liste_attente_count }}</span> <!-- Added badge class -->
-                                        </button>
-                                        {% endif %}
-                                    </td>
-                                    <!-- Remplacez cette partie dans dashboard.html -->
-<td class="text-center">
-    {% if session.salle_id %}
-        <span class="badge bg-info text-dark salle-badge" data-session-id="{{ session.id }}" 
-              title="{{ session.salle.lieu or ''}}">{{ session.salle.nom or 'Non définie' }}</span>
-    {% else %}
-        <span class="badge bg-secondary salle-badge" data-session-id="{{ session.id }}">Non définie</span>
-    {% endif %}
-</td>
-                                    <td class="text-center">
-                                        <div class="btn-group">
-                                            {% if places_restantes > 0 %}
-                                            <button type="button" class="btn btn-sm btn-primary btn-action-inscription" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session.id }}" title="Inscrire"><i class="fas fa-user-plus"></i></button>
+                                    {% for session_item_dict in sessions_data %} {# Renamed loop var #}
+                                    {% set session_obj = session_item_dict.obj %} {# Get the object #}
+                                    <tr class="session-row align-middle" {# Added align-middle #}
+                                        data-session-id="{{ session_obj.id }}"
+                                        data-full="{{ '1' if session_item_dict.places_restantes == 0 else '0' }}" 
+                                        data-theme="{{ session_obj.theme.nom|lower|replace(' ', '-')|replace('(', '')|replace(')', '')|replace('/', '-') }}">
+                                        <td>
+                                            <strong class="d-block">{{ session_obj.formatage_date }}</strong> {# Use d-block #}
+                                            <small class="text-secondary">{{ session_obj.formatage_horaire }}</small> {# Changed text-muted #}
+                                        </td>
+                                        <td class="js-theme-cell"> {# Added class for JS #}
+                                            {# Use the standard badge structure #}
+                                            <span class="theme-badge 
+                                                {% if 'Communiquer avec Teams' in session_obj.theme.nom %}theme-comm
+                                                {% elif 'Gérer les tâches' in session_obj.theme.nom %}theme-planner
+                                                {% elif 'Gérer mes fichiers' in session_obj.theme.nom %}theme-onedrive
+                                                {% elif 'Collaborer avec Teams' in session_obj.theme.nom %}theme-sharepoint
+                                                {% else %}bg-secondary{% endif %}"
+                                                data-bs-toggle="tooltip" data-bs-placement="top"
+                                                title="{{ session_obj.theme.description | default('Détails non disponibles.') | escape }}">
+                                                <i class="fas 
+                                                    {% if 'Communiquer avec Teams' in session_obj.theme.nom %}fa-comments
+                                                    {% elif 'Gérer les tâches' in session_obj.theme.nom %}fa-tasks
+                                                    {% elif 'Gérer mes fichiers' in session_obj.theme.nom %}fa-file-alt
+                                                    {% elif 'Collaborer avec Teams' in session_obj.theme.nom %}fa-users
+                                                    {% else %}fa-info-circle{% endif %} me-1" aria-hidden="true"></i>
+                                                {{ session_obj.theme.nom }}
+                                            </span>
+                                        </td>
+                                        <td class="text-center"> {# Centered #}
+                                            {# Use pre-calculated places_restantes #}
+                                            <div class="places-dispo small fw-bold {{ 'text-success' if session_item_dict.places_restantes > 5 else 'text-warning' if session_item_dict.places_restantes > 0 else 'text-danger' }}">
+                                                <i class="fas {{ 'fa-check-circle' if session_item_dict.places_restantes > 5 else 'fa-exclamation-triangle' if session_item_dict.places_restantes > 0 else 'fa-times-circle' }} me-1"></i>
+                                                {{ session_item_dict.places_restantes }} / {{ session_obj.max_participants }}
+                                            </div>
+                                        </td>
+                                        <td class="js-salle-cell"> {# Added class for JS #}
+                                            {% if session_obj.salle %}
+                                            <span class="badge bg-info salle-badge">{{ session_obj.salle.nom }}</span>
                                             {% else %}
-                                            <button type="button" class="btn btn-sm btn-warning btn-action-attente" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session.id }}" data-go-to-attente="true" title="Ajouter à la liste d'attente"><i class="fas fa-clock"></i></button>
+                                            <span class="badge bg-secondary salle-badge">Non définie</span>
                                             {% endif %}
-                                            {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                            <button type="button" class="btn btn-sm btn-outline-secondary btn-action-salle" data-bs-toggle="modal" data-bs-target="#attribuerSalleModal{{ session.id }}" title="Attribuer une salle"><i class="fas fa-building"></i></button>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
+                                        </td>
+                                        <td class="text-center"> {# Centered #}
+                                            <div class="btn-group btn-group-sm"> {# Added btn-group-sm #}
+                                                {% if session_item_dict.places_restantes > 0 %}
+                                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal_{{ session_obj.id }}" title="S'inscrire">
+                                                    <i class="fas fa-user-plus"></i>
+                                                </button>
+                                                {% else %}
+                                                <a href="{{ url_for('liste_attente', session_id=session_obj.id) }}" class="btn btn-warning" title="S'inscrire en liste d'attente">
+                                                    <i class="fas fa-clock"></i>
+                                                </a>
+                                                {% endif %}
+                                                
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#participantsModal_{{ session_obj.id }}" title="Voir les participants">
+                                                    <i class="fas fa-users"></i> 
+                                                    {# Use pre-calculated count #}
+                                                    <span class="badge bg-secondary ms-1">{{ session_item_dict.inscrits_confirmes_count }}</span> 
+                                                </button>
+                                                
+                                                {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                                <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#attribuerSalleModal_{{ session_obj.id }}" title="Attribuer/Modifier la salle">
+                                                    <i class="fas fa-building"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
                                 {% else %}
-                                <tr><td colspan="6" class="text-center text-muted p-4">Aucune session programmée pour le moment.</td></tr>
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted p-4">
+                                            <i class="fas fa-info-circle me-2"></i>Aucune session programmée pour le moment.
+                                        </td>
+                                    </tr>
                                 {% endif %}
                             </tbody>
                         </table>
                     </div>
-                 </div>
+                </div>
             </div>
         </div>
 
-        <!-- Graphiques et Activité -->
+        <!-- Visualisations de données -->
         <div class="col-lg-4">
-             <!-- Contenu Graphiques et Activité inchangé -->
-            <!-- Graphique par thème -->
-            <div class="card shadow-sm mb-4"><div class="card-header bg-white py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Répartition par thème (Inscrits)</h6></div><div class="card-body"><div class="chart-container" style="min-height: 250px;"><canvas id="themeChart" width="100%" height="100"></canvas><div class="chart-overlay justify-content-center align-items-center d-flex" id="theme-chart-overlay"><div class="text-center"><div class="spinner-border text-primary mb-2" role="status"><span class="visually-hidden">Chargement...</span></div><p class="text-muted mb-0">Chargement...</p></div></div></div></div></div>
-            <!-- Graphique par service -->
-            <div class="card shadow-sm mb-4"><div class="card-header bg-white py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-bar me-2"></i>Participants par service</h6></div><div class="card-body"><div class="chart-container" style="min-height: 250px;"><canvas id="serviceChart" width="100%" height="100"></canvas><div class="chart-overlay justify-content-center align-items-center d-flex" id="service-chart-overlay"><div class="text-center"><div class="spinner-border text-primary mb-2" role="status"><span class="visually-hidden">Chargement...</span></div><p class="text-muted mb-0">Chargement...</p></div></div></div></div></div>
-            <!-- Activité récente -->
-            <div class="card shadow-sm mb-4"><div class="card-header bg-white py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-2"></i>Activité récente</h6></div><div class="card-body p-0" style="max-height: 300px; overflow-y: auto;"><div class="list-group list-group-flush" id="recent-activity"><div class="list-group-item p-4 text-center text-muted"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Chargement...</div></div></div><div class="card-footer bg-white py-2 text-center"><a href="{{ url_for('activites') }}" class="text-primary small">Voir toutes les activités <i class="fas fa-arrow-right ms-1"></i></a></div></div>
+            <!-- Graphique Thème -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3 border-bottom">
+                    <h6 class="m-0 fw-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Répartition par thème</h6>
+                </div>
+                <div class="card-body chart-container"> {# Added class for loading state #}
+                    {# Static chart structure (JS will populate) #}
+                    <div id="themeChart" class="static-chart-container">
+                        <div class="static-chart-donut">
+                            <div class="donut-center">
+                                <div class="donut-total" id="chart-theme-total">{{ total_inscriptions|default(0) }}</div>
+                                <div class="donut-label">Total Inscrits</div>
+                            </div>
+                        </div>
+                        <div class="static-chart-legend mt-3">
+                            {# Legend items generated by static-charts.js #}
+                        </div>
+                    </div>
+                    {# OR Canvas for Chart.js if using charts-enhanced.js #}
+                    {# <canvas id="themeChartCanvas" style="min-height: 250px;"></canvas> #}
+                </div>
+            </div>
+
+            <!-- Graphique Service -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3 border-bottom">
+                    <h6 class="m-0 fw-bold text-primary"><i class="fas fa-chart-bar me-2"></i>Participants par service</h6>
+                </div>
+                 <div class="card-body chart-container"> {# Added class for loading state #}
+                    {# Static chart structure #}
+                    <div id="serviceChart" class="static-chart-container">
+                        <div class="static-chart-bars">
+                            {# Bars generated by static-charts.js #}
+                        </div>
+                    </div>
+                     {# OR Canvas for Chart.js #}
+                     {# <canvas id="serviceChartCanvas" style="min-height: 280px;"></canvas> #}
+                </div>
+            </div>
+
+            <!-- Activités récentes -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3 border-bottom">
+                    <h6 class="m-0 fw-bold text-primary"><i class="fas fa-history me-2"></i>Activité récente</h6>
+                </div>
+                <div class="card-body p-0">
+                    {# Target for polling-updates.js #}
+                    <div class="list-group list-group-flush" id="recent-activity" style="max-height: 300px; overflow-y: auto;"> 
+                        <div class="list-group-item text-center py-5"> {# Initial loading state #}
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            Chargement...
+                        </div>
+                    </div>
+                </div>
+                {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                <div class="card-footer bg-light py-2 text-center border-top">
+                    <a href="{{ url_for('activites') }}" class="text-primary small">Voir toutes les activités <i class="fas fa-arrow-right ms-1"></i></a>
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
 
-<!-- MODALS -->
-{% if sessions_data is defined and sessions_data %}
-    {% for item in sessions_data %}
-        {% set session = item.obj %}
-        {# Passer les variables spécifiques nécessaires #}
-        {% with %}
-            {% set session = session %}
-            {% set places_restantes = item.places_restantes %}
-            {% set participants = participants %} {# Assumes participants is passed to template #}
-            {% set services = services %} {# Assumes services is passed to template #}
-            {% include 'modals/_inscription_modal.html' %}
+{# MODALS - Générées une fois par session #}
+{% if sessions_data %}
+    {% for session_item_dict in sessions_data %}
+        {# Passer l'objet Session réel ET le dictionnaire de comptes/listes à chaque modale #}
+        {% set session_obj_for_modal = session_item_dict.obj %}
+        {% set session_data_for_modal = session_item_dict %} {# Contient les listes pré-chargées et les comptes #}
+    
+        {# --- Inscription Modal --- #}
+        {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
+            {% include 'modals/_inscription_modal.html' %} 
         {% endwith %}
 
-        {% with %}
-            {% set session = session %}
-            {% set count_confirmed = item.inscrits_confirmes_count %}
-            {% set count_pending = item.pending_count %}
-            {% set count_waitlist = item.liste_attente_count %}
+        {# --- Participants Modal --- #}
+        {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
             {% include 'modals/_participants_modal.html' %}
         {% endwith %}
 
+        {# --- Attribuer Salle Modal (Admin Only) --- #}
         {% if current_user.is_authenticated and current_user.role == 'admin' %}
-            {% with %}
-                {% set session = session %}
-                {% set salles = salles %} {# Assumes salles is passed to template #}
-                {% include 'modals/_attribuer_salle_modal.html' %}
-            {% endwith %}
+             {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
+                 {% include 'modals/_attribuer_salle_modal.html' %}
+             {% endwith %}
         {% endif %}
     {% endfor %}
 {% endif %}
@@ -200,405 +307,84 @@
 {% endblock %}
 
 {% block scripts %}
-{{ super() }} <!-- Include scripts from layout.html -->
-
-<!-- Inclusion de dashboard-init.js pour la configuration -->
-<script src="{{ url_for('static', filename='js/dashboard-init.js') }}"></script>
-<!-- PAS d'inclusion de simplified-realtime.js ou autre script WebSocket -->
-
-{# ***** SCRIPT SPÉCIFIQUE AU DASHBOARD (Fusionné et Nettoyé) ***** #}
+{{ super() }} 
+{# Include specific JS for dashboard interactions if needed, 
+   but rely on global scripts from layout.html for modals, tooltips, charts, polling #}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Dashboard Specific JS (Polling Only) loaded');
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.dashboardConfig && window.dashboardConfig.debugMode) {
+        console.log('Dashboard page specific JS loaded');
+    }
 
-        // --- Configuration & Debug Check ---
-        const isDebugMode = window.dashboardConfig && window.dashboardConfig.debugMode;
-        if (isDebugMode) console.log('Debug mode enabled for dashboard.');
-
-        // ==================================================
-        // == SECTION 1: Data Fetching & DOM Updates      ==
-        // == (Fonctions appelées par polling-updates.js) ==
-        // ==================================================
-
-        const fetchConfig = {
-            apiEndpoints: {
-                sessions: '/api/sessions',
-                participants: '/api/participants'
-            },
-            selectors: {
-                sessionTableBody: '.session-table', // Cibler directement tbody avec sa classe
-                participantSelects: 'select[name="participant_id"]'
-            },
-            cssClasses: {
-                placesAvailable: 'text-success',
-                placesWarning: 'text-warning',
-                placesDanger: 'text-danger'
-            },
-            thresholds: {
-                danger: 3,
-                warning: 7
+    // --- Sessions Table Filtering ---
+    const filterLinks = document.querySelectorAll('.filter-link');
+    const sessionRows = document.querySelectorAll('.session-row');
+    const filterDropdownButton = document.getElementById('sessionsFilterDropdown');
+    
+    filterLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const filter = this.getAttribute('data-filter');
+            
+            // Update dropdown button text
+            if (filterDropdownButton) {
+                filterDropdownButton.innerHTML = `<i class="fas fa-filter me-1"></i> ${this.textContent}`;
             }
-        };
+            
+            // Apply filter
+            sessionRows.forEach(row => {
+                const isFull = row.getAttribute('data-full') === '1';
+                const theme = row.getAttribute('data-theme');
+                let show = false;
 
-        async function fetchData(url) {
-             try {
-                const response = await fetch(url);
-                if (!response.ok) { throw new Error(`HTTP error! status: ${response.status} for ${url}`); }
-                return await response.json();
-            } catch (error) {
-                console.error(`Error fetching data from ${url}:`, error);
-                if (typeof showToast === 'function') showToast(`Failed to fetch data from ${url.split('/').pop()}`, 'danger');
-                return null;
+                if (filter === 'all') {
+                    show = true;
+                } else if (filter === 'available') {
+                    show = !isFull;
+                } else if (filter === 'full') {
+                    show = isFull;
+                } else { // Theme filter
+                    show = (theme === filter);
+                }
+                row.style.display = show ? '' : 'none';
+            });
+        });
+    });
+    
+    // --- Refresh Button ---
+    const refreshButton = document.getElementById('refresh-dashboard');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
+            
+            // Trigger polling update manually if available
+            if (typeof window.forcePollingUpdate === 'function') {
+                 window.forcePollingUpdate().finally(() => {
+                     this.disabled = false;
+                     this.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualiser';
+                 });
+            } else {
+                // Fallback to simple reload
+                setTimeout(() => { window.location.reload(); }, 500);
             }
-        }
+        });
+    }
 
-        // --- DOM Update Functions (Exposées Globalement) ---
-        window.updateSessionTable = function(sessions) {
-             const sessionTableBody = document.querySelector(fetchConfig.selectors.sessionTableBody); // Utilise le sélecteur corrigé
-            if (!sessionTableBody) {
-                console.warn('Session table body not found with selector:', fetchConfig.selectors.sessionTableBody);
-                return;
-            }
-            if (isDebugMode) console.log(`Updating session table with ${sessions.length} sessions (called globally).`);
-
-            // ... (Logique interne de updateSessionTable reste la même) ...
-             sessions.forEach(sessionData => {
-                const session = sessionData;
-                const row = sessionTableBody.querySelector(`tr[data-session-id="${session.id}"]`);
-                if (row) {
-                    const placesCell = row.querySelector('.places-dispo');
-                    if (placesCell) { /* ... maj places ... */
-                        placesCell.textContent = `${session.places_restantes} / ${session.max_participants}`;
-                        placesCell.classList.remove(fetchConfig.cssClasses.placesAvailable, fetchConfig.cssClasses.placesWarning, fetchConfig.cssClasses.placesDanger);
-                        if (session.places_restantes <= fetchConfig.thresholds.danger) placesCell.classList.add(fetchConfig.cssClasses.placesDanger);
-                        else if (session.places_restantes <= fetchConfig.thresholds.warning) placesCell.classList.add(fetchConfig.cssClasses.placesWarning);
-                        else placesCell.classList.add(fetchConfig.cssClasses.placesAvailable);
-                    }
-                    const participantsBtn = row.querySelector('.btn-view-participants .inscrits-count');
-                    if (participantsBtn) participantsBtn.textContent = session.inscrits_confirmes_count || session.inscrits || 0;
-                    const attenteBtn = row.querySelector('.btn-view-attente .attente-counter');
-                    const attenteBtnContainer = row.querySelector('.btn-view-attente');
-                    if (attenteBtn) attenteBtn.textContent = session.liste_attente_count || 0;
-                    if(attenteBtnContainer) attenteBtnContainer.style.display = (session.liste_attente_count || 0) > 0 ? '' : 'none';
-                    const progressBar = row.querySelector('.progress-bar');
-                    if (progressBar && session.max_participants > 0) { /* ... maj progress bar ... */
-                        const inscritsCount = session.inscrits_confirmes_count || session.inscrits || 0;
-                        const progress = (inscritsCount / session.max_participants) * 100;
-                        progressBar.style.width = `${progress}%`;
-                        progressBar.setAttribute('aria-valuenow', inscritsCount);
-                        progressBar.classList.remove('bg-danger', 'bg-warning', 'bg-success');
-                        if (session.places_restantes == 0) progressBar.classList.add('bg-danger');
-                        else if (progress >= 75) progressBar.classList.add('bg-warning');
-                        else progressBar.classList.add('bg-success');
-                    }
-                    row.dataset.full = (session.places_restantes <= 0) ? '1' : '0';
-                    const salleBadge = row.querySelector('.salle-badge');
-                    if (salleBadge) { /* ... maj salle ... */
-                        if (session.salle && session.salle.nom) {
-                            salleBadge.textContent = session.salle.nom; salleBadge.title = session.salle.lieu || ''; salleBadge.className = 'badge bg-info text-dark salle-badge';
-                        } else {
-                            salleBadge.textContent = 'Non définie'; salleBadge.title = ''; salleBadge.className = 'badge bg-secondary salle-badge';
-                        }
-                    }
-                    const actionButtonGroup = row.querySelector('td:last-child .btn-group');
-                    if (actionButtonGroup) { /* ... maj boutons action ... */
-                        const inscriptionButton = actionButtonGroup.querySelector('.btn-action-inscription');
-                        const attenteButton = actionButtonGroup.querySelector('.btn-action-attente');
-                        if (session.places_restantes > 0) {
-                            if (inscriptionButton) inscriptionButton.style.display = ''; if (attenteButton) attenteButton.style.display = 'none';
-                        } else {
-                            if (inscriptionButton) inscriptionButton.style.display = 'none'; if (attenteButton) attenteButton.style.display = '';
-                        }
-                    }
-                } else { if (isDebugMode) console.warn(`Row for session ID ${session.id} not found.`); }
-            });
-        }
-
-        window.updateParticipantDropdowns = function(participants) {
-            // ... (code updateParticipantDropdowns inchangé) ...
-             const participantSelects = document.querySelectorAll(fetchConfig.selectors.participantSelects);
-            if (participantSelects.length === 0) return;
-            if (isDebugMode) console.log(`Updating ${participantSelects.length} participant dropdowns (called globally).`);
-            participantSelects.forEach(select => {
-                const selectedValue = select.value;
-                const placeholder = select.querySelector('option[value=""]');
-                select.innerHTML = '';
-                if (placeholder) select.appendChild(placeholder.cloneNode(true));
-                else { const ph = document.createElement('option'); ph.value = ""; ph.textContent = "-- Choisir --"; select.appendChild(ph); }
-                participants.forEach(p => {
-                    const option = document.createElement('option');
-                    option.value = p.id;
-                    option.textContent = `${p.prenom || ''} ${p.nom || ''} (${p.service || 'N/A'})`.trim();
-                    if (p.id.toString() === selectedValue) option.selected = true;
-                    select.appendChild(option);
-                });
-            });
-        }
-
-        // --- Chargement Initial ---
-        async function initialLoad() {
-             if (isDebugMode) console.log('Performing initial data load for dashboard...');
-             try {
-                 const initialSessions = await fetchData(fetchConfig.apiEndpoints.sessions);
-                 if (initialSessions) window.updateSessionTable(initialSessions); // Appel fonction globale
-                 const participantDropdownsExist = document.querySelector(fetchConfig.selectors.participantSelects);
-                 if (participantDropdownsExist) {
-                     const initialParticipants = await fetchData(fetchConfig.apiEndpoints.participants);
-                     if (initialParticipants) window.updateParticipantDropdowns(initialParticipants); // Appel fonction globale
-                 }
-                 if (isDebugMode) console.log('Initial data load complete.');
-             } catch (error) { console.error("Error during initial data load:", error); }
-         }
-         initialLoad();
-
-        // --- SECTION 2: UI Interactions ---
-        console.log('Initializing dashboard UI interactions...');
-
-        // 1. Filter Logic
-        // ... (code Filter Logic inchangé) ...
-        const filterLinks = document.querySelectorAll('.filter-link');
-        const sessionsTableBody = document.querySelector('#sessions-table .session-table'); // Sélecteur corrigé
-        const filterDropdownButton = document.getElementById('sessionsFilterDropdown');
-        if(filterLinks.length > 0 && sessionsTableBody && filterDropdownButton) {
-            filterLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const filter = this.dataset.filter;
-                    const rows = sessionsTableBody.querySelectorAll('.session-row');
-                    if (isDebugMode) console.log(`Filtering session table by: ${filter}`);
-                    rows.forEach(row => {
-                        let show = false;
-                        if (filter === 'all') { show = true; }
-                        else if (filter === 'available') { show = row.dataset.full === '0'; }
-                        else if (filter === 'full') { show = row.dataset.full === '1'; }
-                        else { show = row.dataset.theme === filter; }
-                        row.style.display = show ? '' : 'none';
-                    });
-                    filterDropdownButton.innerHTML = `<i class="fas fa-filter me-1"></i>${this.textContent}`;
-                });
-            });
-             sessionsTableBody.querySelectorAll('.session-row').forEach(row => row.style.display = '');
-             filterDropdownButton.innerHTML = `<i class="fas fa-filter me-1"></i>Toutes les sessions`;
-             if (isDebugMode) console.log('Session filter logic initialized.');
-        } else { console.warn("Filter elements not found."); }
-
-
-        // 2. Counter Animation Trigger - Géré par polling-updates.js
-
-        // 3. Refresh Button
-        // ... (code Refresh Button inchangé, appelle les fonctions globales) ...
-         const refreshButton = document.getElementById('refresh-dashboard');
-        if (refreshButton) {
-            refreshButton.addEventListener('click', function() {
-                if (isDebugMode) console.log('Refresh button clicked.');
-                this.disabled = true; this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
-                const updatePromises = [];
-                if (typeof window.updateStatsCounters === 'function') updatePromises.push(Promise.resolve().then(window.updateStatsCounters)); else console.warn('updateStatsCounters not found.');
-                if (typeof window.refreshRecentActivity === 'function') updatePromises.push(Promise.resolve().then(window.refreshRecentActivity)); else console.warn('refreshRecentActivity not found.');
-                if (typeof window.chartModule?.initialize === 'function') updatePromises.push(window.chartModule.initialize()); else console.warn('chartModule.initialize not found.');
-                updatePromises.push(fetchData(fetchConfig.apiEndpoints.sessions).then(data => { if(data && typeof window.updateSessionTable === 'function') window.updateSessionTable(data); }));
-                if (updatePromises.length > 0) {
-                    Promise.allSettled(updatePromises) // Use allSettled to ensure finally always runs
-                        .then((results) => {
-                            // Optional: check results for errors
-                            results.forEach((result, index) => {
-                                if (result.status === 'rejected') console.error(`Refresh task ${index} failed:`, result.reason);
-                            });
-                            if (typeof showToast === 'function') showToast('Données du dashboard actualisées.', 'success');
-                        })
-                        .catch(err => { // Should not happen with allSettled, but good practice
-                            console.error("Manual refresh error:", err);
-                            if (typeof showToast === 'function') showToast('Erreur lors de l\'actualisation.', 'danger');
-                        })
-                        .finally(() => { this.disabled = false; this.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualiser'; });
-                } else {
-                    console.warn("No update functions found."); this.disabled = false; this.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualiser';
-                    if (typeof showToast === 'function') showToast('Aucune action de rafraîchissement disponible.', 'info');
+    // --- Tooltip Initialization for this page ---
+     function initializeDashboardTooltips() {
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('#dashboard-content [data-bs-toggle="tooltip"]')); 
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
+                    try { new bootstrap.Tooltip(tooltipTriggerEl); }
+                    catch(e) { console.warn("Error initializing dashboard tooltip:", e, tooltipTriggerEl); }
                 }
             });
-            if (isDebugMode) console.log('Refresh button listener attached.');
-        } else { console.warn('Refresh button not found.'); }
-
-
-         // 4. Modal Tab Activation
-         // ... (code Modal Tab Activation inchangé) ...
-          window.updateParticipantModalData = async function(sessionId) {
-             const modal = document.getElementById(`participantsModal${sessionId}`);
-             if (!modal || !modal.classList.contains('show')) return;
-             if (isDebugMode) console.log(`Updating modal data for session ${sessionId} (called from dashboard.html)`);
-             const listBodyConfirmed = modal.querySelector(`#inscrits-list-${sessionId}`);
-             const listBodyPending = modal.querySelector(`#pending-list-${sessionId}`);
-             const listBodyWaitlist = modal.querySelector(`#attente-list-${sessionId}`);
-             const loadingHTML = '<tr><td colspan="4" class="text-center p-3"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
-
-             if(listBodyConfirmed) listBodyConfirmed.innerHTML = loadingHTML;
-             if(listBodyPending) listBodyPending.innerHTML = loadingHTML;
-             if(listBodyWaitlist) listBodyWaitlist.innerHTML = loadingHTML;
-
-             try {
-                 const sessionData = await fetchData(`/api/sessions/${sessionId}`);
-                 if (!sessionData) throw new Error("No data received from API");
-
-                 // Update counts
-                 const count_confirmed = sessionData.inscriptions_details?.filter(i => i.statut === 'confirmé').length ?? 0;
-                 const count_pending = sessionData.inscriptions_details?.filter(i => i.statut === 'en attente').length ?? 0;
-                 const count_waitlist = sessionData.liste_attente_details?.length ?? 0;
-                 const inscritsTabBadge = modal.querySelector(`#inscrits-tab-${sessionId} .badge`); // Corrected selector
-                 const attenteTabBadge = modal.querySelector(`#attente-tab-${sessionId} .badge`); // Corrected selector
-                 const pendingTabBadge = modal.querySelector(`#pending-tab-${sessionId} .badge`); // Corrected selector
-                 if(inscritsTabBadge) inscritsTabBadge.textContent = count_confirmed;
-                 if(attenteTabBadge) attenteTabBadge.textContent = count_waitlist;
-                 if(pendingTabBadge) pendingTabBadge.textContent = count_pending;
-
-
-                 // Populate Confirmed List
-                 if (listBodyConfirmed) {
-                     listBodyConfirmed.innerHTML = ''; // Clear loading
-                     const confirmed = sessionData.inscriptions_details?.filter(i => i.statut === 'confirmé') ?? [];
-                     if (confirmed.length > 0) {
-                         confirmed.forEach(i => {
-                             const tr = document.createElement('tr'); tr.dataset.inscriptionId = i.id;
-                             tr.innerHTML = `<td>${i.participant}</td><td>...</td><td>...</td><td class="actions-cell"><a href="/generer_invitation/${i.id}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation"><i class="far fa-calendar-plus"></i></a></td>`;
-                             listBodyConfirmed.appendChild(tr);
-                         });
-                     } else { listBodyConfirmed.innerHTML = '<tr><td colspan="4" class="text-center text-muted small p-2">Aucun confirmé.</td></tr>'; }
-                 }
-                 // Populate Pending List
-                 if (listBodyPending) {
-                     listBodyPending.innerHTML = ''; // Clear loading
-                     const pending = sessionData.inscriptions_details?.filter(i => i.statut === 'en attente') ?? [];
-                     if (pending.length > 0) {
-                         pending.forEach(i => {
-                             const tr = document.createElement('tr'); tr.dataset.inscriptionId = i.id;
-                             tr.innerHTML = `<td>${i.participant}</td><td>...</td><td>...</td><td class="actions-cell"><span class="text-muted small">Validation...</span></td>`;
-                             listBodyPending.appendChild(tr);
-                         });
-                     } else { listBodyPending.innerHTML = '<tr><td colspan="4" class="text-center text-muted small p-2">Aucun en attente.</td></tr>'; }
-                 }
-                 // Populate Waitlist
-                 if (listBodyWaitlist) {
-                     listBodyWaitlist.innerHTML = ''; // Clear loading
-                     const waitlist = sessionData.liste_attente_details ?? [];
-                     if (waitlist.length > 0) {
-                         waitlist.forEach(a => {
-                             const tr = document.createElement('tr'); tr.dataset.attenteId = a.id;
-                             tr.innerHTML = `<td><span class="badge bg-secondary">${a.position}</span></td><td>${a.participant}</td><td>...</td><td>...</td><td><span class="badge bg-light text-dark border">En attente</span></td>`;
-                             listBodyWaitlist.appendChild(tr);
-                         });
-                     } else { listBodyWaitlist.innerHTML = '<tr><td colspan="5" class="text-center text-muted small p-2">Aucune liste d\'attente.</td></tr>'; }
-                 }
-
-             } catch (error) {
-                 console.error(`Error updating modal data for session ${sessionId}:`, error);
-                 const errorHTML = '<tr><td colspan="5" class="text-center text-danger small p-2">Erreur chargement données.</td></tr>';
-                 if(listBodyConfirmed) listBodyConfirmed.innerHTML = errorHTML;
-                 if(listBodyPending) listBodyPending.innerHTML = errorHTML;
-                 if(listBodyWaitlist) listBodyWaitlist.innerHTML = errorHTML;
-             }
-         }
-        const participantModals = document.querySelectorAll('[id^="participantsModal"]');
-        participantModals.forEach(modal => {
-            modal.addEventListener('show.bs.modal', function (event) {
-                 const triggerButton = event.relatedTarget;
-                 const sessionId = modal.id.replace('participantsModal','');
-                 let targetTabId = '#inscrits-tab-' + sessionId;
-                 if (triggerButton && triggerButton.dataset.showTab === 'attente') targetTabId = '#attente-tab-' + sessionId;
-                 else if (triggerButton && triggerButton.dataset.showTab === 'pending') targetTabId = '#pending-tab-' + sessionId;
-                 if (isDebugMode) console.log(`Showing participants modal ${modal.id}, targeting tab ${targetTabId}`);
-                 const targetTabElement = modal.querySelector(targetTabId);
-                 if(targetTabElement) { try { bootstrap.Tab.getOrCreateInstance(targetTabElement).show(); } catch (e) { console.error("Error activating modal tab:", e); } }
-                 else { console.warn(`Target tab ${targetTabId} not found in modal ${modal.id}`); }
-                 if (typeof window.updateParticipantModalData === 'function') window.updateParticipantModalData(sessionId);
-                 else console.warn('updateParticipantModalData() not found.');
-             });
-         });
-         if (isDebugMode) console.log(`Modal tab activation listeners attached.`);
-
-
-         // 5. Waitlist Button Intent Logging
-         // ... (code Waitlist Button Intent Logging inchangé) ...
-        const inscriptionModals = document.querySelectorAll('[id^="inscriptionModal"]');
-         inscriptionModals.forEach(modal => {
-             modal.addEventListener('show.bs.modal', function (event) {
-                 const triggerButton = event.relatedTarget;
-                 const sessionId = modal.id.replace('inscriptionModal', '');
-                 const defaultTabId = '#existant-tab-' + sessionId;
-                 const defaultTabElement = modal.querySelector(defaultTabId);
-                 if (defaultTabElement) { try { bootstrap.Tab.getOrCreateInstance(defaultTabElement).show(); } catch (e) { console.error("Error activating default inscription tab:", e); } }
-                 else { console.warn(`Default tab ${defaultTabId} not found in modal ${modal.id}`); }
-                 if (triggerButton && triggerButton.dataset.goToAttente === 'true') {
-                     if (isDebugMode) console.log(`Inscription modal ${modal.id} opened for waitlist.`);
-                     const nouveauTab = modal.querySelector('#nouveau-tab-' + sessionId);
-                     if (nouveauTab) { bootstrap.Tab.getOrCreateInstance(nouveauTab).show(); }
-                 }
-             });
-         });
-         if (isDebugMode) console.log(`Waitlist intent listeners attached.`);
-
-
-         // 6. Confirmation Logic
-         // ... (code Confirmation Logic inchangé) ...
-        document.body.addEventListener('click', function(e) {
-            if (e.target.matches('.btn-cancel-inscription') || e.target.closest('.btn-cancel-inscription')) {
-                e.preventDefault();
-                const button = e.target.closest('.btn-cancel-inscription');
-                const form = button.closest('form');
-                if (form) {
-                    if (typeof showConfirmation === 'function') {
-                        if (isDebugMode) console.log('Showing confirmation for inscription cancellation.');
-                        showConfirmation("Êtes-vous sûr de vouloir annuler cette inscription confirmée ?", () => form.submit());
-                    } else {
-                        console.warn('showConfirmation() not found, using native confirm.');
-                        if (confirm("Êtes-vous sûr de vouloir annuler cette inscription confirmée ?")) { form.submit(); }
-                    }
-                } else { console.error('Could not find form for cancel inscription button.'); }
-            }
-        });
-        if (isDebugMode) console.log('Confirmation logic listener attached.');
-
-
-        // 7. Specific Modal Fixes (Complémentaire) - Peut être supprimé si modal-fix.js suffit
-         function applyDashboardModalFixes() {
-            document.querySelectorAll('.modal select, .modal .form-select').forEach(select => { select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;'; });
-             document.querySelectorAll('.modal button, .modal .btn').forEach(button => { if (!button.hasAttribute('data-bs-dismiss') && !button.classList.contains('btn-close')) { button.style.cssText = 'position: relative !important; z-index: 2001 !important; pointer-events: auto !important;'; } });
-            document.querySelectorAll('.modal .btn-close').forEach(btn => { btn.style.zIndex = '2005 !important'; });
-             if (isDebugMode) console.log('Dashboard specific modal JS style overrides applied.');
-         }
-         setTimeout(applyDashboardModalFixes, 300);
-
-         console.log('Dashboard Specific JS (Polling Only) initialization complete.');
-
-    }); // End DOMContentLoaded
-// Ajoutez cette fonction à la fin du script dans dashboard.html
-async function fixSalleDisplay() {
-    try {
-        // Récupérer les données des salles
-        const salles = await fetch('/api/salles').then(r => r.json());
-        const salleMap = {};
-        salles.forEach(s => salleMap[s.id] = s);
-        
-        // Récupérer les données des sessions
-        const sessions = await fetch('/api/sessions').then(r => r.json());
-        
-        // Mettre à jour l'affichage des salles
-        sessions.forEach(session => {
-            if (session.salle_id && salleMap[session.salle_id]) {
-                const badges = document.querySelectorAll(`.salle-badge[data-session-id="${session.id}"]`);
-                badges.forEach(badge => {
-                    const salle = salleMap[session.salle_id];
-                    badge.textContent = salle.nom;
-                    badge.title = salle.lieu || '';
-                    badge.className = 'badge bg-info text-dark salle-badge';
-                });
-            }
-        });
-        console.log("Affichage des salles corrigé");
-    } catch (e) {
-        console.error("Erreur correction salles:", e);
+        }
     }
-}
+    setTimeout(initializeDashboardTooltips, 200); // Initialize after a short delay
 
-// Appeler cette fonction après le chargement initial
-setTimeout(fixSalleDisplay, 1000);	
+});
 </script>
 {% endblock %}

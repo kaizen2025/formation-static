@@ -16,7 +16,6 @@
     {# Itérer sur services_data passé depuis app.py #}
     {% for item in services_data|sort(attribute='obj.nom') %}
     {% set service = item.obj %} {# Accéder à l'objet service #}
-    {% set participant_count = item.participant_count %} {# Accéder au compte pré-calculé #}
     <div class="col">
         <div class="card h-100 shadow-sm service-card">
             <div class="card-header text-white d-flex justify-content-between align-items-center" style="background-color: {{ service.couleur or '#6c757d' }};">
@@ -35,23 +34,23 @@
                  <p><i class="fas fa-envelope me-2"></i><a href="mailto:{{ service.email_responsable }}">{{ service.email_responsable }}</a></p>
 
                 {# Utiliser le compte pré-calculé #}
-                <h6 class="mt-4 mb-2 text-muted">Participants ({% if participant_count >= 0 %}{{ participant_count }}{% else %}Erreur{% endif %})</h6>
+                <h6 class="mt-4 mb-2 text-muted">Participants ({% if item.participant_count >= 0 %}{{ item.participant_count }}{% else %}Erreur{% endif %})</h6>
                  <div style="max-height: 150px; overflow-y: auto;">
-                    {% if participant_count > 0 %}
+                    {% if item.participant_count > 0 %}
                     <ul class="list-group list-group-flush">
-                        {# CORRECTION: Suppression de .all() qui cause l'erreur #}
-                        {% for participant in service.participants|sort(attribute='prenom') %}
+                        {# Iterate over item.participants_detailed which has pre-calculated counts #}
+                        {% for p_detail in item.participants_detailed %}
+                        {% set participant = p_detail.obj %}
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
                             <span class="text-truncate small">{{ participant.prenom }} {{ participant.nom }}</span>
-                            {# Compter les inscriptions confirmées pour ce participant #}
-                            {% set confirmed_count = participant.inscriptions.filter_by(statut='confirmé').count() %}
-                            <span class="badge bg-primary rounded-pill small" title="{{ confirmed_count }} inscription(s) confirmée(s)">{{ confirmed_count }}</span>
+                            {# Use the pre-calculated confirmed_count from p_detail #}
+                            <span class="badge bg-primary rounded-pill small" title="{{ p_detail.confirmed_count }} inscription(s) confirmée(s)">{{ p_detail.confirmed_count }}</span>
                         </li>
                         {% endfor %}
                     </ul>
-                    {% elif participant_count == 0 %}
+                    {% elif item.participant_count == 0 %}
                          <p class="text-muted small fst-italic">Aucun participant.</p>
-                    {% else %} {# participant_count < 0 indique une erreur #}
+                    {% else %} {# participant_count < 0 indicates an error #}
                          <p class="text-danger small fst-italic">Erreur chargement participants.</p>
                     {% endif %}
                  </div>
@@ -200,16 +199,35 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Services JS loaded');
-        const config = window.config || { debugMode: false };
+        // const config = window.config || { debugMode: false }; // Assuming window.config might be set elsewhere
+        // For simplicity, let's assume debugMode is false if not explicitly set.
+        const debugMode = (typeof window.dashboardConfig !== 'undefined' && window.dashboardConfig.debugMode) || false;
+
          function applyServiceModalFixes() {
             document.querySelectorAll('.modal button, .modal .btn').forEach(button => {
-                 button.style.cssText = 'position: relative !important; z-index: 2001 !important; pointer-events: auto !important;';
+                 if (!button.classList.contains('btn-close')) { // Avoid affecting the close button's default styling too much
+                    button.style.position = 'relative'; // Keep relative for layout
+                    button.style.zIndex = '2001'; // Ensure buttons are above other modal content
+                    button.style.pointerEvents = 'auto'; // Ensure clickable
+                 }
              });
              const closeButtons = document.querySelectorAll('.modal .btn-close');
-             closeButtons.forEach(btn => btn.style.zIndex = '2005 !important');
-             if (config.debugMode) console.log('Services specific modal JS fixes applied.');
+             closeButtons.forEach(btn => {
+                btn.style.zIndex = '2005'; // Ensure close button is on top
+                btn.style.position = 'relative'; // Ensure z-index applies
+             });
+             if (debugMode) console.log('Services specific modal JS fixes applied.');
          }
+         // Apply fixes after a short delay to ensure modals are in the DOM if loaded dynamically
+         // and also on modal show events if needed.
          setTimeout(applyServiceModalFixes, 300);
+
+         // If modals are dynamically added or shown, you might need to re-apply fixes:
+         document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('shown.bs.modal', function () {
+                applyServiceModalFixes();
+            });
+         });
     });
 </script>
 {% endblock %}

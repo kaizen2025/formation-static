@@ -17,13 +17,25 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 
     <!-- Scripts de tête -->
-    <script> document.documentElement.classList.add('no-transition'); window.addEventListener('load', () => { setTimeout(() => { document.documentElement.classList.remove('no-transition'); }, 100); }); </script>
+    <script> 
+        document.documentElement.classList.add('no-transition'); 
+        window.addEventListener('load', () => { 
+            setTimeout(() => { 
+                document.documentElement.classList.remove('no-transition'); 
+            }, 100); 
+        }); 
+        // Global config object
+        window.dashboardConfig = {
+            // Use the 'debug_mode' variable injected by the context processor
+            debugMode: {{ 'true' if debug_mode else 'false' }}, 
+            baseApiUrl: "{{ url_for('index', _external=True) }}api" // Use _external=True for full URL if needed by JS
+        };
+    </script>
 
     {% block styles %}{% endblock %}
     
     <style>
         /* Styles inline pour les badges de thèmes */
-        /* Ces styles garantissent que les badges s'affichent correctement sur toutes les pages */
         .theme-badge {
             display: inline-block;
             padding: 0.35em 0.75em;
@@ -38,11 +50,11 @@
             box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.1));
             transition: all 0.2s ease-in-out;
             margin: 0.15rem 0;
-            position: relative;
-            cursor: help;
-            visibility: visible !important;
-            opacity: 1 !important;
-            z-index: 1;
+            position: relative; /* For tooltip positioning */
+            cursor: help; /* Indicate more info on hover */
+            visibility: visible !important; /* Ensure visibility */
+            opacity: 1 !important; /* Ensure opacity */
+            z-index: 1; /* Basic stacking context */
         }
         
         .theme-badge:hover {
@@ -50,6 +62,7 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
         
+        /* Theme specific colors (ensure these CSS variables are defined or use direct hex codes) */
         .theme-badge.theme-comm { background-color: var(--theme-teams, #0078d4); }
         .theme-badge.theme-planner { background-color: var(--theme-planner, #7719aa); }
         .theme-badge.theme-onedrive { background-color: var(--theme-onedrive, #0364b8); }
@@ -58,25 +71,25 @@
         .theme-badge .theme-tooltip {
             visibility: hidden;
             width: 280px;
-            background-color: rgba(33, 37, 41, 0.95);
+            background-color: rgba(33, 37, 41, 0.95); /* Darker, slightly transparent */
             color: #fff;
             text-align: left;
             border-radius: 6px;
             padding: 10px 12px;
             position: absolute;
-            z-index: 1080;
-            bottom: 125%;
+            z-index: 1080; /* High z-index for tooltip */
+            bottom: 125%; /* Position above the badge */
             left: 50%;
-            margin-left: -140px;
+            margin-left: -140px; /* Center the tooltip */
             opacity: 0;
             transition: opacity 0.3s, visibility 0.3s;
             font-weight: normal;
             font-size: 0.85rem;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            pointer-events: none;
+            pointer-events: none; /* Tooltip itself shouldn't be interactive */
         }
         
-        .theme-badge .theme-tooltip::after {
+        .theme-badge .theme-tooltip::after { /* Arrow for the tooltip */
             content: "";
             position: absolute;
             top: 100%;
@@ -92,13 +105,12 @@
             opacity: 1;
         }
         
-        @media (max-width: 768px) {
+        @media (max-width: 768px) { /* Responsive adjustments for smaller screens */
             .theme-badge .theme-tooltip {
                 width: 220px;
                 margin-left: -110px;
                 font-size: 0.75rem;
             }
-            
             .theme-badge {
                 font-size: 0.75em;
                 padding: 0.25em 0.5em;
@@ -111,7 +123,6 @@
 
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <!-- Contenu Navbar inchangé -->
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('dashboard') }}"><i class="fab fa-microsoft me-2"></i>Formation Microsoft 365</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
@@ -123,12 +134,11 @@
 
                     {% if current_user.is_authenticated and current_user.role == 'admin' %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('admin') or request.endpoint in ['participants', 'themes', 'salles', 'activites', 'services'] %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-cogs me-1"></i>Administration</a>
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('admin') or request.endpoint in ['participants', 'themes', 'salles', 'activites'] %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-cogs me-1"></i>Administration</a>
                         <ul class="dropdown-menu" aria-labelledby="adminDropdown">
                              <li><a class="dropdown-item {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}"><i class="fas fa-sliders-h me-1"></i>Panneau Admin</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item {% if request.endpoint == 'participants' %}active{% endif %}" href="{{ url_for('participants') }}"><i class="fas fa-users me-1"></i>Participants</a></li>
-                             <li><a class="dropdown-item {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-sitemap me-1"></i>Services</a></li>
                             <li><a class="dropdown-item {% if request.endpoint == 'themes' %}active{% endif %}" href="{{ url_for('themes') }}"><i class="fas fa-book me-1"></i>Thèmes</a></li>
                             <li><a class="dropdown-item {% if request.endpoint == 'salles' %}active{% endif %}" href="{{ url_for('salles') }}"><i class="fas fa-building me-1"></i>Salles</a></li>
                             <li><hr class="dropdown-divider"></li>
@@ -186,7 +196,7 @@
 
     <footer class="footer mt-auto py-3 bg-light border-top">
         <div class="container text-center">
-            <span class="text-muted small">© {{ now.year }} Anecoop France - Formation Microsoft 365. Version 1.2.2</span>
+            <span class="text-muted small">© {{ now.year }} Anecoop France - Formation Microsoft 365. Version 1.2.3</span>
         </div>
     </footer>
 
@@ -197,20 +207,14 @@
     </div>
 
     <!-- Scripts globaux -->
-    <!-- Librairies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
-    <!-- socket.io.min.js Supprimé -->
 
     {% if current_user.is_authenticated %}<input type="hidden" id="user-id" value="{{ current_user.id }}" data-role="{{ current_user.role }}">{% endif %}
 
-    <!-- Scripts Utilitaires Globaux -->
-    <!-- Inclusion de modal-fix.js -->
     <script src="{{ url_for('static', filename='js/modal-fix.js') }}"></script>
     <script>
-        // --- Fonctions Globales (Toast, Confirmation) ---
-        // (Code inchangé pour showToast et showConfirmation)
-        window.showToast = function(message, type = 'info') { /* ... code ... */
+        window.showToast = function(message, type = 'info') {
             const toastContainer = document.getElementById('toast-container-dynamic');
             if (!toastContainer) { console.error('Toast container #toast-container-dynamic not found!'); return; }
             const toastId = `toast-${Date.now()}`;
@@ -229,189 +233,158 @@
             toast.show();
             toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
         };
-        window.showConfirmation = function(message, callback) { /* ... code ... */
+        window.showConfirmation = function(message, callback) {
             const modalElement = document.getElementById('confirmModal');
             const confirmMessageEl = document.getElementById('confirmMessage');
             const confirmButton = document.getElementById('confirmButton');
             if (!modalElement || !confirmMessageEl || !confirmButton) { console.error('Confirmation modal elements not found!'); return; }
             confirmMessageEl.textContent = message;
-            const newConfirmButton = confirmButton.cloneNode(true);
+            const newConfirmButton = confirmButton.cloneNode(true); // Avoid multiple event listeners
             confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
             const modalInstance = new bootstrap.Modal(modalElement);
             newConfirmButton.onclick = function() { modalInstance.hide(); if (typeof callback === 'function') { callback(); } };
             modalInstance.show();
         };
-        // Initialiser les toasts statiques
+        
         var toastElList = [].slice.call(document.querySelectorAll('.toast-container .toast'));
         var toastList = toastElList.map(function (toastEl) { return new bootstrap.Toast(toastEl, { autohide: true, delay: 7000 }); });
         toastList.forEach(toast => { try { toast.show(); } catch(e) { console.error("Error showing static toast", e); } });
     </script>
 
-    <!-- Modules Applicatifs Globaux -->
     <script src="{{ url_for('static', filename='js/static-charts.js') }}"></script>
     <script src="{{ url_for('static', filename='js/polling-updates.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ui-fixers.js') }}"></script>
 
-    <!-- Script global pour restaurer les badges de thèmes -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Global theme badges enhancement initialized');
+            // Use the debug_mode variable injected by the context processor
+            if (window.dashboardConfig && window.dashboardConfig.debugMode) console.log('Global theme badges enhancement initialized');
             
-            // Données des thèmes avec descriptions pour les tooltips
             const themesData = {
-                'Communiquer avec Teams': {
-                    description: 'Maîtrisez la communication en ligne avec Microsoft Teams. Apprenez à créer des conversations, organiser des réunions virtuelles et partager des fichiers efficacement.',
-                    color: 'var(--theme-teams)',
-                    icon: 'fas fa-comments',
-                    class: 'theme-comm'
-                },
-                'Gérer les tâches (Planner)': {
-                    description: 'Organisez et suivez vos tâches d\'équipe avec Microsoft Planner. Créez des plans, assignez des tâches et visualisez la progression de vos projets.',
-                    color: 'var(--theme-planner)',
-                    icon: 'fas fa-tasks',
-                    class: 'theme-planner'
-                },
-                'Gérer mes fichiers (OneDrive/SharePoint)': {
-                    description: 'Stockez, partagez et collaborez sur vos documents avec OneDrive et SharePoint. Apprenez à synchroniser vos fichiers et à gérer les autorisations d\'accès.',
-                    color: 'var(--theme-onedrive)',
-                    icon: 'fas fa-file-alt',
-                    class: 'theme-onedrive'
-                },
-                'Collaborer avec Teams': {
-                    description: 'Travaillez en équipe efficacement grâce aux fonctionnalités collaboratives de Teams. Créez des canaux, partagez des documents et intégrez d\'autres applications Office 365.',
-                    color: 'var(--theme-sharepoint)',
-                    icon: 'fas fa-users',
-                    class: 'theme-sharepoint'
-                }
+                'Communiquer avec Teams': { description: 'Maîtrisez la communication en ligne avec Microsoft Teams. Apprenez à créer des conversations, organiser des réunions virtuelles et partager des fichiers efficacement.', color: 'var(--theme-teams, #0078d4)', icon: 'fas fa-comments', class: 'theme-comm' },
+                'Gérer les tâches (Planner)': { description: 'Organisez et suivez vos tâches d\'équipe avec Microsoft Planner. Créez des plans, assignez des tâches et visualisez la progression de vos projets.', color: 'var(--theme-planner, #7719aa)', icon: 'fas fa-tasks', class: 'theme-planner' },
+                'Gérer mes fichiers (OneDrive/SharePoint)': { description: 'Stockez, partagez et collaborez sur vos documents avec OneDrive et SharePoint. Apprenez à synchroniser vos fichiers et à gérer les autorisations d\'accès.', color: 'var(--theme-onedrive, #0364b8)', icon: 'fas fa-file-alt', class: 'theme-onedrive' },
+                'Collaborer avec Teams': { description: 'Travaillez en équipe efficacement grâce aux fonctionnalités collaboratives de Teams. Créez des canaux, partagez des documents et intégrez d\'autres applications Office 365.', color: 'var(--theme-sharepoint, #038387)', icon: 'fas fa-users', class: 'theme-sharepoint' }
             };
             
-            // Fonction pour créer un badge de thème
             function createThemeBadge(themeName) {
-                const themeData = themesData[themeName] || {
-                    description: 'Formation Microsoft 365',
-                    color: '#6c757d',
-                    icon: 'fas fa-info-circle',
-                    class: 'bg-secondary'
-                };
-                
-                return `<span class="theme-badge ${themeData.class}" data-theme="${themeName}">
-                    <i class="${themeData.icon} me-1"></i>${themeName}
-                    <span class="theme-tooltip">
-                        <strong>${themeName}</strong><br>
-                        ${themeData.description}
-                    </span>
-                </span>`;
+                const themeData = themesData[themeName] || { description: 'Formation Microsoft 365', color: '#6c757d', icon: 'fas fa-info-circle', class: 'bg-secondary' };
+                return `<span class="theme-badge ${themeData.class}" data-theme="${themeName}" style="background-color: ${themeData.color};">` +
+                       `<i class="${themeData.icon} me-1"></i>${themeName}` +
+                       `<span class="theme-tooltip"><strong>${themeName}</strong><br>${themeData.description}</span>` +
+                       `</span>`;
             }
             
-            // Fonction pour restaurer les badges dans tous les contextes
-            function enhanceThemeBadgesGlobally() {
-                // Dans les tableaux
-                document.querySelectorAll('table td:nth-child(2), th:contains("Thème") + td, td.theme-cell').forEach(cell => {
+            function isAlreadyEnhanced(element) {
+                return element.classList.contains('theme-badge') || element.querySelector('.theme-badge') || (element.parentElement && element.parentElement.classList.contains('theme-badge'));
+            }
+
+            window.enhanceThemeBadgesGlobally = function() {
+                if (window.dashboardConfig && window.dashboardConfig.debugMode) console.log('Running enhanceThemeBadgesGlobally');
+                
+                document.querySelectorAll('.js-theme-cell').forEach(cell => {
                     const themeName = cell.textContent.trim();
-                    if (themeName && !cell.innerHTML.includes('theme-badge') && themesData[themeName]) {
+                    if (themeName && themesData[themeName] && !isAlreadyEnhanced(cell)) {
                         cell.innerHTML = createThemeBadge(themeName);
                     }
                 });
-                
-                // Dans les cartes et autres contextes
-                Object.keys(themesData).forEach(themeName => {
-                    document.querySelectorAll(`span:contains("${themeName}"), div:contains("${themeName}")`).forEach(el => {
-                        // Vérifier si l'élément contient EXACTEMENT ce texte (pas un élément parent)
-                        if (el.childNodes.length === 1 && 
-                            el.childNodes[0].nodeType === Node.TEXT_NODE && 
-                            el.textContent.trim() === themeName &&
-                            !el.classList.contains('theme-badge') &&
-                            !el.closest('.theme-badge')) {
-                            
-                            el.outerHTML = createThemeBadge(themeName);
+
+                document.querySelectorAll('table td').forEach(cell => {
+                    if ((cell.cellIndex === 1 || cell.dataset.columnType === 'theme') && !isAlreadyEnhanced(cell)) { 
+                        const themeName = cell.textContent.trim();
+                        if (themeName && themesData[themeName]) {
+                            cell.innerHTML = createThemeBadge(themeName);
                         }
-                    });
-                });
-                
-                // S'assurer que tous les badges ont les tooltips
-                document.querySelectorAll('.theme-badge').forEach(badge => {
-                    const themeName = badge.textContent.trim();
-                    if (!badge.querySelector('.theme-tooltip') && themesData[themeName]) {
-                        const themeData = themesData[themeName];
-                        badge.innerHTML = `<i class="${themeData.icon} me-1"></i>${themeName}<span class="theme-tooltip"><strong>${themeName}</strong><br>${themeData.description}</span>`;
                     }
                 });
                 
-                // Initialiser les tooltips Bootstrap
+                Object.keys(themesData).forEach(themeName => {
+                    document.querySelectorAll(`[data-potential-theme="${themeName}"]`).forEach(el => {
+                         if (!isAlreadyEnhanced(el)) {
+                            el.innerHTML = createThemeBadge(themeName);
+                         }
+                    });
+                });
+                
+                document.querySelectorAll('.theme-badge').forEach(badge => {
+                    let themeName = badge.dataset.theme;
+                    if (!themeName) {
+                        const textContent = badge.textContent.trim();
+                        const firstLine = textContent.split('\n')[0].trim();
+                        if (themesData[firstLine]) {
+                            themeName = firstLine;
+                            badge.dataset.theme = themeName;
+                        }
+                    }
+
+                    const themeData = themesData[themeName];
+                    if (themeData) {
+                        if (!badge.querySelector('.theme-tooltip')) {
+                            let currentIconClass = '';
+                            const iconEl = badge.querySelector('i');
+                            if (iconEl) currentIconClass = iconEl.className;
+                            else currentIconClass = themeData.icon + ' me-1';
+                            badge.innerHTML = `<i class="${currentIconClass}"></i>${themeName}<span class="theme-tooltip"><strong>${themeName}</strong><br>${themeData.description}</span>`;
+                        }
+                        if (!badge.classList.contains(themeData.class)) {
+                            Object.values(themesData).forEach(td => badge.classList.remove(td.class));
+                            badge.classList.add(themeData.class);
+                        }
+                        badge.style.backgroundColor = themeData.color;
+                    }
+                });
+                
                 if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
                     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(tooltipTriggerEl) {
-                        try {
-                            new bootstrap.Tooltip(tooltipTriggerEl);
-                        } catch (e) { /* ignorer les erreurs - sera initialisé plus tard */ }
+                        if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
+                           try { new bootstrap.Tooltip(tooltipTriggerEl); } catch(e) { console.warn("Tooltip init error:", e); }
+                        }
                     });
                 }
             }
             
-            // Appliquer immédiatement et après un délai
             enhanceThemeBadgesGlobally();
-            setTimeout(enhanceThemeBadgesGlobally, 500);
-            
-            // Observer les changements du DOM
+            setTimeout(enhanceThemeBadgesGlobally, 700);
+
             const observer = new MutationObserver(function(mutations) {
-                let needsUpdate = false;
-                
-                mutations.forEach(function(mutation) {
-                    if (mutation.addedNodes.length > 0) {
-                        for (let i = 0; i < mutation.addedNodes.length; i++) {
-                            const node = mutation.addedNodes[i];
-                            if (node.nodeType === 1) { // Element Node
-                                needsUpdate = true;
-                                break;
-                            }
-                        }
-                    }
-                });
-                
-                if (needsUpdate) {
-                    setTimeout(enhanceThemeBadgesGlobally, 50);
+                if (mutations.some(mutation => mutation.addedNodes.length > 0)) {
+                    if (window.dashboardConfig && window.dashboardConfig.debugMode) console.log('DOM changed, re-enhancing badges.');
+                    setTimeout(enhanceThemeBadgesGlobally, 150); 
                 }
             });
             
-            // Observer les changements
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
+            observer.observe(document.body, { childList: true, subtree: true });
             
-            // Réappliquer après les requêtes AJAX
             const originalFetch = window.fetch;
             window.fetch = function() {
-                return originalFetch.apply(this, arguments)
-                    .then(response => {
-                        setTimeout(enhanceThemeBadgesGlobally, 200);
-                        return response;
-                    });
+                return originalFetch.apply(this, arguments).then(response => {
+                    if (window.dashboardConfig && window.dashboardConfig.debugMode) console.log('Fetch completed, re-enhancing badges.');
+                    setTimeout(enhanceThemeBadgesGlobally, 300); 
+                    return response;
+                });
             };
-            
-            // Exposer globalement
-            window.enhanceThemeBadgesGlobally = enhanceThemeBadgesGlobally;
         });
     </script>
 
-    <!-- Initialiser les tooltips Bootstrap -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialiser tous les tooltips Bootstrap sur la page
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
                 tooltipTriggerList.forEach(function(tooltipTriggerEl) {
-                    try {
-                        new bootstrap.Tooltip(tooltipTriggerEl);
-                    } catch (e) { 
-                        console.warn("Erreur d'initialisation de tooltip:", e);
+                    if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) { 
+                        try {
+                            new bootstrap.Tooltip(tooltipTriggerEl);
+                        } catch (e) { 
+                            console.warn("Erreur d'initialisation de tooltip:", e, tooltipTriggerEl);
+                        }
                     }
                 });
             }
         });
     </script>
 	<script src="{{ url_for('static', filename='js/charts-enhanced.js') }}"></script>
+	<script src="{{ url_for('static', filename='js/modal-inscriptions-fix.js') }}"></script>
 
-    <!-- Placeholder for Page-Specific Scripts -->
     {% block scripts %}{% endblock %}
 </body>
 </html>

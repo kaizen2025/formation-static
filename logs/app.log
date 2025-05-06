@@ -2446,3 +2446,2158 @@ AttributeError: 'AnonymousUserMixin' object has no attribute 'id'
 2025-05-06 16:06:06,906 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
 2025-05-06 16:06:06,937 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
 2025-05-06 16:12:21,479 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 16:26:06,346 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 16:26:13,613 ERROR: Unexpected error in dashboard route: 'Inscription' is undefined [in C:\formation-static\app.py:725]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 701, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<5 lines>...
+                          total_en_attente=total_en_attente,
+                          total_sessions_completes=total_sessions_completes)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 187, in block 'content'
+    {% include 'modals/_participants_modal.html' %}
+    ^^^^^^^^^^^^^
+  File "C:\formation-static\templates\modals\_participants_modal.html", line 83, in top-level template code
+    {% for inscription in session.inscriptions.filter_by(statut='en attente').order_by(Inscription.date_inscription.desc()).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'Inscription' is undefined
+2025-05-06 16:26:14,191 ERROR: Unexpected error in dashboard route: 'Inscription' is undefined [in C:\formation-static\app.py:725]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 701, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<5 lines>...
+                          total_en_attente=total_en_attente,
+                          total_sessions_completes=total_sessions_completes)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 187, in block 'content'
+    {% include 'modals/_participants_modal.html' %}
+    ^^^^^^^^^^^^^
+  File "C:\formation-static\templates\modals\_participants_modal.html", line 83, in top-level template code
+    {% for inscription in session.inscriptions.filter_by(statut='en attente').order_by(Inscription.date_inscription.desc()).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'Inscription' is undefined
+2025-05-06 16:37:21,174 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 16:37:45,522 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2297]
+2025-05-06 16:39:00,820 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 16:39:34,262 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2297]
+2025-05-06 16:39:57,167 ERROR: DB Pool/Connection Error on sessions: (psycopg2.OperationalError) SSL connection has been closed unexpectedly
+
+[SQL: SELECT inscription.id AS inscription_id, inscription.participant_id AS inscription_participant_id, inscription.session_id AS inscription_session_id, inscription.date_inscription AS inscription_date_inscription, inscription.statut AS inscription_statut, inscription.validation_responsable AS inscription_validation_responsable, inscription.presence AS inscription_presence, inscription.notification_envoyee AS inscription_notification_envoyee 
+FROM inscription 
+WHERE %(param_1)s = inscription.session_id AND inscription.statut = %(statut_1)s]
+[parameters: {'param_1': 14, 'statut_1': 'confirm�'}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:852]
+2025-05-06 16:39:59,545 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2221]
+2025-05-06 16:40:34,320 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 16:41:29,234 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 16:50:13,481 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 16:53:25,018 ERROR: API Pool/Conn Error activities: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2352]
+2025-05-06 16:58:25,640 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 16:58:27,385 ERROR: API Pool/Conn Error activities: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2352]
+2025-05-06 16:58:43,951 ERROR: Unexpected error in dashboard route: 'ListeAttente' is undefined [in C:\formation-static\app.py:725]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 701, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<5 lines>...
+                          total_en_attente=total_en_attente,
+                          total_sessions_completes=total_sessions_completes)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 531, in block 'content'
+    {% set liste_attente = session.obj.liste_attente.order_by(ListeAttente.position).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'ListeAttente' is undefined
+2025-05-06 16:58:44,769 ERROR: Unexpected error in dashboard route: 'ListeAttente' is undefined [in C:\formation-static\app.py:725]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 701, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<5 lines>...
+                          total_en_attente=total_en_attente,
+                          total_sessions_completes=total_sessions_completes)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 531, in block 'content'
+    {% set liste_attente = session.obj.liste_attente.order_by(ListeAttente.position).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'ListeAttente' is undefined
+2025-05-06 16:59:16,568 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 16:59:24,899 ERROR: Unexpected error in dashboard route: 'ListeAttente' is undefined [in C:\formation-static\app.py:725]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 701, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<5 lines>...
+                          total_en_attente=total_en_attente,
+                          total_sessions_completes=total_sessions_completes)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 531, in block 'content'
+    {% set liste_attente = session.obj.liste_attente.order_by(ListeAttente.position).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'ListeAttente' is undefined
+2025-05-06 16:59:25,548 ERROR: Unexpected error in dashboard route: 'ListeAttente' is undefined [in C:\formation-static\app.py:725]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 701, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<5 lines>...
+                          total_en_attente=total_en_attente,
+                          total_sessions_completes=total_sessions_completes)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 531, in block 'content'
+    {% set liste_attente = session.obj.liste_attente.order_by(ListeAttente.position).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'ListeAttente' is undefined
+2025-05-06 17:03:14,701 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:03:14,729 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:03:16,951 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:03:16,973 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:03:39,199 ERROR: DB error loading services: Parent instance <Participant at 0x2219546c0d0> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in C:\formation-static\app.py:925]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 921, in services
+    return render_template('services.html', services_data=services_data)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\services.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\services.html", line 47, in block 'content'
+    {% set confirmed_count = participant.inscriptions.filter_by(statut='confirmé').count() %}
+    
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 1990, in filter_by
+    return self.filter(*clauses)
+           ~~~~~~~~~~~^^^^^^^^^^
+  File "<string>", line 2, in filter
+  File "C:\Python313\Lib\site-packages\sqlalchemy\sql\base.py", line 278, in _generative
+    self = self._generate()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\dynamic.py", line 212, in _generate
+    raise orm_exc.DetachedInstanceError(
+    ...<4 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Participant at 0x2219546c0d0> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-05-06 17:03:41,654 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:03:41,676 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:16:37,002 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:16:37,027 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:16:59,769 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:16:59,797 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:17:20,469 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:17:20,490 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:18:29,803 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:18:29,824 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:18:31,936 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:18:31,957 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:18:37,770 ERROR: Unexpected error in dashboard route: 'app' is undefined [in C:\formation-static\app.py:873]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 853, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if app.debug else 'false' }}, // Pass Flask debug status to JS
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'app' is undefined
+2025-05-06 17:18:37,779 ERROR: Unexpected error during DB operation: 'app' is undefined [in C:\formation-static\app.py:197]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 853, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if app.debug else 'false' }}, // Pass Flask debug status to JS
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'app' is undefined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 178, in wrapper
+    return func(*args, **kwargs)
+  File "C:\formation-static\app.py", line 875, in dashboard
+    return render_template('error.html', error_message="Erreur interne du serveur."), 500
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\error.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if app.debug else 'false' }}, // Pass Flask debug status to JS
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'app' is undefined
+2025-05-06 17:18:39,421 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:18:39,442 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:18:42,444 ERROR: Unexpected error in dashboard route: 'app' is undefined [in C:\formation-static\app.py:873]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 853, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if app.debug else 'false' }}, // Pass Flask debug status to JS
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'app' is undefined
+2025-05-06 17:18:42,448 ERROR: Unexpected error during DB operation: 'app' is undefined [in C:\formation-static\app.py:197]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 853, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if app.debug else 'false' }}, // Pass Flask debug status to JS
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'app' is undefined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 178, in wrapper
+    return func(*args, **kwargs)
+  File "C:\formation-static\app.py", line 875, in dashboard
+    return render_template('error.html', error_message="Erreur interne du serveur."), 500
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\error.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if app.debug else 'false' }}, // Pass Flask debug status to JS
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'app' is undefined
+2025-05-06 17:20:36,092 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:20:36,113 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:20:38,319 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:20:38,342 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 17:20:44,470 ERROR: Unexpected error in dashboard route: 'current_app' is undefined [in C:\formation-static\app.py:873]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 853, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if current_app.debug else 'false' }}, // MODIFIED HERE
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'current_app' is undefined
+2025-05-06 17:20:44,476 ERROR: Unexpected error during DB operation: 'current_app' is undefined [in C:\formation-static\app.py:197]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 853, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if current_app.debug else 'false' }}, // MODIFIED HERE
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'current_app' is undefined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 178, in wrapper
+    return func(*args, **kwargs)
+  File "C:\formation-static\app.py", line 875, in dashboard
+    return render_template('error.html', error_message="Erreur interne du serveur."), 500
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\error.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if current_app.debug else 'false' }}, // MODIFIED HERE
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'current_app' is undefined
+2025-05-06 17:20:44,991 ERROR: Unexpected error in dashboard route: 'current_app' is undefined [in C:\formation-static\app.py:873]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 853, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if current_app.debug else 'false' }}, // MODIFIED HERE
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'current_app' is undefined
+2025-05-06 17:20:44,992 ERROR: Unexpected error during DB operation: 'current_app' is undefined [in C:\formation-static\app.py:197]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 853, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if current_app.debug else 'false' }}, // MODIFIED HERE
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'current_app' is undefined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 178, in wrapper
+    return func(*args, **kwargs)
+  File "C:\formation-static\app.py", line 875, in dashboard
+    return render_template('error.html', error_message="Erreur interne du serveur."), 500
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\error.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 29, in top-level template code
+    debugMode: {{ 'true' if current_app.debug else 'false' }}, // MODIFIED HERE
+    ^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'current_app' is undefined
+2025-05-06 17:22:45,114 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:22:45,135 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:23:09,475 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:23:09,502 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:23:11,809 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:23:11,836 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:23:14,922 ERROR: Unexpected error in dashboard route: Could not build url for endpoint 'services'. Did you mean 'add_service' instead? [in C:\formation-static\app.py:879]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 859, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 133, in top-level template code
+    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-sitemap me-1"></i>Services</a></li>
+    ^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'services'. Did you mean 'add_service' instead?
+2025-05-06 17:23:14,949 ERROR: Unexpected error during DB operation: Could not build url for endpoint 'services'. Did you mean 'add_service' instead? [in C:\formation-static\app.py:203]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 859, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 133, in top-level template code
+    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-sitemap me-1"></i>Services</a></li>
+    ^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'services'. Did you mean 'add_service' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 184, in wrapper
+    return func(*args, **kwargs)
+  File "C:\formation-static\app.py", line 881, in dashboard
+    return render_template('error.html', error_message="Erreur interne du serveur."), 500
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\error.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 133, in top-level template code
+    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-sitemap me-1"></i>Services</a></li>
+    ^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'services'. Did you mean 'add_service' instead?
+2025-05-06 17:23:16,310 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:23:16,329 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:23:19,387 ERROR: Unexpected error in dashboard route: Could not build url for endpoint 'services'. Did you mean 'add_service' instead? [in C:\formation-static\app.py:879]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 859, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 133, in top-level template code
+    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-sitemap me-1"></i>Services</a></li>
+    ^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'services'. Did you mean 'add_service' instead?
+2025-05-06 17:23:19,392 ERROR: Unexpected error during DB operation: Could not build url for endpoint 'services'. Did you mean 'add_service' instead? [in C:\formation-static\app.py:203]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 859, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 133, in top-level template code
+    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-sitemap me-1"></i>Services</a></li>
+    ^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'services'. Did you mean 'add_service' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 184, in wrapper
+    return func(*args, **kwargs)
+  File "C:\formation-static\app.py", line 881, in dashboard
+    return render_template('error.html', error_message="Erreur interne du serveur."), 500
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\error.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 133, in top-level template code
+    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-sitemap me-1"></i>Services</a></li>
+    ^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'services'. Did you mean 'add_service' instead?
+2025-05-06 17:23:34,233 ERROR: API Error fetching salles: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2593]
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+psycopg2.OperationalError: connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2583, in api_salles
+    salles = Salle.query.order_by(Salle.nom).all()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2241, in _execute_internal
+    conn = self._connection_for_bind(bind)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2110, in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 2, in _connection_for_bind
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 1189, in _connection_for_bind
+    conn = bind.connect()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3274, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 148, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        err, dialect, engine
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 2439, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-05-06 17:23:35,794 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:23:35,815 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:34:09,628 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:34:09,649 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:34:18,946 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:34:18,969 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:34:21,298 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:34:21,323 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:36:58,726 ERROR: API Error fetching activities: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2618]
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+psycopg2.OperationalError: connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2609, in api_activites
+    activites = Activite.query.options(joinedload(Activite.utilisateur)).order_by(Activite.date.desc()).limit(limit).all()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2241, in _execute_internal
+    conn = self._connection_for_bind(bind)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2110, in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 2, in _connection_for_bind
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 1189, in _connection_for_bind
+    conn = bind.connect()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3274, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 148, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        err, dialect, engine
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 2439, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-05-06 17:41:24,320 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:41:24,346 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:44:56,033 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:44:56,059 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:44:58,131 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:44:58,151 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:47:19,407 ERROR: API Error fetching participants: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2544]
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+psycopg2.OperationalError: connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2531, in api_participants
+    participants = Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).all()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2241, in _execute_internal
+    conn = self._connection_for_bind(bind)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2110, in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 2, in _connection_for_bind
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 1189, in _connection_for_bind
+    conn = bind.connect()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3274, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 148, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        err, dialect, engine
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 2439, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-05-06 17:47:19,493 ERROR: API Error fetching salles: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2597]
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+psycopg2.OperationalError: connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2587, in api_salles
+    salles = Salle.query.order_by(Salle.nom).all()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2241, in _execute_internal
+    conn = self._connection_for_bind(bind)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2110, in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 2, in _connection_for_bind
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 1189, in _connection_for_bind
+    conn = bind.connect()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3274, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 148, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        err, dialect, engine
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 2439, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-05-06 17:51:52,593 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:51:52,615 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:52:24,949 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:52:24,975 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:52:27,027 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:52:27,046 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:52:28,434 ERROR: API Error fetching sessions: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2473]
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+psycopg2.OperationalError: connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2440, in api_sessions
+    ).order_by(Session.date, Session.heure_debut).all()
+                                                  ~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2241, in _execute_internal
+    conn = self._connection_for_bind(bind)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2110, in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 2, in _connection_for_bind
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 1189, in _connection_for_bind
+    conn = bind.connect()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3274, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 148, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        err, dialect, engine
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 2439, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-05-06 17:52:28,438 ERROR: API Error fetching participants: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2574]
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+psycopg2.OperationalError: connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2561, in api_participants
+    participants = Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).all()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2241, in _execute_internal
+    conn = self._connection_for_bind(bind)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2110, in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 2, in _connection_for_bind
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 1189, in _connection_for_bind
+    conn = bind.connect()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3274, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 148, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        err, dialect, engine
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 2439, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-05-06 17:52:53,214 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:52:53,235 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:52:55,410 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:52:55,437 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:55:14,896 INFO: Fetched 4 themes from database for /themes page. [in C:\formation-static\app.py:2028]
+2025-05-06 17:55:14,928 INFO: Successfully prepared data for 4 themes to render. [in C:\formation-static\app.py:2098]
+2025-05-06 17:55:14,969 ERROR: Unexpected error loading themes page: Could not build url for endpoint 'delete_theme' with values ['id']. Did you mean 'update_theme' instead? [in C:\formation-static\app.py:2113]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2101, in themes
+    return render_template('themes.html', themes_data=themes_data_for_template)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\themes.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 194, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\themes.html", line 156, in block 'content'
+    <form id="deleteThemeForm{{ theme.id }}" action="{{ url_for('delete_theme', id=theme.id) }}" method="post" class="d-inline">
+    
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'delete_theme' with values ['id']. Did you mean 'update_theme' instead?
+2025-05-06 17:55:17,133 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:55:17,155 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:55:42,285 INFO: Fetched 4 themes from database for /themes page. [in C:\formation-static\app.py:2028]
+2025-05-06 17:55:42,316 INFO: Successfully prepared data for 4 themes to render. [in C:\formation-static\app.py:2098]
+2025-05-06 17:55:42,358 ERROR: Unexpected error loading themes page: Could not build url for endpoint 'delete_theme' with values ['id']. Did you mean 'update_theme' instead? [in C:\formation-static\app.py:2113]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2101, in themes
+    return render_template('themes.html', themes_data=themes_data_for_template)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\themes.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 194, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\themes.html", line 156, in block 'content'
+    <form id="deleteThemeForm{{ theme.id }}" action="{{ url_for('delete_theme', id=theme.id) }}" method="post" class="d-inline">
+    
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "C:\Python313\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'delete_theme' with values ['id']. Did you mean 'update_theme' instead?
+2025-05-06 17:58:15,894 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 17:58:15,917 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:00:55,226 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:00:55,250 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:00:57,459 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:00:57,493 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:01:22,589 ERROR: Unexpected error in sessions route: 'dict object' has no attribute 'theme' [in C:\formation-static\app.py:1059]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 1040, in sessions
+    return render_template('sessions.html',
+                          sessions_data=sessions_final_data,
+    ...<7 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\sessions.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 194, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\sessions.html", line 184, in block 'content'
+    {% include 'modals/_attribuer_salle_modal.html' with context %}
+    ^^^^^^^^^^^^
+  File "C:\formation-static\templates\modals\_attribuer_salle_modal.html", line 15, in top-level template code
+    <h5 class="modal-title" id="attribuerSalleModalLabel{{ session.id }}"><i class="fas fa-building me-2"></i>Attribuer Salle - {{ session.theme.nom }}</h5>
+    ^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'dict object' has no attribute 'theme'
+2025-05-06 18:01:56,614 INFO: Fetched 4 themes from database for /themes page. [in C:\formation-static\app.py:2028]
+2025-05-06 18:01:56,646 INFO: Successfully prepared data for 4 themes to render. [in C:\formation-static\app.py:2098]
+2025-05-06 18:04:55,438 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:04:55,462 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:04:57,864 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:04:57,885 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:07:07,974 INFO: Fetched 4 themes from database for /themes page. [in C:\formation-static\app.py:2028]
+2025-05-06 18:07:08,007 INFO: Successfully prepared data for 4 themes to render. [in C:\formation-static\app.py:2098]
+2025-05-06 18:08:41,023 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:08:41,049 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:11:46,935 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:11:46,959 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:11:49,156 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:11:49,177 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:11:57,836 INFO: User 'admin' accessing /sessions. [in C:\formation-static\app.py:952]
+2025-05-06 18:11:57,898 ERROR: DB error in /sessions route: 'Session.liste_attente' does not support object population - eager loading cannot be applied. [in C:\formation-static\app.py:1041]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 981, in sessions
+    all_sessions_from_db = query.all()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 308, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 600, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2723, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3093, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Session.liste_attente' does not support object population - eager loading cannot be applied.
+2025-05-06 18:11:59,585 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:11:59,605 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:14:51,406 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:14:51,429 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:15:38,944 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:15:38,966 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:15:45,449 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:15:45,473 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:15:47,621 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:15:47,641 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:15:50,804 ERROR: Unexpected error in dashboard route: 'sqlalchemy.orm.collections.InstrumentedList object' has no attribute 'filter_by' [in C:\formation-static\app.py:879]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 859, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 194, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 434, in block 'content'
+    {% set inscrits = session.obj.inscriptions.filter_by(statut='confirmé').all()|sort(attribute='date_inscription', reverse=true) %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\utils.py", line 92, in from_obj
+    if hasattr(obj, "jinja_pass_arg"):
+       ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+jinja2.exceptions.UndefinedError: 'sqlalchemy.orm.collections.InstrumentedList object' has no attribute 'filter_by'
+2025-05-06 18:15:51,576 ERROR: Unexpected error in dashboard route: 'sqlalchemy.orm.collections.InstrumentedList object' has no attribute 'filter_by' [in C:\formation-static\app.py:879]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 859, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<8 lines>...
+                          Inscription=Inscription,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 194, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 434, in block 'content'
+    {% set inscrits = session.obj.inscriptions.filter_by(statut='confirmé').all()|sort(attribute='date_inscription', reverse=true) %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\utils.py", line 92, in from_obj
+    if hasattr(obj, "jinja_pass_arg"):
+       ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+jinja2.exceptions.UndefinedError: 'sqlalchemy.orm.collections.InstrumentedList object' has no attribute 'filter_by'
+2025-05-06 18:15:53,098 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:15:53,118 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:18:11,870 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:18:11,891 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:20:40,860 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:20:40,886 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:20:43,138 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:20:43,167 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:20:44,620 INFO: User 'admin' accessing /dashboard. [in C:\formation-static\app.py:772]
+2025-05-06 18:20:45,005 INFO: Fetched 16 sessions with eager loading for dashboard. [in C:\formation-static\app.py:790]
+2025-05-06 18:20:48,315 ERROR: API Error fetching participants: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2581]
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+psycopg2.OperationalError: connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2568, in api_participants
+    participants = Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).all()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2853, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2241, in _execute_internal
+    conn = self._connection_for_bind(bind)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2110, in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 2, in _connection_for_bind
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 1189, in _connection_for_bind
+    conn = bind.connect()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3274, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 148, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        err, dialect, engine
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 2439, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 900, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 622, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-05-06 18:21:03,883 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:21:03,904 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:21:05,932 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:21:05,952 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-06 18:21:07,152 INFO: User 'admin' accessing /dashboard. [in C:\formation-static\app.py:772]
+2025-05-06 18:21:07,540 INFO: Fetched 16 sessions with eager loading for dashboard. [in C:\formation-static\app.py:790]
+2025-05-06 18:21:24,023 INFO: User 'admin' accessing /sessions. [in C:\formation-static\app.py:930]
+2025-05-06 18:21:24,237 INFO: Fetched 16 sessions from DB after base filters. [in C:\formation-static\app.py:958]
+2025-05-06 18:21:24,237 INFO: Prepared 16 sessions for template after all filters. [in C:\formation-static\app.py:992]
+2025-05-06 18:21:54,478 INFO: Fetched 4 themes from database for /themes page. [in C:\formation-static\app.py:1988]
+2025-05-06 18:21:54,510 INFO: Successfully prepared data for 4 themes to render. [in C:\formation-static\app.py:2058]
+2025-05-06 18:22:01,945 INFO: User 'admin' accessing /dashboard. [in C:\formation-static\app.py:772]
+2025-05-06 18:22:02,161 INFO: Fetched 16 sessions with eager loading for dashboard. [in C:\formation-static\app.py:790]
+2025-05-06 18:22:15,038 INFO: User 'Anonymous' accessing /dashboard. [in C:\formation-static\app.py:772]
+2025-05-06 18:22:15,317 INFO: Fetched 16 sessions with eager loading for dashboard. [in C:\formation-static\app.py:790]
+2025-05-06 18:22:28,736 INFO: User 'Anonymous' accessing /dashboard. [in C:\formation-static\app.py:772]
+2025-05-06 18:22:29,037 INFO: Fetched 16 sessions with eager loading for dashboard. [in C:\formation-static\app.py:790]
+2025-05-06 18:22:37,819 INFO: User 'Anonymous' accessing /dashboard. [in C:\formation-static\app.py:772]
+2025-05-06 18:22:38,112 INFO: Fetched 16 sessions with eager loading for dashboard. [in C:\formation-static\app.py:790]
+2025-05-06 18:22:56,643 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
