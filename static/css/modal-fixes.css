@@ -1,0 +1,125 @@
+/* static/css/modal-fixes.css */
+/* Correctifs CSS pour résoudre les problèmes d'affichage des modales Bootstrap */
+
+/* Forcer le bon positionnement et affichage */
+.modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 1055 !important; /* Au-dessus du backdrop */
+    width: 100% !important;
+    height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    outline: 0 !important;
+    display: none; /* Caché par défaut */
+}
+
+.modal.show {
+    display: block !important; /* Afficher quand .show est ajouté */
+    opacity: 1 !important;
+}
+
+/* Animation */
+.modal.fade {
+    transition: opacity 0.15s linear !important;
+}
+.modal.fade .modal-dialog {
+    transition: transform 0.15s ease-out !important;
+    transform: translate(0, -25px) !important; /* Légère translation */
+}
+.modal.show .modal-dialog {
+    transform: none !important;
+}
+
+/* Backdrop */
+.modal-backdrop {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 1050 !important; /* En dessous de la modale */
+    width: 100vw !important;
+    height: 100vh !important;
+    background-color: #000 !important;
+}
+.modal-backdrop.show {
+    opacity: 0.5 !important;
+}
+
+/* Verrouillage du scroll du body */
+body.modal-open {
+    overflow: hidden !important;
+    padding-right: 0 !important; /* Éviter le décalage si scrollbar disparaît */
+}
+
+/* Style du contenu */
+.modal-content {
+    border: none !important;
+    border-radius: var(--border-radius, 0.5rem) !important;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2) !important; /* Ombre plus prononcée */
+}
+.modal-header {
+    border-bottom: 1px solid #dee2e6 !important; /* Ligne de séparation légère */
+    padding: 1rem 1.25rem !important;
+}
+.modal-footer {
+    border-top: 1px solid #dee2e6 !important; /* Ligne de séparation légère */
+    padding: 0.75rem 1.25rem !important;
+    background-color: #f8f9fa; /* Footer légèrement grisé */
+}
+.modal-body {
+    padding: 1.25rem !important;
+}
+
+/* Correctifs formulaires DANS les modales */
+.modal select,
+.modal .form-select {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important; /* Important */
+    z-index: 1060 !important; /* Au-dessus du contenu modal */
+    pointer-events: auto !important; /* Assurer cliquable */
+    /* Forcer l'apparence native si besoin (surtout iOS) */
+    -webkit-appearance: listbox !important;
+    appearance: listbox !important;
+}
+.modal input,
+.modal textarea,
+.modal button,
+.modal .btn {
+    position: relative !important; /* Assurer que les boutons sont cliquables */
+    z-index: 1060 !important;
+    pointer-events: auto !important;
+}
+.modal .btn-close {
+     z-index: 1065 !important; /* Au-dessus de tout */
+}
+
+/* Correction pour iOS */
+@supports (-webkit-overflow-scrolling: touch) {
+    .modal { -webkit-overflow-scrolling: touch !important; }
+    .modal input, .modal select, .modal textarea { font-size: 16px !important; } /* Empêche zoom iOS */
+    body.modal-open { position: fixed !important; width: 100% !important; } /* Empêche scroll body */
+}
+
+/* Empêcher multiples backdrops */
+.modal-backdrop + .modal-backdrop { display: none !important; }
+
+/* Accessibilité */
+.modal-dialog:focus { outline: none !important; }
+
+/* Onglets dans les modales */
+.modal .nav-tabs .nav-link { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.modal .nav-tabs .nav-link.active {
+    background-color: #fff !important;
+    border-color: #dee2e6 #dee2e6 #fff !important; /* Simule connexion avec contenu */
+    color: var(--primary, #0078d4) !important;
+}
+.modal .tab-content {
+    border: 1px solid #dee2e6;
+    border-top: none;
+    padding: 1rem;
+    border-bottom-left-radius: var(--border-radius-sm, 0.25rem);
+    border-bottom-right-radius: var(--border-radius-sm, 0.25rem);
+}

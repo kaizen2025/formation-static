@@ -1,0 +1,299 @@
+/* static/css/static-charts.css */
+/* Styles pour les graphiques statiques - version améliorée */
+.static-chart-container {
+    width: 100%;
+    padding: 1.25rem 1rem;
+    background-color: var(--white, #ffffff); /* Use CSS variables defined elsewhere or default */
+    border-radius: var(--border-radius, 0.35rem);
+    box-shadow: var(--shadow-sm, 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075));
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    min-height: 250px; /* Ensure minimum height */
+}
+
+.static-chart-container:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+}
+
+.static-chart-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--dark, #343a40);
+    margin-bottom: 1.25rem; /* Increased margin */
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: relative;
+    padding-bottom: 8px; /* Space for underline */
+}
+/* Optional underline for title */
+/*
+.static-chart-title::after {
+    content: '';
+    display: block;
+    width: 30px;
+    height: 3px;
+    background-color: var(--primary, #0078d4);
+    margin: 0.5rem auto 0;
+    border-radius: 3px;
+}
+*/
+
+
+/* Donut chart (thèmes) */
+.static-chart-donut {
+    position: relative;
+    width: 160px; /* Slightly smaller */
+    height: 160px;
+    border-radius: 50%;
+    margin: 0 auto 1.25rem;
+    background-color: #f0f2f5; /* Lighter background */
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.05);
+    display: flex; /* Needed for potential future overlays */
+    justify-content: center;
+    align-items: center;
+}
+
+/* Basic segment styling (replace if using advanced CSS conic-gradient or SVG) */
+.donut-segment {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    clip-path: polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%); /* Example clip-path */
+    transform-origin: 50% 50%;
+    background-color: var(--fill, #ccc); /* Use CSS variable */
+    transform: rotate(var(--start-angle, 0deg));
+    /* Add transitions if needed */
+    transition: transform 0.5s ease-out, opacity 0.3s ease;
+}
+/* Note: Pure CSS donut segments are complex. Consider SVG or libraries for accuracy. */
+/* This basic segment approach won't create a perfect visual donut alone. */
+/* It's better suited if the JS calculates paths for SVG or uses conic-gradient */
+
+.donut-center {
+    position: absolute;
+    width: 55%; /* Slightly larger hole */
+    height: 55%;
+    border-radius: 50%;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 3;
+    text-align: center;
+}
+
+.donut-total {
+    font-size: 1.4rem; /* Adjusted size */
+    font-weight: 700;
+    color: var(--dark, #343a40);
+    line-height: 1.1;
+}
+
+.donut-label {
+    font-size: 0.6rem; /* Smaller label */
+    color: var(--secondary, #6c757d);
+    margin-top: 0.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Legend pour les graphiques */
+.static-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem 0.75rem; /* Row and column gap */
+    padding: 0 0.5rem;
+    margin-top: 1rem; /* Space above legend */
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    padding: 0.3rem 0.6rem; /* Adjusted padding */
+    font-size: 0.75rem;
+    border-radius: var(--border-radius-sm, 0.25rem); /* Smaller radius */
+    background-color: rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+    cursor: default; /* Not interactive by default */
+    white-space: nowrap;
+}
+
+.legend-item:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+.legend-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px; /* Slightly rounded square */
+    margin-right: 6px;
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+.legend-label {
+    margin-right: 0.4rem;
+    color: var(--dark, #343a40);
+    max-width: 150px; /* Limit width */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.legend-value {
+    font-weight: 600;
+    color: var(--secondary, #6c757d); /* Muted value */
+}
+
+/* Graphique en barres (services) */
+.static-chart-bars {
+    width: 100%;
+    padding: 0.5rem 0;
+}
+
+.bar-item {
+    margin-bottom: 1rem; /* Increased spacing */
+    transition: all 0.2s ease;
+}
+
+.bar-item:hover {
+    /* Subtle hover effect */
+    /* transform: translateX(2px); */
+}
+
+.bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.3rem; /* Reduced margin */
+}
+
+.bar-label {
+    font-size: 0.8rem; /* Slightly smaller */
+    font-weight: 500;
+    color: var(--dark, #343a40);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80%; /* Adjust as needed */
+}
+
+.bar-total {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary, #0078d4); /* Use primary color */
+}
+
+.bar-container {
+    height: 8px; /* Thinner bars */
+    background-color: #e9ecef; /* Lighter background */
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    /* box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); */ /* Removed inset shadow */
+}
+
+.bar-value {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1); /* Smoother transition */
+    /* box-shadow: 0 0 4px rgba(0, 0, 0, 0.1); */ /* Removed shadow */
+    width: 0; /* Start at 0 for animation */
+}
+
+/* Remove bar-count overlay, value shown in header */
+.bar-count {
+   display: none;
+}
+
+/* États de chargement et d'erreur */
+.chart-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255, 255, 255, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
+    border-radius: var(--border-radius, 0.35rem);
+    transition: opacity 0.3s ease;
+    text-align: center;
+    color: var(--secondary, #6c757d);
+}
+ .chart-error-message {
+     color: var(--warning, #ff9800);
+     padding: 1rem;
+ }
+
+
+/* Animation pour les graphiques au chargement */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Keyframes for donut segments if using advanced CSS */
+/* @keyframes donutSegmentGrow { ... } */
+
+@keyframes barGrow {
+    from { width: 0; }
+    to { width: var(--percent, 0%); } /* Use CSS variable set by JS */
+}
+
+.static-chart-container.animate {
+    /* animation: fadeIn 0.4s ease-out forwards; */ /* Optional container fade-in */
+}
+
+/* Apply animation directly in JS after render if needed */
+.static-chart-container.animate .bar-value {
+    animation: barGrow 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    animation-delay: calc(var(--index, 0) * 0.08s); /* Faster delay */
+}
+
+/* Styles pour différents services (utilisés par JS pour définir background-color) */
+.bar-value.commerce {} /* JS sets background-color */
+.bar-value.comptabilite {}
+.bar-value.florensud {}
+.bar-value.informatique {}
+.bar-value.marketing {}
+.bar-value.qualite {}
+.bar-value.rh {}
+
+/* Ajustements responsive */
+@media (max-width: 768px) {
+    .static-chart-donut {
+        width: 140px;
+        height: 140px;
+    }
+    .donut-total { font-size: 1.2rem; }
+    .bar-item { margin-bottom: 0.8rem; }
+    .legend-item { font-size: 0.7rem; padding: 0.25rem 0.5rem; }
+    .static-chart-title { font-size: 0.8rem; }
+}
+
+/* Styles améliorés pour les badges de thèmes (déplacé de static-charts.css) */
+:root {
+    --theme-teams: #0078d4;
+    --theme-planner: #7719aa;
+    --theme-onedrive: #0364b8;
+    --theme-sharepoint: #038387;
+}
+.theme-badge { display: inline-flex; align-items: center; padding: 0.35em 0.75em; font-size: 0.8em; font-weight: 500; line-height: 1; color: #fff !important; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: 50rem; box-shadow: var(--shadow-sm, 0 0.125rem 0.25rem rgba(0,0,0,.075)); transition: all 0.2s ease-in-out; margin: 0.1rem 0; position: relative; cursor: help; }
+.theme-badge:hover { transform: translateY(-1px); box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+.theme-badge.theme-comm { background-color: var(--theme-teams); }
+.theme-badge.theme-planner { background-color: var(--theme-planner); }
+.theme-badge.theme-onedrive { background-color: var(--theme-onedrive); }
+.theme-badge.theme-sharepoint { background-color: var(--theme-sharepoint); }
+.theme-badge i { margin-right: 0.4em; font-size: 0.9em; }
+.theme-badge .theme-tooltip { visibility: hidden; width: 260px; background-color: rgba(33,37,41,0.95); color: #fff; text-align: left; border-radius: 6px; padding: 10px 12px; position: absolute; z-index: 1080; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; font-weight: normal; font-size: 0.8rem; box-shadow: 0 4px 12px rgba(0,0,0,0.2); pointer-events: none; }
+.theme-badge .theme-tooltip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(33,37,41,0.95) transparent transparent transparent; }
+.theme-badge:hover .theme-tooltip { visibility: visible; opacity: 1; }
+@media (max-width: 768px) { .theme-badge .theme-tooltip { width: 200px; margin-left: -100px; font-size: 0.75rem; } .theme-badge { font-size: 0.75em; padding: 0.3em 0.6em; } }

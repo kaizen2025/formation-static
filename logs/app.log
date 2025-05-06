@@ -809,3 +809,1640 @@ werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'delete
 2025-05-02 17:54:44,039 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
 
 (Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:2297]
+2025-05-02 18:05:59,759 INFO: Application logging initialized for production [in c:\formation-static\app.py:105]
+2025-05-02 18:06:09,995 ERROR: API Pool/Conn Error sessions list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in c:\formation-static\app.py:2113]
+2025-05-02 18:09:35,850 ERROR: Unexpected error in dashboard route: 'Inscription' is undefined [in c:\formation-static\app.py:725]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 701, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<5 lines>...
+                          total_en_attente=total_en_attente,
+                          total_sessions_completes=total_sessions_completes)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "c:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "c:\formation-static\templates\dashboard.html", line 187, in block 'content'
+    {% include 'modals/_participants_modal.html' %}
+    ^^^^^^^^^^^^^
+  File "c:\formation-static\templates\modals\_participants_modal.html", line 83, in top-level template code
+    {% for inscription in session.inscriptions.filter_by(statut='en attente').order_by(Inscription.date_inscription.desc()).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'Inscription' is undefined
+2025-05-06 08:40:07,356 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 08:40:11,472 ERROR: Unexpected error in dashboard route: 'Inscription' is undefined [in C:\formation-static\app.py:725]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 701, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<5 lines>...
+                          total_en_attente=total_en_attente,
+                          total_sessions_completes=total_sessions_completes)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 187, in block 'content'
+    {% include 'modals/_participants_modal.html' %}
+    ^^^^^^^^^^^^^
+  File "C:\formation-static\templates\modals\_participants_modal.html", line 83, in top-level template code
+    {% for inscription in session.inscriptions.filter_by(statut='en attente').order_by(Inscription.date_inscription.desc()).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'Inscription' is undefined
+2025-05-06 08:40:12,958 ERROR: Unexpected error in dashboard route: 'Inscription' is undefined [in C:\formation-static\app.py:725]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 701, in dashboard
+    return render_template('dashboard.html',
+                          themes=themes,
+    ...<5 lines>...
+                          total_en_attente=total_en_attente,
+                          total_sessions_completes=total_sessions_completes)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\dashboard.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 184, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\dashboard.html", line 187, in block 'content'
+    {% include 'modals/_participants_modal.html' %}
+    ^^^^^^^^^^^^^
+  File "C:\formation-static\templates\modals\_participants_modal.html", line 83, in top-level template code
+    {% for inscription in session.inscriptions.filter_by(statut='en attente').order_by(Inscription.date_inscription.desc()).all() %}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+jinja2.exceptions.UndefinedError: 'Inscription' is undefined
+2025-05-06 09:44:16,689 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 09:44:25,097 ERROR: API Pool/Conn Error sessions list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2102]
+2025-05-06 09:56:44,975 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
+2025-05-06 10:16:34,875 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2286]
+2025-05-06 10:16:34,878 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:16:35,424 ERROR: API Pool/Conn Error activities: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2341]
+2025-05-06 10:16:36,466 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2286]
+2025-05-06 10:16:37,248 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:16:37,252 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2286]
+2025-05-06 10:19:02,295 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2286]
+2025-05-06 10:19:02,300 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:19:08,259 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:19:08,262 ERROR: API Pool/Conn Error activities: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2341]
+2025-05-06 10:19:08,537 ERROR: API Pool/Conn Error sessions list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2102]
+2025-05-06 10:19:09,260 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:19:19,969 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:19:24,252 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:19:34,468 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2286]
+2025-05-06 10:19:34,472 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:19:35,014 ERROR: API Pool/Conn Error activities: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2341]
+2025-05-06 10:25:38,358 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2286]
+2025-05-06 10:25:38,385 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:25:42,910 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:26:01,219 ERROR: API Pool/Conn Error salles list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2286]
+2025-05-06 10:26:01,230 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:26:01,766 ERROR: API Pool/Conn Error activities: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2341]
+2025-05-06 10:26:11,090 ERROR: API Pool/Conn Error participants list: (psycopg2.OperationalError) connection to server at "alpha.europe.mkdb.sh" (45.63.117.197), port 5432 failed: FATAL:  too many connections for database "usdtdsgq"
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8) [in C:\formation-static\app.py:2210]
+2025-05-06 10:42:35,733 INFO: Application logging initialized for production [in C:\formation-static\app.py:210]
+2025-05-06 10:47:24,993 INFO: Application logging initialized for production [in C:\formation-static\app.py:216]
+2025-05-06 10:47:32,948 INFO: Démarrage du planificateur de nettoyage des connexions [in C:\formation-static\app.py:68]
+2025-05-06 10:48:32,944 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:79]
+2025-05-06 10:48:33,264 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:93]
+2025-05-06 10:48:38,383 INFO: Application logging initialized for production [in C:\formation-static\app.py:234]
+2025-05-06 10:48:44,077 INFO: Démarrage du planificateur de nettoyage des connexions [in C:\formation-static\app.py:71]
+2025-05-06 10:49:44,082 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:96]
+2025-05-06 10:49:44,865 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:110]
+2025-05-06 10:50:44,856 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:96]
+2025-05-06 10:50:45,199 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:110]
+2025-05-06 10:51:45,198 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:96]
+2025-05-06 10:51:45,521 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:110]
+2025-05-06 10:52:45,516 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:96]
+2025-05-06 10:52:45,822 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:110]
+2025-05-06 10:53:45,817 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:96]
+2025-05-06 10:53:46,129 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:110]
+2025-05-06 10:54:46,137 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:96]
+2025-05-06 10:54:47,464 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:110]
+2025-05-06 10:55:47,462 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:96]
+2025-05-06 10:55:47,821 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:110]
+2025-05-06 10:56:47,825 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:96]
+2025-05-06 10:56:48,157 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:110]
+2025-05-06 10:58:08,148 INFO: Application logging initialized for production [in C:\formation-static\app.py:249]
+2025-05-06 10:58:14,514 INFO: Démarrage du planificateur de nettoyage des connexions [in C:\formation-static\app.py:86]
+2025-05-06 10:59:14,520 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 10:59:14,846 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:00:14,845 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:00:15,166 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:01:15,169 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:01:15,500 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:02:15,501 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:02:15,813 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:03:15,819 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:03:16,144 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:04:16,149 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:04:16,471 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:05:16,482 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:05:16,816 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:06:16,816 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:06:17,191 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:07:17,182 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:07:17,491 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:07:46,823 INFO: Application logging initialized for production [in C:\formation-static\app.py:249]
+2025-05-06 11:07:50,598 INFO: Démarrage du planificateur de nettoyage des connexions [in C:\formation-static\app.py:86]
+2025-05-06 11:08:50,602 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:08:50,935 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:09:50,926 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:09:51,253 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:10:51,246 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:10:51,586 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:11:51,582 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:11:51,952 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:12:51,963 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:12:52,286 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:13:52,286 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:13:52,608 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:14:52,607 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:14:52,921 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:15:52,920 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:15:53,041 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:16:53,040 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:16:53,370 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:17:53,364 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:17:53,753 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:18:53,764 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:18:54,088 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:19:54,097 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:19:54,425 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:20:54,437 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:20:54,745 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:21:54,752 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:21:54,886 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:22:54,886 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:22:55,194 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:23:55,207 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:23:55,518 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:24:55,529 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:24:55,841 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:25:55,850 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:25:56,157 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:26:56,159 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:26:56,483 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:27:56,488 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:27:56,798 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:28:56,802 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:28:57,111 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:29:57,122 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:29:57,461 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:30:57,473 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:30:57,798 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:31:57,814 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:31:58,127 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:32:58,127 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:32:58,438 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:33:58,441 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:33:58,766 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:34:58,777 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:34:59,102 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:35:59,103 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:35:59,414 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:36:59,411 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:36:59,752 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:37:59,745 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:38:00,056 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:39:00,058 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:39:00,388 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:40:00,378 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:40:00,723 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:41:00,697 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:41:01,020 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:42:01,004 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:42:01,330 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:43:01,323 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:43:01,637 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:44:01,606 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:44:01,918 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:45:01,907 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:45:02,233 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:46:02,239 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:46:02,562 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:47:02,563 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:47:02,917 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:48:02,922 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:48:03,315 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:49:03,313 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:49:03,651 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:50:03,648 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:50:03,987 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:51:03,986 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:51:04,297 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:52:04,289 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:52:04,602 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:53:04,599 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:53:04,929 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:54:04,931 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:54:05,241 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:55:05,234 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:55:05,572 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:56:05,576 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:56:05,913 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:57:05,919 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:57:06,232 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:58:06,234 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:58:06,581 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 11:59:06,583 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 11:59:06,921 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:00:06,925 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:00:07,237 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:01:07,241 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:01:07,569 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:02:07,574 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:02:07,936 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:03:07,948 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:03:08,311 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:04:08,304 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:04:08,671 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:05:08,680 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:05:08,990 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:06:08,989 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:06:09,321 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:07:09,323 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:07:09,654 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:08:09,654 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:08:09,988 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:09:09,992 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:09:10,316 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:10:10,322 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:10:10,663 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:11:10,671 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:11:10,998 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:12:11,000 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:12:11,336 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:13:11,345 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:13:11,654 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:14:11,633 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:14:11,941 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:15:11,935 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:15:12,263 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:16:12,269 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:16:12,596 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:17:12,590 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:17:12,915 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:17:34,331 INFO: Application logging initialized for production [in C:\formation-static\app.py:249]
+2025-05-06 12:17:35,685 INFO: Démarrage du planificateur de nettoyage des connexions [in C:\formation-static\app.py:86]
+2025-05-06 12:18:35,685 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:18:36,105 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:19:36,111 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:19:36,422 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 12:20:36,420 INFO: Nettoyage périodique des connexions à la base de données... [in C:\formation-static\app.py:111]
+2025-05-06 12:20:36,736 INFO: Nettoyage des connexions terminé avec succès [in C:\formation-static\app.py:125]
+2025-05-06 13:39:15,814 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:39:15,877 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:39:18,091 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:39:18,111 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:40:41,770 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:40:41,788 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:40:43,847 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:40:43,869 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:40:52,066 ERROR: DB error loading services: Parent instance <Participant at 0x245d1a2fa10> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in C:\formation-static\app.py:888]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 884, in services
+    return render_template('services.html', services_data=services_data) # Pass pre-processed data
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\services.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 127, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\services.html", line 47, in block 'content'
+    {% set confirmed_count = participant.inscriptions.filter_by(statut='confirmÃ©').count() %}
+    
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 1990, in filter_by
+    return self.filter(*clauses)
+           ~~~~~~~~~~~^^^^^^^^^^
+  File "<string>", line 2, in filter
+  File "C:\Python313\Lib\site-packages\sqlalchemy\sql\base.py", line 278, in _generative
+    self = self._generate()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\dynamic.py", line 212, in _generate
+    raise orm_exc.DetachedInstanceError(
+    ...<4 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Participant at 0x245d1a2fa10> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-05-06 13:40:54,229 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:40:54,249 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:41:03,052 ERROR: DB error loading services: Parent instance <Participant at 0x20b3beaf410> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in C:\formation-static\app.py:888]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 884, in services
+    return render_template('services.html', services_data=services_data) # Pass pre-processed data
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\services.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 127, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\services.html", line 47, in block 'content'
+    {% set confirmed_count = participant.inscriptions.filter_by(statut='confirmÃ©').count() %}
+    
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 1990, in filter_by
+    return self.filter(*clauses)
+           ~~~~~~~~~~~^^^^^^^^^^
+  File "<string>", line 2, in filter
+  File "C:\Python313\Lib\site-packages\sqlalchemy\sql\base.py", line 278, in _generative
+    self = self._generate()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\dynamic.py", line 212, in _generate
+    raise orm_exc.DetachedInstanceError(
+    ...<4 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Participant at 0x20b3beaf410> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-05-06 13:41:14,921 ERROR: DB error loading admin page: Parent instance <Theme at 0x20b3c1727d0> is not bound to a Session; lazy load operation of attribute 'sessions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in C:\formation-static\app.py:1660]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 1644, in admin
+    return render_template('admin.html',
+                         themes=themes,
+    ...<9 lines>...
+                         ListeAttente=ListeAttente # Pass class if needed in template logic
+                         )
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\admin.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 127, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\admin.html", line 114, in block 'content'
+    {{ theme.nom }} ({{ theme.sessions|length }}) {# Display count per theme #}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\attributes.py", line 566, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1086, in get
+    value = self._fire_loader_callables(state, key, passive)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1121, in _fire_loader_callables
+    return self.callable_(state, passive)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 922, in _load_for_state
+    raise orm_exc.DetachedInstanceError(
+    ...<3 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Theme at 0x20b3c1727d0> is not bound to a Session; lazy load operation of attribute 'sessions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-05-06 13:41:16,668 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:41:16,690 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:41:32,178 ERROR: DB error loading services: Parent instance <Participant at 0x145ebcd1eb0> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in C:\formation-static\app.py:888]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 884, in services
+    return render_template('services.html', services_data=services_data) # Pass pre-processed data
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\services.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 127, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\services.html", line 47, in block 'content'
+    {% set confirmed_count = participant.inscriptions.filter_by(statut='confirmÃ©').count() %}
+    
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 1990, in filter_by
+    return self.filter(*clauses)
+           ~~~~~~~~~~~^^^^^^^^^^
+  File "<string>", line 2, in filter
+  File "C:\Python313\Lib\site-packages\sqlalchemy\sql\base.py", line 278, in _generative
+    self = self._generate()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\dynamic.py", line 212, in _generate
+    raise orm_exc.DetachedInstanceError(
+    ...<4 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Participant at 0x145ebcd1eb0> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-05-06 13:41:32,590 ERROR: Error processing session 1 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,591 ERROR: Error processing session 2 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,592 ERROR: Error processing session 3 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,593 ERROR: Error processing session 4 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,593 ERROR: Error processing session 5 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,594 ERROR: Error processing session 6 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,595 ERROR: Error processing session 7 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,595 ERROR: Error processing session 8 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,596 ERROR: Error processing session 9 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,596 ERROR: Error processing session 10 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,597 ERROR: Error processing session 11 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,597 ERROR: Error processing session 12 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,598 ERROR: Error processing session 13 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,598 ERROR: Error processing session 14 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,599 ERROR: Error processing session 15 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:32,599 ERROR: Error processing session 16 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,606 ERROR: DB error loading services: Parent instance <Participant at 0x145ebeb91d0> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in C:\formation-static\app.py:888]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 884, in services
+    return render_template('services.html', services_data=services_data) # Pass pre-processed data
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\services.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 127, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\services.html", line 47, in block 'content'
+    {% set confirmed_count = participant.inscriptions.filter_by(statut='confirmÃ©').count() %}
+    
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 1990, in filter_by
+    return self.filter(*clauses)
+           ~~~~~~~~~~~^^^^^^^^^^
+  File "<string>", line 2, in filter
+  File "C:\Python313\Lib\site-packages\sqlalchemy\sql\base.py", line 278, in _generative
+    self = self._generate()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\dynamic.py", line 212, in _generate
+    raise orm_exc.DetachedInstanceError(
+    ...<4 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Participant at 0x145ebeb91d0> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-05-06 13:41:41,988 ERROR: Error processing session 1 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,989 ERROR: Error processing session 2 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,989 ERROR: Error processing session 3 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,989 ERROR: Error processing session 4 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,990 ERROR: Error processing session 5 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,990 ERROR: Error processing session 6 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,990 ERROR: Error processing session 7 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,991 ERROR: Error processing session 8 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,991 ERROR: Error processing session 9 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,991 ERROR: Error processing session 10 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,992 ERROR: Error processing session 11 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,992 ERROR: Error processing session 12 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,992 ERROR: Error processing session 13 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,993 ERROR: Error processing session 14 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,993 ERROR: Error processing session 15 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:41,993 ERROR: Error processing session 16 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:41:46,160 ERROR: DB error loading themes page: 'Session.inscriptions' does not support object population - eager loading cannot be applied. [in C:\formation-static\app.py:1945]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 1937, in themes
+    ).order_by(Theme.nom).all()
+                          ~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1767, in all
+    return self._allrows()
+           ~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 548, in _allrows
+    rows = self._fetchall_impl()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1674, in _fetchall_impl
+    return self._real_result._fetchall_impl()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 2268, in _fetchall_impl
+    return list(self.iterator)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 246, in chunks
+    post_load.invoke(context, path)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 1560, in invoke
+    loader(
+    ~~~~~~^
+        effective_context, path, states, self.load_keys, *arg, **kw
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3341, in _load_for_path
+    self._load_via_parent(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        our_states, query_info, q, context, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3417, in _load_via_parent
+    context.session.execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        q,
+        ^^
+        params={"primary_keys": primary_keys},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        execution_options=execution_options,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).unique(),
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 308, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 600, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2723, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3093, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Session.inscriptions' does not support object population - eager loading cannot be applied.
+2025-05-06 13:41:46,598 ERROR: DB error loading admin page: Parent instance <Theme at 0x145ebe843d0> is not bound to a Session; lazy load operation of attribute 'sessions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in C:\formation-static\app.py:1660]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 1644, in admin
+    return render_template('admin.html',
+                         themes=themes,
+    ...<9 lines>...
+                         ListeAttente=ListeAttente # Pass class if needed in template logic
+                         )
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\admin.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 127, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\admin.html", line 114, in block 'content'
+    {{ theme.nom }} ({{ theme.sessions|length }}) {# Display count per theme #}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 490, in getattr
+    return getattr(obj, attribute)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\attributes.py", line 566, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1086, in get
+    value = self._fire_loader_callables(state, key, passive)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1121, in _fire_loader_callables
+    return self.callable_(state, passive)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 922, in _load_for_state
+    raise orm_exc.DetachedInstanceError(
+    ...<3 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Theme at 0x145ebe843d0> is not bound to a Session; lazy load operation of attribute 'sessions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-05-06 13:41:48,098 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:41:48,124 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 13:42:08,269 ERROR: DB error loading services: Parent instance <Participant at 0x1bc2a052570> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in C:\formation-static\app.py:888]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 884, in services
+    return render_template('services.html', services_data=services_data) # Pass pre-processed data
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\services.html", line 2, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 127, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\services.html", line 47, in block 'content'
+    {% set confirmed_count = participant.inscriptions.filter_by(statut='confirmÃ©').count() %}
+    
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 1990, in filter_by
+    return self.filter(*clauses)
+           ~~~~~~~~~~~^^^^^^^^^^
+  File "<string>", line 2, in filter
+  File "C:\Python313\Lib\site-packages\sqlalchemy\sql\base.py", line 278, in _generative
+    self = self._generate()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\dynamic.py", line 212, in _generate
+    raise orm_exc.DetachedInstanceError(
+    ...<4 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Participant at 0x1bc2a052570> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-05-06 13:42:08,645 ERROR: Error processing session 1 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,646 ERROR: Error processing session 2 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,647 ERROR: Error processing session 3 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,647 ERROR: Error processing session 4 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,648 ERROR: Error processing session 5 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,648 ERROR: Error processing session 6 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,649 ERROR: Error processing session 7 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,650 ERROR: Error processing session 8 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,651 ERROR: Error processing session 9 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,651 ERROR: Error processing session 10 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,652 ERROR: Error processing session 11 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,652 ERROR: Error processing session 12 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,653 ERROR: Error processing session 13 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,654 ERROR: Error processing session 14 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,654 ERROR: Error processing session 15 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 13:42:08,655 ERROR: Error processing session 16 for dashboard: 'pending_count' [in C:\formation-static\app.py:826]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 818, in dashboard
+    'pending_count': session_counts['pending_count']
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'pending_count'
+2025-05-06 14:14:08,659 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:14:08,679 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:14:10,824 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:14:10,844 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:14:49,027 ERROR: DB error loading participants page: Parent instance <Participant at 0x1eaf6aaf450> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3) [in C:\formation-static\app.py:1618]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 1611, in participants
+    return render_template('participants.html',
+                          participants_data=participants_data,
+                          services=services,
+                          ListeAttente=ListeAttente)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\participants.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 128, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\participants.html", line 174, in block 'content'
+    {% set confirmed_inscriptions = participant.inscriptions.filter_by(statut='confirmÃ©').all() %}
+    
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 1990, in filter_by
+    return self.filter(*clauses)
+           ~~~~~~~~~~~^^^^^^^^^^
+  File "<string>", line 2, in filter
+  File "C:\Python313\Lib\site-packages\sqlalchemy\sql\base.py", line 278, in _generative
+    self = self._generate()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\dynamic.py", line 212, in _generate
+    raise orm_exc.DetachedInstanceError(
+    ...<4 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Participant at 0x1eaf6aaf450> is not bound to a Session, and no contextual session is established; lazy load operation of attribute 'inscriptions' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-05-06 14:14:58,445 ERROR: DB error loading themes page: 'Session.inscriptions' does not support object population - eager loading cannot be applied. [in C:\formation-static\app.py:2004]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 1977, in themes
+    ).order_by(Theme.nom).all()
+                          ~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1767, in all
+    return self._allrows()
+           ~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 548, in _allrows
+    rows = self._fetchall_impl()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1674, in _fetchall_impl
+    return self._real_result._fetchall_impl()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 2268, in _fetchall_impl
+    return list(self.iterator)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 246, in chunks
+    post_load.invoke(context, path)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 1560, in invoke
+    loader(
+    ~~~~~~^
+        effective_context, path, states, self.load_keys, *arg, **kw
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3341, in _load_for_path
+    self._load_via_parent(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        our_states, query_info, q, context, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3417, in _load_via_parent
+    context.session.execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        q,
+        ^^
+        params={"primary_keys": primary_keys},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        execution_options=execution_options,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).unique(),
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 308, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 600, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2723, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3093, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Session.inscriptions' does not support object population - eager loading cannot be applied.
+2025-05-06 14:15:08,358 ERROR: DB error loading themes page: 'Session.inscriptions' does not support object population - eager loading cannot be applied. [in C:\formation-static\app.py:2004]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 1977, in themes
+    ).order_by(Theme.nom).all()
+                          ~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1767, in all
+    return self._allrows()
+           ~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 548, in _allrows
+    rows = self._fetchall_impl()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1674, in _fetchall_impl
+    return self._real_result._fetchall_impl()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 2268, in _fetchall_impl
+    return list(self.iterator)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 246, in chunks
+    post_load.invoke(context, path)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 1560, in invoke
+    loader(
+    ~~~~~~^
+        effective_context, path, states, self.load_keys, *arg, **kw
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3341, in _load_for_path
+    self._load_via_parent(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        our_states, query_info, q, context, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3417, in _load_via_parent
+    context.session.execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        q,
+        ^^
+        params={"primary_keys": primary_keys},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        execution_options=execution_options,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).unique(),
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 308, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 600, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2723, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3093, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Session.inscriptions' does not support object population - eager loading cannot be applied.
+2025-05-06 14:23:55,601 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:34:00,409 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:39:40,233 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:39:40,255 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:39:42,478 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:39:42,499 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:40:14,133 ERROR: Unexpected error loading participants page: '__main__.Service object' has no attribute 'obj' [in C:\formation-static\app.py:1651]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 1639, in participants
+    return render_template('participants.html',
+                          participants_data=participants_data,
+                          services=services,
+                          ListeAttente=ListeAttente) # Pass class for type checking if needed
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "C:\Python313\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\formation-static\templates\participants.html", line 1, in top-level template code
+    {% extends "layout.html" %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\layout.html", line 128, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "C:\formation-static\templates\participants.html", line 40, in block 'content'
+    {% for service in services|sort(attribute='obj.nom') %} {# services est passÃ© depuis la route #}
+    
+  File "C:\Python313\Lib\site-packages\jinja2\filters.py", line 438, in do_sort
+    return sorted(value, key=key_func, reverse=reverse)
+  File "C:\Python313\Lib\site-packages\jinja2\filters.py", line 115, in attrgetter
+    item_i = environment.getitem(item_i, part)
+  File "C:\Python313\Lib\site-packages\jinja2\environment.py", line 471, in getitem
+    return obj[argument]
+           ~~~^^^^^^^^^^
+jinja2.exceptions.UndefinedError: '__main__.Service object' has no attribute 'obj'
+2025-05-06 14:40:16,018 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:40:16,047 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:41:04,540 ERROR: DB error loading themes page: 'Session.inscriptions' does not support object population - eager loading cannot be applied. [in C:\formation-static\app.py:2031]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2004, in themes
+    ).order_by(Theme.nom).all()
+                          ~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1767, in all
+    return self._allrows()
+           ~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 548, in _allrows
+    rows = self._fetchall_impl()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1674, in _fetchall_impl
+    return self._real_result._fetchall_impl()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 2268, in _fetchall_impl
+    return list(self.iterator)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 246, in chunks
+    post_load.invoke(context, path)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 1560, in invoke
+    loader(
+    ~~~~~~^
+        effective_context, path, states, self.load_keys, *arg, **kw
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3341, in _load_for_path
+    self._load_via_parent(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        our_states, query_info, q, context, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3417, in _load_via_parent
+    context.session.execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        q,
+        ^^
+        params={"primary_keys": primary_keys},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        execution_options=execution_options,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).unique(),
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 308, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 600, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2723, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3093, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Session.inscriptions' does not support object population - eager loading cannot be applied.
+2025-05-06 14:41:06,588 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:41:06,607 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:45:20,623 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:45:20,654 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:45:23,117 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:45:23,142 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:45:56,334 ERROR: DB error loading themes page: 'Session.inscriptions' does not support object population - eager loading cannot be applied. [in C:\formation-static\app.py:2031]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 2004, in themes
+    ).order_by(Theme.nom).all()
+                          ~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2699, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1767, in all
+    return self._allrows()
+           ~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 548, in _allrows
+    rows = self._fetchall_impl()
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 1674, in _fetchall_impl
+    return self._real_result._fetchall_impl()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\engine\result.py", line 2268, in _fetchall_impl
+    return list(self.iterator)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 246, in chunks
+    post_load.invoke(context, path)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 1560, in invoke
+    loader(
+    ~~~~~~^
+        effective_context, path, states, self.load_keys, *arg, **kw
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3341, in _load_for_path
+    self._load_via_parent(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        our_states, query_info, q, context, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3417, in _load_via_parent
+    context.session.execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        q,
+        ^^
+        params={"primary_keys": primary_keys},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        execution_options=execution_options,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).unique(),
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 308, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 600, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2723, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 3093, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Session.inscriptions' does not support object population - eager loading cannot be applied.
+2025-05-06 14:45:58,703 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:45:58,727 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:48:06,632 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:48:06,654 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:48:15,392 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:48:15,417 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:48:17,595 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:48:17,614 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:51:57,771 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:51:57,796 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:52:00,147 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 14:52:00,167 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:00:14,872 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:00:14,902 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:00:17,097 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:00:17,117 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:09:05,095 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:09:05,127 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:10:10,081 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:10:10,109 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:10:12,470 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:10:12,497 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:17:39,129 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:17:39,160 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:17:46,075 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:17:46,097 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:17:48,489 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:17:48,510 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:34:04,496 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:34:04,523 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:34:06,638 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:34:06,658 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:34:47,866 ERROR: Unexpected error adding activity 'inscription': 'AnonymousUserMixin' object has no attribute 'id' [in C:\formation-static\app.py:591]
+Traceback (most recent call last):
+  File "C:\formation-static\app.py", line 563, in add_activity
+    utilisateur_id=log_user.id if log_user else None
+                   ^^^^^^^^^^^
+AttributeError: 'AnonymousUserMixin' object has no attribute 'id'
+2025-05-06 15:38:07,885 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:38:07,912 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:38:45,012 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:38:45,036 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:38:47,355 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:38:47,375 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:52:13,946 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:52:13,970 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:53:26,851 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:53:26,878 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:53:29,329 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 15:53:29,353 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 16:05:39,605 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 16:05:39,644 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 16:06:03,530 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 16:06:03,597 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 16:06:06,906 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 16:06:06,937 INFO: Application logging initialized for production [in C:\formation-static\app.py:136]
+2025-05-06 16:12:21,479 INFO: Application logging initialized for production [in C:\formation-static\app.py:105]
