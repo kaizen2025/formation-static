@@ -472,40 +472,77 @@ def check_db_connection():
 
 def generate_ics(session, participant, salle=None):
     """Generates an ICS calendar file content for an inscription."""
+    app.logger.info(f"Attempting to generate ICS for S:{session.id if session else 'None'}, P:{participant.id if participant else 'None'}")
     try:
+        if not session or not session.theme or not session.theme.nom:
+            app.logger.error("ICS Generation Error: Session or session theme/name is missing.")
+            return None
+        if not participant or not participant.prenom or not participant.nom:
+            app.logger.error("ICS Generation Error: Participant or participant name is missing.")
+            return None
+
         cal = Calendar()
         event = Event()
-        date_debut, date_fin = session.formatage_ics
+        
+        date_debut, date_fin = session.formatage_ics # Appelle la propriété améliorée
+
+        # Vérification supplémentaire des dates retournées
+        if not isinstance(date_debut, datetime) or not isinstance(date_fin, datetime):
+            app.logger.error(f"ICS Generation Error: formatage_ics did not return valid datetime objects for S:{session.id}")
+            return None
 
         event.name = f"Formation: {session.theme.nom}"
         event.begin = date_debut
         event.end = date_fin
 
-        description_lines = [
-            f"Formation Microsoft 365\n",
-            f"Thème: {session.theme.nom}",
+        description_parts = [
+            "FORMATION MICROSOFT 365 - ANECOOP FRANCE",
+            f"Thème: {session.theme.nom}"
+        ]
+        if session.description: # Ajouter la description de la session si elle existe
+             description_parts.append(f"Description du thème: {session.theme.description}")
+
+        description_parts.extend([
             f"Date: {session.formatage_date}",
             f"Horaire: {session.formatage_horaire}"
-        ]
-        if salle:
-            description_lines.append(f"\nLieu: {salle.nom}")
-            event.location = salle.nom
+        ])
+        
+        location_str = "Salle non encore définie"
+        if salle and salle.nom:
+            location_str = salle.nom
+            description_parts.append(f"Lieu: {salle.nom}")
             if salle.lieu:
-                description_lines.append(f"Emplacement: {salle.lieu}")
+                description_parts.append(f"Emplacement: {salle.lieu}")
         else:
-             description_lines.append("\nLieu: Salle non encore définie")
+             description_parts.append("Lieu: Salle non encore définie")
+        
+        event.location = location_str
 
-        description_lines.append(f"\nParticipant: {participant.prenom} {participant.nom}")
-        event.description = "\n".join(description_lines)
+        description_parts.append(f"Participant: {participant.prenom} {participant.nom}")
+        event.description = "\n".join(description_parts)
 
-        # Add a reminder (e.g., 1 hour before)
-        event.alarms = [Event.alarm(trigger=timedelta(hours=-1))]
+        # UID unique pour l'événement
+        event.uid = f"{session.id}-{participant.id}-{date_debut.strftime('%Y%m%dT%H%M%S')}@anecoop-france.com"
+        event.created = datetime.now(UTC) # Date de création de l'événement ICS
+        event.last_modified = datetime.now(UTC)
+
+        # Ajouter un rappel (e.g., 1 heure avant)
+        # alarm = Alarm()
+        # alarm.action = "DISPLAY"
+        # alarm.trigger = timedelta(hours=-1)
+        # alarm.description = f"Rappel: Formation {session.theme.nom}"
+        # event.alarms.add(alarm) 
+        # La création d'alarme simplifiée via Event.alarm() est souvent suffisante
+        event.add_alarm(Event.alarm(trigger=timedelta(hours=-1)))
+
 
         cal.events.add(event)
-        return cal.serialize()
+        serialized_cal = cal.serialize()
+        app.logger.info(f"ICS generated successfully for S:{session.id}, P:{participant.id}")
+        return serialized_cal
     except Exception as e:
-        app.logger.error(f"Error generating ICS for S:{session.id}, P:{participant.id}: {e}", exc_info=True)
-        return None # Return None on error
+        app.logger.error(f"Critical error generating ICS for S:{session.id if session else 'None'}, P:{participant.id if participant else 'None'}: {e}", exc_info=True)
+        return None
 
 @db_operation_with_retry(max_retries=3)
 def check_waitlist(session_id):
@@ -2778,72 +2815,93 @@ def api_activites():
         app.logger.error(f"API Unexpected Error fetching activities: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
-# --- ICS File Generation Route ---
 @app.route('/generer_invitation/<int:inscription_id>')
-@login_required # Keep this protected, only logged-in users can download
+@login_required 
 def generer_invitation(inscription_id):
+    app.logger.info(f"Request to generate invitation for inscription_id: {inscription_id} by user '{current_user.username}'.")
     try:
-        # Eager load all necessary related data in one go
         inscription = Inscription.query.options(
             joinedload(Inscription.session).options(
                 joinedload(Session.theme),
                 joinedload(Session.salle)
             ),
-            joinedload(Inscription.participant).joinedload(Participant.service) # Load service too
+            joinedload(Inscription.participant).selectinload(Participant.service)
         ).get(inscription_id)
 
         if not inscription:
+            app.logger.warning(f"Inscription {inscription_id} not found.")
             flash('Inscription introuvable.', 'danger')
-            return redirect(url_for('dashboard'))
+            return redirect(request.referrer or url_for('dashboard'))
+        
+        # Vérifications supplémentaires sur les objets chargés
+        if not inscription.session:
+            app.logger.error(f"Session not loaded for inscription {inscription_id}.")
+            flash('Données de session manquantes pour cette inscription.', 'danger')
+            return redirect(request.referrer or url_for('dashboard'))
+        if not inscription.participant:
+            app.logger.error(f"Participant not loaded for inscription {inscription_id}.")
+            flash('Données du participant manquantes pour cette inscription.', 'danger')
+            return redirect(request.referrer or url_for('dashboard'))
+        if not inscription.session.theme: # Vérifier aussi le thème de la session
+             app.logger.error(f"Theme not loaded for session {inscription.session.id} (inscription {inscription_id}).")
+             flash('Données du thème manquantes pour cette session.', 'danger')
+             return redirect(request.referrer or url_for('dashboard'))
 
-        # Check authorization: user must be the participant or an admin/responsible
-        is_participant = current_user.is_authenticated and inscription.participant and current_user.email == inscription.participant.email
+
+        # ... (votre logique d'autorisation existante, qui semble correcte) ...
+        is_participant = current_user.is_authenticated and current_user.email == inscription.participant.email
         is_admin = current_user.role == 'admin'
         is_responsable = (current_user.role == 'responsable' and
-                          inscription.participant and
-                          inscription.participant.service and
+                          inscription.participant.service and # S'assurer que service existe
                           current_user.service_id == inscription.participant.service_id)
 
         if not (is_participant or is_admin or is_responsable):
+             app.logger.warning(f"User '{current_user.username}' not authorized to download invitation for inscription {inscription_id}.")
              flash('Vous n\'êtes pas autorisé à télécharger cette invitation.', 'danger')
-             return redirect(url_for('dashboard'))
-
+             return redirect(request.referrer or url_for('dashboard'))
 
         if inscription.statut != 'confirmé':
+            app.logger.info(f"Invitation request for non-confirmed inscription {inscription_id} (status: {inscription.statut}).")
             flash('L\'invitation n\'est disponible que pour les inscriptions confirmées.', 'warning')
-            return redirect(url_for('dashboard'))
+            return redirect(request.referrer or url_for('dashboard'))
 
-        session = inscription.session
-        participant = inscription.participant
-        salle = session.salle # Already loaded
+        session_obj = inscription.session
+        participant_obj = inscription.participant
+        salle_obj = session_obj.salle 
 
-        ics_content = generate_ics(session, participant, salle)
+        ics_content = generate_ics(session_obj, participant_obj, salle_obj)
         if ics_content is None:
-            flash('Erreur lors de la génération de l\'invitation ICS.', 'danger')
-            return redirect(url_for('dashboard'))
+            app.logger.error(f"ICS content generation failed for inscription {inscription_id}.")
+            flash('Erreur lors de la génération de l\'invitation ICS. Veuillez vérifier les détails de la session.', 'danger')
+            return redirect(request.referrer or url_for('dashboard'))
 
-        # Log activity only if the current user is not the participant themselves (avoid self-logging downloads)
-        if not is_participant:
+        if not is_participant: # Log seulement si ce n'est pas le participant lui-même
             add_activity('telecharger_invitation',
-                         f'Téléchargement invitation pour: {participant.prenom} {participant.nom}',
-                         f'Session: {session.theme.nom} ({session.formatage_date})',
+                         f'Téléchargement invitation pour: {participant_obj.prenom} {participant_obj.nom}',
+                         f'Session: {session_obj.theme.nom} ({session_obj.formatage_date})',
                          user=current_user)
 
-        # Prepare response
-        filename = f"Formation_{session.theme.nom.replace(' ', '_').replace('/', '-')}_{session.date.strftime('%Y%m%d')}.ics"
+        # Nettoyer le nom de fichier
+        safe_theme_name = "".join(c if c.isalnum() or c in " -" else "_" for c in session_obj.theme.nom)
+        filename = f"Formation_{safe_theme_name}_{session_obj.date.strftime('%Y%m%d')}.ics"
+        
         response = make_response(ics_content)
         response.headers["Content-Disposition"] = f"attachment; filename=\"{filename}\""
         response.headers["Content-Type"] = "text/calendar; charset=utf-8"
+        app.logger.info(f"Successfully served ICS file '{filename}' for inscription {inscription_id}.")
         return response
 
     except SQLAlchemyError as e:
-        app.logger.error(f"DB error generating invitation {inscription_id}: {e}", exc_info=True)
+        app.logger.error(f"DB error in generer_invitation for inscription {inscription_id}: {e}", exc_info=True)
         flash("Erreur base de données lors de la génération de l'invitation.", "danger")
+    except AttributeError as ae:
+        app.logger.error(f"AttributeError in generer_invitation for inscription {inscription_id}: {ae}", exc_info=True)
+        flash("Données manquantes pour générer l'invitation. Veuillez vérifier la session.", 'danger')
     except Exception as e:
-        app.logger.error(f"Error generating invitation {inscription_id}: {e}", exc_info=True)
+        app.logger.error(f"Unexpected error in generer_invitation for inscription {inscription_id}: {e}", exc_info=True)
         flash("Erreur inattendue lors de la génération de l'invitation.", "danger")
 
-    return redirect(url_for('dashboard'))
+    return redirect(request.referrer or url_for('dashboard'))
 
 
 # === Database Initialization ===
