@@ -1,215 +1,292 @@
 // static/js/ui-fixers.js
-// Version 1.0.1 - Corrected querySelectorAll for :contains
-
+// Version 1.0.2 - Refined selectors, improved logging, badge consistency.
 document.addEventListener('DOMContentLoaded', function() {
-    const config = window.dashboardConfig || { debugMode: false };
-    if (config.debugMode) console.log('UI Fixers initialized v1.0.1');
-    
+    const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
+    if (DASH_CONFIG.debugMode) console.log('UI Fixers initialized (v1.0.2)');
+
     const internalConfig = {
         enhanceLabels: true, fixTooltips: true, fixSessionInfo: true,
         fixSalleDisplay: true, enhanceAccessibility: true,
     };
-    
-    setTimeout(applyAllFixes, 550); // Slightly increased delay
-    
+
+    // Debounce applyAllFixes to avoid rapid calls from MutationObserver
+    let applyFixesTimeout;
+    function debouncedApplyAllFixes() {
+        clearTimeout(applyFixesTimeout);
+        applyFixesTimeout = setTimeout(applyAllFixes, 150); // 150ms debounce
+    }
+
+    // Initial application of fixes
+    setTimeout(applyAllFixes, 500); // Initial delay after DOM content loaded
+
+    // Re-apply fixes after fetch calls to /api/ (if they modify relevant DOM)
     const originalFetch = window.fetch;
     window.fetch = async function(...args) {
         const response = await originalFetch.apply(this, args);
-        const url = args[0].toString();
-        if (url.includes('/api/')) {
-            setTimeout(applyAllFixes, 350); // Slightly increased delay
+        try {
+            const url = (args[0] instanceof Request) ? args[0].url : args[0].toString();
+            if (url.includes('/api/')) {
+                // If the response is OK and JSON, assume data might have changed the DOM
+                if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+                    response.clone().json().then(() => { // Clone to read body without consuming original
+                        if (DASH_CONFIG.debugMode) console.log('UI Fixers: API call detected, queueing fixes for URL:', url);
+                        debouncedApplyAllFixes();
+                    }).catch(() => { /* Ignore if not JSON */ });
+                }
+            }
+        } catch (e) {
+            if (DASH_CONFIG.debugMode) console.warn('UI Fixers: Error in fetch wrapper', e);
         }
         return response;
     };
-    
+
     function applyAllFixes() {
-        if (config.debugMode) console.log('UI Fixers: Applying all fixes...');
+        if (DASH_CONFIG.debugMode) console.log('UI Fixers: Applying all fixes...');
         if (internalConfig.enhanceLabels) enhanceLabels();
-        if (internalConfig.fixTooltips) fixTooltips();
+        if (internalConfig.fixTooltips) fixTooltips(); // Tooltips should be re-init after DOM changes
         if (internalConfig.fixSessionInfo) fixSessionInfo();
         if (internalConfig.fixSalleDisplay) fixSalleDisplay();
         if (internalConfig.enhanceAccessibility) enhanceAccessibility();
-        if (config.debugMode) console.log('UI Fixers: All fixes applied.');
+        // Call global theme badge enhancer from layout.html as it's the source of truth for theme badges
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            window.enhanceThemeBadgesGlobally();
+        }
+        if (DASH_CONFIG.debugMode) console.log('UI Fixers: All fixes applied cycle finished.');
     }
-    
+
     function enhanceLabels() {
-        document.querySelectorAll('a, button').forEach(el => {
+        // Example: Add icons to buttons/links if they are missing
+        document.querySelectorAll('a.btn, button.btn').forEach(el => {
             const text = el.textContent.trim();
-            if (text === 'Voir Participants' && !el.querySelector('i.fa-users')) {
-                el.innerHTML = '<i class="fas fa-users me-1"></i>Liste des participants';
-            } else if (text === 'Gérer Salle' && !el.querySelector('i.fa-building')) {
-                el.innerHTML = '<i class="fas fa-building me-1"></i>Gérer la salle';
+            if ((text.includes('Voir Participants') || text.includes('Liste des participants')) && !el.querySelector('i.fa-users')) {
+                el.innerHTML = `<i class="fas fa-users me-1"></i>${text || 'Participants'}`;
+            } else if (text.includes('Gérer Salle') && !el.querySelector('i.fa-building')) {
+                el.innerHTML = `<i class="fas fa-building me-1"></i>${text || 'Gérer Salle'}`;
             }
         });
-        document.querySelectorAll('.card-header h5, .card-header .card-title').forEach(el => {
+        // Card headers - these are often set by Jinja, but can be a fallback
+        document.querySelectorAll('.card-header h5, .card-header h6, .card-header .card-title').forEach(el => {
             const text = el.textContent.trim();
-            if (text.includes('Sessions à venir') && !el.querySelector('i.fa-calendar-alt')) {
-                el.innerHTML = '<i class="fas fa-calendar-alt me-2"></i>Sessions à venir';
-            } else if (text.includes('Participants par service') && !el.querySelector('i.fa-users')) {
-                el.innerHTML = '<i class="fas fa-users me-2"></i>Répartition par service';
-            } else if (text.includes('Répartition par thème') && !el.querySelector('i.fa-book')) {
-                el.innerHTML = '<i class="fas fa-book me-2"></i>Répartition par thème';
+            if (text.includes('Sessions à venir') && !el.querySelector('i.fa-calendar-alt, i.fa-calendar-check')) {
+                el.innerHTML = `<i class="fas fa-calendar-check me-2"></i>${text}`;
+            } else if (text.includes('Participants par service') && !el.querySelector('i.fa-users, i.fa-chart-bar')) {
+                el.innerHTML = `<i class="fas fa-chart-bar me-2"></i>${text}`;
+            } else if (text.includes('Répartition par thème') && !el.querySelector('i.fa-book, i.fa-chart-pie')) {
+                el.innerHTML = `<i class="fas fa-chart-pie me-2"></i>${text}`;
             }
         });
     }
-    
+
     function fixTooltips() {
         if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-            document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not(script):not(style)').forEach(el => {
-                if (!bootstrap.Tooltip.getInstance(el)) { // Initialize only if not already done
+            // Dispose of existing tooltips on elements that might be re-initialized
+            // document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not(iframe)').forEach(el => {
+            //     const instance = bootstrap.Tooltip.getInstance(el);
+            //     if (instance) {
+            //         instance.dispose();
+            //     }
+            // });
+
+            // Initialize new tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not(iframe):not(script):not(style)'));
+            tooltipTriggerList.forEach(el => {
+                 if (!bootstrap.Tooltip.getInstance(el)) {
                     try {
-                        new bootstrap.Tooltip(el, { boundary: document.body, container: 'body', trigger: 'hover focus' });
+                        new bootstrap.Tooltip(el, {
+                            container: 'body', // Important for elements in tables or complex layouts
+                            boundary: document.body,
+                            trigger: 'hover focus' // More accessible triggers
+                        });
                     } catch (e) { console.warn('UI Fixers: Error creating tooltip', e, el); }
                 }
             });
+
+            // Add titles to specific elements if they don't have one
             document.querySelectorAll('.salle-badge, .places-dispo, .theme-badge').forEach(el => {
-                if (!el.getAttribute('title') && !el.dataset.bsOriginalTitle) { // Check if no title or BS original title
+                if (!el.hasAttribute('title') && !el.dataset.bsOriginalTitle) {
                     let titleText = '';
-                    if (el.classList.contains('salle-badge')) titleText = 'Salle assignée';
-                    else if (el.classList.contains('places-dispo')) titleText = 'Places disponibles / Capacité';
-                    else if (el.classList.contains('theme-badge')) titleText = 'Thème de la formation';
-                    
+                    if (el.classList.contains('salle-badge')) titleText = el.textContent.trim() === 'Non définie' ? 'Aucune salle assignée' : `Salle : ${el.textContent.trim()}`;
+                    else if (el.classList.contains('places-dispo')) titleText = 'Places disponibles / Capacité totale';
+                    else if (el.classList.contains('theme-badge')) titleText = `Thème : ${el.textContent.trim()}`;
+
                     if (titleText) {
                         el.setAttribute('title', titleText);
-                        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-                           if (!bootstrap.Tooltip.getInstance(el)) {
-                               try { new bootstrap.Tooltip(el, { boundary: document.body, container: 'body' }); }
-                               catch (e) { console.warn('UI Fixers: Error creating tooltip for element', e, el); }
-                           }
+                        el.setAttribute('data-bs-toggle', 'tooltip'); // Ensure it's picked up
+                        if (!bootstrap.Tooltip.getInstance(el)) {
+                           try { new bootstrap.Tooltip(el, { container: 'body' }); }
+                           catch (e) { console.warn('UI Fixers: Error creating tooltip for dynamic element', e, el); }
                         }
                     }
                 }
             });
         }
     }
-    
+
     function fixSessionInfo() {
-        document.querySelectorAll('table tr').forEach(row => {
-            const dateCell = row.querySelector('td:first-child');
-            const themeCell = row.querySelector('td:nth-child(2).js-theme-cell, td:nth-child(2)[data-column-type="theme"]'); // More specific
-            
-            if (dateCell && dateCell.innerHTML.includes('/') && !dateCell.querySelector('strong')) {
-                const parts = dateCell.innerHTML.split('<br>');
-                if (parts.length > 0) {
-                    dateCell.innerHTML = `<strong>${parts[0]}</strong>${parts.length > 1 ? `<br>${parts[1]}` : ''}`;
+        // Date cell formatting
+        document.querySelectorAll('table td:first-child').forEach(dateCell => {
+            // Check if it looks like a date cell (e.g., contains day name or /) and isn't already bolded
+            if (dateCell.innerHTML.match(/\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/i) || dateCell.innerHTML.includes('/')) {
+                if (!dateCell.querySelector('strong')) {
+                    const parts = dateCell.innerHTML.split('<br>');
+                    if (parts.length > 0) {
+                        dateCell.innerHTML = `<strong>${parts[0]}</strong>${parts.length > 1 ? `<br><small class="text-secondary">${parts[1]}</small>` : ''}`;
+                    }
                 }
             }
-            // Theme badge enhancement is now primarily handled by layout.html's global script
-            // This function can focus on other session info aspects if needed.
         });
+
+        // Places disponibles formatting
         document.querySelectorAll('.places-dispo').forEach(el => {
             const text = el.textContent.trim();
             if (text.includes('/')) {
-                const [dispo, total] = text.split('/').map(n => parseInt(n.trim(), 10));
-                if (!isNaN(dispo) && !isNaN(total)) {
+                const [dispoStr, totalStr] = text.split('/');
+                const dispo = parseInt(dispoStr.trim(), 10);
+                const total = parseInt(totalStr.trim(), 10);
+
+                if (!isNaN(dispo) && !isNaN(total) && total > 0) {
                     let colorClass = 'text-success';
-                    if (dispo === 0) colorClass = 'text-danger';
-                    else if (dispo <= total * 0.2) colorClass = 'text-danger';
-                    else if (dispo <= total * 0.4) colorClass = 'text-warning';
-                    
-                    el.classList.remove('text-success', 'text-warning', 'text-danger');
+                    let iconClass = 'fa-check-circle';
+
+                    if (dispo === 0) {
+                        colorClass = 'text-danger';
+                        iconClass = 'fa-times-circle';
+                    } else if (dispo <= total * 0.2) { // Less than or equal to 20%
+                        colorClass = 'text-danger';
+                        iconClass = 'fa-exclamation-circle';
+                    } else if (dispo <= total * 0.4) { // Less than or equal to 40%
+                        colorClass = 'text-warning';
+                        iconClass = 'fa-exclamation-triangle';
+                    }
+
+                    el.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary');
                     el.classList.add(colorClass);
-                    
-                    if (!el.querySelector('i')) {
-                        let icon = 'fa-check-circle';
-                        if (dispo === 0) icon = 'fa-times-circle';
-                        else if (dispo <= total * 0.2) icon = 'fa-exclamation-circle';
-                        else if (dispo <= total * 0.4) icon = 'fa-exclamation-triangle';
-                        el.innerHTML = `<i class="fas ${icon} me-1"></i> ${dispo} / ${total}`;
-                    }
-                }
-            }
-        });
-    }
-    
-    function fixSalleDisplay() {
-        // Target elements that are likely to contain salle names
-        // Prefer using specific classes on these elements from your Jinja templates
-        // e.g., <td class="js-salle-cell">{{ session.obj.salle.nom }}</td>
-        document.querySelectorAll('.js-salle-cell, .salle-badge-container').forEach(el => {
-            const salleText = el.textContent.trim();
-            const isBadgeContainer = el.classList.contains('salle-badge-container');
 
-            if (!salleText || salleText === 'N/A' || salleText.toLowerCase().includes('non définie')) {
-                if (isBadgeContainer || !el.querySelector('.badge.bg-secondary')) {
-                     el.innerHTML = '<span class="badge bg-secondary text-white salle-badge">Non définie</span>';
-                }
-            } else if (!el.querySelector('.badge.bg-info') && !el.classList.contains('badge')) {
-                // If it's not already a badge, and not the placeholder "Non définie"
-                const salleName = salleText.replace(/^Salle\s*/i, '').trim(); // Remove "Salle " prefix if present
-                el.innerHTML = `<span class="badge bg-info text-white salle-badge">${salleName || 'Salle'}</span>`;
-            }
-        });
-
-        // Fallback for less specific cells, be careful with this
-        document.querySelectorAll('table td').forEach(cell => {
-            // Heuristic: if it's the 4th cell, it might be a salle
-            if (cell.cellIndex === 3 && !cell.querySelector('.salle-badge') && !cell.classList.contains('js-salle-cell')) {
-                const text = cell.textContent.trim();
-                if (text.toLowerCase().includes('salle') || text.match(/^[A-Za-z0-9\s-]+$/) && text.length > 2 && text.length < 30) { // Basic check for room-like names
-                     if (text === '' || text === 'N/A' || text.toLowerCase().includes('non définie')) {
-                        if (!cell.querySelector('.badge.bg-secondary')) {
-                            cell.innerHTML = '<span class="badge bg-secondary salle-badge">Non définie</span>';
-                        }
+                    // Update icon and text content if not already done or if values changed
+                    const existingIcon = el.querySelector('i.fas');
+                    if (!existingIcon || !existingIcon.classList.contains(iconClass)) {
+                        el.innerHTML = `<i class="fas ${iconClass} me-1"></i> ${dispo} / ${total}`;
                     } else {
-                        if (!cell.querySelector('.badge.bg-info')) {
-                            cell.innerHTML = `<span class="badge bg-info text-white salle-badge">${text}</span>`;
-                        }
+                        // Only update text if icon is correct but numbers might have changed
+                        el.innerHTML = `<i class="fas ${iconClass} me-1"></i> ${dispo} / ${total}`;
                     }
+                } else if (!isNaN(dispo) && !isNaN(total) && total === 0) { // Case where max_participants is 0
+                     el.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary');
+                     el.classList.add('text-secondary');
+                     el.innerHTML = `<i class="fas fa-minus-circle me-1"></i> ${dispo} / ${total}`;
                 }
             }
         });
     }
-    
-    function enhanceAccessibility() {
-        document.querySelectorAll('button:not([aria-label]), a.btn:not([aria-label])').forEach(el => {
-            if (!el.getAttribute('aria-label')) {
-                const icon = el.querySelector('i');
-                let text = el.textContent.trim();
-                if (!text && icon && icon.getAttribute('title')) {
-                    text = icon.getAttribute('title');
-                } else if (!text && el.getAttribute('title')) {
-                    text = el.getAttribute('title');
+
+    function fixSalleDisplay() {
+        // Targets cells specifically marked for salle display
+        document.querySelectorAll('.js-salle-cell').forEach(el => {
+            const salleText = el.textContent.trim();
+            if (!el.querySelector('.salle-badge')) { // Only modify if not already a badge
+                if (!salleText || salleText.toLowerCase() === 'non définie' || salleText.toLowerCase() === 'n/a') {
+                    el.innerHTML = '<span class="badge bg-secondary text-white salle-badge" data-bs-toggle="tooltip" title="Aucune salle assignée">Non définie</span>';
+                } else {
+                    const salleName = salleText.replace(/^Salle\s*/i, '').trim();
+                    el.innerHTML = `<span class="badge bg-info text-white salle-badge" data-bs-toggle="tooltip" title="Salle: ${salleName}">${salleName}</span>`;
                 }
-                if (text) el.setAttribute('aria-label', text);
             }
         });
-        document.querySelectorAll('.text-muted').forEach(el => {
-            el.classList.remove('text-muted');
-            el.classList.add('text-secondary');
+        // Fallback for less specific table cells (usually 4th column)
+        document.querySelectorAll('table td:nth-child(4)').forEach(cell => {
+            if (cell.classList.contains('js-salle-cell') || cell.querySelector('.salle-badge')) return; // Skip if already handled
+
+            const text = cell.textContent.trim();
+            // Heuristic: if it's likely a room name or placeholder
+            if ((text.match(/^[A-Za-z0-9\s-]+$/) && text.length > 1 && text.length < 30 && !text.includes('/')) || text.toLowerCase() === 'non définie' || text.toLowerCase() === 'n/a') {
+                 if (!text || text.toLowerCase() === 'non définie' || text.toLowerCase() === 'n/a') {
+                    cell.innerHTML = '<span class="badge bg-secondary text-white salle-badge" data-bs-toggle="tooltip" title="Aucune salle assignée">Non définie</span>';
+                } else {
+                    cell.innerHTML = `<span class="badge bg-info text-white salle-badge" data-bs-toggle="tooltip" title="Salle: ${text}">${text}</span>`;
+                }
+            }
         });
+    }
+
+    function enhanceAccessibility() {
+        // Add aria-labels to icon-only buttons or buttons where text might be insufficient
+        document.querySelectorAll('button:not([aria-label]), a.btn:not([aria-label])').forEach(el => {
+            let ariaLabel = el.getAttribute('title'); // Prefer existing title
+            if (!ariaLabel) {
+                const icon = el.querySelector('i.fas, i.fab, i.far');
+                let textContent = el.textContent.trim();
+                // Remove badge text from button text content for aria-label
+                const badge = el.querySelector('.badge');
+                if (badge) {
+                    textContent = textContent.replace(badge.textContent.trim(), '').trim();
+                }
+
+                if (textContent) {
+                    ariaLabel = textContent;
+                } else if (icon) {
+                    // Try to infer from icon class
+                    if (icon.classList.contains('fa-user-plus')) ariaLabel = "S'inscrire";
+                    else if (icon.classList.contains('fa-clock')) ariaLabel = "S'inscrire en liste d'attente";
+                    else if (icon.classList.contains('fa-users')) ariaLabel = "Voir les participants";
+                    else if (icon.classList.contains('fa-building')) ariaLabel = "Attribuer ou modifier la salle";
+                    else if (icon.classList.contains('fa-edit')) ariaLabel = "Modifier";
+                    else if (icon.classList.contains('fa-trash')) ariaLabel = "Supprimer";
+                    else if (icon.classList.contains('fa-sync-alt')) ariaLabel = "Actualiser";
+                }
+            }
+            if (ariaLabel && !el.hasAttribute('aria-label')) {
+                el.setAttribute('aria-label', ariaLabel);
+            }
+        });
+
+        // Replace text-muted with text-secondary for better contrast if needed (Bootstrap 5 often handles this well)
+        // document.querySelectorAll('.text-muted').forEach(el => {
+        //     el.classList.remove('text-muted');
+        //     el.classList.add('text-secondary');
+        // });
+
+        // Add alt text to images if missing
         document.querySelectorAll('img:not([alt])').forEach(img => {
-            img.setAttribute('alt', 'Image ' + (img.getAttribute('src') || 'descriptive').split('/').pop().split('.')[0]);
+            const src = img.getAttribute('src') || '';
+            let altText = 'Image descriptive';
+            if (src) {
+                const filename = src.split('/').pop().split('.')[0];
+                altText = `Image: ${filename.replace(/[-_]/g, ' ')}`;
+            }
+            img.setAttribute('alt', altText);
         });
     }
 
     window.uiFixers = { applyAllFixes, enhanceLabels, fixTooltips, fixSessionInfo, fixSalleDisplay, enhanceAccessibility };
-    
-    // Using a more targeted MutationObserver
+
     if (window.MutationObserver) {
-        const observer = new MutationObserver(function(mutations) {
+        const observer = new MutationObserver(mutations => {
             let needsFixing = false;
             for (const mutation of mutations) {
                 if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                     for (const node of mutation.addedNodes) {
                         if (node.nodeType === 1 && (
-                            node.matches('.card, .table, tr, td, .badge, [data-bs-toggle="tooltip"]') ||
-                            node.querySelector('.card, .table, tr, td, .badge, [data-bs-toggle="tooltip"]')
+                            node.matches('table, tr, td, .badge, .card, [data-bs-toggle="tooltip"], .js-salle-cell, .js-theme-cell, .places-dispo') ||
+                            node.querySelector('table, tr, td, .badge, .card, [data-bs-toggle="tooltip"], .js-salle-cell, .js-theme-cell, .places-dispo')
                         )) {
                             needsFixing = true;
                             break;
                         }
                     }
                 }
+                // Also check for attribute changes that might require tooltip re-init (e.g. title added)
+                if (mutation.type === 'attributes' && mutation.attributeName === 'title') {
+                    needsFixing = true;
+                }
                 if (needsFixing) break;
             }
             if (needsFixing) {
-                if (config.debugMode) console.log('UI Fixers: Relevant DOM change detected, reapplying fixes.');
-                setTimeout(applyAllFixes, 150); // Debounce
+                if (DASH_CONFIG.debugMode) console.log('UI Fixers: Relevant DOM change detected, queueing reapplication of fixes.');
+                debouncedApplyAllFixes();
             }
         });
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['title'] });
     }
-    
-    if (config.debugMode) console.log('UI Fixers ready! v1.0.1');
+
+    if (DASH_CONFIG.debugMode) console.log('UI Fixers ready! (v1.0.2)');
 });
