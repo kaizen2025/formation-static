@@ -5,6 +5,7 @@ Flask-Migrate==4.0.5
 Flask-Login==0.6.3
 Flask-SocketIO==5.3.6
 Flask-Caching==2.1.0
+flask-limiter==2.8.0
 
 # --- async back-end (choisis-en un seul en prod) ---
 eventlet==0.39.1            # compatible Py 3.13
