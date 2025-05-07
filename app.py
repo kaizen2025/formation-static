@@ -1207,92 +1207,102 @@ def sessions():
 @db_operation_with_retry(max_retries=3)
 def inscription():
     """Gère l'inscription d'un participant existant à une session."""
-    # Redirection par défaut vers la page précédente ou le dashboard
-    from_page_value = request.form.get('from_page', 'dashboard') # Récupérer d'où vient la requête
+    
+    # Déterminer l'URL de redirection en fonction de la page d'origine
+    from_page_value = request.form.get('from_page', 'dashboard') # Valeur par défaut
     valid_from_pages = ['admin', 'services', 'participants', 'sessions', 'dashboard']
     redirect_url = url_for(from_page_value) if from_page_value in valid_from_pages else url_for('dashboard')
 
-    app.logger.info(f"--- Tentative d'inscription (route /inscription) ---")
-    app.logger.info(f"Form data: {request.form}")
+    app.logger.info(f"--- Route /inscription POST ---")
+    app.logger.debug(f"Form data received: {request.form}")
 
     try:
         participant_id_from_form = request.form.get('participant_id', type=int)
         session_id_from_form = request.form.get('session_id', type=int)
 
-        app.logger.info(f"Inscription attempt: P_ID={participant_id_from_form}, S_ID={session_id_from_form}")
+        app.logger.info(f"Attempting inscription for Participant ID: {participant_id_from_form}, Session ID: {session_id_from_form}")
 
         if not participant_id_from_form or not session_id_from_form:
-            flash('Données d\'inscription manquantes (ID participant ou ID session).', 'danger')
-            app.logger.warning("Inscription: Données manquantes (participant_id ou session_id).")
+            flash('Données d\'inscription cruciales manquantes (ID participant ou ID session).', 'danger')
+            app.logger.warning("Inscription failed: Missing participant_id or session_id in form.")
             return redirect(redirect_url)
 
+        # Récupérer les objets de la base de données
         participant_a_inscrire = db.session.get(Participant, participant_id_from_form)
         session_obj = db.session.get(Session, session_id_from_form)
 
         if not participant_a_inscrire:
-            flash(f'Participant avec ID {participant_id_from_form} introuvable.', 'danger')
-            app.logger.warning(f"Inscription: Participant P_ID={participant_id_from_form} non trouvé.")
+            flash(f'Le participant avec l\'ID {participant_id_from_form} est introuvable.', 'danger')
+            app.logger.warning(f"Inscription failed: Participant P_ID={participant_id_from_form} not found.")
             return redirect(redirect_url)
+        
         if not session_obj:
-            flash(f'Session avec ID {session_id_from_form} introuvable.', 'danger')
-            app.logger.warning(f"Inscription: Session S_ID={session_id_from_form} non trouvée.")
+            flash(f'La session avec l\'ID {session_id_from_form} est introuvable.', 'danger')
+            app.logger.warning(f"Inscription failed: Session S_ID={session_id_from_form} not found.")
             return redirect(redirect_url)
 
-        app.logger.info(f"Inscription pour Participant: {participant_a_inscrire.prenom} {participant_a_inscrire.nom} à Session: {session_obj.theme.nom} ({session_obj.id})")
+        app.logger.info(f"Processing inscription for Participant: {participant_a_inscrire.prenom} {participant_a_inscrire.nom} (ID: {participant_a_inscrire.id}) to Session: {session_obj.theme.nom} (ID: {session_obj.id})")
 
-        # Vérifier si le participant a une inscription "active" (confirmé ou en attente) ou est en liste d'attente
+        # 1. Vérifier si une inscription "active" (confirmé ou en attente) existe déjà
         existing_active_inscription = Inscription.query.filter(
             Inscription.participant_id == participant_a_inscrire.id,
             Inscription.session_id == session_obj.id,
-            Inscription.statut.in_(['confirmé', 'en attente'])
+            Inscription.statut.in_(['confirmé', 'en attente'])  # Statuts considérés comme "actifs"
         ).first()
+
+        if existing_active_inscription:
+            flash(f'{participant_a_inscrire.prenom} {participant_a_inscrire.nom} a déjà une inscription "{existing_active_inscription.statut}" pour cette session.', 'warning')
+            app.logger.info(f"Inscription blocked: P_ID={participant_a_inscrire.id} already has an active inscription (status: {existing_active_inscription.statut}) for S_ID={session_obj.id}.")
+            return redirect(redirect_url)
         
+        # 2. Vérifier si le participant est déjà en liste d'attente pour cette session
         existing_waitlist = ListeAttente.query.filter_by(
             participant_id=participant_a_inscrire.id, 
             session_id=session_obj.id
         ).first()
 
-        if existing_active_inscription:
-            flash(f'{participant_a_inscrire.prenom} {participant_a_inscrire.nom} a déjà une inscription "{existing_active_inscription.statut}" pour cette session.', 'warning')
-            app.logger.info(f"Inscription: P_ID={participant_a_inscrire.id} déjà inscrit ({existing_active_inscription.statut}) pour S_ID={session_obj.id}.")
-            return redirect(redirect_url)
-        
         if existing_waitlist:
             flash(f'{participant_a_inscrire.prenom} {participant_a_inscrire.nom} est déjà en liste d\'attente (position {existing_waitlist.position}) pour cette session.', 'warning')
-            app.logger.info(f"Inscription: P_ID={participant_a_inscrire.id} déjà en liste d'attente pour S_ID={session_obj.id}.")
+            app.logger.info(f"Inscription blocked: P_ID={participant_a_inscrire.id} is already on the waitlist for S_ID={session_obj.id}.")
             return redirect(redirect_url)
 
-        # Vérifier les places restantes avant de créer une nouvelle inscription en attente
-        # Obtenir le compte actuel des inscrits confirmés pour CETTE session pour un calcul précis des places restantes
+        # 3. Vérifier les places restantes (basé sur les inscriptions confirmées uniquement)
+        # Il est important de recalculer le nombre d'inscrits confirmés pour CETTE session spécifique
+        # avant d'appeler get_places_restantes, car cette méthode peut faire sa propre requête si non fournie.
         current_confirmed_for_session = db.session.query(func.count(Inscription.id)).filter(
             Inscription.session_id == session_obj.id,
-            Inscription.statut == 'confirmé'
+            Inscription.statut == 'confirmé' # Compter seulement les confirmés
         ).scalar() or 0
         
-        # Utiliser la méthode get_places_restantes du modèle Session
+        app.logger.debug(f"S_ID={session_obj.id} has {current_confirmed_for_session} confirmed inscriptions. Max participants: {session_obj.max_participants}.")
+
         if session_obj.get_places_restantes(confirmed_count=current_confirmed_for_session) <= 0:
-            app.logger.info(f"Inscription: Session S_ID={session_obj.id} complète. Redirection vers liste d'attente pour P_ID={participant_a_inscrire.id}.")
-            flash(f'La session "{session_obj.theme.nom}" est complète. Vous pouvez vous ajouter à la liste d\'attente.', 'info')
-            # Optionnellement, vous pourriez directement ajouter à la liste d'attente ici ou rediriger vers une page de confirmation
-            return redirect(url_for('liste_attente', session_id=session_obj.id, participant_id=participant_a_inscrire.id, from_page=from_page_value))
+            # Si la session est pleine (basée sur les confirmés), rediriger vers la liste d'attente
+            app.logger.info(f"Inscription: Session S_ID={session_obj.id} is full based on confirmed participants. Redirecting P_ID={participant_a_inscrire.id} to waitlist.")
+            flash(f'La session "{session_obj.theme.nom}" est complète. Veuillez vous inscrire sur la liste d\'attente.', 'info')
+            return redirect(url_for('liste_attente', 
+                                    session_id=session_obj.id, 
+                                    participant_id=participant_a_inscrire.id, 
+                                    from_page=from_page_value)) # Passer from_page pour une redirection correcte depuis liste_attente
         
-        # Si des places sont disponibles (ou si la logique ci-dessus redirige vers la liste d'attente), créer l'inscription "en attente"
+        # 4. Si des places sont disponibles, créer la nouvelle inscription avec le statut 'en attente'
+        app.logger.info(f"Inscription: Places available for S_ID={session_obj.id}. Creating 'en attente' inscription for P_ID={participant_a_inscrire.id}.")
         new_inscription = Inscription(
             participant_id=participant_a_inscrire.id, 
             session_id=session_obj.id, 
-            statut='en attente' # Les nouvelles inscriptions via ce flux sont en attente de validation
+            statut='en attente' # Toute nouvelle inscription via ce formulaire passe par validation
         )
         db.session.add(new_inscription)
         db.session.commit()
         
-        # Invalider le cache des comptes de la session car une nouvelle inscription (même en attente) peut affecter le pending_count
+        # Invalider le cache des comptes pour cette session, car une nouvelle demande a été ajoutée
         cache.delete(f'session_counts_{session_obj.id}')
-        app.logger.info(f"Cache invalidé pour session_counts_{session_obj.id} après nouvelle demande d'inscription.")
+        app.logger.info(f"Cache invalidated for session_counts_{session_obj.id} due to new pending inscription.")
 
         add_activity('inscription', 
-                     f'Demande d\'inscription: {participant_a_inscrire.prenom} {participant_a_inscrire.nom}',
+                     f'Demande d\'inscription (existant): {participant_a_inscrire.prenom} {participant_a_inscrire.nom}',
                      f'Session: {session_obj.theme.nom} ({session_obj.formatage_date})', 
-                     user=current_user if current_user.is_authenticated else None)
+                     user=current_user if current_user.is_authenticated else None) # S'assurer que current_user est passé s'il est logué
         
         socketio.emit('inscription_nouvelle', {
             'session_id': session_obj.id,
@@ -1300,22 +1310,24 @@ def inscription():
             'statut': 'en attente'
         }, room='general')
 
-        flash(f'Votre demande d\'inscription pour "{participant_a_inscrire.prenom} {participant_a_inscrire.nom}" à la session "{session_obj.theme.nom}" a été enregistrée et est en attente de validation.', 'success')
+        flash(f'Votre demande d\'inscription pour "{participant_a_inscrire.prenom} {participant_a_inscrire.nom}" à la session "{session_obj.theme.nom}" a été enregistrée. Elle est en attente de validation.', 'success')
 
-    except IntegrityError: # Au cas où une contrainte unique serait violée malgré les vérifications (peu probable ici)
+    except IntegrityError: 
         db.session.rollback()
-        flash('Erreur d\'intégrité : Il semble y avoir un conflit avec une inscription existante.', 'danger')
-        app.logger.error(f"Inscription: IntegrityError", exc_info=True)
+        # Ce cas devrait être rare si les vérifications précédentes sont correctes, mais c'est une sécurité.
+        flash('Erreur d\'intégrité : Conflit lors de la tentative d\'inscription. Le participant est peut-être déjà lié à cette session.', 'danger')
+        app.logger.error(f"Inscription: IntegrityError occurred.", exc_info=True)
     except SQLAlchemyError as e:
         db.session.rollback()
-        flash('Erreur de base de données lors de la tentative d\'inscription.', 'danger')
+        flash('Erreur de base de données lors de la tentative d\'inscription. Veuillez réessayer.', 'danger')
         app.logger.error(f"Inscription: SQLAlchemyError - {e}", exc_info=True)
     except Exception as e:
         db.session.rollback()
-        flash('Une erreur inattendue est survenue lors de la tentative d\'inscription.', 'danger')
-        app.logger.error(f"Inscription: Erreur Inattendue - {e}", exc_info=True)
+        flash('Une erreur inattendue est survenue lors de la tentative d\'inscription. Veuillez contacter un administrateur.', 'danger')
+        app.logger.error(f"Inscription: Unexpected Error - {e}", exc_info=True)
 
     return redirect(redirect_url)
+
 
 @app.route('/liste_attente', methods=['GET', 'POST'])
 # @login_required # Removed for public access
