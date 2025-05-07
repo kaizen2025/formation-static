@@ -1,146 +1,139 @@
 /**
  * polling-updates.js - Optimized polling for dashboard updates.
- * v3.1.0 - Solution aux problèmes de chargement et actualisation.
+ * v3.1.0 - Corrections pour la gestion des erreurs 500 et données manquantes
  */
-
 document.addEventListener('DOMContentLoaded', function() {
     console.log("--- polling-updates.js EXECUTING ---");
-
-    // Configuration - Mise à jour pour forcer le mode polling
-    window.dashboardConfig = window.dashboardConfig || {
-        debugMode: true,
-        autoRefreshInterval: 30000,
-        baseApiUrl: '/api',
-        pollingEnabled: true,
-        socketEnabled: false,  // Désactiver Socket.IO en raison des erreurs gevent
-        preferredMode: 'polling'  // Forcer le mode polling
+    
+    const DASH_CONFIG = window.dashboardConfig || { 
+        debugMode: false, 
+        autoRefreshInterval: 30000, 
+        baseApiUrl: '/api'
     };
-
-    const DASH_CONFIG = window.dashboardConfig;
     
-    if (DASH_CONFIG.debugMode) {
-        console.log('PollingUpdates: Initialized (v3.1.0 - Optimized for stability)');
-    }
-    
-    // Configuration interne
+    // Configuration
     const config = {
-        baseApiUrl: DASH_CONFIG.baseApiUrl || '/api',
-        pollingInterval: DASH_CONFIG.autoRefreshInterval || 30000,
-        maxConsecutiveErrors: 3,
         maxRetries: 2,
-        retryDelay: 1000,
-        staggerRequests: true,
-        visibilityPause: true,
-        minTimeBetweenRefresh: {
-            sessions: 20000,  // 20s
-            participants: 60000,  // 1m
-            salles: 120000,  // 2m
-            activites: 10000   // 10s
-        },
+        retryDelay: 1000, // Delay base en ms entre les tentatives
+        maxConsecutiveErrors: 5, // Après combien d'erreurs on arrête le polling
+        pollingInterval: DASH_CONFIG.autoRefreshInterval || 30000,
+        minRefreshInterval: 20000, // Pas de refresh plus fréquent que 20s
+        staggerRequests: true, // Décaler les requêtes pour ne pas surcharger
+        visibilityPause: true, // Mettre en pause si l'onglet est inactif
+        combinedEndpointRetries: 2, // Nombre de tentatives pour l'endpoint dashboard_essential
+        baseApiUrl: DASH_CONFIG.baseApiUrl || '/api',
         debugMode: DASH_CONFIG.debugMode || false
     };
     
+    // État global
     let consecutiveErrors = 0;
     let pollingEnabled = true;
     let pollingIntervalId = null;
     let lastDataHashes = { sessions: '', participants: '', salles: '', activites: '' };
     let lastFetchTimestamps = { sessions: 0, participants: 0, salles: 0, activites: 0 };
-    let isBackendErrorActive = false; // Flag pour suivre l'état de l'erreur backend
-    
-    // Fonction de hachage simple pour comparer les données
+    let isBackendErrorActive = false;
+    let dashboardEssentialFailed = false; // Flag pour suivre si dashboard_essential a échoué
+
+    // Fonction de hachage simple pour détecter les changements de données
     function simpleHash(obj) {
         if (!obj) return '';
         try {
-            // Pour les tableaux, joindre les IDs et les principales valeurs de chaque objet
-            if (Array.isArray(obj)) {
-                return obj.map(item => {
-                    if (typeof item === 'object' && item !== null) {
-                        // Extraire les propriétés clés selon le type d'objet
-                        if ('id' in item) {
-                            if ('inscrits' in item) return `${item.id}:${item.inscrits}:${item.places_restantes || 0}`;
-                            if ('service' in item) return `${item.id}:${item.service}`;
-                            if ('type' in item) return `${item.id}:${item.type}:${item.description}`;
-                            return `${item.id}`;
-                        }
-                        // Fallback pour les objets sans id
-                        return JSON.stringify(item).slice(0, 50);
-                    }
-                    return String(item);
-                }).join('|');
-            }
-            // Pour les objets, utiliser une version tronquée du JSON
-            return JSON.stringify(obj).slice(0, 100);
+            return JSON.stringify(obj).split('').reduce((a, b) => {
+                a = ((a << 5) - a) + b.charCodeAt(0);
+                return a & a;
+            }, 0).toString(36);
         } catch (e) {
-            console.warn('PollingUpdates: Error in simpleHash:', e);
-            return String(Date.now()); // Fallback - traiter comme toujours différent
+            return Math.random().toString(36).substring(2, 8);
         }
     }
-    
-    // Affiche ou masque le message d'erreur backend
+
+    // Afficher/masquer l'avertissement d'erreur backend
     function showBackendErrorWarning(show) {
         let errorDiv = document.getElementById('backend-error-warning');
+        
         if (show && !errorDiv) {
             errorDiv = document.createElement('div');
             errorDiv.id = 'backend-error-warning';
             errorDiv.className = 'alert alert-danger alert-dismissible fade show small p-2 mt-2 mx-4';
             errorDiv.setAttribute('role', 'alert');
             errorDiv.innerHTML = `
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            Impossible de récupérer les données du serveur. Les mises à jour sont en pause.
-            <button type="button" class="btn-close p-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Impossible de récupérer certaines données du serveur. Les tentatives continues en arrière-plan.
+                <button type="button" class="btn-close p-2" data-bs-dismiss="alert" aria-label="Close"></button>
             `;
             
             // Essayer de l'insérer après l'en-tête du dashboard
             const header = document.querySelector('#dashboard-content > div:first-child');
             if (header && header.parentNode) {
                 header.parentNode.insertBefore(errorDiv, header.nextSibling);
-            } else { // Fallback
+            } else {
                 const container = document.getElementById('dashboard-content');
                 if (container) container.prepend(errorDiv);
             }
+            
             isBackendErrorActive = true;
         } else if (!show && errorDiv) {
-            errorDiv.remove(); // Supprimer l'élément directement
+            try {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                    const alertInstance = bootstrap.Alert.getOrCreateInstance(errorDiv);
+                    if (alertInstance) alertInstance.close();
+                } else {
+                    errorDiv.remove();
+                }
+            } catch (e) {
+                // Fallback si l'API Bootstrap échoue
+                errorDiv.style.display = 'none';
+                setTimeout(() => {
+                    try { errorDiv.remove(); } catch (e) {}
+                }, 300);
+            }
             isBackendErrorActive = false;
-        } else if (show && errorDiv) {
-            // L'erreur est déjà affichée
-            isBackendErrorActive = true;
         }
     }
-    
-    // Gestion des erreurs
+
+    // Gestion des erreurs avec compteur
     function handleError(error, component) {
         console.error(`PollingUpdates: Error in ${component}:`, error.message || error);
         consecutiveErrors++;
+        
         if (consecutiveErrors >= config.maxConsecutiveErrors && pollingEnabled) {
             console.error(`PollingUpdates: Trop d'erreurs consécutives (${consecutiveErrors}). Polling mis en pause.`);
-            pollingEnabled = false; // Arrêter les tentatives de polling
-            if (pollingIntervalId) clearInterval(pollingIntervalId);
-            pollingIntervalId = null;
-            showBackendErrorWarning(true); // Afficher l'alerte à l'utilisateur
+            pollingEnabled = false;
+            
+            if (pollingIntervalId) {
+                clearInterval(pollingIntervalId);
+                pollingIntervalId = null;
+            }
+            
+            showBackendErrorWarning(true);
         }
     }
-    
-    // Gestion des succès - réinitialise les erreurs
+
+    // Réinitialiser les compteurs d'erreur après un succès
     function handleSuccess() {
         if (consecutiveErrors > 0) {
-            if (config.debugMode) console.log("PollingUpdates: Compteur d'erreurs consécutives réinitialisé.");
+            if (config.debugMode) {
+                console.log("PollingUpdates: Compteur d'erreurs consécutives réinitialisé.");
+            }
             consecutiveErrors = 0;
         }
         
-        // Si une erreur était affichée, on la cache car la connexion a réussi
         if (isBackendErrorActive) {
             showBackendErrorWarning(false);
         }
         
-        // Si le polling était désactivé à cause des erreurs, on le réactive
         if (!pollingEnabled) {
             pollingEnabled = true;
-            startPolling(); // Redémarrer le polling
+            startPolling();
         }
     }
-    
-    // Fonction pour fetch avec retry et timeout
+
+    /**
+     * Fonction améliorée pour récupérer des données avec gestion d'erreurs robuste
+     * @param {string} url - L'URL à appeler
+     * @param {Object} options - Options du fetch
+     * @returns {Promise<Object|null>} - Les données JSON ou null en cas d'erreur
+     */
     async function fetchWithRetry(url, options = {}) {
         let retries = 0;
         let delay = config.retryDelay;
@@ -151,30 +144,43 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 console.log(`PollingUpdates: Fetching URL: ${url} (Attempt ${retries + 1})`);
                 
-                // Utiliser AbortController pour le timeout
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-                
-                const fetchOptions = {
-                    ...options,
-                    signal: controller.signal
-                };
-                
-                const response = await fetch(fullUrl, fetchOptions);
-                clearTimeout(timeoutId);
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    ...options
+                });
                 
                 if (response.ok) {
                     const contentType = response.headers.get("content-type");
                     if (contentType && contentType.includes("application/json")) {
-                        return await response.json(); // Succès !
+                        return await response.json();
                     }
+                    
                     console.warn(`PollingUpdates: Réponse non-JSON reçue de ${url}`);
                     throw new Error(`Réponse non-JSON (type: ${contentType})`);
                 }
                 
-                // Gérer les erreurs HTTP non-OK
-                const errorText = await response.text();
-                console.error(`PollingUpdates: Erreur HTTP ${response.status} pour ${url}. Réponse: ${errorText.substring(0, 200)}`);
+                // Gérer les erreurs HTTP spécifiques
+                let errorText = '';
+                try {
+                    errorText = await response.text();
+                } catch (e) {
+                    errorText = 'Impossible de lire la réponse d\'erreur';
+                }
+                
+                const errorJson = tryParseJson(errorText);
+                console.error(`PollingUpdates: Erreur HTTP ${response.status} pour ${url}. Réponse:`, errorJson || errorText.substring(0, 200));
+                
+                // Traitement spécial pour l'erreur 'places_restantes'
+                if (errorJson && errorJson.message === "'places_restantes'" && url.includes('/api/dashboard_essential')) {
+                    console.log("PollingUpdates: Erreur spécifique 'places_restantes' détectée. Abandon des tentatives pour cet endpoint.");
+                    dashboardEssentialFailed = true;
+                    throw new Error("Erreur places_restantes détectée, passage aux endpoints individuels");
+                }
                 
                 // Ne pas réessayer indéfiniment les erreurs client (4xx) sauf 429 (Too Many Requests)
                 if (response.status >= 400 && response.status < 500 && response.status !== 429) {
@@ -182,15 +188,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Pour les erreurs serveur (5xx) ou 429, on réessaie
-                throw new Error(`Erreur serveur HTTP ${response.status}`);
-            } catch (error) {
                 retries++;
-                
-                if (error.name === 'AbortError') {
-                    console.warn(`PollingUpdates: Timeout for ${url} (Attempt ${retries}/${config.maxRetries + 1})`);
-                } else {
-                    console.warn(`PollingUpdates: Erreur fetch pour ${url} (Tentative ${retries}/${config.maxRetries + 1}):`, error.message);
+                if (retries > config.maxRetries) {
+                    console.error(`PollingUpdates: Max retries atteint pour ${url}. Abandon.`);
+                    throw new Error(`Max retries (${config.maxRetries}) dépassés`);
                 }
+                
+                // Attente exponentielle avec jitter
+                await new Promise(resolve => setTimeout(resolve, delay + Math.random() * 500));
+                delay *= 1.8; // Augmenter le délai plus agressivement
+                
+            } catch (error) {
+                // Si c'est l'erreur spécifique places_restantes, ne pas réessayer
+                if (error.message.includes('places_restantes')) {
+                    throw error;
+                }
+                
+                retries++;
+                console.warn(`PollingUpdates: Erreur fetch pour ${url} (Tentative ${retries}/${config.maxRetries + 1}):`, error.message);
                 
                 if (retries > config.maxRetries) {
                     console.error(`PollingUpdates: Max retries atteint pour ${url}. Abandon.`);
@@ -199,29 +214,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Attente exponentielle avec jitter
                 await new Promise(resolve => setTimeout(resolve, delay + Math.random() * 500));
-                delay *= 1.8; // Augmenter le délai plus agressivement
+                delay *= 1.8;
             }
         }
         
         // Ne devrait pas être atteint, mais sécurité
         throw new Error(`Échec de récupération de ${url} après ${config.maxRetries + 1} tentatives.`);
     }
-    
-    // Détermine si une ressource doit être actualisée
+
+    // Fonction utilitaire pour essayer de parser du JSON
+    function tryParseJson(text) {
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Vérifier si une ressource doit être rafraîchie
     function shouldRefreshResource(resourceName) {
         const now = Date.now();
         const lastFetch = lastFetchTimestamps[resourceName] || 0;
-        const timeSinceLastFetch = now - lastFetch;
-        const minTime = config.minTimeBetweenRefresh[resourceName] || 10000; // Default 10s
-        
-        if (timeSinceLastFetch < minTime) {
-            if (config.debugMode) console.log(`PollingUpdates: Skipping ${resourceName} refresh (${timeSinceLastFetch}ms < ${minTime}ms)`);
-            return false;
-        }
-        return true;
+        return (now - lastFetch) >= config.minRefreshInterval;
     }
-    
-    // Fonction centrale d'actualisation du tableau de bord
+
+    /**
+     * Refresh all dashboard components
+     * Improved to handle combined endpoint failure
+     */
     async function refreshDashboardComponents() {
         if (!pollingEnabled || (config.visibilityPause && document.visibilityState !== 'visible')) {
             if (pollingEnabled && config.debugMode) console.log('PollingUpdates: Skipped refresh (tab not visible)');
@@ -232,345 +252,383 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let dashboardDataPayload = { sessions: null, participants: null, salles: null, activites: null };
         let dataUpdatedOverall = false;
-        let cycleHasError = false;
         
-        const resourcesToFetch = [
-            { name: 'sessions', endpoint: `${config.baseApiUrl}/sessions` },
-            { name: 'participants', endpoint: `${config.baseApiUrl}/participants` },
-            { name: 'salles', endpoint: `${config.baseApiUrl}/salles` },
-            { name: 'activites', endpoint: `${config.baseApiUrl}/activites`, condition: () => document.getElementById('recent-activity') }
-        ];
-        
-        try {
-            // Essayons d'abord l'endpoint combiné pour plus d'efficacité
-            const dashboardEssentialEndpoint = `${config.baseApiUrl}/dashboard_essential`;
+        // Si l'endpoint combiné a déjà échoué avec l'erreur places_restantes, utiliser directement les endpoints individuels
+        if (dashboardEssentialFailed) {
+            console.log('PollingUpdates: Utilisation des endpoints individuels comme fallback...');
+            await refreshUsingIndividualEndpoints(dashboardDataPayload);
+        } else {
+            // Essayer d'abord l'endpoint combiné
             try {
-                const essentialData = await fetchWithRetry(dashboardEssentialEndpoint);
-                console.log("PollingUpdates: Données essentielles reçues:", essentialData);
+                const combinedData = await fetchWithRetry(`${config.baseApiUrl}/dashboard_essential`, {
+                    timeout: 10000 // 10 secondes timeout
+                });
                 
-                if (essentialData && !essentialData.error) {
-                    // Mettre à jour les timestamps
-                    for (const resourceName of ['sessions', 'participants', 'activites']) {
-                        if (essentialData[resourceName]) {
-                            lastFetchTimestamps[resourceName] = Date.now();
-                            
-                            // Vérifier si les données ont changé
-                            const currentDataHash = simpleHash(essentialData[resourceName]);
-                            if (lastDataHashes[resourceName] !== currentDataHash) {
-                                dashboardDataPayload[resourceName] = essentialData[resourceName];
-                                lastDataHashes[resourceName] = currentDataHash;
-                                dataUpdatedOverall = true;
-                                if (config.debugMode) console.log(`PollingUpdates: ${resourceName} data has changed.`);
-                            } else {
-                                if (config.debugMode) console.log(`PollingUpdates: ${resourceName} data unchanged.`);
-                            }
+                if (combinedData) {
+                    // Transformation et vérification des données reçues
+                    if (combinedData.sessions && Array.isArray(combinedData.sessions)) {
+                        const sessionsHash = simpleHash(combinedData.sessions);
+                        if (lastDataHashes.sessions !== sessionsHash) {
+                            dashboardDataPayload.sessions = combinedData.sessions;
+                            lastDataHashes.sessions = sessionsHash;
+                            lastFetchTimestamps.sessions = Date.now();
+                            dataUpdatedOverall = true;
+                            console.log('PollingUpdates: sessions data has changed.');
                         }
                     }
                     
-                    // Comme nous avons réussi, nous ignorons les endpoints individuels
-                    handleSuccess();
-                } else {
-                    // Si l'endpoint combiné échoue, utilisons les endpoints individuels
-                    throw new Error("Endpoint dashboard_essential failed or returned error. Falling back to individual endpoints.");
-                }
-            } catch (essentialError) {
-                console.warn("PollingUpdates: Échec de l'endpoint combiné:", essentialError.message);
-                console.log("PollingUpdates: Utilisation des endpoints individuels comme fallback...");
-                
-                // Continuer avec les endpoints individuels
-                for (const resource of resourcesToFetch) {
-                    if (resource.condition && !resource.condition()) continue;
-                    if (!shouldRefreshResource(resource.name)) continue; // Sauter si pas besoin de rafraîchir
-                    
-                    if (config.staggerRequests && dataUpdatedOverall) {
-                        await new Promise(resolve => setTimeout(resolve, 250 + Math.random() * 150));
-                    }
-                    
-                    try {
-                        const apiResponse = await fetchWithRetry(resource.endpoint);
-                        lastFetchTimestamps[resource.name] = Date.now();
-                        
-                        // Traitement de la réponse (si succès)
-                        const currentDataArray = Array.isArray(apiResponse?.items) ? apiResponse.items : (Array.isArray(apiResponse) ? apiResponse : null);
-                        
-                        if (currentDataArray === null && apiResponse !== null) {
-                            console.warn(`PollingUpdates: Format de données inattendu pour ${resource.name}. Réponse:`, apiResponse);
-                        } else if (currentDataArray !== null) {
-                            const currentDataHash = simpleHash(currentDataArray);
-                            if (lastDataHashes[resource.name] !== currentDataHash) {
-                                dashboardDataPayload[resource.name] = currentDataArray;
-                                lastDataHashes[resource.name] = currentDataHash;
-                                dataUpdatedOverall = true;
-                                if (config.debugMode) console.log(`PollingUpdates: ${resource.name} data has changed.`);
-                            } else {
-                                if (config.debugMode) console.log(`PollingUpdates: ${resource.name} data unchanged.`);
-                            }
+                    if (combinedData.activites && Array.isArray(combinedData.activites)) {
+                        const activitesHash = simpleHash(combinedData.activites);
+                        if (lastDataHashes.activites !== activitesHash) {
+                            dashboardDataPayload.activites = combinedData.activites;
+                            lastDataHashes.activites = activitesHash;
+                            lastFetchTimestamps.activites = Date.now();
+                            dataUpdatedOverall = true;
+                            console.log('PollingUpdates: activites data has changed.');
                         }
-                    } catch (fetchError) {
-                        handleError(fetchError, `${resource.name} fetch`);
-                        cycleHasError = true;
                     }
+                    
+                    // Note: combinedData peut ne pas contenir participants/salles, ce qui est OK
                 }
+            } catch (error) {
+                console.error('PollingUpdates: Échec de l\'endpoint combiné:', error.message);
+                
+                // Si l'erreur contient places_restantes, on flaggue pour toujours utiliser les endpoints individuels
+                if (error.message.includes('places_restantes')) {
+                    dashboardEssentialFailed = true;
+                    console.warn('PollingUpdates: Passage permanent aux endpoints individuels en raison de l\'erreur places_restantes');
+                }
+                
+                // Fallback vers les endpoints individuels
+                console.log('PollingUpdates: Utilisation des endpoints individuels comme fallback...');
+                await refreshUsingIndividualEndpoints(dashboardDataPayload);
             }
+        }
+        
+        // Mise à jour UI seulement si des données ont changé ET aucune erreur fatale n'a arrêté le polling
+        if (dataUpdatedOverall && pollingEnabled) {
+            if (config.debugMode) console.log("PollingUpdates: Data changed, updating UI with payload:", dashboardDataPayload);
             
-            // Mise à jour UI seulement si des données ont changé ET aucune erreur fatale n'a arrêté le polling
-            if (dataUpdatedOverall && pollingEnabled) {
-                if (config.debugMode) console.log("PollingUpdates: Data changed, updating UI with payload:", dashboardDataPayload);
-                updateStatsAndUI(dashboardDataPayload);
-                updateActivityFeed(dashboardDataPayload.activites);
-                handleSuccess(); // Réinitialiser le compteur d'erreurs, cacher l'alerte si besoin
-                document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: dashboardDataPayload } }));
-            } else if (!dataUpdatedOverall && pollingEnabled) {
-                if (config.debugMode) console.log(`PollingUpdates: No data changes detected, UI not updated this cycle.`);
-                handleSuccess(); // Considérer un cycle sans changement comme un succès
-            } else if (!pollingEnabled) {
-                if (config.debugMode) console.log(`PollingUpdates: Polling is disabled, skipping UI update.`);
-            }
-        } catch (error) {
-            console.error('PollingUpdates: Erreur majeure dans le cycle de rafraîchissement:', error);
-            handleError(error, 'refresh cycle logic');
+            // Mise à jour des composants
+            updateStatsAndUI(dashboardDataPayload);
+            updateActivityFeed(dashboardDataPayload.activites);
+            
+            // Réinitialiser le compteur d'erreurs, cacher l'alerte si besoin
+            handleSuccess();
+            
+            // Notification aux autres modules que des données ont été mises à jour
+            document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { 
+                detail: { data: dashboardDataPayload } 
+            }));
+        } else if (!dataUpdatedOverall && pollingEnabled) {
+            if (config.debugMode) console.log(`PollingUpdates: No data changes detected, UI not updated this cycle.`);
+            handleSuccess(); // Considérer un cycle sans changement comme un succès
         }
     }
-    
-    // Met à jour les statistiques et l'UI avec les données reçues
+
+    /**
+     * Refresh using individual API endpoints when combined endpoint fails
+     * @param {Object} dashboardDataPayload - Data container to be filled
+     * @returns {Promise<boolean>} - Success indicator
+     */
+    async function refreshUsingIndividualEndpoints(dashboardDataPayload) {
+        let dataUpdatedOverall = false;
+        
+        // Liste des endpoints individuels à appeler
+        const endpoints = [
+            { name: 'sessions', url: `${config.baseApiUrl}/sessions` },
+            { name: 'activites', url: `${config.baseApiUrl}/activites` }
+        ];
+        
+        // Endpoints optionnels selon les composants visibles
+        if (document.getElementById('participants-chart') || document.querySelector('[data-component="participants-data"]')) {
+            endpoints.push({ name: 'participants', url: `${config.baseApiUrl}/participants` });
+        }
+        
+        // Appels en parallèle pour plus d'efficacité
+        const results = await Promise.allSettled(
+            endpoints.map(endpoint => 
+                shouldRefreshResource(endpoint.name) 
+                    ? fetchWithRetry(endpoint.url).catch(e => {
+                        console.error(`PollingUpdates: Erreur sur endpoint individuel ${endpoint.name}:`, e);
+                        return null;
+                    })
+                    : Promise.resolve(null)
+            )
+        );
+        
+        // Traitement des résultats
+        for (let i = 0; i < endpoints.length; i++) {
+            const endpoint = endpoints[i];
+            const result = results[i];
+            
+            if (result.status === 'fulfilled' && result.value) {
+                const data = result.value;
+                const dataArray = Array.isArray(data) ? data : (data.items || null);
+                
+                if (dataArray) {
+                    const dataHash = simpleHash(dataArray);
+                    if (lastDataHashes[endpoint.name] !== dataHash) {
+                        dashboardDataPayload[endpoint.name] = dataArray;
+                        lastDataHashes[endpoint.name] = dataHash;
+                        lastFetchTimestamps[endpoint.name] = Date.now();
+                        dataUpdatedOverall = true;
+                        console.log(`PollingUpdates: ${endpoint.name} data has changed.`);
+                    }
+                }
+            } else if (result.status === 'rejected') {
+                console.error(`PollingUpdates: Échec de l'endpoint ${endpoints[i].name}:`, result.reason);
+                handleError(result.reason, `${endpoints[i].name} endpoint`);
+            }
+        }
+        
+        return dataUpdatedOverall;
+    }
+
+    /**
+     * Update page statistics and UI components with refreshed data
+     * @param {Object} payload - Data for updating UI
+     */
     function updateStatsAndUI(payload) {
         console.log("PollingUpdates: Données reçues pour stats/UI:", JSON.stringify(payload));
         
-        // Mise à jour du tableau des sessions si les données et la fonction existent
-        if (payload.sessions && typeof window.updateSessionTable === 'function') {
-            try {
+        // Mettre à jour les statistiques globales et compteurs
+        if (payload.sessions && Array.isArray(payload.sessions)) {
+            updateSessionStats(payload.sessions);
+            
+            // Mettre à jour le tableau des sessions si présent
+            if (typeof window.updateSessionTable === 'function') {
                 window.updateSessionTable(payload.sessions);
-            } catch (e) {
-                console.error("PollingUpdates: Erreur lors de la mise à jour du tableau des sessions:", e);
             }
         }
         
-        // Mise à jour des compteurs de statistiques
-        if (payload.sessions) {
-            try {
-                updateDashboardStatistics(payload.sessions);
-            } catch (e) {
-                console.error("PollingUpdates: Erreur lors de la mise à jour des statistiques:", e);
-            }
+        // Mettre à jour d'autres composants UI si besoin
+        if (payload.participants && Array.isArray(payload.participants)) {
+            updateParticipantStats(payload.participants);
         }
         
-        // Mise à jour des graphiques via l'événement - géré par charts-enhanced.js
+        // Appliquer les corrections UI après les mises à jour
+        if (typeof window.uiFixers !== 'undefined' && typeof window.uiFixers.applyAllFixes === 'function') {
+            setTimeout(window.uiFixers.applyAllFixes, 100);
+        }
     }
-    
-    // Met à jour les compteurs de statistiques du tableau de bord
-    function updateDashboardStatistics(sessions) {
+
+    /**
+     * Mise à jour des statistiques des sessions
+     * @param {Array} sessions - Données de sessions
+     */
+    function updateSessionStats(sessions) {
         if (!sessions || !Array.isArray(sessions)) return;
         
-        // Calcul des totaux
-        let totalInscriptions = 0;
-        let totalEnAttente = 0;
-        let totalSessionsCompletes = 0;
-        let totalSessions = sessions.length;
-        
-        sessions.forEach(session => {
-            // Vérifier que les propriétés nécessaires existent
-            if (typeof session.inscrits === 'number') {
-                totalInscriptions += session.inscrits;
-            }
+        try {
+            // Calcul des statistiques
+            let totalSessions = sessions.length;
+            let totalInscriptions = 0;
+            let totalEnAttente = 0;
+            let totalSessionsCompletes = 0;
             
-            if (typeof session.liste_attente === 'number') {
-                totalEnAttente += session.liste_attente;
-            }
+            sessions.forEach(session => {
+                if (typeof session.inscrits === 'number') {
+                    totalInscriptions += session.inscrits;
+                }
+                
+                if (typeof session.liste_attente === 'number') {
+                    totalEnAttente += session.liste_attente;
+                }
+                
+                // Une session est complète si places_restantes = 0
+                if (typeof session.places_restantes === 'number' && session.places_restantes <= 0) {
+                    totalSessionsCompletes++;
+                }
+            });
             
-            if (typeof session.places_restantes === 'number' && session.places_restantes <= 0) {
-                totalSessionsCompletes++;
+            // Mise à jour des compteurs dans le DOM
+            updateCounter('total-inscriptions', totalInscriptions);
+            updateCounter('total-en-attente', totalEnAttente);
+            updateCounter('total-sessions', totalSessions);
+            updateCounter('total-sessions-completes', totalSessionsCompletes);
+            
+            // Animation des compteurs globaux si besoin
+            if (typeof window.animateAllDashboardCounters === 'function') {
+                window.animateAllDashboardCounters();
             }
-        });
-        
-        // Mise à jour des compteurs dans l'UI
-        updateCounter('total-inscriptions', totalInscriptions);
-        updateCounter('total-en-attente', totalEnAttente);
-        updateCounter('total-sessions-completes', totalSessionsCompletes);
-        
-        // Exposer ces statistiques globalement pour d'autres composants
-        window.dashboardStats = {
-            totalInscriptions,
-            totalEnAttente,
-            totalSessionsCompletes,
-            totalSessions
-        };
+        } catch (e) {
+            console.error('PollingUpdates: Erreur lors de la mise à jour des statistiques des sessions:', e);
+        }
     }
-    
-    // Met à jour le feed d'activités récentes
+
+    /**
+     * Mise à jour des statistiques des participants
+     * @param {Array} participants - Données des participants
+     */
+    function updateParticipantStats(participants) {
+        if (!participants || !Array.isArray(participants)) return;
+        
+        try {
+            // Mise à jour du compteur de participants total si présent
+            updateCounter('total-participants', participants.length);
+            
+            // Mise à jour d'autres éléments liés aux participants si nécessaire
+        } catch (e) {
+            console.error('PollingUpdates: Erreur lors de la mise à jour des statistiques des participants:', e);
+        }
+    }
+
+    /**
+     * Update activity feed with recent activities
+     * @param {Array} activitesArray - Recent activities data
+     */
     function updateActivityFeed(activitesArray) {
         console.log("PollingUpdates: Données reçues pour Activité Récente:", JSON.stringify(activitesArray));
         
         const activityContainer = document.getElementById('recent-activity');
-        if (!activityContainer) return;
+        if (!activityContainer || !activitesArray || !Array.isArray(activitesArray)) return;
         
-        // Supprimer le spinner de chargement
-        const loadingSpinner = activityContainer.querySelector('.loading-spinner');
-        if (loadingSpinner) {
-            loadingSpinner.remove();
-        }
-        
-        if (!activitesArray || !Array.isArray(activitesArray) || activitesArray.length === 0) {
-            // Afficher un message si pas d'activités
-            if (activityContainer.children.length === 0) {
-                activityContainer.innerHTML = `
-                    <div class="text-center text-muted p-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Aucune activité récente
+        try {
+            // Vider le conteneur ou stocker l'état actuel pour comparaison
+            const currentFirstActivityId = activityContainer.querySelector('.activity-item')?.dataset?.activityId;
+            
+            // Construction du HTML pour les activités
+            let activitiesHTML = '';
+            activitesArray.slice(0, 10).forEach(activity => { // Limiter à 10 activités
+                const icon = getIconForActivity(activity.type);
+                const userPart = activity.user ? `<span class="text-primary">${activity.user}</span>` : '';
+                
+                activitiesHTML += `
+                <div class="activity-item" data-activity-id="${activity.id}">
+                    <div class="activity-icon">
+                        <i class="${icon}"></i>
                     </div>
-                `;
-            }
-            return;
-        }
-        
-        // Vider le conteneur si nécessaire
-        if (!loadingSpinner && activityContainer.children.length === 0 || 
-            activityContainer.querySelector('.text-muted')) {
-            activityContainer.innerHTML = '';
-        }
-        
-        // Fonction pour créer un élément d'activité
-        function createActivityItem(activity) {
-            const activityIcons = {
-                'connexion': 'fa-sign-in-alt',
-                'deconnexion': 'fa-sign-out-alt',
-                'inscription': 'fa-user-plus',
-                'validation': 'fa-check-circle',
-                'refus': 'fa-times-circle',
-                'annulation': 'fa-ban',
-                'ajout_participant': 'fa-user-plus',
-                'modification_participant': 'fa-user-edit',
-                'suppression_participant': 'fa-user-minus',
-                'liste_attente': 'fa-clock',
-                'ajout_theme': 'fa-plus-circle',
-                'modification_theme': 'fa-edit',
-                'suppression_theme': 'fa-trash-alt',
-                'ajout_salle': 'fa-door-open',
-                'modification_salle': 'fa-door-open',
-                'suppression_salle': 'fa-door-closed',
-                'attribution_salle': 'fa-building',
-                'notification': 'fa-bell',
-                'systeme': 'fa-cogs',
-                'default': 'fa-info-circle'
-            };
-            
-            const icon = activityIcons[activity.type] || activityIcons.default;
-            
-            let itemClass = 'list-group-item-light';
-            if (activity.type.includes('ajout')) itemClass = 'list-group-item-success';
-            if (activity.type.includes('suppression')) itemClass = 'list-group-item-danger';
-            if (activity.type.includes('modification')) itemClass = 'list-group-item-warning';
-            if (activity.type.includes('validation')) itemClass = 'list-group-item-info';
-            
-            const activityItem = document.createElement('div');
-            activityItem.classList.add('list-group-item', 'py-2', itemClass);
-            activityItem.dataset.activityId = activity.id;
-            
-            activityItem.innerHTML = `
-                <div class="d-flex align-items-start">
-                    <div class="me-2">
-                        <i class="fas ${icon} fa-fw text-primary"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="d-flex justify-content-between">
-                            <strong class="mb-1">${activity.description}</strong>
-                            <small class="text-muted">${activity.date_relative || 'récemment'}</small>
+                    <div class="activity-content">
+                        <div class="activity-title">
+                            ${activity.description} ${userPart}
                         </div>
-                        ${activity.details ? `<small class="text-muted">${activity.details}</small>` : ''}
-                        ${activity.user ? `<small class="d-block text-primary">Par: ${activity.user}</small>` : ''}
+                        <div class="activity-subtitle">
+                            ${activity.details ? `<small>${activity.details}</small><br>` : ''}
+                            <small class="text-muted">${activity.date_relative || ''}</small>
+                        </div>
                     </div>
-                </div>
-            `;
+                </div>`;
+            });
             
-            return activityItem;
-        }
-        
-        // Ajouter chaque activité au conteneur (seulement les nouvelles)
-        activitesArray.forEach(activity => {
-            // Vérifier si l'activité existe déjà
-            const existingActivity = activityContainer.querySelector(`[data-activity-id="${activity.id}"]`);
-            if (!existingActivity) {
-                const activityItem = createActivityItem(activity);
-                
-                // Ajouter l'élément au début (plus récent en haut)
-                if (activityContainer.firstChild) {
-                    activityContainer.insertBefore(activityItem, activityContainer.firstChild);
-                } else {
-                    activityContainer.appendChild(activityItem);
-                }
-                
-                // Animation d'entrée
-                activityItem.style.opacity = '0';
-                activityItem.style.transform = 'translateX(-10px)';
-                setTimeout(() => {
-                    activityItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                    activityItem.style.opacity = '1';
-                    activityItem.style.transform = 'translateX(0)';
-                }, 50);
+            // Mise à jour du DOM seulement si nécessaire
+            if (activitiesHTML && (
+                !currentFirstActivityId || 
+                currentFirstActivityId !== activitesArray[0]?.id?.toString()
+            )) {
+                // Remplacer le contenu avec animation
+                activityContainer.innerHTML = activitiesHTML;
+                activityContainer.querySelectorAll('.activity-item').forEach((el, index) => {
+                    el.style.animationDelay = `${index * 50}ms`;
+                    el.classList.add('fade-in');
+                });
             }
-        });
-        
-        // Limiter le nombre d'éléments affichés (garder les 10 plus récents)
-        const allItems = activityContainer.querySelectorAll('.list-group-item');
-        if (allItems.length > 10) {
-            for (let i = 10; i < allItems.length; i++) {
-                allItems[i].remove();
+            
+            // Mettre à jour le titre si nécessaire
+            const activityTitle = document.querySelector('.activity-feed-title');
+            if (activityTitle) {
+                activityTitle.textContent = `Activité Récente (${activitesArray.length})`;
             }
+        } catch (e) {
+            console.error('PollingUpdates: Erreur lors de la mise à jour du flux d\'activités:', e);
         }
     }
-    
-    // Met à jour un compteur avec animation
+
+    /**
+     * Update a counter element with animation
+     * @param {string} elementId - ID of the counter element
+     * @param {number} value - New value
+     */
     function updateCounter(elementId, value) {
         const element = document.getElementById(elementId);
         if (!element) return;
         
-        const currentValue = parseInt(element.textContent.replace(/[^\d]/g, '')) || 0;
+        // Extraire la valeur actuelle
+        const currentValue = parseInt(element.textContent.replace(/[^\d]/g, ''), 10) || 0;
         
+        // Ne mettre à jour que si la valeur a changé
         if (currentValue !== value) {
-            window.animateCounter(element, currentValue, value);
-        }
-    }
-    
-    // Fonction globale pour animer un compteur
-    window.animateCounter = function(element, startValue, endValue, duration = 700) {
-        if (!element) return;
-        
-        // Assurons-nous d'utiliser des nombres
-        startValue = parseInt(startValue) || 0;
-        endValue = parseInt(endValue) || 0;
-        
-        // Si pas de changement, ne rien faire
-        if (startValue === endValue) return;
-        
-        const diff = endValue - startValue;
-        const startTime = performance.now();
-        
-        function updateValue(timestamp) {
-            const elapsedTime = timestamp - startTime;
-            
-            if (elapsedTime < duration) {
-                const progress = elapsedTime / duration;
-                const easeProgress = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2; // Ease in-out cubic
-                const currentValue = Math.round(startValue + diff * easeProgress);
-                element.textContent = currentValue.toLocaleString();
-                requestAnimationFrame(updateValue);
+            if (typeof window.animateCounter === 'function') {
+                window.animateCounter(element, currentValue, value);
             } else {
-                element.textContent = endValue.toLocaleString();
+                // Fallback si la fonction d'animation n'est pas disponible
+                element.textContent = value.toLocaleString();
             }
         }
+    }
+
+    /**
+     * Get appropriate icon class based on activity type
+     * @param {string} type - Activity type
+     * @returns {string} - Icon class
+     */
+    function getIconForActivity(type) {
+        const iconMap = {
+            'connexion': 'fas fa-sign-in-alt text-success',
+            'deconnexion': 'fas fa-sign-out-alt text-warning',
+            'inscription': 'fas fa-user-plus text-primary',
+            'validation': 'fas fa-check-circle text-success',
+            'refus': 'fas fa-times-circle text-danger',
+            'annulation': 'fas fa-ban text-danger',
+            'ajout_participant': 'fas fa-user-plus text-primary',
+            'suppression_participant': 'fas fa-user-minus text-danger',
+            'modification_participant': 'fas fa-user-edit text-warning',
+            'reinscription': 'fas fa-redo text-info',
+            'liste_attente': 'fas fa-clock text-warning',
+            'ajout_theme': 'fas fa-folder-plus text-primary',
+            'ajout_service': 'fas fa-building text-primary',
+            'ajout_salle': 'fas fa-door-open text-primary',
+            'attribution_salle': 'fas fa-map-marker-alt text-info',
+            'systeme': 'fas fa-cog text-secondary',
+            'notification': 'fas fa-bell text-warning',
+            'default': 'fas fa-info-circle text-secondary'
+        };
         
-        requestAnimationFrame(updateValue);
+        return iconMap[type] || iconMap.default;
+    }
+
+    /**
+     * Stub for refreshRecentActivity exported for backward compatibility
+     */
+    window.refreshRecentActivity = function() {
+        console.log("PollingUpdates: refreshRecentActivity called - handled by polling-updates.js");
+        
+        if (shouldRefreshResource('activites')) {
+            fetchWithRetry(`${config.baseApiUrl}/activites`)
+                .then(data => {
+                    if (data && Array.isArray(data)) {
+                        updateActivityFeed(data);
+                        lastFetchTimestamps.activites = Date.now();
+                    }
+                })
+                .catch(e => console.error("PollingUpdates: Error refreshing activities:", e));
+        }
     };
-    
-    // Fonction globale pour animer tous les compteurs du tableau de bord
-    window.animateAllDashboardCounters = function() {
-        const counterElements = document.querySelectorAll('.counter-value');
-        counterElements.forEach(el => {
-            const finalValue = parseInt(el.getAttribute('data-final') || '0');
-            window.animateCounter(el, 0, finalValue);
-        });
+
+    /**
+     * Stub for updateStatsCounters exported for backward compatibility
+     */
+    window.updateStatsCounters = function() {
+        console.log("PollingUpdates: updateStatsCounters called - handled by polling-updates.js");
+        
+        if (shouldRefreshResource('sessions')) {
+            fetchWithRetry(`${config.baseApiUrl}/sessions`)
+                .then(data => {
+                    if (data) {
+                        const sessions = Array.isArray(data) ? data : (data.items || []);
+                        updateSessionStats(sessions);
+                        lastFetchTimestamps.sessions = Date.now();
+                    }
+                })
+                .catch(e => console.error("PollingUpdates: Error refreshing stats:", e));
+        }
     };
-    
-    // Force le rafraîchissement manuel des données
+
+    /**
+     * Force an immediate update of all dashboard components
+     * @param {boolean} importantChange - Whether this is an important change requiring full refresh
+     * @returns {Promise} - Resolution indicates refresh cycle completion
+     */
     window.forcePollingUpdate = async function(importantChange = false) {
         if (config.debugMode) console.log("PollingUpdates: Manual refresh forced. ImportantChange:", importantChange);
         
@@ -579,59 +637,46 @@ document.addEventListener('DOMContentLoaded', function() {
         if (wasPollingDisabled) {
             console.log("PollingUpdates: Réactivation temporaire du polling pour l'actualisation manuelle.");
             pollingEnabled = true;
-            consecutiveErrors = 0; // Reset errors for the manual attempt
-            showBackendErrorWarning(false); // Hide warning
+            consecutiveErrors = 0;
+            showBackendErrorWarning(false);
         }
         
         if (importantChange) {
+            // Réinitialiser les timestamps et hashes pour forcer un refresh complet
             Object.keys(lastFetchTimestamps).forEach(key => lastFetchTimestamps[key] = 0);
             Object.keys(lastDataHashes).forEach(key => lastDataHashes[key] = '');
+            
+            // Réinitialiser le flag d'échec de l'endpoint combiné pour le retester
+            dashboardEssentialFailed = false;
         }
         
-        if (pollingIntervalId) { clearInterval(pollingIntervalId); pollingIntervalId = null; }
+        // Suspendre l'intervalle pendant l'actualisation manuelle
+        if (pollingIntervalId) {
+            clearInterval(pollingIntervalId);
+            pollingIntervalId = null;
+        }
         
         try {
             await refreshDashboardComponents();
-            return Promise.resolve({ success: true, message: "Refresh completed successfully" });
+            return { success: true };
         } catch (e) {
             console.error("PollingUpdates: Erreur pendant forcePollingUpdate", e);
-            return Promise.reject({ success: false, message: "Refresh error: " + e.message });
+            return { success: false, error: e.message };
         } finally {
             // Redémarrer le polling seulement s'il était actif avant l'appel manuel
-            // ou s'il n'avait pas été désactivé par maxErrors
             if (pollingEnabled) {
                 startPolling();
             } else if (wasPollingDisabled) {
                 // Si on l'a réactivé juste pour le test et qu'il a encore échoué (handleError l'aura remis à false)
-                // on le laisse désactivé. Si le test a réussi (handleSuccess l'a remis à true), startPolling le relance.
                 if (pollingEnabled) startPolling();
                 else console.log("PollingUpdates: L'actualisation manuelle a échoué, le polling reste désactivé.");
             }
         }
     };
-    
-    // Stubs pour la compatibilité avec dashboard.js
-    window.refreshRecentActivity = function() {
-        if (config.debugMode) console.log('PollingUpdates: refreshRecentActivity called - handled by polling-updates.js');
-        fetch('/api/activites')
-            .then(response => response.json())
-            .then(data => updateActivityFeed(data))
-            .catch(err => console.error('Error refreshing activity feed:', err));
-    };
-    
-    window.updateStatsCounters = function() {
-        if (config.debugMode) console.log('PollingUpdates: updateStatsCounters called - handled by polling-updates.js');
-        fetch('/api/dashboard_essential')
-            .then(response => response.json())
-            .then(data => {
-                if (data.sessions) {
-                    updateDashboardStatistics(data.sessions);
-                }
-            })
-            .catch(err => console.error('Error updating stats counters:', err));
-    };
-    
-    // Démarre le polling
+
+    /**
+     * Start the polling mechanism
+     */
     function startPolling() {
         // Ne pas démarrer si déjà en cours ou désactivé
         if (pollingIntervalId || !pollingEnabled) {
@@ -644,7 +689,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Reset errors when starting polling
         consecutiveErrors = 0;
-        showBackendErrorWarning(false); // Assurer que l'erreur n'est pas affichée au démarrage
+        showBackendErrorWarning(false);
         
         // Premier appel un peu différé
         setTimeout(refreshDashboardComponents, 500);
@@ -652,26 +697,33 @@ document.addEventListener('DOMContentLoaded', function() {
         // Démarrer l'intervalle
         pollingIntervalId = setInterval(refreshDashboardComponents, config.pollingInterval);
     }
-    
-    // Initialisation
-    if (DASH_CONFIG.activeMode === 'polling' || DASH_CONFIG.preferredMode === 'polling' || DASH_CONFIG.preferredMode === 'auto') {
+
+    // --- Initialisation ---
+    // Démarrer le polling si le mode est 'polling' ou 'auto' (car WebSocket n'est pas utilisé ici)
+    if (DASH_CONFIG.activeMode === 'polling' || !DASH_CONFIG.activeMode) {
         startPolling();
         
         // Gestion de la visibilité de l'onglet
         document.addEventListener('visibilitychange', function() {
             if (document.visibilityState === 'visible' && pollingEnabled) {
                 if (config.debugMode) console.log("PollingUpdates: Onglet visible, déclenchement rafraîchissement.");
+                
                 // Si le polling était en pause (intervalle arrêté), le redémarrer
                 if (!pollingIntervalId) startPolling();
+                
                 // Rafraîchir rapidement
                 setTimeout(refreshDashboardComponents, 200);
             } else if (document.visibilityState !== 'visible' && config.visibilityPause && pollingIntervalId) {
-                if (config.debugMode) console.log("PollingUpdates: Onglet caché, mise en pause des mises à jour automatiques.");
+                if (config.debugMode) console.log("PollingUpdates: Onglet caché, mise en pause des mises à jour (intervalle arrêté).");
+                
+                // Optionnel: arrêter l'intervalle pour économiser ressources
+                // clearInterval(pollingIntervalId);
+                // pollingIntervalId = null;
             }
         });
     } else {
-        if (config.debugMode) console.log("PollingUpdates: Polling non démarré (mode actif non 'polling' ou 'auto').");
+        if (config.debugMode) console.log("PollingUpdates: Polling non démarré (mode actif non 'polling').");
     }
     
-    if (config.debugMode) console.log('PollingUpdates: Setup complete (v3.1.0).');
+    console.log('PollingUpdates: Setup complete (v3.1.0).');
 });
