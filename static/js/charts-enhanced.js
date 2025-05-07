@@ -1,5 +1,4 @@
-// static/js/charts-enhanced.js
-// Version 2.1.1 - Added Chart.js library check, improved canvas checks, options for responsiveness.
+console.log("--- charts-enhanced.js EXECUTING ---");
 document.addEventListener('DOMContentLoaded', function() {
     const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
     if (DASH_CONFIG.debugMode) console.log('Enhanced Charts (v2.1.1): Initializing...');
