@@ -38,6 +38,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from werkzeug.exceptions import ServiceUnavailable
 from ics import Calendar, Event
+from ics.alarm import DisplayAlarm
 
 # Configuration d'encodage Unicode pour PostgreSQL
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
@@ -501,8 +502,9 @@ def generate_ics(session, participant, salle=None):
     """
     Génère le contenu d'un fichier calendrier ICS pour une inscription.
     Attend des objets Session et Participant valides.
+    Optimisé pour ics==0.7.2.
     """
-    app.logger.info(f"--- generate_ics called ---")
+    app.logger.info(f"--- generate_ics called (ics 0.7.2 method) ---")
     app.logger.info(f"Attempting for S_ID:{getattr(session, 'id', 'None')}, P_ID:{getattr(participant, 'id', 'None')}")
 
     try:
@@ -524,10 +526,8 @@ def generate_ics(session, participant, salle=None):
         cal = Calendar()
         event = Event()
         
-        # Utilise la propriété améliorée formatage_ics
-        date_debut_utc, date_fin_utc = session.formatage_ics
+        date_debut_utc, date_fin_utc = session.formatage_ics # S'appuie sur la propriété améliorée
 
-        # Vérification supplémentaire des dates retournées (devraient être datetime et UTC)
         if not isinstance(date_debut_utc, datetime) or not isinstance(date_fin_utc, datetime) or \
            date_debut_utc.tzinfo != UTC or date_fin_utc.tzinfo != UTC:
             app.logger.error(f"ICS Gen Error S_ID:{session.id}: formatage_ics did not return valid UTC datetime objects.")
@@ -537,9 +537,8 @@ def generate_ics(session, participant, salle=None):
         event.begin = date_debut_utc
         event.end = date_fin_utc
         
-        # Création de la description
         description_parts = [
-            "FORMATION MICROSOFT 365 - ANECOOP FRANCE", # Titre général
+            "FORMATION MICROSOFT 365 - ANECOOP FRANCE",
             f"\nThème: {session.theme.nom}"
         ]
         if hasattr(session, 'theme') and session.theme and hasattr(session.theme, 'description') and session.theme.description:
@@ -564,22 +563,19 @@ def generate_ics(session, participant, salle=None):
         description_parts.append(f"\nParticipant: {participant.prenom} {participant.nom}")
         event.description = "\n".join(description_parts)
 
-        # Propriétés ICS importantes
         event.uid = f"session-{session.id}-participant-{participant.id}-{date_debut_utc.strftime('%Y%m%dT%H%M%SZ')}@anecoop-france.com"
         event.created = datetime.now(UTC)
         event.last_modified = datetime.now(UTC)
         event.status = "CONFIRMED" 
 
-        # --- CORRECTION POUR L'ALARME ---
-        # Créer un objet Alarm séparément
-        alarm = Alarm()
-        alarm.action = "DISPLAY" 
-        alarm.trigger = timedelta(hours=-1) 
-        alarm.description = f"Rappel: Formation {session.theme.nom}" 
-        
-        # Ajouter l'objet Alarm à la liste des alarmes de l'événement
-        event.alarms.append(alarm)
-        # --- FIN DE LA CORRECTION ---
+        # --- CRÉATION DE L'ALARME POUR ICS 0.7.2 ---
+        alarm = DisplayAlarm(
+            trigger=timedelta(hours=-1),  # Déclencher 1 heure avant
+            description=f"Rappel: Formation {session.theme.nom}"
+            # 'action' est implicitement "DISPLAY" pour DisplayAlarm
+        )
+        event.alarms.add(alarm)
+        # --- FIN DE LA CORRECTION POUR L'ALARME ---
 
         cal.events.add(event)
         serialized_cal = cal.serialize()
