@@ -309,16 +309,38 @@ class Session(db.Model):
                not isinstance(self.heure_debut, time_obj) or \
                not isinstance(self.heure_fin, time_obj):
                 app.logger.error(f"ICS Formatting Error S:{self.id}: Invalid date/time types. Date: {type(self.date)}, Start: {type(self.heure_debut)}, End: {type(self.heure_fin)}")
-                # Fournir un fallback sûr si les types sont incorrects
                 now_utc = datetime.now(UTC)
                 return now_utc, now_utc + timedelta(hours=1)
 
-            # Combinaison de la date et de l'heure pour créer des objets datetime naïfs
             naive_start_dt = datetime.combine(self.date, self.heure_debut)
             naive_end_dt = datetime.combine(self.date, self.heure_fin)
 
+            # --- DÉBUT DU CODE MANQUANT/CORRIGÉ ---
+            try:
+                start_dt_aware = naive_start_dt.astimezone() 
+                end_dt_aware = naive_end_dt.astimezone()     
+                start_utc = start_dt_aware.astimezone(UTC)
+                end_utc = end_dt_aware.astimezone(UTC)
+            except Exception as tz_err:
+                app.logger.warning(f"ICS Timezone Warning S:{self.id}: Could not reliably determine server timezone. Assuming naive times are UTC. Error: {tz_err}")
+                start_utc = naive_start_dt.replace(tzinfo=UTC)
+                end_utc = naive_end_dt.replace(tzinfo=UTC)
+            
+            if end_utc <= start_utc:
+                app.logger.warning(f"ICS Formatting Warning S:{self.id}: End time ({end_utc}) not after start time ({start_utc}). Setting end to start + 1 hour.")
+                end_utc = start_utc + timedelta(hours=1)
+            
+            app.logger.debug(f"ICS Dates for S:{self.id} - Start (UTC): {start_utc}, End (UTC): {end_utc}")
+            return start_utc, end_utc
+            # --- FIN DU CODE MANQUANT/CORRIGÉ ---
 
-    def __repr__(self):
+        except Exception as e: # Ajout du bloc except pour le try principal
+            app.logger.error(f"Critical error in formatage_ics for S:{self.id}: {e}", exc_info=True)
+            now_utc = datetime.now(UTC)
+            return now_utc, now_utc + timedelta(hours=1)
+
+
+    def __repr__(self): # Cette ligne correspondait à votre ligne 321
         theme_nom = self.theme.nom if self.theme else "N/A"
         return f'<Session {self.id} - {theme_nom} le {self.date.strftime("%Y-%m-%d")}>'
 
