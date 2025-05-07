@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container-fluid px-4" id="sessions-page-content">
     <!-- En-tête page Sessions -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h1 class="h3 text-primary mb-0"><i class="fas fa-calendar-alt me-2"></i>Sessions de Formation</h1>
             <p class="text-muted small mb-0">Toutes les sessions de formation Microsoft 365</p>
@@ -26,7 +26,7 @@
                     <label for="theme_filter" class="form-label small fw-bold">Thème</label>
                     <select class="form-select form-select-sm" id="theme_filter" name="theme">
                         <option value="">Tous les thèmes</option>
-                        {% for theme_obj in themes %} {# 'themes' est la liste des objets Theme pour le filtre #}
+                        {% for theme_obj in themes %}
                         <option value="{{ theme_obj.id }}" {% if request.args.get('theme')|string == theme_obj.id|string %}selected{% endif %}>
                             {{ theme_obj.nom }}
                         </option>
@@ -60,8 +60,8 @@
     <!-- Liste des sessions (affichage en cartes) -->
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
         {% if sessions_data %}
-            {% for session_item_dict in sessions_data %} {# Renamed loop variable #}
-            {% set session_obj = session_item_dict.obj %} {# Get the actual Session object #}
+            {% for session_item_dict in sessions_data %}
+            {% set session_obj = session_item_dict.obj %}
             <div class="col">
                 <div class="card h-100 shadow-sm session-card">
                     <div class="card-header p-3 {% if session_item_dict.places_restantes == 0 %}bg-light border-danger border-2 border-top-0 border-start-0 border-end-0{% endif %}">
@@ -112,29 +112,46 @@
                     </div>
                     <div class="card-footer bg-light border-top p-2">
                         <div class="btn-group w-100" role="group">
-                            {% if session_item_dict.places_restantes > 0 %}
+                            {% set user_inscription_pending = false %}
+                            {% if current_user.is_authenticated %}
+                                {% for insc in session_obj.inscriptions %}
+                                    {% if insc.participant_id == current_user.id and insc.statut == 'en attente' %}
+                                        {% set user_inscription_pending = true %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+
+                            {% if user_inscription_pending %}
+                                <button type="button" class="btn btn-outline-warning btn-sm flex-grow-1 disabled">
+                                    <i class="fas fa-hourglass-half me-1"></i>En attente validation
+                                </button>
+                            {% elif session_item_dict.places_restantes > 0 %}
                                 <button type="button" class="btn btn-primary btn-sm flex-grow-1" 
                                         data-bs-toggle="modal" 
-                                        data-bs-target="#inscriptionModal_{{ session_obj.id }}">
+                                        data-bs-target="#inscriptionModal_{{ session_obj.id }}"
+                                        title="S'inscrire à cette session">
                                     <i class="fas fa-user-plus me-1"></i> S'inscrire
                                 </button>
                             {% else %}
                                 <a href="{{ url_for('liste_attente', session_id=session_obj.id) }}" 
-                                   class="btn btn-warning btn-sm flex-grow-1">
+                                   class="btn btn-warning btn-sm flex-grow-1"
+                                   title="S'inscrire sur la liste d'attente">
                                     <i class="fas fa-clock me-1"></i> Liste d'attente
                                 </a>
                             {% endif %}
                             
                             <button type="button" class="btn btn-outline-secondary btn-sm" 
                                     data-bs-toggle="modal" 
-                                    data-bs-target="#participantsModal_{{ session_obj.id }}">
+                                    data-bs-target="#participantsModal_{{ session_obj.id }}"
+                                    title="Voir les participants inscrits">
                                 <i class="fas fa-users me-1"></i> Participants <span class="badge bg-secondary ms-1">{{ session_item_dict.inscrits_confirmes_count }}</span>
                             </button>
 
                             {% if current_user.is_authenticated and current_user.role == 'admin' %}
                             <button type="button" class="btn btn-outline-info btn-sm" 
                                     data-bs-toggle="modal" 
-                                    data-bs-target="#attribuerSalleModal_{{ session_obj.id }}">
+                                    data-bs-target="#attribuerSalleModal_{{ session_obj.id }}"
+                                    title="Attribuer ou modifier la salle">
                                 <i class="fas fa-building"></i>
                             </button>
                             {% endif %}
@@ -157,21 +174,17 @@
 {# MODALS - Générées une fois par session #}
 {% if sessions_data %}
     {% for session_item_dict in sessions_data %}
-        {# Passer l'objet Session réel ET le dictionnaire de comptes/listes à chaque modale #}
         {% set session_obj_for_modal = session_item_dict.obj %}
-        {% set session_data_for_modal = session_item_dict %} {# Contient les listes pré-chargées et les comptes #}
+        {% set session_data_for_modal = session_item_dict %} 
     
-        {# --- Inscription Modal --- #}
         {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
             {% include 'modals/_inscription_modal.html' %} 
         {% endwith %}
 
-        {# --- Participants Modal --- #}
         {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
             {% include 'modals/_participants_modal.html' %}
         {% endwith %}
 
-        {# --- Attribuer Salle Modal (Admin Only) --- #}
         {% if current_user.is_authenticated and current_user.role == 'admin' %}
              {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
                  {% include 'modals/_attribuer_salle_modal.html' %}
