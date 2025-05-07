@@ -1,38 +1,45 @@
 /**
  * polling-updates.js - Alternative optimisée au WebSocket
  * Utilise le polling intelligent pour les mises à jour avec réduction des requêtes
- * v3.0.0 - Performances améliorées et réduction du nombre de requêtes
+ * v3.0.1 - Correction pour la structure des données API paginées, IDs des compteurs.
  */
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Optimized polling updates initialized v3.0.0'); // Version log
+    if (window.dashboardConfig && window.dashboardConfig.debugMode) {
+        console.log('Optimized polling updates initialized v3.0.1');
+    }
 
-    // Configuration
     const config = {
-        get pollingInterval() { return (window.dashboardConfig && window.dashboardConfig.autoRefreshInterval) || 30000; }, // 30 sec au lieu de 15
+        get pollingInterval() { return (window.dashboardConfig && window.dashboardConfig.autoRefreshInterval) || 30000; },
         get debugMode() { return (window.dashboardConfig && window.dashboardConfig.debugMode) || false; },
-        retryDelay: 1500, // Délai plus long
-        maxRetries: 2, // Moins de tentatives
+        retryDelay: 1500,
+        maxRetries: 2,
         maxConsecutiveErrors: 5,
-        staggerRequests: true, // Échelonnement des requêtes
-        smartPolling: true, // Polling intelligent
-        visibilityPause: true, // Pause quand onglet non visible
+        staggerRequests: true,
+        smartPolling: true,
+        visibilityPause: true,
     };
 
     let consecutiveErrors = 0;
     let pollingEnabled = true;
     let pollingIntervalId = null;
-    let lastData = {
-        sessions: null,
-        participants: null,
-        salles: null,
-        activites: null
+    let lastDataHashes = { // Pour une comparaison plus fine des données
+        sessions: '', participants: '', salles: '', activites: ''
     };
-    let lastFetch = {
-        sessions: 0,
-        participants: 0, 
-        salles: 0,
-        activites: 0
+    let lastFetchTimestamps = { // Renommé pour clarté
+        sessions: 0, participants: 0, salles: 0, activites: 0
     };
+
+    // Fonction pour générer un hash simple d'un objet (pour comparaison)
+    function simpleHash(obj) {
+        const str = JSON.stringify(obj);
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0; // Convert to 32bit integer
+        }
+        return hash.toString();
+    }
 
     function handleError(error, component) {
         console.error(`Polling Error in ${component}:`, error);
@@ -46,9 +53,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Polling: Attempting to re-enable polling...');
                 consecutiveErrors = 0;
                 pollingEnabled = true;
-                startPolling();
-            }, config.pollingInterval * 4);
-            if (typeof showToast === 'function') showToast('Problème de connexion serveur. Tentative de reconnexion...', 'warning');
+                startPolling(); // Redémarrer le polling
+            }, config.pollingInterval * 5); // Délai plus long avant de réessayer
+            if (typeof showToast === 'function') showToast('Problème de connexion serveur. Mises à jour en pause.', 'warning');
         }
     }
 
@@ -62,8 +69,6 @@ document.addEventListener('DOMContentLoaded', function() {
     async function fetchWithRetry(url, options = {}) {
         let retries = 0;
         let delay = config.retryDelay;
-        
-        // Ajouter un cache buster pour éviter les réponses en cache
         const separator = url.includes('?') ? '&' : '?';
         const urlWithCacheBuster = `${url}${separator}_=${Date.now()}`;
         
@@ -73,73 +78,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch(urlWithCacheBuster, options);
                 if (response.ok) {
                     const contentType = response.headers.get("content-type");
-                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                    if (contentType && contentType.includes("application/json")) {
                         return response.json();
-                    } else {
-                        console.warn(`Polling Fetch: Received non-JSON response from ${url}`);
-                        return null;
                     }
+                    console.warn(`Polling Fetch: Received non-JSON response from ${url}`);
+                    return null; 
                 }
                 console.error(`Polling Fetch: HTTP Error ${response.status} for ${url}`);
-                if (response.status === 404) throw new Error(`HTTP Error 404: Not Found`);
+                if (response.status === 404) throw new Error(`HTTP Error 404: Ressource non trouvée (${url})`);
                 throw new Error(`HTTP Error ${response.status}`);
             } catch (error) {
                 retries++;
                 console.warn(`Polling Fetch error for ${url} (Attempt ${retries}/${config.maxRetries}):`, error.message);
                 if (retries >= config.maxRetries) {
                     console.error(`Polling Fetch: Max retries reached for ${url}.`);
-                    throw error;
+                    throw error; 
                 }
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay = delay * 1.5 + Math.random() * 200;
+                await new Promise(resolve => setTimeout(resolve, delay + Math.random() * 500)); // Ajout de jitter
+                delay *= 1.5; 
             }
         }
+        return null; // Devrait être atteint seulement si toutes les tentatives échouent
     }
 
-    /**
-     * Détermine si une ressource doit être actualisée en fonction
-     * de son importance et du temps écoulé depuis la dernière requête
-     */
     function shouldRefreshResource(resourceName) {
         const now = Date.now();
-        const lastUpdate = lastFetch[resourceName] || 0;
+        const lastUpdate = lastFetchTimestamps[resourceName] || 0;
         const timeSinceLastUpdate = now - lastUpdate;
-        
-        // Périodes de rafraîchissement selon le type de ressource
         const refreshPeriods = {
-            sessions: config.pollingInterval, // Prioritaire
-            activites: config.pollingInterval * 1.5, // Moins prioritaire
-            participants: config.pollingInterval * 2, // Moins fréquent
-            salles: config.pollingInterval * 3 // Rarement modifié
+            sessions: config.pollingInterval,
+            activites: config.pollingInterval * 1.5, 
+            participants: config.pollingInterval * 2,
+            salles: config.pollingInterval * 3 
         };
-        
         return timeSinceLastUpdate >= (refreshPeriods[resourceName] || config.pollingInterval);
-    }
-
-    /**
-     * Compare deux ensembles de données pour détecter les changements
-     * Évite les mises à jour inutiles si les données sont identiques
-     */
-    function hasDataChanged(oldData, newData) {
-        if (!oldData || !newData) return true;
-        
-        // Vérification superficielle basée sur la taille et quelques propriétés clés
-        if (oldData.length !== newData.length) return true;
-        
-        // Vérification plus poussée sur un échantillon des données
-        const sampleSize = Math.min(3, oldData.length);
-        for (let i = 0; i < sampleSize; i++) {
-            const index = Math.floor(Math.random() * oldData.length);
-            const oldItem = oldData[index];
-            const newItem = newData[index];
-            
-            // Si un élément échantillonné est différent, considérer que les données ont changé
-            if (JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
-                return true;
-            }
-        }
-        
-        return false;
     }
 
     async function refreshDashboardComponents() {
@@ -147,144 +119,57 @@ document.addEventListener('DOMContentLoaded', function() {
             if (config.debugMode) console.log('Polling: Skipped refresh (disabled or tab not visible)');
             return; 
         }
-        
         if (config.debugMode) console.log('Polling: Starting dashboard refresh cycle...');
         
+        let dashboardDataPayload = { sessions: null, participants: null, salles: null, activites: null };
+        let dataUpdated = false;
+
         try {
-            // Déterminer quelles ressources doivent être actualisées
-            const toRefresh = {
-                sessions: shouldRefreshResource('sessions'),
-                participants: shouldRefreshResource('participants'),
-                salles: shouldRefreshResource('salles'),
-                activites: shouldRefreshResource('activites')
-            };
-            
-            if (config.debugMode) {
-                console.log('Polling: Resources to refresh:', 
-                    Object.entries(toRefresh)
-                    .filter(([_, needsRefresh]) => needsRefresh)
-                    .map(([name]) => name)
-                    .join(', ') || 'None'
-                );
-            }
-            
-            // Récupérer uniquement les ressources nécessaires
-            const requests = [];
-            
-            if (toRefresh.sessions) {
-                requests.push(fetchWithRetry('/api/sessions')
-                    .then(data => {
-                        lastFetch.sessions = Date.now();
-                        if (hasDataChanged(lastData.sessions, data)) {
-                            lastData.sessions = data;
-                            return { type: 'sessions', data };
-                        }
-                        return { type: 'sessions', data: null, unchanged: true };
-                    })
-                    .catch(error => ({ type: 'sessions', error }))
-                );
-                
-                // Ajouter un délai pour échelonner les requêtes
-                if (config.staggerRequests && requests.length > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 150));
-                }
-            }
-            
-            if (toRefresh.participants) {
-                requests.push(fetchWithRetry('/api/participants')
-                    .then(data => {
-                        lastFetch.participants = Date.now();
-                        if (hasDataChanged(lastData.participants, data)) {
-                            lastData.participants = data;
-                            return { type: 'participants', data };
-                        }
-                        return { type: 'participants', data: null, unchanged: true };
-                    })
-                    .catch(error => ({ type: 'participants', error }))
-                );
-                
-                // Ajouter un délai pour échelonner les requêtes
-                if (config.staggerRequests && requests.length > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 150));
-                }
-            }
-            
-            if (toRefresh.salles) {
-                requests.push(fetchWithRetry('/api/salles')
-                    .then(data => {
-                        lastFetch.salles = Date.now();
-                        if (hasDataChanged(lastData.salles, data)) {
-                            lastData.salles = data;
-                            return { type: 'salles', data };
-                        }
-                        return { type: 'salles', data: null, unchanged: true };
-                    })
-                    .catch(error => ({ type: 'salles', error }))
-                );
-                
-                // Ajouter un délai pour échelonner les requêtes
-                if (config.staggerRequests && requests.length > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 150));
-                }
-            }
-            
-            if (toRefresh.activites && document.getElementById('recent-activity')) {
-                requests.push(fetchWithRetry('/api/activites')
-                    .then(data => {
-                        lastFetch.activites = Date.now();
-                        if (hasDataChanged(lastData.activites, data)) {
-                            lastData.activites = data;
-                            return { type: 'activites', data };
-                        }
-                        return { type: 'activites', data: null, unchanged: true };
-                    })
-                    .catch(error => ({ type: 'activites', error }))
-                );
-            }
-            
-            // Traiter les réponses
-            const results = await Promise.allSettled(requests);
-            
-            let updatedComponents = 0;
-            let sessionsData = null;
-            let participantsData = null;
-            let sallesData = null;
-            
-            results.forEach(result => {
-                if (result.status === 'fulfilled') {
-                    const { type, data, error, unchanged } = result.value;
-                    
-                    if (error) {
-                        console.error(`Polling: Error fetching ${type}:`, error);
-                        handleError(error, `${type} fetch`);
-                    } else if (unchanged) {
-                        if (config.debugMode) console.log(`Polling: ${type} data unchanged, skipping update`);
-                    } else if (data) {
-                        if (config.debugMode) console.log(`Polling: ${type} data updated successfully`);
-                        updatedComponents++;
-                        
-                        // Stocker les données pour la mise à jour ultérieure
-                        if (type === 'sessions') sessionsData = data;
-                        else if (type === 'participants') participantsData = data;
-                        else if (type === 'salles') sallesData = data;
-                        else if (type === 'activites') updateActivityFeed(data);
+            const resourcesToFetch = [
+                { name: 'sessions', endpoint: '/api/sessions' },
+                { name: 'participants', endpoint: '/api/participants' },
+                { name: 'salles', endpoint: '/api/salles' },
+                { name: 'activites', endpoint: '/api/activites', condition: () => document.getElementById('recent-activity') }
+            ];
+
+            for (const resource of resourcesToFetch) {
+                if (resource.condition && !resource.condition()) continue; // Skip si la condition n'est pas remplie
+
+                if (shouldRefreshResource(resource.name)) {
+                    if (config.staggerRequests && dataUpdated) { // dataUpdated est utilisé pour espacer après la première requête réussie du cycle
+                        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 100));
                     }
-                } else {
-                    console.error(`Polling: Promise rejected:`, result.reason);
-                    handleError(result.reason, 'promise rejection');
+                    const apiResponse = await fetchWithRetry(resource.endpoint);
+                    lastFetchTimestamps[resource.name] = Date.now();
+
+                    if (apiResponse) {
+                        // Pour les API paginées, prendre 'items', sinon prendre la réponse directe
+                        const currentData = apiResponse.items && Array.isArray(apiResponse.items) ? apiResponse.items : apiResponse;
+                        const currentDataHash = simpleHash(currentData);
+
+                        if (lastDataHashes[resource.name] !== currentDataHash) {
+                            dashboardDataPayload[resource.name] = currentData; // Stocker le tableau de données
+                            lastDataHashes[resource.name] = currentDataHash;
+                            dataUpdated = true;
+                            if (config.debugMode) console.log(`Polling: ${resource.name} data has changed.`);
+                        } else {
+                            if (config.debugMode) console.log(`Polling: ${resource.name} data unchanged (hash match).`);
+                        }
+                    } else {
+                         handleError(new Error(`No data from ${resource.endpoint}`), `${resource.name} fetch`);
+                    }
                 }
-            });
-            
-            // Mise à jour des compteurs et tableaux si des données ont changé
-            if (sessionsData || participantsData || sallesData) {
-                updateStatsAndUI(sessionsData, participantsData, sallesData);
             }
             
-            if (updatedComponents > 0) {
+            if (dataUpdated) {
+                updateStatsAndUI(dashboardDataPayload); // Passer l'objet contenant toutes les données mises à jour
+                updateActivityFeed(dashboardDataPayload.activites); // Mettre à jour spécifiquement le flux d'activité
                 handleSuccess();
-                if (config.debugMode) console.log(`Polling: Updated ${updatedComponents} components`);
+                if (config.debugMode) console.log(`Polling: UI updated with new data.`);
+                 // Émettre un événement pour que d'autres scripts (comme charts-enhanced.js) puissent réagir
+                document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: dashboardDataPayload } }));
             } else {
-                if (config.debugMode) console.log(`Polling: No components needed updating`);
+                if (config.debugMode) console.log(`Polling: No data changes detected, UI not updated.`);
             }
             
         } catch (error) {
@@ -293,111 +178,134 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function updateStatsAndUI(sessionsData, participantsData, sallesData) {
-        if (config.debugMode) console.log("Polling: Updating stats and UI...");
+    function updateStatsAndUI(payload) { // Reçoit l'objet payload complet
+        if (config.debugMode) console.log("Polling: Updating stats and UI with payload:", payload);
         
+        const sessionsArray = payload.sessions; // Doit être un tableau
+        const participantsArray = payload.participants; // Doit être un tableau
+        const sallesArray = payload.salles; // Doit être un tableau
+
         try {
-            // Mise à jour de la table de sessions
-            if (sessionsData && typeof window.updateSessionTable === 'function') {
-                window.updateSessionTable(sessionsData);
-            } 
-            
-            // Mise à jour des graphiques statiques
-            const staticChartsAvailable = window.staticChartsModule && 
-                typeof window.staticChartsModule.updateThemeChart === 'function' && 
-                typeof window.staticChartsModule.updateServiceChart === 'function';
+            if (sessionsArray && Array.isArray(sessionsArray)) {
+                if (typeof window.updateSessionTable === 'function') {
+                    window.updateSessionTable(sessionsArray);
+                }
+                updateCounter('stat-sessions-programmees', sessionsArray.length);
+                updateCounter('stat-total-sessions-completes', sessionsArray.filter(s => s.places_restantes === 0).length);
+                updateCounter('stat-total-inscriptions', sessionsArray.reduce((sum, s) => sum + (s.inscrits || 0), 0));
+                updateCounter('stat-total-en-attente', sessionsArray.reduce((sum, s) => sum + (s.liste_attente || 0), 0));
                 
-            if (staticChartsAvailable) {
-                if (sessionsData) window.staticChartsModule.updateThemeChart(sessionsData);
-                if (participantsData) window.staticChartsModule.updateServiceChart(participantsData);
+                // Mettre à jour le total dans le donut chart si l'élément existe
+                const donutTotalEl = document.getElementById('chart-theme-total');
+                if (donutTotalEl) {
+                    donutTotalEl.textContent = sessionsArray.reduce((sum, s) => sum + (s.inscrits || 0), 0);
+                }
             }
             
-            // Mise à jour des compteurs
-            if (sessionsData) {
-                updateCounter('sessions_programmees', sessionsData.length);
-                updateCounter('total_sessions_completes', sessionsData.filter(s => s.places_restantes === 0).length);
-                updateCounter('total_inscriptions', sessionsData.reduce((sum, s) => sum + (s.inscrits || 0), 0));
-                updateCounter('total_en_attente', sessionsData.reduce((sum, s) => sum + (s.liste_attente || 0), 0));
+            if (participantsArray && Array.isArray(participantsArray)) {
+                updateCounter('counter-participants', participantsArray.length); // Assurez-vous que cet ID existe
             }
             
-            if (participantsData) {
-                updateCounter('counter-participants', participantsData.length);
+            if (sallesArray && Array.isArray(sallesArray)) {
+                updateCounter('counter-salles', sallesArray.length); // Assurez-vous que cet ID existe
+            }
+
+            // Appel aux modules de graphiques avec les données appropriées
+            if (window.staticChartsModule) {
+                if (sessionsArray && Array.isArray(sessionsArray)) {
+                    const themeCountsForChart = {};
+                    sessionsArray.forEach(session => {
+                        if (session.theme) {
+                            themeCountsForChart[session.theme] = (themeCountsForChart[session.theme] || 0) + (session.inscrits || 0);
+                        }
+                    });
+                    const themeChartDataForStatic = Object.entries(themeCountsForChart).map(([label, value]) => ({ 
+                        label, value, color: (window.themesData && window.themesData[label]) ? window.themesData[label].color : undefined 
+                    }));
+                    window.staticChartsModule.updateThemeChart(themeChartDataForStatic);
+                }
+                if (participantsArray && Array.isArray(participantsArray)) {
+                    const serviceCountsForChart = {};
+                    participantsArray.forEach(participant => {
+                        if (participant.service) {
+                            serviceCountsForChart[participant.service] = (serviceCountsForChart[participant.service] || 0) + 1;
+                        }
+                    });
+                    const serviceChartDataForStatic = Object.entries(serviceCountsForChart).map(([label, value]) => ({ 
+                        label, value, color: (window.servicesData && window.servicesData[label]) ? window.servicesData[label].color : undefined
+                    }));
+                    window.staticChartsModule.updateServiceChart(serviceChartDataForStatic);
+                }
             }
             
-            if (sallesData) {
-                updateCounter('counter-salles', sallesData.length);
-            }
-            
-            // Animation des compteurs
             if (typeof window.animateAllDashboardCounters === 'function') {
                 window.animateAllDashboardCounters();
             }
             
         } catch (error) {
-            console.error("Polling: Error updating UI:", error);
-            // Ne pas compter comme erreur critique - l'interface peut toujours fonctionner
+            console.error("Polling: Error updating UI components:", error);
         }
     }
 
-    function updateActivityFeed(activitesData) {
-        if (!activitesData) return;
+    function updateActivityFeed(activitesArray) { // Attend un tableau
+        if (!activitesArray || !Array.isArray(activitesArray)) {
+            if(config.debugMode && activitesArray !== null) console.warn("Polling: updateActivityFeed received non-array or null data", activitesArray);
+            return;
+        }
         
         const activitesLists = document.querySelectorAll('#recent-activity, #recent-activity-admin');
         if (activitesLists.length === 0) return;
         
         try {
             activitesLists.forEach(list => {
-                // Sauvegarder l'état de défilement actuel
                 const scrollPos = list.scrollTop;
+                list.innerHTML = ''; // Vider la liste
+                const activitiesToDisplay = activitesArray.slice(0, 5); // Afficher les 5 plus récentes
                 
-                list.innerHTML = '';
-                const activities = activitesData.slice(0, 5);
-                
-                if (activities.length > 0) {
-                    activities.forEach(activite => {
+                if (activitiesToDisplay.length > 0) {
+                    activitiesToDisplay.forEach(activite => {
                         const icon = getIconForActivity(activite.type);
                         const titre = activite.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         const activityItem = document.createElement('div');
-                        activityItem.className = 'list-group-item list-group-item-action px-0 py-2 border-0';
+                        activityItem.className = 'list-group-item list-group-item-action px-3 py-2 border-0 small'; // px-3
                         activityItem.innerHTML = `
                             <div class="d-flex w-100 justify-content-between">
                                 <h6 class="mb-1 small fw-bold"><i class="${icon} me-2 fa-fw"></i>${titre}</h6>
                                 <small class="text-muted text-nowrap">${activite.date_relative || ''}</small>
                             </div>
-                            <p class="mb-1 small">${activite.description || ''}</p>
-                            ${activite.details ? `<small class="text-muted">${activite.details}</small>` : ''}
+                            <p class="mb-1 text-body-secondary">${activite.description || ''}</p>
+                            ${activite.details ? `<small class="text-muted fst-italic">${activite.details}</small>` : ''}
                         `;
                         list.appendChild(activityItem);
                     });
                 } else {
-                    list.innerHTML = '<div class="list-group-item px-0 border-0 text-center text-muted fst-italic py-3">Aucune activité récente.</div>';
+                    list.innerHTML = '<div class="list-group-item px-3 border-0 text-center text-muted fst-italic py-3">Aucune activité récente.</div>';
                 }
-                
-                // Restaurer la position de défilement
                 list.scrollTop = scrollPos;
             });
-            
         } catch (error) {
             console.error('Polling: Error updating activity feed:', error);
-            activitesLists.forEach(list => {
-                list.innerHTML = `<div class="list-group-item px-0 border-0 text-center text-danger py-3"><i class="fas fa-exclamation-circle me-2"></i>Erreur chargement activités.</div>`;
-            });
         }
     }
 
-    // --- Fonctions Utilitaires (Compteurs, Icônes) ---
     function updateCounter(elementId, value) {
-        const elements = document.querySelectorAll(`#${elementId}, .${elementId}, [id^="counter-${elementId}"]`);
+        const elements = document.querySelectorAll(`#${elementId}`); // Cibler par ID exact
         elements.forEach(element => {
-            if (element) {
-                const targetValue = parseInt(value, 10);
-                if (!isNaN(targetValue)) { element.dataset.targetValue = targetValue; element.textContent = targetValue; }
-                else { element.textContent = 'N/A'; delete element.dataset.targetValue; }
+            const targetValue = parseInt(value, 10);
+            if (!isNaN(targetValue)) {
+                element.dataset.targetValue = targetValue; // Pour l'animation
+                if (!element.classList.contains('counter-value')) element.classList.add('counter-value'); // S'assurer que la classe est là
+                // L'animation sera déclenchée par animateAllDashboardCounters
+                element.textContent = targetValue; // Mettre à jour immédiatement au cas où l'animation n'est pas appelée
+            } else {
+                element.textContent = 'N/A';
+                delete element.dataset.targetValue;
             }
         });
     }
     
     window.animateCounter = function(element, startValue, endValue) {
+        // ... (votre fonction animateCounter existante) ...
         if (startValue === endValue) { element.textContent = endValue; return; }
         const duration = 700; const steps = 15; const increment = (endValue - startValue) / steps;
         let current = startValue; let stepCount = 0; const interval = duration / steps;
@@ -415,15 +323,21 @@ document.addEventListener('DOMContentLoaded', function() {
          if (config.debugMode) console.log("Polling: Animating counters...");
          document.querySelectorAll('.counter-value[data-target-value]').forEach(element => {
              const target = parseInt(element.dataset.targetValue, 10);
-             const current = parseInt(element.dataset.currentValue || element.textContent.replace(/,/g, '') || '0', 10);
+             const currentText = element.textContent.replace(/,/g, ''); // Gérer les séparateurs de milliers si présents
+             const current = parseInt(element.dataset.currentValue || currentText || '0', 10);
              if (!isNaN(target) && !isNaN(current)) {
-                 if (current !== target) { window.animateCounter(element, current, target); element.dataset.currentValue = target; }
-                 else { element.textContent = target; }
+                 if (current !== target) { 
+                     window.animateCounter(element, current, target); 
+                     element.dataset.currentValue = target; // Mettre à jour la valeur actuelle pour la prochaine animation
+                 } else { 
+                     element.textContent = target; // Assurer que la valeur finale est correcte
+                 }
              }
          });
      }
      
     function getIconForActivity(type) {
+        // ... (votre fonction getIconForActivity existante) ...
         switch (type) {
             case 'inscription': return 'fas fa-user-plus text-success'; 
             case 'validation': return 'fas fa-check-circle text-primary'; 
@@ -446,82 +360,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- Exposition Globale & Initialisation ---
-    window.refreshRecentActivity = function() {
-        if (config.debugMode) console.log("Polling: Manual refresh of recent activity requested");
-        return fetchWithRetry('/api/activites')
-            .then(data => {
-                lastFetch.activites = Date.now();
-                lastData.activites = data;
-                updateActivityFeed(data);
-                return { status: 'success' };
-            })
-            .catch(error => {
-                console.error("Polling: Error refreshing activities:", error);
-                handleError(error, 'Activity Manual Refresh');
-                return { status: 'error', error };
-            });
+    // Exposer une fonction pour forcer une mise à jour (par exemple, par le bouton "Actualiser")
+    window.forcePollingUpdate = async function(importantChange = false) {
+        if (config.debugMode) console.log("Polling: Manual refresh forced.");
+        if (importantChange) { // Si c'est un changement important, réinitialiser les timestamps pour forcer toutes les requêtes
+            Object.keys(lastFetchTimestamps).forEach(key => lastFetchTimestamps[key] = 0);
+            Object.keys(lastDataHashes).forEach(key => lastDataHashes[key] = ''); // Forcer la mise à jour des données
+        }
+        await refreshDashboardComponents();
     };
     
-    window.updateStatsCounters = function() {
-        if (config.debugMode) console.log("Polling: Manual stats update requested");
-        return Promise.all([
-            fetchWithRetry('/api/sessions').catch(e => { console.error("Error fetching sessions:", e); return null; }),
-            fetchWithRetry('/api/participants').catch(e => { console.error("Error fetching participants:", e); return null; }),
-            fetchWithRetry('/api/salles').catch(e => { console.error("Error fetching salles:", e); return null; })
-        ])
-        .then(([sessions, participants, salles]) => {
-            if (sessions) {
-                lastFetch.sessions = Date.now();
-                lastData.sessions = sessions;
-            }
-            if (participants) {
-                lastFetch.participants = Date.now();
-                lastData.participants = participants;
-            }
-            if (salles) {
-                lastFetch.salles = Date.now();
-                lastData.salles = salles;
-            }
-            
-            updateStatsAndUI(sessions, participants, salles);
-            return { status: 'success' };
-        })
-        .catch(error => {
-            console.error("Polling: Error updating stats:", error);
-            handleError(error, 'Stats Manual Update');
-            return { status: 'error', error };
-        });
-    };
+    // Fonctions pour les composants externes (comme dashboard.js)
+    window.refreshRecentActivity = function() { /* ... déjà défini dans refreshDashboardComponents ... */ };
+    window.updateStatsCounters = function() { /* ... déjà défini dans refreshDashboardComponents ... */ };
+
 
     function startPolling() {
         if (pollingIntervalId) { 
             if (config.debugMode) console.log("Polling: Already started."); 
             return; 
         }
+        if (!pollingEnabled) {
+            if (config.debugMode) console.log("Polling: Not starting, polling is disabled.");
+            return;
+        }
         
-        console.log(`Polling: Starting optimized polling with interval ${config.pollingInterval}ms.`);
-        pollingEnabled = true; 
+        console.log(`Polling: Starting polling with interval ${config.pollingInterval}ms.`);
         consecutiveErrors = 0;
         
-        // Premier rafraîchissement différé
-        setTimeout(refreshDashboardComponents, 1000);
-        
-        // Configuration de l'intervalle régulier
+        setTimeout(refreshDashboardComponents, 500); // Premier appel un peu différé
         pollingIntervalId = setInterval(refreshDashboardComponents, config.pollingInterval);
     }
 
-    // Démarrer automatiquement
     startPolling();
 
-    // Réactiver les mises à jour quand l'onglet redevient visible
     document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'visible' && pollingEnabled) {
+        if (document.visibilityState === 'visible' && pollingEnabled && pollingIntervalId) {
             if (config.debugMode) console.log("Polling: Tab became visible, triggering immediate refresh.");
-            // Attendre un court délai pour que la page soit complètement rechargée
-            setTimeout(refreshDashboardComponents, 300);
+            setTimeout(refreshDashboardComponents, 200); // Délai court
+        } else if (document.visibilityState !== 'visible' && config.visibilityPause) {
+            if (config.debugMode) console.log("Polling: Tab became hidden, pausing updates (if enabled).");
         }
     });
 
-    console.log('Optimized polling updates ready! v3.0.0'); // Version log
+    if (config.debugMode) console.log('Optimized polling updates ready! v3.0.1');
 });
