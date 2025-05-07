@@ -1529,25 +1529,25 @@ def add_participant():
     valid_from_pages = ['admin', 'services', 'participants', 'sessions', 'dashboard']
     redirect_url = url_for(from_page_value) if from_page_value in valid_from_pages else url_for('participants')
     
-    app.logger.info(f"--- add_participant INVOCATION ---")
-    app.logger.info(f"Form data: {request.form}")
+    app.logger.info(f"--- Route /add_participant POST (v2 - handle inactive for auto-inscription) ---")
+    app.logger.debug(f"Form data: {request.form}")
 
     nom = request.form.get('nom', '').strip().upper()
     prenom = request.form.get('prenom', '').strip().capitalize()
-    email = request.form.get('email', '').strip().lower()
-    service_id_form = request.form.get('service_id', '').strip() # Renommé pour éviter confusion
+    email_form = request.form.get('email', '').strip().lower() # Renommé pour clarté
+    service_id_form = request.form.get('service_id', '').strip()
 
     redirect_session_id_str = request.form.get('redirect_session_id')
     action_after_add = request.form.get('action_after_add')
 
     try:
         # --- Validation des champs du nouveau participant ---
-        if not all([nom, prenom, email, service_id_form]):
+        if not all([nom, prenom, email_form, service_id_form]):
             flash('Nouveau Participant : Tous les champs marqués * sont obligatoires.', 'danger')
-            app.logger.warning(f"add_participant: Validation échouée - champs manquants. Data: nom='{nom}', prenom='{prenom}', email='{email}', service_id='{service_id_form}'")
+            app.logger.warning(f"add_participant: Validation échouée - champs manquants.")
             return redirect(redirect_url)
 
-        if '@' not in email or '.' not in email.split('@')[-1]:
+        if '@' not in email_form or '.' not in email_form.split('@')[-1]:
             flash('Format d\'email invalide pour le nouveau participant.', 'danger')
             return redirect(redirect_url)
 
@@ -1557,81 +1557,89 @@ def add_participant():
             return redirect(redirect_url)
 
         # --- Vérification si un participant avec cet email existe déjà ---
-        participant_existant_par_email = Participant.query.filter(func.lower(Participant.email) == email).first()
+        participant_existant_par_email = Participant.query.filter(func.lower(Participant.email) == email_form).first()
         if participant_existant_par_email:
-            # Message spécifique si l'email existe DÉJÀ
-            flash_msg = f'Un participant avec l\'email {email} existe déjà : {participant_existant_par_email.prenom} {participant_existant_par_email.nom} (Service: {participant_existant_par_email.service.nom}).'
-            if request.form.get('from_modal') == 'true':
-                flash_msg += ' Veuillez sélectionner ce participant dans l\'onglet "Participant existant" si vous souhaitez l\'inscrire.'
+            flash_msg = f'Un participant avec l\'email {email_form} existe déjà : {participant_existant_par_email.prenom} {participant_existant_par_email.nom} (Service: {participant_existant_par_email.service.nom}).'
+            if request.form.get('from_modal') == 'true': # Si vient d'une modale d'inscription
+                flash_msg += ' Veuillez sélectionner ce participant dans l\'onglet "Participant existant" pour l\'inscrire.'
+                 # Si on voulait quand même inscrire ce participant existant à la session demandée:
+                if redirect_session_id_str and action_after_add == 'inscription':
+                    app.logger.info(f"add_participant: Email existant. Tentative d'inscription du P_ID existant {participant_existant_par_email.id} à S_ID {redirect_session_id_str} au lieu de créer un doublon.")
+                    # Ici, on pourrait appeler une fonction d'inscription ou rediriger vers la route inscription
+                    # avec les bons paramètres. Pour l'instant, on redirige simplement.
+                    # return redirect(url_for('inscription', participant_id=participant_existant_par_email.id, session_id=redirect_session_id_str, from_page=from_page_value)) # Nécessiterait que la route inscription gère GET
+                    # Pour l'instant, on se contente du message et on laisse l'utilisateur refaire l'action.
             flash(flash_msg, 'warning')
-            app.logger.warning(f"add_participant: Tentative de création d'un participant avec un email existant: {email}")
+            app.logger.warning(f"add_participant: Tentative de création d'un participant avec un email existant: {email_form}")
             return redirect(redirect_url)
 
         # --- Création du nouveau participant ---
-        nouveau_participant = Participant(nom=nom, prenom=prenom, email=email, service_id=service_id_form)
+        nouveau_participant = Participant(nom=nom, prenom=prenom, email=email_form, service_id=service_id_form)
         db.session.add(nouveau_participant)
-        db.session.commit() # Commit pour obtenir l'ID
+        db.session.commit() 
         
-        # ID du participant NOUVELLEMENT CRÉÉ
-        id_participant_pour_inscription = nouveau_participant.id 
+        id_nouveau_participant = nouveau_participant.id 
         nom_complet_nouveau_participant = f"{nouveau_participant.prenom} {nouveau_participant.nom}"
-        app.logger.info(f"add_participant: Nouveau participant créé P_ID={id_participant_pour_inscription}, Nom={nom_complet_nouveau_participant}, Email={email}")
+        app.logger.info(f"add_participant: Nouveau participant créé P_ID={id_nouveau_participant}, Nom={nom_complet_nouveau_participant}, Email={email_form}")
 
-        # Invalider les caches pertinents
         cache.delete('participants_list_with_service')
         cache.delete(f'service_participant_count_{service_id_form}') 
         cache.delete('all_services_with_participants')
 
         add_activity('ajout_participant', f'Ajout participant: {nom_complet_nouveau_participant}', 
-                     f'Service: {nouveau_participant.service.nom}', user=current_user)
+                     f'Service: {nouveau_participant.service.nom}', 
+                     user=current_user if current_user.is_authenticated else None)
         
         message_base_succes = f'Participant "{nom_complet_nouveau_participant}" ajouté avec succès.'
 
         # --- Inscription automatique si demandée ---
         if redirect_session_id_str and action_after_add == 'inscription':
-            app.logger.info(f"add_participant: Action post-ajout: Inscription à S_ID={redirect_session_id_str} pour NOUVEAU P_ID={id_participant_pour_inscription}")
+            app.logger.info(f"add_participant: Action post-ajout: Inscription à S_ID={redirect_session_id_str} pour NOUVEAU P_ID={id_nouveau_participant}")
             try:
                 session_id_pour_inscription = int(redirect_session_id_str)
                 session_cible = db.session.get(Session, session_id_pour_inscription)
 
                 if not session_cible:
                     flash(message_base_succes + " Cependant, la session pour l'inscription automatique est introuvable.", "warning")
-                    app.logger.warning(f"add_participant: Session {session_id_pour_inscription} non trouvée pour auto-inscription du P_ID {id_participant_pour_inscription}.")
                     return redirect(redirect_url)
 
-                # Vérification d'inscription/liste d'attente existante pour CE NOUVEAU PARTICIPANT
-                app.logger.info(f"Vérification d'inscription existante pour NOUVEAU P_ID={id_participant_pour_inscription} à S_ID={session_id_pour_inscription}")
-                existing_inscription = Inscription.query.filter_by(participant_id=id_participant_pour_inscription, session_id=session_id_pour_inscription).first()
-                existing_waitlist = ListeAttente.query.filter_by(participant_id=id_participant_pour_inscription, session_id=session_id_pour_inscription).first()
+                # Pour un NOUVEAU participant, il ne devrait y avoir AUCUNE inscription ou liste d'attente existante.
+                # La vérification ici est une sécurité contre des conditions de course ou des erreurs de logique ailleurs.
+                existing_inscription_for_new = Inscription.query.filter_by(participant_id=id_nouveau_participant, session_id=session_id_pour_inscription).first()
+                existing_waitlist_for_new = ListeAttente.query.filter_by(participant_id=id_nouveau_participant, session_id=session_id_pour_inscription).first()
 
-                if existing_inscription or existing_waitlist:
-                    # Ce cas ne devrait JAMAIS arriver pour un participant qui vient d'être créé.
-                    # Si cela arrive, il y a une erreur de logique fondamentale ailleurs ou des données corrompues.
-                    flash(f'Erreur : Le participant {nom_complet_nouveau_participant} semble déjà être lié à cette session. Veuillez vérifier.', 'danger')
-                    app.logger.error(f"add_participant: ERREUR LOGIQUE - P_ID={id_participant_pour_inscription} (nouveau) trouvé comme déjà inscrit/en attente pour S_ID={session_id_pour_inscription}.")
-                    return redirect(redirect_url)
+                if existing_inscription_for_new or existing_waitlist_for_new:
+                    flash(f'Erreur Interne : Le participant {nom_complet_nouveau_participant} (nouvellement créé) semble déjà être lié à cette session. Veuillez contacter un administrateur.', 'danger')
+                    app.logger.error(f"add_participant: ERREUR LOGIQUE - P_ID={id_nouveau_participant} (nouveau) trouvé comme déjà inscrit/en attente pour S_ID={session_id_pour_inscription}.")
+                    return redirect(redirect_url) # Ou une autre page d'erreur
 
-                # Récupérer le nombre actuel d'inscrits confirmés pour cette session
-                current_confirmed_count_for_session = db.session.query(func.count(Inscription.id)).filter(
+                current_confirmed_for_session = db.session.query(func.count(Inscription.id)).filter(
                     Inscription.session_id == session_id_pour_inscription,
                     Inscription.statut == 'confirmé'
                 ).scalar() or 0
                 
-                if session_cible.get_places_restantes(confirmed_count=current_confirmed_count_for_session) <= 0:
-                    # Ajout à la liste d'attente
+                places_disponibles = session_cible.get_places_restantes(confirmed_count=current_confirmed_for_session)
+
+                if places_disponibles <= 0:
                     position = (db.session.query(func.count(ListeAttente.id)).filter_by(session_id=session_id_pour_inscription).scalar() or 0) + 1
-                    attente = ListeAttente(participant_id=id_participant_pour_inscription, session_id=session_id_pour_inscription, position=position)
+                    attente = ListeAttente(participant_id=id_nouveau_participant, session_id=session_id_pour_inscription, position=position)
                     db.session.add(attente)
-                    # ... (commit, cache delete, add_activity, socketio, flash success)
+                    db.session.commit()
+                    cache.delete(f'session_counts_{session_id_pour_inscription}')
+                    add_activity('liste_attente', f'Ajout liste attente (auto via ajout P.): {nom_complet_nouveau_participant}', 
+                                 f'S:{session_id_pour_inscription}, Pos:{position}', user=current_user if current_user.is_authenticated else None)
+                    socketio.emit('liste_attente_nouvelle', {'session_id': session_id_pour_inscription, 'participant_id': id_nouveau_participant, 'position': position}, room='general')
                     flash(message_base_succes + f" Ajouté(e) à la liste d'attente (position {position}) pour la session '{session_cible.theme.nom}'.", 'success')
                 else:
-                    # Inscription en attente de validation
-                    inscription = Inscription(participant_id=id_participant_pour_inscription, session_id=session_id_pour_inscription, statut='en attente')
-                    db.session.add(inscription)
-                    # ... (commit, cache delete, add_activity, socketio, flash success)
+                    inscription_auto = Inscription(participant_id=id_nouveau_participant, session_id=session_id_pour_inscription, statut='en attente')
+                    db.session.add(inscription_auto)
+                    db.session.commit()
+                    cache.delete(f'session_counts_{session_id_pour_inscription}')
+                    add_activity('inscription', f'Demande inscription (auto via ajout P.): {nom_complet_nouveau_participant}', 
+                                 f'S:{session_id_pour_inscription}', user=current_user if current_user.is_authenticated else None)
+                    socketio.emit('inscription_nouvelle', {'session_id': session_id_pour_inscription, 'participant_id': id_nouveau_participant, 'statut': 'en attente'}, room='general')
                     flash(message_base_succes + f" Demande d'inscription pour la session '{session_cible.theme.nom}' enregistrée (en attente de validation).", 'success')
                 
-                db.session.commit() # Commit final pour l'inscription ou la liste d'attente
                 return redirect(redirect_url)
 
             except ValueError:
@@ -1642,14 +1650,13 @@ def add_participant():
                  flash(message_base_succes + " Mais une erreur est survenue lors de l'inscription automatique.", "danger")
                  app.logger.error(f"add_participant: Erreur inattendue post-ajout/inscription: {post_add_err}", exc_info=True)
         else:
-            # Si pas d'action_after_add ou si ce n'est pas 'inscription'
             flash(message_base_succes, 'success')
 
         return redirect(redirect_url)
 
-    except IntegrityError as ie: # Devrait être attrapé par la vérification d'email existant, mais par sécurité
+    except IntegrityError as ie:
         db.session.rollback()
-        flash(f'Erreur d\'intégrité : Un participant avec cet email ({email}) ou un autre conflit existe déjà.', 'danger')
+        flash(f'Erreur d\'intégrité : Un participant avec cet email ({email_form}) existe déjà ou un autre conflit est survenu.', 'danger')
         app.logger.error(f"add_participant: IntegrityError - {ie}", exc_info=True)
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -1661,6 +1668,7 @@ def add_participant():
         app.logger.error(f"add_participant: Erreur inattendue - {e}", exc_info=True)
 
     return redirect(redirect_url)
+
     
 @app.route('/update_participant/<int:id>', methods=['POST'])
 @login_required
