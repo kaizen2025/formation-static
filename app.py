@@ -849,82 +849,103 @@ def validation_inscription_ajax():
 # @login_required # Semble être public dans votre version
 @db_operation_with_retry(max_retries=3)
 def dashboard():
-    """Affiche le tableau de bord principal avec les statistiques et les sessions."""
+    """Affiche le tableau de bord principal avec les statistiques, les sessions, et les demandes en attente."""
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /dashboard.")
     try:
-        # --- Données de base (souvent mises en cache) ---
+        # --- Données de base (souvent mises en cache via les helpers) ---
         themes = get_all_themes() 
-        services = get_all_services_with_participants() 
-        salles = get_all_salles() 
-        participants = get_all_participants_with_service() 
+        services_for_modal = get_all_services_with_participants() # Renommé pour clarté
+        salles_for_modal = get_all_salles() 
+        participants_for_modal = get_all_participants_with_service() 
 
         # --- Données des sessions avec pré-chargement AGRESSIF ---
-        # Charger sessions, thème, salle, inscriptions->participant->service, liste_attente->participant->service
         sessions_query = Session.query.options(
             selectinload(Session.theme),
             selectinload(Session.salle),
+            # Pré-charger les inscriptions AVEC leurs participants ET le service du participant
             selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service),
+            # Pré-charger la liste d'attente AVEC ses participants ET le service du participant
             selectinload(Session.liste_attente).selectinload(ListeAttente.participant).selectinload(Participant.service)
         ).order_by(Session.date, Session.heure_debut)
         
         sessions_from_db = sessions_query.all()
         app.logger.info(f"Fetched {len(sessions_from_db)} sessions with eager loading for dashboard.")
 
-        # --- Calculs globaux (peuvent être optimisés avec des requêtes COUNT distinctes si nécessaire) ---
-        total_inscriptions = 0
-        total_en_attente = 0
-        total_sessions_completes = 0
+        # --- Récupérer les inscriptions en attente de validation ---
+        pending_validations_list = []
+        if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable'):
+            query_pending = Inscription.query.options(
+                joinedload(Inscription.participant).selectinload(Participant.service),
+                joinedload(Inscription.session).selectinload(Session.theme) # Charger le thème de la session aussi
+            ).filter(Inscription.statut == 'en attente')
+
+            # Si l'utilisateur est un responsable, filtrer par son service
+            if current_user.role == 'responsable' and current_user.service_id:
+                # S'assurer que la jointure avec Participant est faite si ce n'est pas déjà le cas
+                # (joinedload s'en occupe normalement, mais une jointure explicite peut être plus claire)
+                query_pending = query_pending.join(Inscription.participant).filter(Participant.service_id == current_user.service_id)
+            
+            pending_validations_list = query_pending.order_by(Inscription.date_inscription.asc()).all()
+            app.logger.info(f"Fetched {len(pending_validations_list)} pending validation(s) for user '{current_user.username}'.")
+
+
+        # --- Calculs globaux et préparation des données des sessions pour le template ---
+        total_inscriptions_confirmees_global = 0
+        total_en_attente_global_liste_attente = 0 # Participants en liste d'attente (pas les inscriptions "en attente")
+        total_sessions_completes_global = 0
         
-        # --- Préparation des données pour le template (incluant les comptes par session) ---
         sessions_data_for_template = []
-        for s_obj in sessions_from_db: # s_obj est l'objet Session avec relations chargées
+        for s_obj in sessions_from_db: 
             try:
-                # Utiliser les listes pré-chargées pour les comptes
                 inscrits_confirmes_list = [i for i in s_obj.inscriptions if i.statut == 'confirmé']
                 pending_inscriptions_list = [i for i in s_obj.inscriptions if i.statut == 'en attente']
-                liste_attente_entries_list = s_obj.liste_attente # C'est déjà une liste avec lazy='selectin'
+                # s_obj.liste_attente est maintenant une liste grâce à lazy='selectin'
+                liste_attente_entries_list = s_obj.liste_attente 
 
                 inscrits_count = len(inscrits_confirmes_list)
-                attente_count = len(liste_attente_entries_list)
-                pending_count = len(pending_inscriptions_list)
+                attente_count = len(liste_attente_entries_list) # Compte de la liste d'attente pour CETTE session
+                pending_valid_count = len(pending_inscriptions_list) # Compte des inscriptions en attente pour CETTE session
                 places_rest = max(0, (s_obj.max_participants or 0) - inscrits_count)
 
-                # Mettre à jour les totaux globaux
-                total_inscriptions += inscrits_count
-                total_en_attente += attente_count
+                # Mise à jour des totaux globaux
+                total_inscriptions_confirmees_global += inscrits_count
+                total_en_attente_global_liste_attente += attente_count # Accumuler les participants en liste d'attente de chaque session
                 if places_rest == 0:
-                    total_sessions_completes += 1
+                    total_sessions_completes_global += 1
 
-                # Ajouter au dictionnaire pour le template
                 sessions_data_for_template.append({
-                    'obj': s_obj, # Passer l'objet Session complet
+                    'obj': s_obj,
                     'places_restantes': places_rest,
                     'inscrits_confirmes_count': inscrits_count,
                     'liste_attente_count': attente_count,
-                    'pending_count': pending_count
-                    # NOTE: Ne pas passer les listes ici si dashboard.html les filtre directement
+                    'pending_count': pending_valid_count,
+                    # IMPORTANT: Passer les listes pré-chargées pour les modales
+                    'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.date_inscription, reverse=True),
+                    'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.date_inscription, reverse=True),
+                    'loaded_liste_attente': sorted(liste_attente_entries_list, key=lambda la: la.position)
                 })
 
             except Exception as sess_error:
                 app.logger.error(f"Error processing session {s_obj.id} for dashboard: {sess_error}", exc_info=True)
-                # Ajouter une entrée d'erreur pour ne pas planter le rendu
                 sessions_data_for_template.append({
                     'obj': s_obj, 'places_restantes': 0, 'inscrits_confirmes_count': 0,
-                    'liste_attente_count': 0, 'pending_count': 0, 'error': True
+                    'liste_attente_count': 0, 'pending_count': 0, 'error': True,
+                    'loaded_inscrits_confirmes': [], 'loaded_pending_inscriptions': [], 'loaded_liste_attente': []
                 })
 
-        app.logger.debug(f"Dashboard Totals Calculated: Inscrits={total_inscriptions}, Attente={total_en_attente}, Complètes={total_sessions_completes}")
+        app.logger.debug(f"Dashboard Globals: InscritsConf={total_inscriptions_confirmees_global}, EnListeAttente={total_en_attente_global_liste_attente}, SessionsComplètes={total_sessions_completes_global}")
 
         return render_template('dashboard.html',
                               themes=themes,
-                              sessions_data=sessions_data_for_template, # Contient les objets Session et les comptes
-                              services=services, # Pour la modale nouveau participant
-                              participants=participants, # Pour la modale participant existant
-                              salles=salles, # Pour la modale attribution salle (admin)
-                              total_inscriptions=total_inscriptions,
-                              total_en_attente=total_en_attente,
-                              total_sessions_completes=total_sessions_completes,
-                              # Passer les classes Modèle si nécessaire pour isinstance() ou autre logique
+                              sessions_data=sessions_data_for_template, # Contient objets Session, comptes ET listes pré-chargées
+                              services=services_for_modal, 
+                              participants=participants_for_modal,
+                              salles=salles_for_modal,
+                              total_inscriptions=total_inscriptions_confirmees_global,
+                              total_en_attente=total_en_attente_global_liste_attente, # Ceci est le total des listes d'attente
+                              total_sessions_completes=total_sessions_completes_global,
+                              pending_validations=pending_validations_list, # La liste des inscriptions en attente de validation
+                              # Passer les classes Modèle si nécessaire
                               Inscription=Inscription,
                               ListeAttente=ListeAttente)
 
@@ -938,7 +959,6 @@ def dashboard():
         app.logger.error(f"Unexpected error in dashboard route: {e}", exc_info=True)
         flash("Une erreur interne est survenue.", "danger")
         return render_template('error.html', error_message="Erreur interne du serveur."), 500
-
 
 @app.route('/services') # <<< --- THIS DECORATOR WAS MISSING ---
 # @login_required # Removed for public access in your version
