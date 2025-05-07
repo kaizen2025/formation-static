@@ -237,19 +237,6 @@ def db_operation_with_retry(max_retries=3, retry_delay=0.5,
             raise ServiceUnavailable(f"Database service for '{func.__name__}' unavailable after {max_retries} retries (unknown reason).")
         return wrapper
     return decorator
-# --- FIN DE LA SECTION DEMANDÉE ---
-
-# === Modèles DB ===
-# ... (Le reste de votre code : modèles, helpers, routes, init_db, __main__) ...
-Use code with caution.
-Python
-Points Clés de cette Section :
-Priorité gevent : Le code essaie d'utiliser gevent en premier pour le mode asynchrone.
-Imports Vérifiés : Les imports pour werkzeug.security et whitenoise sont présents.
-Configuration WhiteNoise : La configuration pour servir les fichiers statiques est incluse au bon endroit.
-Initialisation SocketIO : Utilise la variable ASYNC_MODE déterminée dynamiquement.
-Reste du Code : Tout le reste (logging, context processor, teardown, décorateur retry) est identique à votre version précédente.
-N'oubliez pas de modifier la commande de démarrage sur Render pour utiliser gunicorn -k gevent -w 1 app:app et de vous assurer que gevent est dans requirements.txt.
 
 # === Modèles DB (Identiques à v7) ===
 class Service(db.Model):
