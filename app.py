@@ -2816,9 +2816,6 @@ def api_activites():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/generer_invitation/<int:inscription_id>')
-@login_required 
-@app.route('/generer_invitation/<int:inscription_id>')
-# @login_required # SUPPRIMÉ si les participants non connectés doivent pouvoir télécharger
 def generer_invitation(inscription_id):
     app.logger.info(f"Request to generate invitation for inscription_id: {inscription_id}.")
     try:
