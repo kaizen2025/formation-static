@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (config.debugMode) console.log('PollingUpdates: Skipped refresh (disabled or tab not visible)');
             return;
         }
+         console.log("PollingUpdates: Attempting refresh cycle..."); 
         if (config.debugMode) console.log('PollingUpdates: Starting dashboard refresh cycle...');
 
         let dashboardDataPayload = { sessions: null, participants: null, salles: null, activites: null };
