@@ -40,6 +40,7 @@ from werkzeug.exceptions import ServiceUnavailable
 from werkzeug.routing import BuildError # Importer BuildError pour une gestion plus fine
 from ics import Calendar, Event
 from ics.alarm import DisplayAlarm # Pour ics 0.7.2
+from whitenoise import WhiteNoise
 import json # Si utilisé explicitement
 
 # --- Configuration d'Encodage PostgreSQL ---
