@@ -116,14 +116,13 @@ login_manager.login_message_category = "info"
 # Initialisation SocketIO - utilise la variable ASYNC_MODE définie au début
 socketio = SocketIO(
     app,
-    cors_allowed_origins="*", # À restreindre en production !
-    async_mode=ASYNC_MODE, # <-- Utilise 'gevent' si trouvé, sinon fallback
+    cors_allowed_origins="*",  # Limit this in production
+    async_mode='threading',    # Change from gevent to threading since gevent is having issues
     engineio_logger=False,
     logger=False,
     ping_timeout=20000,
     ping_interval=25000,
-    transports=['polling'],
-    manage_session=False # Si vous gérez les sessions utilisateur avec Flask-Login
+    manage_session=False
 )
 
 # --- Configuration du Logging ---
@@ -667,49 +666,61 @@ def add_activity(type, description, details=None, user=None):
     """Adds an entry to the activity log and emits a SocketIO event."""
     try:
         # Determine the user for the log entry
-        log_user = user if user else current_user # Get the user object (could be current_user or AnonymousUserMixin)
-
-        # ** FIX V9: Check if the user is authenticated before accessing .id **
+        log_user = user if user else current_user
+        
+        # Check if the user is authenticated before accessing .id
         user_id_for_db = None
-        if log_user and log_user.is_authenticated:
+        if log_user and hasattr(log_user, 'is_authenticated') and log_user.is_authenticated:
             user_id_for_db = log_user.id
-
+        
         activite = Activite(
             type=type,
             description=description,
             details=details,
-            utilisateur_id=user_id_for_db # Use the potentially None ID
+            utilisateur_id=user_id_for_db
         )
+        
         db.session.add(activite)
         db.session.commit()
-        # Refresh is needed to get calculated properties like date_relative and relationships
-        # Need to handle case where utilisateur might be None after refresh if ID was None
+        
+        # Refresh is needed to get calculated properties like date_relative
         db.session.refresh(activite)
-
+        
         # Prepare data for SocketIO emission
-        user_username = activite.utilisateur.username if activite.utilisateur else None # Check if utilisateur relationship loaded
-        date_rel = activite.date_relative # Access the property after refresh
-
-        # Emit event to update activity feeds
-        socketio.emit('nouvelle_activite', {
-            'id': activite.id,
-            'type': activite.type,
-            'description': activite.description,
-            'details': activite.details,
-            'date_relative': date_rel,
-            'user': user_username
-        }, room='general') # Emit to a general room for all connected clients
-
+        user_username = activite.utilisateur.username if activite.utilisateur else None
+        date_rel = activite.date_relative
+        
+        # Try emission but handle any socket errors
+        try:
+            socketio.emit('nouvelle_activite', {
+                'id': activite.id,
+                'type': activite.type,
+                'description': activite.description,
+                'details': activite.details,
+                'date_relative': date_rel,
+                'user': user_username
+            }, room='general')
+        except Exception as socket_err:
+            app.logger.warning(f"SocketIO emit failed in add_activity: {socket_err}")
+            # Continue anyway - the activity is recorded in the database
+        
         app.logger.debug(f"Activity logged: {type} - {description}")
+        
+        # Invalidate activity cache
+        cache.delete('recent_activities_5')
+        cache.delete('recent_activities_10')
+        cache.delete('recent_activities_20')
+        cache.delete('dashboard_essential_data')
+        
         return True
     except SQLAlchemyError as e:
         db.session.rollback()
         app.logger.error(f"DB error adding activity '{type}': {e}")
+        return False
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Unexpected error adding activity '{type}': {e}", exc_info=True)
-    return False
-
+        return False
 @db_operation_with_retry(max_retries=3)
 def update_theme_names():
     """Ensures specific theme names and descriptions are standardized."""
@@ -2673,37 +2684,58 @@ def activites():
 
 
 @app.route('/api/dashboard_essential')
-@db_operation_with_retry(max_retries=2)  # Fewer retries for API
+@db_operation_with_retry(max_retries=2)
 def api_dashboard_essential():
     """API combinée pour les données essentielles du dashboard."""
     try:
+        # Try to get from cache first
+        cache_key = 'dashboard_essential_data'
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return jsonify(cached_data)
+            
         # Fetch sessions with necessary relationships
         sessions_q = Session.query.options(
             joinedload(Session.theme),
             joinedload(Session.salle)
         ).order_by(Session.date, Session.heure_debut).all()
-
+        
+        # Fetch participants
+        participants_q = Participant.query.options(
+            joinedload(Participant.service)
+        ).order_by(Participant.nom).all()
+        
         # Fetch recent activities
         activites_q = Activite.query.options(
             joinedload(Activite.utilisateur)
-        ).order_by(Activite.date.desc()).limit(5).all()  # Limit to 5 for dashboard
-
+        ).order_by(Activite.date.desc()).limit(5).all()
+        
         # Prepare session data with counts (use cache if available)
         sessions_data = []
         for s in sessions_q:
             cache_key = f'session_counts_{s.id}'
             session_counts = cache.get(cache_key)
             if session_counts is None:
+                # Count confirmed inscriptions
                 inscrits_count = db.session.query(func.count(Inscription.id)).filter(
-                    Inscription.session_id == s.id, Inscription.statut == 'confirmé'
+                    Inscription.session_id == s.id, 
+                    Inscription.statut == 'confirmé'
                 ).scalar() or 0
+                
+                # Count waitlist entries
                 attente_count = db.session.query(func.count(ListeAttente.id)).filter(
                     ListeAttente.session_id == s.id
                 ).scalar() or 0
+                
+                # Count pending validations
                 pending_count = db.session.query(func.count(Inscription.id)).filter(
-                    Inscription.session_id == s.id, Inscription.statut == 'en attente'
+                    Inscription.session_id == s.id, 
+                    Inscription.statut == 'en attente'
                 ).scalar() or 0
+                
+                # Calculate remaining places
                 places_rest = max(0, s.max_participants - inscrits_count)
+                
                 session_counts = {
                     'inscrits_confirmes_count': inscrits_count,
                     'liste_attente_count': attente_count,
@@ -2715,9 +2747,11 @@ def api_dashboard_essential():
                 # Ensure pending count exists if loaded from cache
                 if 'pending_count' not in session_counts:
                     session_counts['pending_count'] = db.session.query(func.count(Inscription.id)).filter(
-                        Inscription.session_id == s.id, Inscription.statut == 'en attente'
+                        Inscription.session_id == s.id, 
+                        Inscription.statut == 'en attente'
                     ).scalar() or 0
-
+            
+            # Create session data structure
             sessions_data.append({
                 'id': s.id,
                 'date': s.formatage_date,
@@ -2728,33 +2762,50 @@ def api_dashboard_essential():
                 'inscrits': session_counts['inscrits_confirmes_count'],
                 'max_participants': s.max_participants,
                 'liste_attente': session_counts['liste_attente_count'],
-                'pending_count': session_counts['pending_count'],  # Ajoutez ce champ
+                'pending_count': session_counts['pending_count'],
                 'salle': s.salle.nom if s.salle else None,
                 'salle_id': s.salle_id
             })
-
+            
+        # Prepare participant data
+        participants_data = [{
+            'id': p.id,
+            'nom': p.nom,
+            'prenom': p.prenom,
+            'email': p.email,
+            'service': p.service.nom if p.service else 'N/A',
+            'service_id': p.service_id
+        } for p in participants_q]
+        
         # Prepare activity data
         activites_data = [{
-            'id': a.id, 'type': a.type, 'description': a.description,
-            'details': a.details, 'date_relative': a.date_relative,
+            'id': a.id, 
+            'type': a.type, 
+            'description': a.description,
+            'details': a.details, 
+            'date_relative': a.date_relative,
             'user': a.utilisateur.username if a.utilisateur else None
         } for a in activites_q]
-
-        # IMPORTANT: Assurez-vous que sessions_data est un tableau et pas un objet
-        # C'est le format attendu par polling-updates.js
-        return jsonify({
-            'sessions': sessions_data,  # Ceci est bien un tableau
+        
+        # Create response data structure
+        response_data = {
+            'sessions': sessions_data,
+            'participants': participants_data,
             'activites': activites_data,
             'timestamp': datetime.now(UTC).timestamp()
-        })
-
+        }
+        
+        # Cache for 20 seconds
+        cache.set(cache_key, response_data, timeout=20)
+        
+        return jsonify(response_data)
     except SQLAlchemyError as e:
-        # No rollback needed for SELECT
+        db.session.rollback()
         app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
-        return jsonify({"error": "Database error"}), 500
+        return jsonify({"error": "Database error", "message": str(e)}), 500
     except Exception as e:
         app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "message": str(e)}), 500
         
 @app.route('/api/sessions')
 @limiter.limit("30 per minute")
@@ -3064,23 +3115,46 @@ def api_salles():
 @app.route('/api/activites')
 @db_operation_with_retry(max_retries=2)
 def api_activites():
-    # (Implementation from v8)
+    """Returns recent activity data optimized for dashboard display"""
     try:
+        # Get limit from request, default to 10
         limit = request.args.get('limit', 10, type=int)
-        activites = Activite.query.options(joinedload(Activite.utilisateur)).order_by(Activite.date.desc()).limit(limit).all()
+        # Add caching with a short timeout
+        cache_key = f'recent_activities_{limit}'
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            return jsonify(cached_result)
+        
+        # Query with error handling
+        query = Activite.query.options(
+            joinedload(Activite.utilisateur)
+        ).order_by(Activite.date.desc())
+        
+        # Apply the limit
+        activites = query.limit(limit).all()
+        
+        # Transform to JSON-friendly format
         result = [{
-            'id': a.id, 'type': a.type, 'description': a.description,
-            'details': a.details, 'date_relative': a.date_relative,
-            'date_iso': a.date.isoformat(),
+            'id': a.id, 
+            'type': a.type, 
+            'description': a.description,
+            'details': a.details, 
+            'date_relative': a.date_relative,
+            'date_iso': a.date.isoformat() if hasattr(a, 'date') and a.date else None,
             'user': a.utilisateur.username if a.utilisateur else None
         } for a in activites]
+        
+        # Cache for 15 seconds
+        cache.set(cache_key, result, timeout=15)
+        
         return jsonify(result)
     except SQLAlchemyError as e:
+        db.session.rollback()
         app.logger.error(f"API Error fetching activities: {e}", exc_info=True)
-        return jsonify({"error": "Database error"}), 500
+        return jsonify({"error": "Database error", "message": str(e)}), 500
     except Exception as e:
         app.logger.error(f"API Unexpected Error fetching activities: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error", "message": str(e)}), 500
 
 @app.route('/generer_invitation/<int:inscription_id>')
 # @login_required # Supprimé comme demandé pour permettre aux non-connectés de télécharger
