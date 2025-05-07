@@ -2627,9 +2627,8 @@ def activites():
         return redirect(url_for('admin'))
 
 
-# --- API Routes (Ensure all are defined and correct) ---
 @app.route('/api/dashboard_essential')
-@db_operation_with_retry(max_retries=2) # Fewer retries for API
+@db_operation_with_retry(max_retries=2)  # Fewer retries for API
 def api_dashboard_essential():
     """API combinée pour les données essentielles du dashboard."""
     try:
@@ -2642,7 +2641,7 @@ def api_dashboard_essential():
         # Fetch recent activities
         activites_q = Activite.query.options(
             joinedload(Activite.utilisateur)
-        ).order_by(Activite.date.desc()).limit(5).all() # Limit to 5 for dashboard
+        ).order_by(Activite.date.desc()).limit(5).all()  # Limit to 5 for dashboard
 
         # Prepare session data with counts (use cache if available)
         sessions_data = []
@@ -2650,29 +2649,29 @@ def api_dashboard_essential():
             cache_key = f'session_counts_{s.id}'
             session_counts = cache.get(cache_key)
             if session_counts is None:
-                 inscrits_count = db.session.query(func.count(Inscription.id)).filter(
-                     Inscription.session_id == s.id, Inscription.statut == 'confirmé'
-                 ).scalar() or 0
-                 attente_count = db.session.query(func.count(ListeAttente.id)).filter(
-                     ListeAttente.session_id == s.id
-                 ).scalar() or 0
-                 pending_count = db.session.query(func.count(Inscription.id)).filter(
-                     Inscription.session_id == s.id, Inscription.statut == 'en attente'
-                 ).scalar() or 0
-                 places_rest = max(0, s.max_participants - inscrits_count)
-                 session_counts = {
-                     'inscrits_confirmes_count': inscrits_count,
-                     'liste_attente_count': attente_count,
-                     'pending_count': pending_count,
-                     'places_restantes': places_rest
-                 }
-                 cache.set(cache_key, session_counts, timeout=60)
+                inscrits_count = db.session.query(func.count(Inscription.id)).filter(
+                    Inscription.session_id == s.id, Inscription.statut == 'confirmé'
+                ).scalar() or 0
+                attente_count = db.session.query(func.count(ListeAttente.id)).filter(
+                    ListeAttente.session_id == s.id
+                ).scalar() or 0
+                pending_count = db.session.query(func.count(Inscription.id)).filter(
+                    Inscription.session_id == s.id, Inscription.statut == 'en attente'
+                ).scalar() or 0
+                places_rest = max(0, s.max_participants - inscrits_count)
+                session_counts = {
+                    'inscrits_confirmes_count': inscrits_count,
+                    'liste_attente_count': attente_count,
+                    'pending_count': pending_count,
+                    'places_restantes': places_rest
+                }
+                cache.set(cache_key, session_counts, timeout=60)
             else:
-                 # Ensure pending count exists if loaded from cache
-                 if 'pending_count' not in session_counts:
-                      session_counts['pending_count'] = db.session.query(func.count(Inscription.id)).filter(
-                          Inscription.session_id == s.id, Inscription.statut == 'en attente'
-                      ).scalar() or 0
+                # Ensure pending count exists if loaded from cache
+                if 'pending_count' not in session_counts:
+                    session_counts['pending_count'] = db.session.query(func.count(Inscription.id)).filter(
+                        Inscription.session_id == s.id, Inscription.statut == 'en attente'
+                    ).scalar() or 0
 
             sessions_data.append({
                 'id': s.id,
@@ -2684,6 +2683,7 @@ def api_dashboard_essential():
                 'inscrits': session_counts['inscrits_confirmes_count'],
                 'max_participants': s.max_participants,
                 'liste_attente': session_counts['liste_attente_count'],
+                'pending_count': session_counts['pending_count'],  # Ajoutez ce champ
                 'salle': s.salle.nom if s.salle else None,
                 'salle_id': s.salle_id
             })
@@ -2695,8 +2695,10 @@ def api_dashboard_essential():
             'user': a.utilisateur.username if a.utilisateur else None
         } for a in activites_q]
 
+        # IMPORTANT: Assurez-vous que sessions_data est un tableau et pas un objet
+        # C'est le format attendu par polling-updates.js
         return jsonify({
-            'sessions': sessions_data,
+            'sessions': sessions_data,  # Ceci est bien un tableau
             'activites': activites_data,
             'timestamp': datetime.now(UTC).timestamp()
         })
@@ -2708,7 +2710,7 @@ def api_dashboard_essential():
     except Exception as e:
         app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
-
+        
 @app.route('/api/sessions')
 @limiter.limit("30 per minute")
 @db_operation_with_retry(max_retries=2)
