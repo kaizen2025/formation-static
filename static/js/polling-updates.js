@@ -185,7 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function updateStatsAndUI(payload) {
+        function updateStatsAndUI(payload) {
+    console.log("PollingUpdates: Données reçues pour stats/UI:", JSON.stringify(payload));
         const sessionsArray = payload.sessions; // Expected to be an array of session objects
         const participantsArray = payload.participants; // Expected to be an array
         const sallesArray = payload.salles; // Expected to be an array
@@ -252,6 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateActivityFeed(activitesArray) {
+    console.log("PollingUpdates: Données reçues pour Activité Récente:", JSON.stringify(activitesArray));
         if (!activitesArray || !Array.isArray(activitesArray)) {
             if(config.debugMode && activitesArray !== null) console.warn("PollingUpdates: updateActivityFeed received non-array or null data", activitesArray);
             // Clear feed or show "no activity" if activitesArray is explicitly empty array
