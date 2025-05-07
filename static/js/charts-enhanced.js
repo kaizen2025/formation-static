@@ -155,6 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function createOrUpdateServiceChart(participantsArray) {
+         console.log("Enhanced Charts: Attempting to create/update SERVICE chart.");
         const canvasElement = document.getElementById('serviceChartCanvas');
         if (!canvasElement) {
             if (DASH_CONFIG.debugMode) console.warn('Enhanced Charts: Canvas #serviceChartCanvas not found.');
