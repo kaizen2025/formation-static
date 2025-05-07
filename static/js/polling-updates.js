@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         while (retries <= config.maxRetries) { // Use <= to allow maxRetries attempts
             try {
+                console.log(`PollingUpdates: Fetching URL: ${url}`);
                 if (config.debugMode) console.log(`PollingUpdates: Fetching ${url} (Attempt ${retries + 1}/${config.maxRetries + 1})`);
                 const response = await fetch(fullUrl, options);
                 if (response.ok) {
