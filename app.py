@@ -764,6 +764,87 @@ def logout():
          flash("Erreur lors de la déconnexion.", "warning")
     return redirect(url_for('login'))
 
+@app.route('/validation_inscription_ajax', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2) # Moins de tentatives pour les requêtes API rapides
+def validation_inscription_ajax():
+    try:
+        data = request.get_json()
+        inscription_id = data.get('inscription_id')
+        action = data.get('action')
+
+        if not inscription_id or not action:
+            app.logger.warning("Validation AJAX: inscription_id ou action manquant.")
+            return jsonify({'success': False, 'message': 'Données manquantes.'}), 400
+
+        inscription = db.session.get(Inscription, int(inscription_id)) # Utiliser db.session.get
+
+        if not inscription:
+            app.logger.warning(f"Validation AJAX: Inscription {inscription_id} introuvable.")
+            return jsonify({'success': False, 'message': 'Inscription introuvable.'}), 404
+
+        # Vérification des autorisations (Admin ou Responsable du service du participant)
+        participant = inscription.participant # Relation déjà chargée
+        session_obj = inscription.session     # Relation déjà chargée
+        
+        is_admin = current_user.role == 'admin'
+        is_responsable = (current_user.role == 'responsable' and 
+                          participant and participant.service and 
+                          current_user.service_id == participant.service_id)
+
+        if not (is_admin or is_responsable):
+            app.logger.warning(f"Validation AJAX: User {current_user.username} non autorisé pour inscription {inscription_id}.")
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+
+        # Logique de validation/refus
+        original_status = inscription.statut
+        message = ""
+
+        if action == 'valider' and original_status == 'en attente':
+            if session_obj.get_places_restantes() <= 0:
+                app.logger.info(f"Validation AJAX: Session {session_obj.id} complète, impossible de valider inscription {inscription_id}.")
+                return jsonify({'success': False, 'message': 'Impossible de valider : la session est complète.'})
+            
+            inscription.statut = 'confirmé'
+            inscription.validation_responsable = True
+            message = 'Inscription validée avec succès.'
+            add_activity('validation', f'Validation AJAX: {participant.prenom} {participant.nom}',
+                         f'Session: {session_obj.theme.nom}', user=current_user)
+            cache.delete(f'session_counts_{session_obj.id}') # Invalider le cache
+            # Notifier via SocketIO (si vous voulez garder cette fonctionnalité)
+            socketio.emit('inscription_validee', {
+                'inscription_id': inscription.id, 'session_id': session_obj.id,
+                'participant_id': participant.id, 'new_status': 'confirmé'
+            }, room='general')
+
+
+        elif action == 'refuser' and original_status == 'en attente':
+            inscription.statut = 'refusé'
+            message = 'Inscription refusée.'
+            add_activity('refus', f'Refus AJAX: {participant.prenom} {participant.nom}',
+                         f'Session: {session_obj.theme.nom}', user=current_user)
+            # Pas besoin d'invalider le cache des comptes de session ici
+            socketio.emit('inscription_refusee', {
+                'inscription_id': inscription.id, 'session_id': session_obj.id,
+                'participant_id': participant.id, 'new_status': 'refusé'
+            }, room='general')
+        else:
+            app.logger.warning(f"Validation AJAX: Action '{action}' invalide ou statut '{original_status}' incorrect pour inscription {inscription_id}.")
+            return jsonify({'success': False, 'message': f"Action '{action}' invalide ou statut incorrect."})
+
+        db.session.commit()
+        app.logger.info(f"Validation AJAX: {message} pour inscription {inscription_id} par user {current_user.username}.")
+        return jsonify({'success': True, 'message': message, 'new_status': inscription.statut})
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Validation AJAX: Erreur DB - {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Erreur de base de données.'}), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Validation AJAX: Erreur inattendue - {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Erreur interne du serveur.'}), 500
+
 @app.route('/dashboard')
 # @login_required # Semble être public dans votre version
 @db_operation_with_retry(max_retries=3)
