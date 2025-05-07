@@ -1,12 +1,14 @@
 {% extends "layout.html" %}
 
+{% block title %}Dashboard - {{ super() }}{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-4" id="dashboard-content">
     <!-- En-tête du Dashboard -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h1 class="fw-bold text-primary mb-0"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
-            <p class="text-muted mb-0">Vue d'ensemble des formations Microsoft 365</p>
+            <p class="text-muted mb-0">Vue d'ensemble des formations Microsoft 365 - Anecoop France</p> {# Ajout Anecoop France #}
         </div>
         <div>
             <div class="btn-group" role="group" aria-label="Actions Dashboard">
@@ -138,23 +140,8 @@
                                             <strong class="d-block">{{ session_obj.formatage_date }}</strong>
                                             <small class="text-secondary">{{ session_obj.formatage_horaire }}</small>
                                         </td>
-                                        <td class="js-theme-cell">
-                                            <span class="theme-badge 
-                                                {% if 'Communiquer avec Teams' in session_obj.theme.nom %}theme-comm
-                                                {% elif 'Gérer les tâches' in session_obj.theme.nom %}theme-planner
-                                                {% elif 'Gérer mes fichiers' in session_obj.theme.nom %}theme-onedrive
-                                                {% elif 'Collaborer avec Teams' in session_obj.theme.nom %}theme-sharepoint
-                                                {% else %}bg-secondary{% endif %}"
-                                                data-bs-toggle="tooltip" data-bs-placement="top"
-                                                title="{{ session_obj.theme.description | default('Détails non disponibles.') | escape }}">
-                                                <i class="fas 
-                                                    {% if 'Communiquer avec Teams' in session_obj.theme.nom %}fa-comments
-                                                    {% elif 'Gérer les tâches' in session_obj.theme.nom %}fa-tasks
-                                                    {% elif 'Gérer mes fichiers' in session_obj.theme.nom %}fa-file-alt
-                                                    {% elif 'Collaborer avec Teams' in session_obj.theme.nom %}fa-users
-                                                    {% else %}fa-info-circle{% endif %} me-1" aria-hidden="true"></i>
-                                                {{ session_obj.theme.nom }}
-                                            </span>
+                                        <td class="js-theme-cell"> {# Classe pour JS dans layout.html #}
+                                            {{ session_obj.theme.nom }} {# Le JS s'occupera du badge #}
                                         </td>
                                         <td class="text-center">
                                             <div class="places-dispo small fw-bold {{ 'text-success' if session_item_dict.places_restantes > 5 else 'text-warning' if session_item_dict.places_restantes > 0 else 'text-danger' }}">
@@ -162,12 +149,8 @@
                                                 {{ session_item_dict.places_restantes }} / {{ session_obj.max_participants }}
                                             </div>
                                         </td>
-                                        <td class="js-salle-cell">
-                                            {% if session_obj.salle %}
-                                            <span class="badge bg-info salle-badge">{{ session_obj.salle.nom }}</span>
-                                            {% else %}
-                                            <span class="badge bg-secondary salle-badge">Non définie</span>
-                                            {% endif %}
+                                        <td class="js-salle-cell"> {# Classe pour JS dans ui-fixers.js #}
+                                            {{ session_obj.salle.nom if session_obj.salle else "Non définie" }}
                                         </td>
                                         <td class="text-center">
                                             <div class="btn-group btn-group-sm">
@@ -208,7 +191,7 @@
                 </div>
             </div>
 
-            <!-- NOUVEAU: Section Inscriptions en Attente de Validation (pour admin/responsable) -->
+            <!-- Section Inscriptions en Attente de Validation -->
             {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
             <div class="card shadow-sm mb-4" id="pending-validations-section">
                 <div class="card-header bg-warning text-dark py-3">
@@ -224,7 +207,7 @@
                                 <tr>
                                     <th>Participant</th>
                                     <th>Service</th>
-                                    <th>Session Demandée</th>
+                                    <th class="js-theme-cell">Session Demandée</th>
                                     <th>Date Demande</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
@@ -241,7 +224,7 @@
                                             {{ inscription.participant.service.nom }}
                                         </span>
                                     </td>
-                                    <td>
+                                    <td class="js-theme-cell">
                                         {{ inscription.session.theme.nom }}
                                         <small class="d-block text-muted">{{ inscription.session.formatage_date }}</small>
                                     </td>
@@ -271,48 +254,44 @@
                 </div>
             </div>
             {% endif %}
-            <!-- FIN Section Inscriptions en Attente -->
         </div>
 
         <!-- Colonne de Droite (Visualisations & Activité) -->
         <div class="col-lg-4">
-            <!-- Graphique Thème -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3 border-bottom">
                     <h6 class="m-0 fw-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Répartition par thème</h6>
                 </div>
-                <div class="card-body chart-container">
-                    <div id="themeChart" class="static-chart-container">
+                <div class="card-body chart-container p-2"> {# p-2 pour un peu d'espace #}
+                    <div id="themeChart" class="static-chart-container" style="min-height: 280px;"> {# Hauteur minimale #}
                         <div class="static-chart-donut">
                             <div class="donut-center">
                                 <div class="donut-total" id="chart-theme-total">{{ total_inscriptions|default(0) }}</div>
-                                <div class="donut-label">Total Inscrits</div>
+                                <div class="donut-label small">Total Inscrits</div>
                             </div>
                         </div>
-                        <div class="static-chart-legend mt-3"></div>
+                        <div class="static-chart-legend mt-2 small"></div> {# mt-2 small #}
                     </div>
                 </div>
             </div>
 
-            <!-- Graphique Service -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3 border-bottom">
                     <h6 class="m-0 fw-bold text-primary"><i class="fas fa-chart-bar me-2"></i>Participants par service</h6>
                 </div>
-                 <div class="card-body chart-container">
-                    <div id="serviceChart" class="static-chart-container">
+                 <div class="card-body chart-container p-2">
+                    <div id="serviceChart" class="static-chart-container" style="min-height: 250px;">
                         <div class="static-chart-bars"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Activités récentes -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3 border-bottom">
                     <h6 class="m-0 fw-bold text-primary"><i class="fas fa-history me-2"></i>Activité récente</h6>
                 </div>
                 <div class="card-body p-0">
-                    <div class="list-group list-group-flush" id="recent-activity" style="max-height: 300px; overflow-y: auto;"> 
+                    <div class="list-group list-group-flush" id="recent-activity" style="max-height: 280px; overflow-y: auto;"> 
                         <div class="list-group-item text-center py-5">
                             <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                             Chargement...
@@ -358,7 +337,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-        console.log('Dashboard page specific JS loaded');
+        console.log('Dashboard page specific JS loaded (v2)');
     }
 
     // --- Sessions Table Filtering ---
@@ -366,28 +345,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const sessionRows = document.querySelectorAll('.session-row');
     const filterDropdownButton = document.getElementById('sessionsFilterDropdown');
     
-    filterLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const filter = this.getAttribute('data-filter');
-            
-            if (filterDropdownButton) {
+    if (filterLinks.length > 0 && sessionRows.length > 0 && filterDropdownButton) {
+        filterLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const filter = this.getAttribute('data-filter');
                 filterDropdownButton.innerHTML = `<i class="fas fa-filter me-1"></i> ${this.textContent}`;
-            }
-            
-            sessionRows.forEach(row => {
-                const isFull = row.getAttribute('data-full') === '1';
-                const theme = row.getAttribute('data-theme');
-                let show = false;
-
-                if (filter === 'all') show = true;
-                else if (filter === 'available') show = !isFull;
-                else if (filter === 'full') show = isFull;
-                else show = (theme === filter);
-                row.style.display = show ? '' : 'none';
+                sessionRows.forEach(row => {
+                    const isFull = row.getAttribute('data-full') === '1';
+                    const theme = row.getAttribute('data-theme');
+                    let show = false;
+                    if (filter === 'all') show = true;
+                    else if (filter === 'available') show = !isFull;
+                    else if (filter === 'full') show = isFull;
+                    else show = (theme === filter);
+                    row.style.display = show ? '' : 'none';
+                });
             });
         });
-    });
+    } else {
+        if (window.dashboardConfig && window.dashboardConfig.debugMode) {
+            console.warn("Dashboard: Filter elements for session table not all found.");
+        }
+    }
     
     // --- Refresh Button ---
     const refreshButton = document.getElementById('refresh-dashboard');
@@ -396,12 +376,12 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
             if (typeof window.forcePollingUpdate === 'function') {
-                 window.forcePollingUpdate().finally(() => {
+                 window.forcePollingUpdate(true).finally(() => { // Pass true to force all data refresh
                      this.disabled = false;
                      this.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualiser';
                  });
             } else {
-                setTimeout(() => { window.location.reload(); }, 500);
+                setTimeout(() => { window.location.reload(); }, 700); // Slightly longer delay for reload
             }
         });
     }
@@ -418,12 +398,19 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
-    setTimeout(initializeDashboardTooltips, 200);
+    // Appeler après un délai pour s'assurer que le DOM est prêt et que les scripts globaux ont pu s'exécuter
+    setTimeout(() => {
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            window.enhanceThemeBadgesGlobally();
+        }
+        initializeDashboardTooltips();
+    }, 300);
+
 
     // --- Validation Rapide des Inscriptions AJAX ---
-    const pendingValidationsSection = document.getElementById('pending-validations-section');
-    if (pendingValidationsSection) {
-        pendingValidationsSection.addEventListener('click', function(event) {
+    const pendingValidationsContainer = document.getElementById('pending-validations-section');
+    if (pendingValidationsContainer) {
+        pendingValidationsContainer.addEventListener('click', function(event) {
             const button = event.target.closest('.btn-validate-inscription');
             if (button) {
                 event.preventDefault();
@@ -431,7 +418,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const action = button.dataset.action;
                 const row = document.getElementById(`pending-row-${inscriptionId}`);
 
-                if (!inscriptionId || !action || !row) return;
+                if (!inscriptionId || !action || !row) {
+                    console.error("Validation AJAX: Données manquantes pour l'action.", {inscriptionId, action, rowExists: !!row});
+                    return;
+                }
 
                 const originalButtonHtml = button.innerHTML;
                 button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
@@ -441,31 +431,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 fetch(`{{ url_for('validation_inscription_ajax') }}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 
-                               // 'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}' // Si CSRF est utilisé
-                             },
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'X-CSRFToken': window.dashboardConfig.csrfToken || '' // Utiliser le token CSRF global si défini
+                    },
                     body: JSON.stringify({ inscription_id: inscriptionId, action: action })
                 })
                 .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => Promise.reject(err));
+                    if (!response.ok) { // Gérer les erreurs HTTP (4xx, 5xx)
+                        return response.json().then(errData => {
+                            const error = new Error(errData.message || `Erreur serveur ${response.status}`);
+                            error.data = errData;
+                            return Promise.reject(error);
+                        });
                     }
                     return response.json();
                 })
                 .then(data => {
                     if (data.success) {
-                        if (window.showToast) { showToast(data.message || 'Action effectuée!', 'success'); }
+                        if (window.showToast) { showToast(data.message || 'Action effectuée avec succès!', 'success'); }
                         
-                        row.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                        row.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
                         row.style.opacity = '0';
-                        row.style.transform = 'translateX(20px)';
+                        row.style.transform = 'translateX(30px)';
                         setTimeout(() => { 
                             row.remove();
                             updatePendingValidationCount();
-                            // Potentially trigger updates for other dashboard components
-                            if (typeof window.updateStatsCounters === 'function') window.updateStatsCounters();
-                            if (typeof window.forcePollingUpdate === 'function') window.forcePollingUpdate(true); // true to indicate important change
-                        }, 500);
+                            // Déclencher une mise à jour plus complète du dashboard
+                            if (typeof window.forcePollingUpdate === 'function') window.forcePollingUpdate(true);
+                        }, 400);
                     } else {
                         if (window.showToast) { showToast(data.message || 'Erreur lors de l\'action.', 'danger'); }
                         button.innerHTML = originalButtonHtml;
@@ -475,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => {
                     console.error('Erreur AJAX validation:', error);
-                    const errorMsg = error.message || 'Erreur de communication avec le serveur.';
+                    const errorMsg = error.data ? error.data.message : (error.message || 'Erreur de communication avec le serveur.');
                     if (window.showToast) { showToast(errorMsg, 'danger'); }
                     button.innerHTML = originalButtonHtml;
                     button.disabled = false;
@@ -487,15 +481,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updatePendingValidationCount() {
         const countBadge = document.getElementById('pending-validation-count');
-        const tableBody = pendingValidationsSection?.querySelector('tbody');
-        if (countBadge) {
-            const currentRows = tableBody ? tableBody.querySelectorAll('tr').length : 0;
+        const tableBody = pendingValidationsContainer?.querySelector('tbody'); // Utiliser la variable globale
+        if (countBadge && tableBody) { // Vérifier que tableBody existe
+            const currentRows = tableBody.querySelectorAll('tr').length;
             countBadge.textContent = currentRows;
-            if (currentRows === 0 && tableBody) {
-                 const cardBody = pendingValidationsSection.querySelector('.card-body > .table-responsive'); // Target the div holding the table
-                 if(cardBody){
-                     cardBody.innerHTML = `<div class="text-center text-muted p-3">
-                        <p class="mb-0"><i class="fas fa-check-circle text-success me-1"></i> Aucune inscription en attente de validation.</p>
+            if (currentRows === 0) {
+                 const cardBodyTableContainer = pendingValidationsContainer.querySelector('.card-body > .table-responsive');
+                 if(cardBodyTableContainer){
+                     cardBodyTableContainer.innerHTML = `<div class="text-center text-muted p-4 border-top">
+                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                        <p class="mb-0">Aucune inscription en attente de validation.</p>
                     </div>`;
                  }
             }
