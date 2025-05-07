@@ -1,125 +1,136 @@
-/* 
+/*
  * modal-fix.js - Simple, robust fix for Bootstrap modals
  * Replace the complex modal-fix-ultimate.js with this simplified version
+ * v1.0.1 - Added debug logging, minor focus adjustment.
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Simplified Modal Fix Initialized');
-    
-    // Apply fixes to all modals
-    function applyModalFixes() {
-        document.querySelectorAll('.modal').forEach(modal => {
-            if (!modal) return;
-            
-            // Fix the modal's z-index
-            modal.style.zIndex = '1055';
-            
-            // Fix <select> elements
-            modal.querySelectorAll('select, .form-select').forEach(select => {
-                select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
-            });
-            
-            // Fix buttons
-            modal.querySelectorAll('button, .btn').forEach(button => {
-                button.style.cssText = 'position: relative !important; z-index: 2001 !important; pointer-events: auto !important;';
-            });
-            
-            // Fix close buttons specifically
-            modal.querySelectorAll('.btn-close').forEach(closeBtn => {
-                closeBtn.style.cssText = 'position: relative !important; z-index: 2005 !important; pointer-events: auto !important;';
-            });
-            
-            // Force recalculation of layout
-            modal.offsetHeight;
+    const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
+    if (DASH_CONFIG.debugMode) console.log('ModalFix: Simplified Modal Fix Initialized (v1.0.1)');
+
+    function applyModalFixes(modalElement) {
+        if (!modalElement) return;
+        if (DASH_CONFIG.debugMode) console.log('ModalFix: Applying fixes to modal:', modalElement.id);
+
+        modalElement.style.zIndex = '1055'; // Standard z-index for modals
+
+        modalElement.querySelectorAll('select, .form-select').forEach(select => {
+            select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1056 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
         });
+
+        modalElement.querySelectorAll('button, .btn, input[type="button"], input[type="submit"]').forEach(button => {
+             // Avoid overly aggressive styling on all buttons, focus on those that might be problematic
+            if (!button.classList.contains('btn-close')) { // Don't mess with btn-close too much here
+                button.style.position = 'relative !important';
+                button.style.zIndex = '1057 !important'; // Ensure interactable elements are above selects
+                button.style.pointerEvents = 'auto !important';
+            }
+        });
+
+        modalElement.querySelectorAll('.btn-close').forEach(closeBtn => {
+            closeBtn.style.position = 'relative !important'; // Keep relative for layout
+            closeBtn.style.zIndex = '1060 !important'; // Ensure close button is on top
+            closeBtn.style.pointerEvents = 'auto !important';
+        });
+
+        // Force reflow/repaint, can sometimes help with rendering glitches
+        // Use with caution as it can be performance intensive if overused.
+        // modalElement.offsetHeight;
     }
-    
-    // Apply on DOMContentLoaded
-    applyModalFixes();
-    
-    // Apply when modal is shown/hidden
-    document.addEventListener('shown.bs.modal', function(e) {
-        setTimeout(() => {
-            if (e.target && !e.target.classList.contains('show')) {
-                e.target.classList.add('show');
-                e.target.style.display = 'block';
-                
-                // Check for backdrop
-                if (!document.querySelector('.modal-backdrop')) {
-                    const backdrop = document.createElement('div');
-                    backdrop.className = 'modal-backdrop fade show';
-                    document.body.appendChild(backdrop);
+
+    // Apply when a modal is shown
+    document.addEventListener('shown.bs.modal', function(event) {
+        if (DASH_CONFIG.debugMode) console.log('ModalFix: shown.bs.modal triggered for', event.target.id);
+        const modal = event.target;
+        if (modal && modal.classList.contains('modal')) {
+            setTimeout(() => { // Delay slightly to ensure modal is fully in DOM and styles applied
+                // Ensure modal is displayed correctly (Bootstrap sometimes fails to add 'show' or set display)
+                if (!modal.classList.contains('show')) {
+                    modal.classList.add('show');
                 }
-            }
-            applyModalFixes();
-            
-            // Focus on first form element
-            const firstInput = e.target.querySelector('input, select, textarea');
-            if (firstInput) {
-                try {
-                    firstInput.focus();
-                } catch(e) {}
-            }
-        }, 50);
+                if (modal.style.display !== 'block' && modal.classList.contains('show')) {
+                     modal.style.display = 'block'; // Force display if 'show' is present but not visible
+                }
+                
+                // Ensure backdrop exists
+                if (modal.classList.contains('show') && !document.querySelector('.modal-backdrop.show')) {
+                    if (DASH_CONFIG.debugMode) console.log('ModalFix: Backdrop missing, attempting to create one for', modal.id);
+                    let backdrop = document.querySelector('.modal-backdrop');
+                    if (!backdrop) {
+                        backdrop = document.createElement('div');
+                        backdrop.className = 'modal-backdrop fade'; // Start with fade
+                        document.body.appendChild(backdrop);
+                        // Force reflow to apply 'fade' class before 'show'
+                        backdrop.offsetHeight;
+                    }
+                    backdrop.classList.add('show');
+                    document.body.classList.add('modal-open'); // Ensure body class is set
+                }
+
+                applyModalFixes(modal);
+
+                // Auto-focus on the first focusable element in the modal
+                // Exclude elements that are part of a toast or another modal nested (though nesting is bad)
+                const firstFocusable = modal.querySelector(
+                    'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
+                );
+                if (firstFocusable && typeof firstFocusable.focus === 'function') {
+                    try {
+                        firstFocusable.focus({ preventScroll: true }); // preventScroll is a good addition
+                         if (DASH_CONFIG.debugMode) console.log('ModalFix: Focused on:', firstFocusable);
+                    } catch (e) {
+                        if (DASH_CONFIG.debugMode) console.warn('ModalFix: Error focusing on element:', e, firstFocusable);
+                    }
+                }
+            }, 50); // Small delay
+        }
     });
-    
-    // Fix modal buttons
+
+    // Attempt to fix modals triggered by clicks if Bootstrap's own handlers are problematic
     document.addEventListener('click', function(e) {
         const modalToggle = e.target.closest('[data-bs-toggle="modal"]');
         if (modalToggle) {
             const targetSelector = modalToggle.getAttribute('data-bs-target') || modalToggle.getAttribute('href');
-            const modalElement = document.querySelector(targetSelector);
-            
-            if (modalElement) {
-                setTimeout(() => {
-                    // Ensure modal is shown properly
-                    if (!modalElement.classList.contains('show')) {
-                        console.log('Force showing modal:', targetSelector);
-                        modalElement.classList.add('show');
-                        modalElement.style.display = 'block';
-                        document.body.classList.add('modal-open');
-                        
-                        // Create backdrop if needed
-                        if (!document.querySelector('.modal-backdrop')) {
-                            const backdrop = document.createElement('div');
-                            backdrop.className = 'modal-backdrop fade show';
-                            document.body.appendChild(backdrop);
-                        }
-                    }
-                    applyModalFixes();
-                }, 150);
+            if (targetSelector) {
+                const modalElement = document.querySelector(targetSelector);
+                if (modalElement) {
+                    // This is a bit aggressive and might interfere with Bootstrap's own timing.
+                    // Use primarily if modals are consistently failing to show.
+                    // setTimeout(() => {
+                    //     if (!modalElement.classList.contains('show')) {
+                    //         if (DASH_CONFIG.debugMode) console.log('ModalFix: Click - Force showing modal:', targetSelector);
+                    //         const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+                    //         modalInstance.show(); // Use Bootstrap's API to show
+                    //     }
+                    //     // applyModalFixes(modalElement); // 'shown.bs.modal' should handle this
+                    // }, 100); // Delay to allow Bootstrap to attempt first
+                }
             }
         }
     });
-    
-    // Watch for new modals added to the DOM
+
+    // Watch for modals added to the DOM dynamically (e.g., via AJAX)
     if (window.MutationObserver) {
         const observer = new MutationObserver(function(mutations) {
-            let modalAdded = false;
-            
             mutations.forEach(function(mutation) {
                 if (mutation.addedNodes && mutation.addedNodes.length > 0) {
                     for (let i = 0; i < mutation.addedNodes.length; i++) {
                         const node = mutation.addedNodes[i];
-                        if (node.nodeType === 1 && 
-                            (node.classList && node.classList.contains('modal') || 
-                             node.querySelector && node.querySelector('.modal'))) {
-                            modalAdded = true;
+                        if (node.nodeType === 1 && node.classList && node.classList.contains('modal')) {
+                            if (DASH_CONFIG.debugMode) console.log('ModalFix: New modal added to DOM, applying fixes:', node.id);
+                            // applyModalFixes(node); // Apply immediately or wait for 'shown.bs.modal'
+                            // It's generally better to let 'shown.bs.modal' handle it for consistency.
                         }
                     }
                 }
             });
-            
-            if (modalAdded) {
-                setTimeout(applyModalFixes, 10);
-            }
         });
-        
+
         observer.observe(document.body, {
             childList: true,
-            subtree: true
+            subtree: true // Observe entire body for new modals
         });
     }
-    
-    console.log('Modal fix initialization complete');
+
+    if (DASH_CONFIG.debugMode) console.log('ModalFix: Initialization complete.');
 });
