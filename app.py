@@ -1494,9 +1494,6 @@ def validation_inscription(inscription_id):
 
     return redirect(redirect_url)
 
-
-@app.route('/add_participant', methods=['POST'])
-@db_operation_with_retry(max_retries=3)
 @app.route('/add_participant', methods=['POST'])
 @db_operation_with_retry(max_retries=3)
 def add_participant():
@@ -1636,6 +1633,7 @@ def add_participant():
         app.logger.error(f"add_participant: Erreur inattendue - {e}", exc_info=True)
 
     return redirect(redirect_url)
+    
 @app.route('/update_participant/<int:id>', methods=['POST'])
 @login_required
 @db_operation_with_retry(max_retries=3)
