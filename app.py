@@ -6,14 +6,14 @@ try:
 except ImportError:
     ASYNC_MODE = 'threading'
     print(f"Mode asynchrone: {ASYNC_MODE}")
-# ***** END EVENTLET PATCHING *****
+# ***** FIN EVENTLET PATCHING *****
 
 import os
 import sys
 import functools
 import random
 import time
-import psycopg2 # Pour l'enregistrement des types UNICODE, pas pour la connexion directe
+import psycopg2 # Pour l'enregistrement des types UNICODE
 from datetime import datetime, timedelta, UTC, date, time as time_obj
 
 from flask import (
@@ -32,16 +32,17 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError
-from sqlalchemy.orm import joinedload, subqueryload, selectinload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, text, select
 import logging
 from logging.handlers import RotatingFileHandler
 from werkzeug.exceptions import ServiceUnavailable
+from werkzeug.routing import BuildError # Importer BuildError pour une gestion plus fine
 from ics import Calendar, Event
-from ics.alarm import DisplayAlarm
-import json # Si vous l'utilisez quelque part
+from ics.alarm import DisplayAlarm # Pour ics 0.7.2
+import json # Si utilisé explicitement
 
-# --- Configuration d'Encodage PostgreSQL (Bon endroit) ---
+# --- Configuration d'Encodage PostgreSQL ---
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
@@ -49,107 +50,145 @@ psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 app = Flask(__name__)
 
 # --- Configuration Générale de Flask ---
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-very-secure-default-secret-key-for-dev-only')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'votre_super_cle_secrete_ici_en_production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
     "DATABASE_URL",
-    "postgresql://xvcyuaga:rfodwjclemtvhwvqsrpp@alpha.europe.mkdb.sh:5432/usdtdsgq"
+    "postgresql://xvcyuaga:rfodwjclemtvhwvqsrpp@alpha.europe.mkdb.sh:5432/usdtdsgq" # Exemple, utilisez votre URL
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ECHO'] = False # Mettre à True pour déboguer les requêtes SQL
+app.config['SQLALCHEMY_ECHO'] = False # Mettre à True pour déboguer les requêtes SQL en développement
 
-# Configuration du Pool de Connexions SQLAlchemy (pour une limite de 5 connexions totales avec 1 worker Gunicorn)
+# Configuration du Pool de Connexions SQLAlchemy (adaptée pour une limite de 5 connexions totales)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "client_encoding": "UTF8",
     "connect_args": {
         "options": "-c client_encoding=utf8"
     },
-    'pool_size': 1,        
-    'max_overflow': 1,     
+    'pool_size': 1,        # 1 connexion principale par worker Gunicorn
+    'max_overflow': 1,     # 1 connexion supplémentaire temporaire par worker
+                           # Total max par worker = 2. Avec 1 worker Gunicorn, total = 2.
     'pool_timeout': 10,    # Attendre 10s pour une connexion
-    'pool_recycle': 280,   # Recycler les connexions après ~4.6 minutes
-    'pool_pre_ping': True  # Vérifier la connexion avant usage
+    'pool_recycle': 280,   # Recycler les connexions après ~4.6 minutes (important pour DB hébergées)
+    'pool_pre_ping': True  # Vérifier la connexion avant chaque utilisation
 }
 
-# --- Configuration du Cache ---
+# Configuration du Cache
 cache_config = {
-    "CACHE_TYPE": "SimpleCache",
-    "CACHE_DEFAULT_TIMEOUT": 300 
+    "CACHE_TYPE": "SimpleCache", # Ou "FileSystemCache", "RedisCache", etc. en production
+    "CACHE_DEFAULT_TIMEOUT": 300 # 5 minutes par défaut
+    # Pour FileSystemCache: "CACHE_DIR": os.path.join(app.root_path, 'cache')
 }
 app.config.from_mapping(cache_config)
 
 # --- Initialisation des Extensions Flask ---
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-login_manager = LoginManager(app)
+login_manager = LoginManager() # Initialiser sans app d'abord
 cache = Cache(app)
+limiter = Limiter(key_func=get_remote_address) # Initialiser sans app d'abord
 
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
-)
-limiter.init_app(app)  # Initialisation séparée
+# Initialisation différée des extensions qui nécessitent 'app'
+login_manager.init_app(app)
+limiter.init_app(app)
+
+# Configuration de Flask-Login
+login_manager.login_view = 'login' # Nom de la fonction de votre route de connexion
+login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
+login_manager.login_message_category = "info"
+
 
 socketio = SocketIO(
     app,
-    cors_allowed_origins="*", # Soyez plus spécifique en production
+    cors_allowed_origins="*", # À restreindre en production !
     async_mode=ASYNC_MODE,
     engineio_logger=False, 
     logger=False,          
     ping_timeout=20000,
     ping_interval=25000,
     transports=['polling'], 
-    manage_session=False
+    manage_session=False # Si vous gérez les sessions utilisateur avec Flask-Login
 )
 
-# --- Configuration du Logging (Définition de la fonction et appel) ---
+# --- Configuration du Logging ---
 logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
 if not os.path.exists(logs_dir):
-    os.makedirs(logs_dir)
+    try:
+        os.makedirs(logs_dir)
+    except OSError as e:
+        app.logger.error(f"Impossible de créer le dossier de logs {logs_dir}: {e}")
 
 def configure_logging(app_instance):
     log_level = logging.DEBUG if app_instance.debug else logging.INFO
-    # ... (votre code de configuration du logging existant, qui semble correct) ...
-    # ... (assurez-vous que app_instance.logger et les autres loggers sont bien configurés) ...
-    # Exemple simplifié :
-    if not app_instance.logger.handlers: # Pour éviter d'ajouter des handlers multiples lors des rechargements
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-        console_handler.setLevel(log_level)
-        app_instance.logger.addHandler(console_handler)
-        app_instance.logger.setLevel(log_level)
-        # Ajoutez vos RotatingFileHandler ici si app_instance.debug est False
-    app_instance.logger.info(f"Application logging initialized for {'development (DEBUG)' if app_instance.debug else 'production'}")
+    
+    # Supprimer les handlers existants pour éviter la duplication lors des rechargements
+    # (plus robuste que d'itérer et supprimer)
+    app_instance.logger.handlers = []
+    logging.getLogger('sqlalchemy.engine').handlers = []
+    logging.getLogger('socketio').handlers = []
+    logging.getLogger('engineio').handlers = []
+    
+    formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
+    
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(log_level)
+    app_instance.logger.addHandler(console_handler)
+    app_instance.logger.setLevel(log_level)
 
-configure_logging(app) # Appel de la configuration du logging
+    if not app_instance.debug: # Configuration pour la production
+        try:
+            app_log_file = os.path.join(logs_dir, 'app.log')
+            file_handler = RotatingFileHandler(app_log_file, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8')
+            file_handler.setFormatter(formatter)
+            file_handler.setLevel(logging.INFO)
+            app_instance.logger.addHandler(file_handler)
+
+            db_log_file = os.path.join(logs_dir, 'db.log')
+            db_file_handler = RotatingFileHandler(db_log_file, maxBytes=2*1024*1024, backupCount=3, encoding='utf-8')
+            db_file_handler.setFormatter(formatter)
+            db_logger = logging.getLogger('sqlalchemy.engine')
+            db_logger.addHandler(db_file_handler)
+            db_logger.setLevel(logging.WARNING)
+            db_logger.propagate = False
+
+            # ... (configuration similaire pour socketio_logger, engineio_logger si nécessaire) ...
+            app_instance.logger.info('Logging de production initialisé (fichiers).')
+        except Exception as e:
+            app_instance.logger.error(f"Erreur lors de la configuration du logging de fichier: {e}")
+    else:
+        logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO) # Plus verbeux en dev
+        app_instance.logger.info('Logging de développement initialisé (console).')
+
+configure_logging(app)
 
 # --- Fonctions de Contexte et Teardown ---
 @app.context_processor
-def inject_debug_status():
-    return dict(debug_mode=app.debug) 
-
-@app.context_processor
-def inject_now():
-    return dict(now=datetime.now(UTC))
+def inject_global_template_vars():
+    return dict(
+        debug_mode=app.debug,
+        now=datetime.now(UTC),
+        app_name="Formation Microsoft 365 - Anecoop France" # Pour l'affichage
+    )
 
 @app.teardown_appcontext
 def shutdown_session_proper(exception=None):
     if hasattr(db, 'session'):
         if exception:
-            app.logger.debug(f"Rolling back session due to exception: {exception}")
+            app.logger.debug(f"Teardown: Exception détectée, rollback de la session DB: {exception}")
             try:
                 db.session.rollback()
             except Exception as rb_e:
-                app.logger.error(f"Error during session rollback: {rb_e}")
+                app.logger.error(f"Teardown: Erreur pendant le rollback de la session DB: {rb_e}")
         try:
             db.session.remove()
-            # app.logger.debug("SQLAlchemy session removed after request.")
+            # app.logger.debug("Teardown: Session SQLAlchemy retirée.")
         except Exception as e:
-            app.logger.error(f"Error removing SQLAlchemy session: {e}")
+            app.logger.error(f"Teardown: Erreur lors du retrait de la session SQLAlchemy: {e}")
 
-# --- Décorateur DB Retry (Modifié pour ne pas fermer la session) ---
-def db_operation_with_retry(max_retries=3, retry_delay=0.5):
+# --- Décorateur DB Retry ---
+def db_operation_with_retry(max_retries=3, retry_delay=0.5, 
+                            retry_on_exceptions=(OperationalError, TimeoutError),
+                            fail_on_exceptions=(IntegrityError, SQLAlchemyError)): # Ne pas réessayer sur les erreurs de logique
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -159,37 +198,34 @@ def db_operation_with_retry(max_retries=3, retry_delay=0.5):
                 try:
                     result = func(*args, **kwargs)
                     return result
-                except (OperationalError, TimeoutError) as e: # Erreurs liées à la connexion/DB
+                except retry_on_exceptions as e:
                     retries += 1
                     last_exception = e
-                    app.logger.warning(f"DB operation failed (attempt {retries}/{max_retries}): {e}")
+                    app.logger.warning(f"DB operation '{func.__name__}' failed (attempt {retries}/{max_retries}): {type(e).__name__} - {e}")
                     try:
-                        db.session.rollback() # Essayer de rollback
+                        db.session.rollback()
                     except Exception as rb_ex:
-                        app.logger.error(f"Error during rollback in retry decorator: {rb_ex}")
+                        app.logger.error(f"Error during rollback in retry decorator for '{func.__name__}': {rb_ex}")
                     
                     if retries >= max_retries:
-                        app.logger.error(f"Max retries reached for DB operation. Last error: {e}")
-                        raise ServiceUnavailable("Database service temporarily unavailable due to connection issues.")
+                        app.logger.error(f"Max retries ({max_retries}) reached for DB operation '{func.__name__}'. Last error: {e}")
+                        raise ServiceUnavailable(f"Database service for '{func.__name__}' temporarily unavailable after multiple retries.")
                     
-                    # Backoff exponentiel avec jitter
-                    wait_time = (retry_delay * (2 ** (retries -1))) + random.uniform(0, retry_delay * 0.5)
-                    app.logger.info(f"Retrying DB operation in {wait_time:.2f} seconds...")
+                    wait_time = (retry_delay * (2 ** (retries -1))) + random.uniform(0, retry_delay * 0.25) # Jitter plus petit
+                    app.logger.info(f"Retrying DB operation '{func.__name__}' in {wait_time:.2f} seconds...")
                     time.sleep(wait_time) 
-                except SQLAlchemyError as e: # Autres erreurs SQLAlchemy (ex: IntegrityError)
+                except fail_on_exceptions as e: # Erreurs SQLAlchemy qui ne devraient pas être réessayées
                     db.session.rollback()
-                    app.logger.error(f"SQLAlchemyError during DB operation (not retried): {e}", exc_info=True)
-                    raise # Re-lever pour que la route puisse la gérer (ex: afficher un flash)
+                    app.logger.error(f"SQLAlchemyError (not retried) during DB operation '{func.__name__}': {e}", exc_info=True)
+                    raise # Re-lever pour que la route puisse la gérer
                 except Exception as e: # Erreurs Python inattendues
-                    db.session.rollback() # Par précaution
-                    app.logger.error(f"Unexpected Python error during DB operation: {e}", exc_info=True)
+                    db.session.rollback() 
+                    app.logger.error(f"Unexpected Python error during DB operation '{func.__name__}': {e}", exc_info=True)
                     raise
             
-            # Si la boucle se termine sans succès (ne devrait arriver que pour OperationalError/TimeoutError)
-            if last_exception:
-                 raise ServiceUnavailable(f"Database service unavailable after {max_retries} retries. Last error: {last_exception}")
-            # Ce cas est peu probable si la logique de la boucle est correcte
-            raise ServiceUnavailable(f"Database service unavailable after {max_retries} retries (unknown reason).")
+            if last_exception: # Ne devrait être atteint que pour les retry_on_exceptions
+                 raise ServiceUnavailable(f"Database service for '{func.__name__}' unavailable after {max_retries} retries. Last error: {last_exception}")
+            raise ServiceUnavailable(f"Database service for '{func.__name__}' unavailable after {max_retries} retries (unknown reason).")
         return wrapper
     return decorator
 
