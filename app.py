@@ -504,11 +504,11 @@ def generate_ics(session, participant, salle=None):
     Attend des objets Session et Participant valides.
     Optimisé pour ics==0.7.2.
     """
-    app.logger.info(f"--- generate_ics called (ics 0.7.2 method) ---")
+    app.logger.info(f"--- generate_ics called (ics 0.7.2 method, description fix) ---")
     app.logger.info(f"Attempting for S_ID:{getattr(session, 'id', 'None')}, P_ID:{getattr(participant, 'id', 'None')}")
 
     try:
-        # Vérifications robustes des données d'entrée
+        # Vérifications robustes des données d'entrée (inchangées)
         if not session:
             app.logger.error("ICS Gen Error: Session object is None.")
             return None
@@ -526,7 +526,7 @@ def generate_ics(session, participant, salle=None):
         cal = Calendar()
         event = Event()
         
-        date_debut_utc, date_fin_utc = session.formatage_ics # S'appuie sur la propriété améliorée
+        date_debut_utc, date_fin_utc = session.formatage_ics
 
         if not isinstance(date_debut_utc, datetime) or not isinstance(date_fin_utc, datetime) or \
            date_debut_utc.tzinfo != UTC or date_fin_utc.tzinfo != UTC:
@@ -568,14 +568,13 @@ def generate_ics(session, participant, salle=None):
         event.last_modified = datetime.now(UTC)
         event.status = "CONFIRMED" 
 
-        # --- CRÉATION DE L'ALARME POUR ICS 0.7.2 ---
-        alarm = DisplayAlarm(
-            trigger=timedelta(hours=-1),  # Déclencher 1 heure avant
-            description=f"Rappel: Formation {session.theme.nom}"
-            # 'action' est implicitement "DISPLAY" pour DisplayAlarm
-        )
+        # --- CORRECTION POUR L'ALARME AVEC ICS 0.7.2 ---
+        alarm = DisplayAlarm(trigger=timedelta(hours=-1))
+        # Assigner la description comme un attribut de l'objet alarme
+        alarm.description = f"Rappel: Formation {session.theme.nom}"
+        
         event.alarms.add(alarm)
-        # --- FIN DE LA CORRECTION POUR L'ALARME ---
+        # --- FIN DE LA CORRECTION ---
 
         cal.events.add(event)
         serialized_cal = cal.serialize()
