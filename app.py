@@ -2817,8 +2817,10 @@ def api_activites():
 
 @app.route('/generer_invitation/<int:inscription_id>')
 @login_required 
+@app.route('/generer_invitation/<int:inscription_id>')
+# @login_required # SUPPRIMÉ si les participants non connectés doivent pouvoir télécharger
 def generer_invitation(inscription_id):
-    app.logger.info(f"Request to generate invitation for inscription_id: {inscription_id} by user '{current_user.username}'.")
+    app.logger.info(f"Request to generate invitation for inscription_id: {inscription_id}.")
     try:
         inscription = Inscription.query.options(
             joinedload(Inscription.session).options(
@@ -2829,36 +2831,16 @@ def generer_invitation(inscription_id):
         ).get(inscription_id)
 
         if not inscription:
-            app.logger.warning(f"Inscription {inscription_id} not found.")
-            flash('Inscription introuvable.', 'danger')
-            return redirect(request.referrer or url_for('dashboard'))
+            app.logger.warning(f"Inscription {inscription_id} not found for ICS generation.")
+            flash('Lien d\'invitation invalide ou inscription introuvable.', 'danger')
+            return redirect(url_for('dashboard')) # Ou une page d'erreur plus générique
         
-        # Vérifications supplémentaires sur les objets chargés
-        if not inscription.session:
-            app.logger.error(f"Session not loaded for inscription {inscription_id}.")
-            flash('Données de session manquantes pour cette inscription.', 'danger')
+        # ... (vérifications sur inscription.session, inscription.participant, etc. comme avant) ...
+        if not inscription.session or not inscription.participant or not inscription.session.theme:
+            app.logger.error(f"Données incomplètes pour inscription {inscription_id} lors de la génération ICS.")
+            flash('Données incomplètes pour générer l\'invitation.', 'danger')
             return redirect(request.referrer or url_for('dashboard'))
-        if not inscription.participant:
-            app.logger.error(f"Participant not loaded for inscription {inscription_id}.")
-            flash('Données du participant manquantes pour cette inscription.', 'danger')
-            return redirect(request.referrer or url_for('dashboard'))
-        if not inscription.session.theme: # Vérifier aussi le thème de la session
-             app.logger.error(f"Theme not loaded for session {inscription.session.id} (inscription {inscription_id}).")
-             flash('Données du thème manquantes pour cette session.', 'danger')
-             return redirect(request.referrer or url_for('dashboard'))
 
-
-        # ... (votre logique d'autorisation existante, qui semble correcte) ...
-        is_participant = current_user.is_authenticated and current_user.email == inscription.participant.email
-        is_admin = current_user.role == 'admin'
-        is_responsable = (current_user.role == 'responsable' and
-                          inscription.participant.service and # S'assurer que service existe
-                          current_user.service_id == inscription.participant.service_id)
-
-        if not (is_participant or is_admin or is_responsable):
-             app.logger.warning(f"User '{current_user.username}' not authorized to download invitation for inscription {inscription_id}.")
-             flash('Vous n\'êtes pas autorisé à télécharger cette invitation.', 'danger')
-             return redirect(request.referrer or url_for('dashboard'))
 
         if inscription.statut != 'confirmé':
             app.logger.info(f"Invitation request for non-confirmed inscription {inscription_id} (status: {inscription.statut}).")
@@ -2872,16 +2854,26 @@ def generer_invitation(inscription_id):
         ics_content = generate_ics(session_obj, participant_obj, salle_obj)
         if ics_content is None:
             app.logger.error(f"ICS content generation failed for inscription {inscription_id}.")
-            flash('Erreur lors de la génération de l\'invitation ICS. Veuillez vérifier les détails de la session.', 'danger')
+            flash('Erreur lors de la génération de l\'invitation ICS.', 'danger')
             return redirect(request.referrer or url_for('dashboard'))
 
-        if not is_participant: # Log seulement si ce n'est pas le participant lui-même
+        # Log l'activité si un utilisateur authentifié (admin/responsable) effectue l'action
+        # ET que cet utilisateur n'est pas le participant lui-même (basé sur l'email)
+        log_this_activity = False
+        user_for_log = None
+
+        if current_user.is_authenticated:
+            user_for_log = current_user
+            # Vérifier si l'admin/responsable télécharge pour quelqu'un d'autre
+            if current_user.email != participant_obj.email:
+                log_this_activity = True
+        
+        if log_this_activity and user_for_log:
             add_activity('telecharger_invitation',
                          f'Téléchargement invitation pour: {participant_obj.prenom} {participant_obj.nom}',
-                         f'Session: {session_obj.theme.nom} ({session_obj.formatage_date})',
-                         user=current_user)
+                         f'Par: {user_for_log.username} - Session: {session_obj.theme.nom} ({session_obj.formatage_date})',
+                         user=user_for_log)
 
-        # Nettoyer le nom de fichier
         safe_theme_name = "".join(c if c.isalnum() or c in " -" else "_" for c in session_obj.theme.nom)
         filename = f"Formation_{safe_theme_name}_{session_obj.date.strftime('%Y%m%d')}.ics"
         
