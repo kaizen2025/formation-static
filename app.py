@@ -37,7 +37,7 @@ from sqlalchemy import func, text, select
 import logging
 from logging.handlers import RotatingFileHandler
 from werkzeug.exceptions import ServiceUnavailable
-from ics import Calendar, Event
+from ics import Calendar, Event, Alarm
 
 # Configuration d'encodage Unicode pour PostgreSQL
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
@@ -511,7 +511,7 @@ def generate_ics(session, participant, salle=None):
             app.logger.error("ICS Gen Error: Session object is None.")
             return None
         if not hasattr(session, 'theme') or not session.theme or not hasattr(session.theme, 'nom') or not session.theme.nom:
-            app.logger.error(f"ICS Gen Error: Session S_ID:{session.id} - theme or theme.nom is missing or invalid.")
+            app.logger.error(f"ICS Gen Error: Session S_ID:{getattr(session, 'id', 'N/A')} - theme or theme.nom is missing or invalid.")
             return None
         if not participant:
             app.logger.error("ICS Gen Error: Participant object is None.")
@@ -542,15 +542,15 @@ def generate_ics(session, participant, salle=None):
             "FORMATION MICROSOFT 365 - ANECOOP FRANCE", # Titre général
             f"\nThème: {session.theme.nom}"
         ]
-        if session.theme.description:
+        if hasattr(session, 'theme') and session.theme and hasattr(session.theme, 'description') and session.theme.description:
              description_parts.append(f"Détails du thème: {session.theme.description}")
         
         description_parts.extend([
-            f"\nDate: {session.formatage_date}", # formatage_date est pour l'affichage humain
-            f"Horaire: {session.formatage_horaire}" # formatage_horaire est pour l'affichage humain
+            f"\nDate: {session.formatage_date}", 
+            f"Horaire: {session.formatage_horaire}" 
         ])
         
-        location_str = "Salle non définie" # Fallback pour event.location
+        location_str = "Salle non définie" 
         if salle and hasattr(salle, 'nom') and salle.nom:
             location_str = salle.nom
             description_parts.append(f"\nLieu: {salle.nom}")
@@ -568,10 +568,18 @@ def generate_ics(session, participant, salle=None):
         event.uid = f"session-{session.id}-participant-{participant.id}-{date_debut_utc.strftime('%Y%m%dT%H%M%SZ')}@anecoop-france.com"
         event.created = datetime.now(UTC)
         event.last_modified = datetime.now(UTC)
-        event.status = "CONFIRMED" # Statut de l'événement dans le calendrier
+        event.status = "CONFIRMED" 
 
-        # Ajouter un rappel (ex: 1 heure avant)
-        event.alarms.append(Event.alarm(trigger=timedelta(hours=-1), action="DISPLAY", description=f"Rappel: Formation {session.theme.nom}"))
+        # --- CORRECTION POUR L'ALARME ---
+        # Créer un objet Alarm séparément
+        alarm = Alarm()
+        alarm.action = "DISPLAY" 
+        alarm.trigger = timedelta(hours=-1) 
+        alarm.description = f"Rappel: Formation {session.theme.nom}" 
+        
+        # Ajouter l'objet Alarm à la liste des alarmes de l'événement
+        event.alarms.append(alarm)
+        # --- FIN DE LA CORRECTION ---
 
         cal.events.add(event)
         serialized_cal = cal.serialize()
@@ -579,10 +587,10 @@ def generate_ics(session, participant, salle=None):
         app.logger.info(f"ICS generated successfully for S_ID:{session.id}, P_ID:{participant.id}. Size: {len(serialized_cal)} bytes.")
         return serialized_cal
 
-    except AttributeError as ae: # Attraper les erreurs d'attributs manquants plus spécifiquement
+    except AttributeError as ae: 
         app.logger.error(f"ICS Gen AttributeError S_ID:{getattr(session, 'id', 'N/A')}, P_ID:{getattr(participant, 'id', 'N/A')}: {ae}", exc_info=True)
         return None
-    except Exception as e: # Attraper toute autre exception
+    except Exception as e: 
         app.logger.error(f"Critical error during ICS generation for S_ID:{getattr(session, 'id', 'N/A')}, P_ID:{getattr(participant, 'id', 'N/A')}: {e}", exc_info=True)
         return None
 
