@@ -1,3 +1,4 @@
+console.log("--- polling-updates.js EXECUTING ---");
 document.addEventListener('DOMContentLoaded', function() {
     const DASH_CONFIG = window.dashboardConfig || { debugMode: false, autoRefreshInterval: 30000, baseApiUrl: '/api' };
     if (DASH_CONFIG.debugMode) {
