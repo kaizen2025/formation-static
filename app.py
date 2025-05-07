@@ -39,6 +39,14 @@ from logging.handlers import RotatingFileHandler
 from werkzeug.exceptions import ServiceUnavailable
 from ics import Calendar, Event
 from ics.alarm import DisplayAlarm
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
 
 # Configuration d'encodage Unicode pour PostgreSQL
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
@@ -58,6 +66,25 @@ def inject_debug_status():
     """Injects the app's debug status into the template context."""
     # Use the global 'app' instance here
     return dict(debug_mode=app.debug) 
+    
+# Ajouter cette fonction dans votre code principal
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    """Ferme la session DB à la fin de chaque requête."""
+    db.session.remove()
+
+# Réduire les limites du pool de connexions pour s'adapter au tier gratuit
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "client_encoding": "UTF8",
+    "connect_args": {
+        "options": "-c client_encoding=utf8"
+    },
+    'pool_size': 2,
+    'max_overflow': 1,
+    'pool_timeout': 15,
+    'pool_recycle': 30,
+    'pool_pre_ping': True
+}
 
 # --- Configuration générale ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-very-secure-default-secret-key-for-dev-only')
@@ -76,14 +103,26 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "connect_args": {
         "options": "-c client_encoding=utf8"
     },
-    # Pool options optimized
-    'pool_size': 3,
-    'max_overflow': 2,
-    'pool_timeout': 30,
-    'pool_recycle': 60, # Recycle connections faster
+    'pool_size': 2,           # Réduire à 2 au lieu de 3
+    'max_overflow': 1,        # Réduire à 1 au lieu de 2
+    'pool_timeout': 20,       # Légèrement réduit
+    'pool_recycle': 30,       # Recycler plus rapidement
     'pool_pre_ping': True
 }
-
+def safe_db_query(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            result = func(*args, **kwargs)
+            return result
+        except Exception as e:
+            app.logger.error(f"Database error: {e}")
+            db.session.rollback()
+            raise
+        finally:
+            # Important: libérer la connexion après chaque utilisation
+            db.session.close()
+    return wrapper
 # --- Configure Logging ---
 logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
 if not os.path.exists(logs_dir):
@@ -182,28 +221,31 @@ def db_operation_with_retry(max_retries=3, retry_delay=0.5):
             last_exception = None
             while retries < max_retries:
                 try:
-                    return func(*args, **kwargs)
+                    result = func(*args, **kwargs)
+                    return result
                 except (OperationalError, TimeoutError) as e:
                     retries += 1
                     last_exception = e
                     app.logger.warning(f"DB operation failed (attempt {retries}/{max_retries}): {e}")
-                    db.session.rollback() # Rollback on operational errors
+                    db.session.rollback()
                     if retries >= max_retries:
                         app.logger.error(f"Max retries reached for DB operation: {e}")
                         raise ServiceUnavailable("Database service temporarily unavailable")
+                    # Exponential backoff with jitter
                     jitter = random.uniform(0, 0.5)
-                    time.sleep(retry_delay * retries + jitter)
+                    time.sleep((retry_delay * 2 ** retries) + jitter)
                 except SQLAlchemyError as e:
-                    # For other SQLAlchemy errors, rollback and re-raise immediately
                     db.session.rollback()
                     app.logger.error(f"SQLAlchemyError during DB operation: {e}", exc_info=True)
-                    raise # Re-raise the original exception
+                    raise
                 except Exception as e:
-                    # For unexpected errors, rollback and re-raise
                     db.session.rollback()
                     app.logger.error(f"Unexpected error during DB operation: {e}", exc_info=True)
                     raise
-            # This line should ideally not be reached if exceptions are re-raised
+                finally:
+                    # Crucial: toujours libérer la connexion, même après succès
+                    db.session.close()
+            
             raise ServiceUnavailable(f"Database service unavailable after multiple retries. Last error: {last_exception}")
         return wrapper
     return decorator
@@ -2732,44 +2774,110 @@ def api_dashboard_essential():
 @app.route('/api/sessions')
 @db_operation_with_retry(max_retries=2)
 def api_sessions():
-    # (Implementation from v8)
-    result = []
     try:
-        sessions = Session.query.options(
+        # Paramètres de pagination
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        date_filter = request.args.get('date')
+        
+        # Cache key avec pagination et filtres
+        cache_key = f'sessions_page_{page}_size_{per_page}_date_{date_filter}'
+        cached_result = cache.get(cache_key)
+        
+        if cached_result:
+            return jsonify(cached_result)
+        
+        # Construire la requête de base
+        query = Session.query.options(
             joinedload(Session.theme),
             joinedload(Session.salle)
-        ).order_by(Session.date, Session.heure_debut).all()
-
-        for s in sessions:
-            cache_key = f'session_counts_{s.id}'
-            session_counts = cache.get(cache_key)
-            if session_counts is None:
-                 inscrits_count = db.session.query(func.count(Inscription.id)).filter(
-                     Inscription.session_id == s.id, Inscription.statut == 'confirmé'
-                 ).scalar() or 0
-                 attente_count = db.session.query(func.count(ListeAttente.id)).filter(
-                     ListeAttente.session_id == s.id
-                 ).scalar() or 0
-                 places_rest = max(0, s.max_participants - inscrits_count)
-                 session_counts = {
-                     'inscrits_confirmes_count': inscrits_count,
-                     'liste_attente_count': attente_count,
-                     'places_restantes': places_rest
-                 }
-                 cache.set(cache_key, session_counts, timeout=60)
-
+        )
+        
+        # Filtrer par date si spécifié
+        if date_filter:
+            try:
+                filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+                query = query.filter(Session.date == filter_date)
+            except ValueError:
+                pass  # Ignorer si format de date invalide
+        
+        # Paginer les résultats
+        pagination = query.order_by(Session.date, Session.heure_debut).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        # Récupérer tous les IDs de session pour les comptages en masse
+        session_ids = [s.id for s in pagination.items]
+        
+        if session_ids:
+            # Compter toutes les inscriptions confirmées en une seule requête
+            confirmed_counts = dict(
+                db.session.query(
+                    Inscription.session_id,
+                    func.count(Inscription.id)
+                ).filter(
+                    Inscription.session_id.in_(session_ids),
+                    Inscription.statut == 'confirmé'
+                ).group_by(Inscription.session_id).all()
+            )
+            
+            # Compter toutes les listes d'attente en une seule requête
+            waitlist_counts = dict(
+                db.session.query(
+                    ListeAttente.session_id,
+                    func.count(ListeAttente.id)
+                ).filter(
+                    ListeAttente.session_id.in_(session_ids)
+                ).group_by(ListeAttente.session_id).all()
+            )
+        else:
+            confirmed_counts = {}
+            waitlist_counts = {}
+        
+        # Préparer le résultat
+        result = []
+        for s in pagination.items:
+            inscrits_count = confirmed_counts.get(s.id, 0)
+            attente_count = waitlist_counts.get(s.id, 0)
+            places_rest = max(0, s.max_participants - inscrits_count)
+            
+            # Mettre en cache les comptages individuels pour 5 minutes
+            session_cache_key = f'session_counts_{s.id}'
+            session_counts = {
+                'inscrits_confirmes_count': inscrits_count,
+                'liste_attente_count': attente_count,
+                'places_restantes': places_rest
+            }
+            cache.set(session_cache_key, session_counts, timeout=300)
+            
             result.append({
                 'id': s.id,
-                'date': s.formatage_date, 'iso_date': s.date.isoformat(),
-                'horaire': s.formatage_horaire,
-                'theme': s.theme.nom if s.theme else 'N/A', 'theme_id': s.theme_id,
-                'places_restantes': session_counts['places_restantes'],
-                'inscrits': session_counts['inscrits_confirmes_count'],
+                'date': s.date.strftime('%d/%m/%Y') if hasattr(s, 'formatage_date') is False else s.formatage_date,
+                'iso_date': s.date.isoformat(),
+                'horaire': f"{s.heure_debut.strftime('%H:%M')} - {s.heure_fin.strftime('%H:%M')}" if hasattr(s, 'formatage_horaire') is False else s.formatage_horaire,
+                'theme': s.theme.nom if s.theme else 'N/A',
+                'theme_id': s.theme_id,
+                'places_restantes': places_rest,
+                'inscrits': inscrits_count,
                 'max_participants': s.max_participants,
-                'liste_attente': session_counts['liste_attente_count'],
-                'salle': s.salle.nom if s.salle else None, 'salle_id': s.salle_id
+                'liste_attente': attente_count,
+                'salle': s.salle.nom if s.salle else None,
+                'salle_id': s.salle_id
             })
-        return jsonify(result)
+        
+        # Structure avec métadonnées de pagination
+        response_data = {
+            'items': result,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'page': pagination.page,
+            'per_page': pagination.per_page
+        }
+        
+        # Cache pour 30 secondes (sessions peuvent changer plus souvent que participants)
+        cache.set(cache_key, response_data, timeout=30)
+        
+        return jsonify(response_data)
     except SQLAlchemyError as e:
         app.logger.error(f"API Error fetching sessions: {e}", exc_info=True)
         return jsonify({"error": "Database error"}), 500
@@ -2856,58 +2964,87 @@ def api_single_session(session_id):
 @app.route('/api/participants')
 @db_operation_with_retry(max_retries=2)
 def api_participants():
-    # (Implementation from v8)
-    result = []
     try:
-        participants = Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).all()
-        # Pre-fetch counts if needed for complex logic, otherwise calculate simply
-        for p in participants:
-             # Simple calculation for API, more complex logic in main routes if needed
-             confirmed = Inscription.query.filter_by(participant_id=p.id, statut='confirmé').count()
-             waitlist = ListeAttente.query.filter_by(participant_id=p.id).count()
-             result.append({
-                 'id': p.id, 'nom': p.nom, 'prenom': p.prenom, 'email': p.email,
-                 'service': p.service.nom if p.service else 'N/A', 'service_id': p.service_id,
-                 'inscriptions': confirmed, 'en_attente': waitlist
-             })
-        return jsonify(result)
+        # Récupérer les paramètres de pagination
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Cache key avec pagination
+        cache_key = f'participants_page_{page}_size_{per_page}'
+        cached_result = cache.get(cache_key)
+        
+        if cached_result:
+            return jsonify(cached_result)
+        
+        # Requête paginée
+        pagination = Participant.query.options(
+            joinedload(Participant.service)
+        ).order_by(Participant.nom, Participant.prenom).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        # Construire la liste des IDs pour récupérer toutes les statistiques en une seule requête
+        participant_ids = [p.id for p in pagination.items]
+        
+        # Sous-requêtes optimisées avec union all pour minimiser les allers-retours
+        if participant_ids:
+            # Compter les inscriptions confirmées par participant en une seule requête
+            confirmed_counts = dict(
+                db.session.query(
+                    Inscription.participant_id,
+                    func.count(Inscription.id)
+                ).filter(
+                    Inscription.participant_id.in_(participant_ids),
+                    Inscription.statut == 'confirmé'
+                ).group_by(Inscription.participant_id).all()
+            )
+            
+            # Compter les listes d'attente par participant en une seule requête
+            waitlist_counts = dict(
+                db.session.query(
+                    ListeAttente.participant_id,
+                    func.count(ListeAttente.id)
+                ).filter(
+                    ListeAttente.participant_id.in_(participant_ids)
+                ).group_by(ListeAttente.participant_id).all()
+            )
+        else:
+            confirmed_counts = {}
+            waitlist_counts = {}
+        
+        # Construire le résultat
+        result = []
+        for p in pagination.items:
+            result.append({
+                'id': p.id,
+                'nom': p.nom,
+                'prenom': p.prenom,
+                'email': p.email,
+                'service': p.service.nom if p.service else 'N/A',
+                'service_id': p.service_id,
+                'inscriptions': confirmed_counts.get(p.id, 0),
+                'en_attente': waitlist_counts.get(p.id, 0)
+            })
+        
+        # Structure du résultat avec métadonnées de pagination
+        response_data = {
+            'items': result,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'page': pagination.page,
+            'per_page': pagination.per_page
+        }
+        
+        # Mettre en cache pour 60 secondes
+        cache.set(cache_key, response_data, timeout=60)
+        
+        return jsonify(response_data)
     except SQLAlchemyError as e:
         app.logger.error(f"API Error fetching participants: {e}", exc_info=True)
         return jsonify({"error": "Database error"}), 500
     except Exception as e:
         app.logger.error(f"API Unexpected Error fetching participants: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
-
-
-@app.route('/api/liste_attente/<int:session_id>')
-@db_operation_with_retry(max_retries=2)
-def api_liste_attente(session_id):
-    # (Implementation from v7)
-    result = []
-    try:
-        attentes = ListeAttente.query.filter_by(session_id=session_id).options(
-            joinedload(ListeAttente.participant).joinedload(Participant.service)
-        ).order_by(ListeAttente.position).all()
-
-        for a in attentes:
-            result.append({
-                'id': a.id,
-                'participant_id': a.participant_id,
-                'participant': f"{a.participant.prenom} {a.participant.nom}",
-                'service': a.participant.service.nom if a.participant and a.participant.service else 'N/A',
-                'position': a.position,
-                'date_inscription': a.date_inscription.strftime('%d/%m/%Y %H:%M'),
-                'notification_envoyee': a.notification_envoyee
-            })
-        return jsonify(result)
-
-    except SQLAlchemyError as e:
-        app.logger.error(f"API Error waitlist {session_id}: {e}", exc_info=True)
-        return jsonify({"error": "Database error"}), 500
-    except Exception as e:
-        app.logger.error(f"API Unexpected Error waitlist {session_id}: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
-
 
 @app.route('/api/salles')
 @db_operation_with_retry(max_retries=2)
