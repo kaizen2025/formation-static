@@ -84,7 +84,8 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function createOrUpdateThemeChart(sessionsArray) {
-        console.log("Enhanced Charts: Attempting to create/update THEME chart.");
+    console.log("Enhanced Charts: Données reçues pour Graphique Thèmes:", JSON.stringify(sessionsArray)); // <-- AJOUTER CE LOG
+    console.log("Enhanced Charts: Attempting to create/update THEME chart."); // Garder ce log aussi
         const canvasElement = document.getElementById('themeChartCanvas');
         if (!canvasElement) {
             if (DASH_CONFIG.debugMode) console.warn('Enhanced Charts: Canvas #themeChartCanvas not found.');
@@ -155,7 +156,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function createOrUpdateServiceChart(participantsArray) {
-         console.log("Enhanced Charts: Attempting to create/update SERVICE chart.");
+    console.log("Enhanced Charts: Données reçues pour Graphique Services:", JSON.stringify(participantsArray)); // <-- AJOUTER CE LOG
+    console.log("Enhanced Charts: Attempting to create/update SERVICE chart."); // Garder ce log aussi
         const canvasElement = document.getElementById('serviceChartCanvas');
         if (!canvasElement) {
             if (DASH_CONFIG.debugMode) console.warn('Enhanced Charts: Canvas #serviceChartCanvas not found.');
