@@ -37,7 +37,7 @@ from sqlalchemy import func, text, select
 import logging
 from logging.handlers import RotatingFileHandler
 from werkzeug.exceptions import ServiceUnavailable
-from ics import Calendar, Event, Alarm
+from ics import Calendar, Event
 
 # Configuration d'encodage Unicode pour PostgreSQL
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
