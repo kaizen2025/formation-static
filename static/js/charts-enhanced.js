@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function createOrUpdateThemeChart(sessionsArray) {
+        console.log("Enhanced Charts: Attempting to create/update THEME chart.");
         const canvasElement = document.getElementById('themeChartCanvas');
         if (!canvasElement) {
             if (DASH_CONFIG.debugMode) console.warn('Enhanced Charts: Canvas #themeChartCanvas not found.');
