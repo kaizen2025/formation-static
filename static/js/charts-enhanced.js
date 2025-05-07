@@ -1,43 +1,77 @@
 // static/js/charts-enhanced.js
-// Version 2.0.0 - Removed local fixThemesInTables, relies on global enhanceThemeBadgesGlobally
+// Version 2.1.0 - Traite les données brutes de l'API (tableaux)
 
 document.addEventListener('DOMContentLoaded', function() {
     const config = window.dashboardConfig || { debugMode: false };
-    if (config.debugMode) console.log('Enhanced Charts (v2.0.0): Initialisation...');
+    if (config.debugMode) console.log('Enhanced Charts (v2.1.0): Initialisation...');
 
     let themeChartInstance = null;
     let serviceChartInstance = null;
 
-    const chartColors = {
-        primary: '#0d6efd', success: '#198754', warning: '#ffc107', danger: '#dc3545',
-        info: '#0dcaf0', secondary: '#6c757d',
-        teams: 'var(--theme-teams, #0078d4)', planner: 'var(--theme-planner, #7719aa)',
-        onedrive: 'var(--theme-onedrive, #0364b8)', sharepoint: 'var(--theme-sharepoint, #038387)'
+    // Définir les couleurs des thèmes et services globalement pour y accéder depuis polling-updates.js
+    window.themesDataForChart = { // Renommé pour éviter conflit avec themesData de layout.html
+        'Communiquer avec Teams': { color: 'var(--theme-teams, #0078d4)', description: '...' },
+        'Gérer les tâches (Planner)': { color: 'var(--theme-planner, #7719aa)', description: '...' },
+        'Gérer mes fichiers (OneDrive/SharePoint)': { color: 'var(--theme-onedrive, #0364b8)', description: '...' },
+        'Collaborer avec Teams': { color: 'var(--theme-sharepoint, #038387)', description: '...' },
+        // Ajoutez d'autres thèmes si nécessaire
     };
 
-    function getResolvedColor(colorNameOrVar) {
-        if (colorNameOrVar.startsWith('var(')) {
+    window.servicesDataForChart = { // Renommé
+        'Commerce Anecoop-Solagora': { color: 'var(--service-commerce, #FFC107)', description: '...' },
+        'Comptabilité': { color: 'var(--service-comptabilite, #2196F3)', description: '...' },
+        'Florensud': { color: 'var(--service-florensud, #4CAF50)', description: '...' },
+        'Informatique': { color: 'var(--service-informatique, #607D8B)', description: '...' },
+        'Marketing': { color: 'var(--service-marketing, #9C27B0)', description: '...' },
+        'Qualité': { color: 'var(--service-qualite, #F44336)', description: '...' },
+        'RH': { color: 'var(--service-rh, #FF9800)', description: '...' },
+        // Ajoutez d'autres services si nécessaire
+    };
+    
+    function getResolvedColor(colorNameOrVar, defaultColor = '#6c757d') {
+        if (typeof colorNameOrVar === 'string' && colorNameOrVar.startsWith('var(')) {
             const varName = colorNameOrVar.match(/--[a-zA-Z0-9-]+/);
             if (varName) {
                 const resolved = getComputedStyle(document.documentElement).getPropertyValue(varName[0]);
-                return resolved ? resolved.trim() : '#6c757d'; // Fallback if var not found
+                return resolved ? resolved.trim() : defaultColor;
             }
         }
-        return chartColors[colorNameOrVar] || colorNameOrVar; // Return direct color or original if not in map
+        return colorNameOrVar || defaultColor;
     }
 
-    function createOrUpdateThemeChart(data) {
+    function createOrUpdateThemeChart(sessionsArray) { // Attend un tableau de sessions
         const canvasElement = document.getElementById('themeChartCanvas');
         if (!canvasElement) {
-            if (config.debugMode) console.warn('Enhanced Charts: Canvas #themeChartCanvas not found.');
+            if (config.debugMode) console.warn('Enhanced Charts: Canvas #themeChartCanvas not found. Assurez-vous que votre HTML contient <canvas id="themeChartCanvas">.</canvas>');
             return;
         }
         const ctx = canvasElement.getContext('2d');
         if (!ctx) return;
 
-        const labels = data.map(item => item.label);
-        const values = data.map(item => item.value);
-        const backgroundColors = data.map(item => getResolvedColor(item.color || chartColors.secondary));
+        const themeCounts = {};
+        if (sessionsArray && Array.isArray(sessionsArray)) {
+            sessionsArray.forEach(session => {
+                if (session.theme) {
+                    themeCounts[session.theme] = (themeCounts[session.theme] || 0) + (session.inscrits || 0);
+                }
+            });
+        }
+
+        const chartData = Object.entries(themeCounts).map(([label, value]) => ({
+            label,
+            value,
+            color: window.themesDataForChart[label] ? getResolvedColor(window.themesDataForChart[label].color) : getResolvedColor(null)
+        }));
+
+        const labels = chartData.map(item => item.label);
+        const values = chartData.map(item => item.value);
+        const backgroundColors = chartData.map(item => item.color);
+        const totalInscrits = values.reduce((a, b) => a + b, 0);
+
+        // Mettre à jour le total dans le HTML si l'élément existe (pour le centre du donut statique)
+        const donutTotalEl = document.getElementById('chart-theme-total');
+        if (donutTotalEl) donutTotalEl.textContent = totalInscrits;
+
 
         if (themeChartInstance) {
             themeChartInstance.data.labels = labels;
@@ -57,51 +91,41 @@ document.addEventListener('DOMContentLoaded', function() {
                         borderColor: '#fff', borderWidth: 2, hoverOffset: 8
                     }]
                 },
-                options: {
-                    responsive: true, maintainAspectRatio: false, cutout: '65%',
-                    animation: { animateScale: true, animateRotate: true },
-                    plugins: {
-                        legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true, font: { size: 11 } } },
-                        tooltip: {
-                            backgroundColor: 'rgba(0,0,0,0.8)', titleFont: { weight: 'bold' }, bodyFont: { size: 12 },
-                            callbacks: {
-                                label: ctx => `${ctx.label || ''}: ${ctx.parsed || 0} (${((ctx.parsed / values.reduce((a,b)=>a+b,0)) * 100).toFixed(1)}%)`
-                            }
-                        },
-                        datalabels: { // Requires chartjs-plugin-datalabels
-                            formatter: (value, ctx) => {
-                                let sum = 0;
-                                let dataArr = ctx.chart.data.datasets[0].data;
-                                dataArr.map(data => { sum += data; });
-                                let percentage = (value*100 / sum).toFixed(1)+"%";
-                                return value > 0 ? percentage : ''; // Show percentage if value > 0
-                            },
-                            color: '#fff',
-                            font: { weight: 'bold', size: '10' },
-                            textShadowBlur: 2,
-                            textShadowColor: 'rgba(0,0,0,0.5)'
-                        }
-                    }
-                },
-                // plugins: [ChartDataLabels] // Uncomment if using chartjs-plugin-datalabels
+                options: { /* ... vos options Chart.js ... */ }
             });
             if (config.debugMode) console.log('Enhanced Charts: Theme chart created.');
         }
     }
 
-    function createOrUpdateServiceChart(data) {
+    function createOrUpdateServiceChart(participantsArray) { // Attend un tableau de participants
         const canvasElement = document.getElementById('serviceChartCanvas');
          if (!canvasElement) {
-            if (config.debugMode) console.warn('Enhanced Charts: Canvas #serviceChartCanvas not found.');
+            if (config.debugMode) console.warn('Enhanced Charts: Canvas #serviceChartCanvas not found. Assurez-vous que votre HTML contient <canvas id="serviceChartCanvas">.</canvas>');
             return;
         }
         const ctx = canvasElement.getContext('2d');
         if (!ctx) return;
 
-        data.sort((a, b) => (b.value || 0) - (a.value || 0));
-        const labels = data.map(item => item.label);
-        const values = data.map(item => item.value);
-        const backgroundColors = data.map(item => getResolvedColor(item.color || chartColors.secondary));
+        const serviceCounts = {};
+        if (participantsArray && Array.isArray(participantsArray)) {
+            participantsArray.forEach(participant => {
+                if (participant.service) {
+                    serviceCounts[participant.service] = (serviceCounts[participant.service] || 0) + 1;
+                }
+            });
+        }
+        
+        let chartData = Object.entries(serviceCounts).map(([label, value]) => ({
+            label,
+            value,
+            color: window.servicesDataForChart[label] ? getResolvedColor(window.servicesDataForChart[label].color) : getResolvedColor(null)
+        }));
+
+        chartData.sort((a, b) => b.value - a.value); // Trier
+
+        const labels = chartData.map(item => item.label);
+        const values = chartData.map(item => item.value);
+        const backgroundColors = chartData.map(item => item.color);
 
         if (serviceChartInstance) {
             serviceChartInstance.data.labels = labels;
@@ -123,74 +147,43 @@ document.addEventListener('DOMContentLoaded', function() {
                         borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.8
                     }]
                 },
-                options: {
-                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        x: { beginAtZero: true, ticks: { precision: 0, font: {size: 10} }, grid: { display: false } },
-                        y: { ticks: { font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)'} }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(0,0,0,0.8)', titleFont: { weight: 'bold' }, bodyFont: { size: 12 },
-                            callbacks: { label: ctx => ` ${ctx.label || ''}: ${ctx.parsed.x || 0}` }
-                        },
-                        datalabels: { // Requires chartjs-plugin-datalabels
-                            anchor: 'end',
-                            align: 'end',
-                            color: '#333',
-                            font: { weight: 'normal', size: 9 },
-                            formatter: (value) => value > 0 ? value : ''
-                        }
-                    }
-                },
-                // plugins: [ChartDataLabels] // Uncomment if using chartjs-plugin-datalabels
+                options: { /* ... vos options Chart.js ... */ }
             });
             if (config.debugMode) console.log('Enhanced Charts: Service chart created.');
         }
     }
 
-    function applyAllEnhancements(dashboardData) {
-        if (!dashboardData) {
-            if (config.debugMode) console.warn('Enhanced Charts: No dashboard data provided for enhancements.');
+    function applyAllEnhancements(payload) { // Reçoit le payload complet de polling-updates
+        if (!payload) {
+            if (config.debugMode) console.warn('Enhanced Charts: No data payload provided.');
             return;
         }
-        if (config.debugMode) console.log('Enhanced Charts: Applying enhancements with data:', dashboardData);
+        if (config.debugMode) console.log('Enhanced Charts: Applying enhancements with payload:', payload);
 
-        const themeChartData = dashboardData.themeCounts 
-            ? Object.entries(dashboardData.themeCounts).map(([label, data]) => ({ label, value: data.value, color: data.color || chartColors[label.toLowerCase().replace(/\s+/g, '')] }))
-            : [];
-            
-        const serviceChartData = dashboardData.serviceCounts 
-            ? Object.entries(dashboardData.serviceCounts).map(([label, data]) => ({ label, value: data.value, color: data.color || chartColors[label.toLowerCase().replace(/\s+/g, '')] }))
-            : [];
+        // Utiliser les données brutes des sessions et participants
+        if (payload.sessions) createOrUpdateThemeChart(payload.sessions);
+        if (payload.participants) createOrUpdateServiceChart(payload.participants);
 
-        if (document.getElementById('themeChartCanvas')) createOrUpdateThemeChart(themeChartData);
-        if (document.getElementById('serviceChartCanvas')) createOrUpdateServiceChart(serviceChartData);
-
-        // Call the global badge enhancer from layout.html
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-             if (config.debugMode) console.log("Enhanced Charts: Calling global enhanceThemeBadgesGlobally.");
             window.enhanceThemeBadgesGlobally();
-        } else {
-             if (config.debugMode) console.warn('Enhanced Charts: window.enhanceThemeBadgesGlobally not found.');
         }
     }
 
     document.addEventListener('dashboardDataRefreshed', function(event) {
         if (event.detail && event.detail.data) {
             if (config.debugMode) console.log('Enhanced Charts: Received dashboardDataRefreshed event.');
-            applyAllEnhancements(event.detail.data);
+            applyAllEnhancements(event.detail.data); // Passer le payload complet
         }
     });
 
-    if (window.dashboardData) { // Initial load if data is embedded
+    // Tentative d'initialisation si les données sont déjà là (peu probable avec le polling)
+    if (window.dashboardData && (window.dashboardData.sessions || window.dashboardData.participants)) {
         if (config.debugMode) console.log('Enhanced Charts: Initializing with pre-loaded window.dashboardData.');
         applyAllEnhancements(window.dashboardData);
     } else {
-         if (config.debugMode) console.log('Enhanced Charts: Waiting for dashboardDataRefreshed event or direct call.');
+         if (config.debugMode) console.log('Enhanced Charts: Waiting for dashboardDataRefreshed event.');
     }
 
-    window.applyChartEnhancements = applyAllEnhancements; // Expose for polling script
-    if (config.debugMode) console.log("Enhanced Charts (v2.0.0): Initialization complete.");
+    window.applyChartEnhancements = applyAllEnhancements;
+    if (config.debugMode) console.log("Enhanced Charts (v2.1.0): Initialization complete.");
 });
