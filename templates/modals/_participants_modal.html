@@ -1,19 +1,15 @@
 <!-- templates/modals/_participants_modal.html -->
 {#
-    Modale pour afficher les détails des participants d'une session.
-
     Attend dans le contexte (passé via {% with ... %}):
-    - session: L'objet Session SQLAlchemy.
-    - session_data: Le dictionnaire contenant les comptes et listes pré-chargées 
-                    (loaded_inscrits_confirmes, loaded_pending_inscriptions, loaded_liste_attente, 
-                     inscrits_confirmes_count, pending_count, liste_attente_count, places_restantes).
-    Attend dans le contexte global (passé par render_template):
+    - session: L'objet Session SQLAlchemy (pour les infos générales de la session).
+    - session_data: Le dictionnaire contenant les comptes et SURTOUT les LISTES pré-chargées:
+                    loaded_inscrits_confirmes, loaded_pending_inscriptions, loaded_liste_attente,
+                    ainsi que les comptes: inscrits_confirmes_count, pending_count, liste_attente_count, places_restantes.
+    Attend dans le contexte global:
     - current_user: L'utilisateur connecté.
-    - Inscription: La classe modèle Inscription (pour les types si besoin).
-    - ListeAttente: La classe modèle ListeAttente (pour les types si besoin).
 #}
 <div class="modal fade" id="participantsModal_{{ session.id }}" tabindex="-1" aria-labelledby="participantsModalLabel_{{ session.id }}" aria-hidden="true">
-  <div class="modal-dialog modal-xl"> {# Extra large modal for better table view #}
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="participantsModalLabel_{{ session.id }}">
@@ -23,7 +19,7 @@
       </div>
       <div class="modal-body">
         <!-- Informations session -->
-        <div class="alert alert-secondary mb-4 p-3"> {# Changed color for less emphasis #}
+        <div class="alert alert-secondary mb-4 p-3">
           <div class="d-flex justify-content-between align-items-center flex-wrap">
             <h6 class="mb-1 fw-bold me-3">Session du {{ session.formatage_date }} ({{ session.formatage_horaire }})</h6>
             <span class="badge fs-6 {% if session_data.places_restantes == 0 %}bg-danger{% elif session_data.places_restantes <= 3 %}bg-warning text-dark{% else %}bg-success{% endif %}">
@@ -64,11 +60,12 @@
           
           <!-- Participants confirmés -->
           <div class="tab-pane fade show active" id="confirmes-{{ session.id }}" role="tabpanel" aria-labelledby="confirmes-tab-{{ session.id }}">
-            {% set inscrits_list = session_data.loaded_inscrits_confirmes %} {# Utilise la liste pré-chargée #}
+            {# CORRECTED: Utiliser la liste pré-chargée de session_data #}
+            {% set inscrits_list = session_data.loaded_inscrits_confirmes %}
             {% if inscrits_list %}
               <div class="table-responsive">
-                <table class="table table-sm table-hover table-striped"> {# Added table-striped #}
-                  <thead class="table-light"> {# Added thead style #}
+                <table class="table table-sm table-hover table-striped">
+                  <thead class="table-light">
                     <tr>
                       <th style="width: 35%">Participant</th>
                       <th style="width: 25%">Service</th>
@@ -77,7 +74,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {% for inscription in inscrits_list %} {# Boucle sur la liste pré-chargée et triée #}
+                    {% for inscription in inscrits_list %} {# Boucle sur la liste déjà filtrée et triée #}
                       <tr>
                         <td>{{ inscription.participant.prenom }} {{ inscription.participant.nom }}</td>
                         <td>
@@ -107,7 +104,7 @@
                 </table>
               </div>
             {% else %}
-              <div class="alert alert-light text-center py-4 border"> {# Added border #}
+              <div class="alert alert-light text-center py-4 border">
                 <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
                 <p class="mb-0">Aucun participant confirmé pour cette session.</p>
               </div>
@@ -116,11 +113,12 @@
           
           <!-- Participants en attente -->
           <div class="tab-pane fade" id="en-attente-{{ session.id }}" role="tabpanel" aria-labelledby="en-attente-tab-{{ session.id }}">
-            {% set pending_list = session_data.loaded_pending_inscriptions %} {# Utilise la liste pré-chargée #}
+            {# CORRECTED: Utiliser la liste pré-chargée de session_data #}
+            {% set pending_list = session_data.loaded_pending_inscriptions %}
             {% if pending_list %}
-              <div class="alert alert-warning small mb-3 p-2"> {# Smaller alert #}
+              <div class="alert alert-warning small mb-3 p-2">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                Ces inscriptions sont en attente de validation par un responsable de service ou un admin.
+                Ces inscriptions sont en attente de validation.
               </div>
               <div class="table-responsive">
                 <table class="table table-sm table-hover table-striped">
@@ -133,7 +131,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {% for inscription in pending_list %} {# Boucle sur la liste pré-chargée et triée #}
+                    {% for inscription in pending_list %} {# Boucle sur la liste déjà filtrée et triée #}
                       <tr>
                         <td>{{ inscription.participant.prenom }} {{ inscription.participant.nom }}</td>
                         <td>
@@ -177,11 +175,12 @@
           
           <!-- Liste d'attente -->
           <div class="tab-pane fade" id="liste-attente-{{ session.id }}" role="tabpanel" aria-labelledby="liste-attente-tab-{{ session.id }}">
-            {% set waitlist_list = session_data.loaded_liste_attente %} {# Utilise la liste pré-chargée #}
+            {# CORRECTED: Utiliser la liste pré-chargée de session_data #}
+            {% set waitlist_list = session_data.loaded_liste_attente %}
             {% if waitlist_list %}
-              <div class="alert alert-info small mb-3 p-2"> {# Smaller alert #}
+              <div class="alert alert-info small mb-3 p-2">
                 <i class="fas fa-info-circle me-2"></i>
-                Les participants seront automatiquement notifiés (si configuré) si des places se libèrent, dans l'ordre de la liste.
+                Participants en liste d'attente.
               </div>
               <div class="table-responsive">
                 <table class="table table-sm table-hover table-striped">
@@ -194,7 +193,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {% for attente in waitlist_list %} {# Boucle sur la liste pré-chargée et triée #}
+                    {% for attente in waitlist_list %} {# Boucle sur la liste déjà filtrée et triée #}
                       <tr>
                         <td class="text-center"><span class="badge bg-secondary">{{ attente.position }}</span></td>
                         <td>{{ attente.participant.prenom }} {{ attente.participant.nom }}</td>
@@ -219,12 +218,11 @@
         </div> {# End tab-content #}
       </div> {# End modal-body #}
       
-      <div class="modal-footer justify-content-between bg-light"> {# Added background #}
+      <div class="modal-footer justify-content-between bg-light">
         <div>
-          {# Bouton Inscrire / Ajouter à la liste d'attente #}
           {% if session_data.places_restantes > 0 %}
             <button type="button" class="btn btn-primary btn-sm" 
-                    data-bs-dismiss="modal" {# Close this modal first #}
+                    data-bs-dismiss="modal" 
                     data-bs-toggle="modal" 
                     data-bs-target="#inscriptionModal_{{ session.id }}">
               <i class="fas fa-user-plus me-1"></i> Inscrire un participant
