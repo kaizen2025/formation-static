@@ -81,6 +81,11 @@ cache_config = {
 }
 app.config.from_mapping(cache_config)
 
+# --- CONFIGURATION WHITENOISE ---
+static_folder_root = os.path.join(os.path.dirname(__file__), 'static')
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=static_folder_root)
+app.wsgi_app.add_files(static_folder_root, prefix='static/')
+
 # --- Initialisation des Extensions Flask ---
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
