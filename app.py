@@ -1,7 +1,3 @@
-# --- START OF app.py (Corrected v9 - Complete Routes) ---
-# ***** 1. EVENTLET PATCHING (MUST BE FIRST) *****
-# --- START OF app.py (Corrected v10 - Limiter Fix) ---
-# ***** 1. EVENTLET PATCHING (MUST BE FIRST) *****
 try:
     import eventlet
     eventlet.monkey_patch()
@@ -11,71 +7,57 @@ except ImportError:
     ASYNC_MODE = 'threading'
     print(f"Mode asynchrone: {ASYNC_MODE}")
 # ***** END EVENTLET PATCHING *****
+
 import os
 import sys
 import functools
 import random
 import time
-import psycopg2
+import psycopg2 # Pour l'enregistrement des types UNICODE, pas pour la connexion directe
+from datetime import datetime, timedelta, UTC, date, time as time_obj
+
 from flask import (
     Flask, render_template, request, redirect, url_for,
     flash, jsonify, make_response, current_app
 )
 from flask_sqlalchemy import SQLAlchemy
-# ... (autres imports Flask et SQLAlchemy) ...
+from flask_migrate import Migrate
+from flask_login import (
+    LoginManager, UserMixin, login_user, login_required,
+    logout_user, current_user
+)
+from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_caching import Cache
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError
+from sqlalchemy.orm import joinedload, subqueryload, selectinload
+from sqlalchemy import func, text, select
+import logging
+from logging.handlers import RotatingFileHandler
+from werkzeug.exceptions import ServiceUnavailable
 from ics import Calendar, Event
 from ics.alarm import DisplayAlarm
-from flask_limiter import Limiter             # Importer Limiter
-from flask_limiter.util import get_remote_address # Importer get_remote_address
+import json # Si vous l'utilisez quelque part
 
-# Configuration d'encodage Unicode pour PostgreSQL
+# --- Configuration d'Encodage PostgreSQL (Bon endroit) ---
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
-# --- Configuration du cache ---
-cache_config = {
-    "CACHE_TYPE": "SimpleCache",
-    "CACHE_DEFAULT_TIMEOUT": 300 
-}
+# --- Création de l'Application Flask ---
+app = Flask(__name__)
 
-# Création de l'application Flask
-app = Flask(__name__) # <<<=== 'app' EST CRÉÉ ICI EN PREMIER
-
-# --- Initialisation de Flask-Limiter APRÈS la création de 'app' ---
-limiter = Limiter(
-    get_remote_address,  # key_func
-    app=app,             # L'instance Flask
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
-    # headers_enabled=True # Optionnel, pour ajouter des en-têtes X-RateLimit
-) # <<<=== PARENTHÈSE FERMANTE POUR L'APPEL Limiter(...)
-
-# --- Context Processor pour debug_mode ---
-@app.context_processor
-def inject_debug_status():
-    return dict(debug_mode=app.debug) 
-    
-# --- Teardown App Context ---
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    """Ferme systématiquement la session DB à la fin de chaque requête."""
-    # db.session.remove() # db n'est pas encore défini ici, déplacer après l'init de db
-    # Cette fonction sera appelée correctement une fois db initialisé.
-    # Pour l'instant, on peut la laisser ici, mais elle ne fera rien tant que db n'est pas SQLAlchemy(app)
-    # Ou la déplacer après l'initialisation de db = SQLAlchemy(app)
-    pass # Sera corrigé plus bas
-
-# --- Configuration générale de Flask (app.config['SECRET_KEY'], etc.) ---
+# --- Configuration Générale de Flask ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-very-secure-default-secret-key-for-dev-only')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
     "DATABASE_URL",
     "postgresql://xvcyuaga:rfodwjclemtvhwvqsrpp@alpha.europe.mkdb.sh:5432/usdtdsgq"
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ECHO'] = False
-app.config.from_mapping(cache_config)
+app.config['SQLALCHEMY_ECHO'] = False # Mettre à True pour déboguer les requêtes SQL
 
-# Configuration des options d'encodage pour SQLAlchemy
+# Configuration du Pool de Connexions SQLAlchemy (pour une limite de 5 connexions totales avec 1 worker Gunicorn)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "client_encoding": "UTF8",
     "connect_args": {
@@ -83,46 +65,36 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     },
     'pool_size': 1,        
     'max_overflow': 1,     
-    'pool_timeout': 10,
-    'pool_recycle': 280,   
-    'pool_pre_ping': True
+    'pool_timeout': 10,    # Attendre 10s pour une connexion
+    'pool_recycle': 280,   # Recycler les connexions après ~4.6 minutes
+    'pool_pre_ping': True  # Vérifier la connexion avant usage
 }
 
-# --- Configure Logging ---
-# ... (votre code de configuration du logging, qui semble correct) ...
-# logs_dir = ...
-# def configure_logging(app_instance): ...
+# --- Configuration du Cache ---
+cache_config = {
+    "CACHE_TYPE": "SimpleCache",
+    "CACHE_DEFAULT_TIMEOUT": 300 
+}
+app.config.from_mapping(cache_config)
 
-# Initialize components
-db = SQLAlchemy(app) # <<<=== db EST INITIALISÉ ICI
+# --- Initialisation des Extensions Flask ---
+db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager(app)
-login_manager.login_view = 'login'
-login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
-login_manager.login_message_category = "info"
 cache = Cache(app)
 
-# --- DÉPLACER shutdown_session ICI APRÈS L'INITIALISATION DE db ---
-@app.teardown_appcontext
-def shutdown_session_proper(exception=None): # Renommer pour éviter conflit si l'ancienne est encore là
-    if hasattr(db, 'session'): # Vérifier si db.session existe
-        if exception:
-            app.logger.debug(f"Rolling back session due to exception: {exception}")
-            try:
-                db.session.rollback()
-            except Exception as rb_e:
-                app.logger.error(f"Error during session rollback: {rb_e}")
-        try:
-            db.session.remove()
-            # app.logger.debug("SQLAlchemy session removed.") # Optionnel pour le debug
-        except Exception as e:
-            app.logger.error(f"Error removing SQLAlchemy session: {e}")
+# Initialisation de Flask-Limiter APRÈS la création de 'app'
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"], # Ajustez selon vos besoins
+    storage_uri="memory://", # Pour des tests simples, pour la prod, envisagez Redis
+    # headers_enabled=True # Optionnel
+)
 
-# Configuration SocketIO (Polling only)
-# ... (votre configuration SocketIO) ...
 socketio = SocketIO(
     app,
-    cors_allowed_origins="*",
+    cors_allowed_origins="*", # Soyez plus spécifique en production
     async_mode=ASYNC_MODE,
     engineio_logger=False, 
     logger=False,          
@@ -132,17 +104,53 @@ socketio = SocketIO(
     manage_session=False
 )
 
-# Setup logging AFTER initializing extensions
-configure_logging(app) # Assurez-vous que cette fonction est définie avant d'être appelée
+# --- Configuration du Logging (Définition de la fonction et appel) ---
+logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+if not os.path.exists(logs_dir):
+    os.makedirs(logs_dir)
 
-# ---- Decorateur DB Retry ----
-# ... (votre décorateur db_operation_with_retry, qui semble correct mais attention au db.session.close() à l'intérieur) ...
-# ATTENTION: Le db.session.close() dans le finally de votre db_operation_with_retry
-# pourrait être problématique et fermer la session trop tôt, surtout si la fonction décorée
-# fait plusieurs opérations DB ou si d'autres opérations suivent.
-# db.session.remove() à la fin de la requête (via teardown_appcontext) est généralement suffisant.
-# Je vais commenter le db.session.close() dans votre décorateur pour l'instant.
+def configure_logging(app_instance):
+    log_level = logging.DEBUG if app_instance.debug else logging.INFO
+    # ... (votre code de configuration du logging existant, qui semble correct) ...
+    # ... (assurez-vous que app_instance.logger et les autres loggers sont bien configurés) ...
+    # Exemple simplifié :
+    if not app_instance.logger.handlers: # Pour éviter d'ajouter des handlers multiples lors des rechargements
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        console_handler.setLevel(log_level)
+        app_instance.logger.addHandler(console_handler)
+        app_instance.logger.setLevel(log_level)
+        # Ajoutez vos RotatingFileHandler ici si app_instance.debug est False
+    app_instance.logger.info(f"Application logging initialized for {'development (DEBUG)' if app_instance.debug else 'production'}")
 
+configure_logging(app) # Appel de la configuration du logging
+
+# --- Fonctions de Contexte et Teardown ---
+@app.context_processor
+def inject_debug_status():
+    return dict(debug_mode=app.debug) 
+
+@app.context_processor
+def inject_now():
+    return dict(now=datetime.now(UTC))
+
+@app.teardown_appcontext
+def shutdown_session_proper(exception=None):
+    if hasattr(db, 'session'):
+        if exception:
+            app.logger.debug(f"Rolling back session due to exception: {exception}")
+            try:
+                db.session.rollback()
+            except Exception as rb_e:
+                app.logger.error(f"Error during session rollback: {rb_e}")
+        try:
+            db.session.remove()
+            # app.logger.debug("SQLAlchemy session removed after request.")
+        except Exception as e:
+            app.logger.error(f"Error removing SQLAlchemy session: {e}")
+
+# --- Décorateur DB Retry (Modifié pour ne pas fermer la session) ---
 def db_operation_with_retry(max_retries=3, retry_delay=0.5):
     def decorator(func):
         @functools.wraps(func)
@@ -152,182 +160,40 @@ def db_operation_with_retry(max_retries=3, retry_delay=0.5):
             while retries < max_retries:
                 try:
                     result = func(*args, **kwargs)
-                    # db.session.commit() # Ne pas commiter ici, la fonction décorée doit le faire si nécessaire
                     return result
-                except (OperationalError, TimeoutError) as e:
+                except (OperationalError, TimeoutError) as e: # Erreurs liées à la connexion/DB
                     retries += 1
                     last_exception = e
                     app.logger.warning(f"DB operation failed (attempt {retries}/{max_retries}): {e}")
-                    db.session.rollback()
+                    try:
+                        db.session.rollback() # Essayer de rollback
+                    except Exception as rb_ex:
+                        app.logger.error(f"Error during rollback in retry decorator: {rb_ex}")
+                    
                     if retries >= max_retries:
-                        app.logger.error(f"Max retries reached for DB operation: {e}")
-                        raise ServiceUnavailable("Database service temporarily unavailable")
-                    jitter = random.uniform(0, 0.5)
-                    time.sleep((retry_delay * 2 ** retries) + jitter) # Backoff exponentiel
-                except SQLAlchemyError as e:
+                        app.logger.error(f"Max retries reached for DB operation. Last error: {e}")
+                        raise ServiceUnavailable("Database service temporarily unavailable due to connection issues.")
+                    
+                    # Backoff exponentiel avec jitter
+                    wait_time = (retry_delay * (2 ** (retries -1))) + random.uniform(0, retry_delay * 0.5)
+                    app.logger.info(f"Retrying DB operation in {wait_time:.2f} seconds...")
+                    time.sleep(wait_time) 
+                except SQLAlchemyError as e: # Autres erreurs SQLAlchemy (ex: IntegrityError)
                     db.session.rollback()
-                    app.logger.error(f"SQLAlchemyError during DB operation: {e}", exc_info=True)
+                    app.logger.error(f"SQLAlchemyError during DB operation (not retried): {e}", exc_info=True)
+                    raise # Re-lever pour que la route puisse la gérer (ex: afficher un flash)
+                except Exception as e: # Erreurs Python inattendues
+                    db.session.rollback() # Par précaution
+                    app.logger.error(f"Unexpected Python error during DB operation: {e}", exc_info=True)
                     raise
-                except Exception as e:
-                    db.session.rollback()
-                    app.logger.error(f"Unexpected error during DB operation: {e}", exc_info=True)
-                    raise
-                # finally: # Commenté car db.session.remove() dans teardown est mieux
-                    # if db.session.is_active: # Vérifier si la session est active avant de fermer
-                    #     db.session.close() 
-                    #     app.logger.debug("DB session closed in retry decorator finally block.")
             
-            # Cette partie ne devrait être atteinte que si toutes les tentatives échouent à cause d'OperationalError/TimeoutError
-            if last_exception: # S'assurer que last_exception est défini
-                 raise ServiceUnavailable(f"Database service unavailable after multiple retries. Last error: {last_exception}")
-            else: # Cas où la boucle se termine sans exception (ne devrait pas arriver si func lève une exception)
-                 raise ServiceUnavailable("Database service unavailable after multiple retries.")
+            # Si la boucle se termine sans succès (ne devrait arriver que pour OperationalError/TimeoutError)
+            if last_exception:
+                 raise ServiceUnavailable(f"Database service unavailable after {max_retries} retries. Last error: {last_exception}")
+            # Ce cas est peu probable si la logique de la boucle est correcte
+            raise ServiceUnavailable(f"Database service unavailable after {max_retries} retries (unknown reason).")
         return wrapper
     return decorator
-
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "client_encoding": "UTF8",
-    "connect_args": {
-        "options": "-c client_encoding=utf8"
-    },
-    # Configuration optimisée pour bases de données avec limites de connexions
-    'pool_size': 2,           # Réduit de 3 à 2
-    'max_overflow': 1,        # Réduit de 2 à 1
-    'pool_timeout': 20,       # Légèrement réduit
-    'pool_recycle': 30,       # Recycler plus rapidement
-    'pool_pre_ping': True     # Vérifier la validité des connexions
-}
-
-# --- Configuration générale ---
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-very-secure-default-secret-key-for-dev-only')
-# Use the provided DATABASE_URL or a default one
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://xvcyuaga:rfodwjclemtvhwvqsrpp@alpha.europe.mkdb.sh:5432/usdtdsgq"
-)
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ECHO'] = False # Set to True for debugging DB queries
-app.config.from_mapping(cache_config)
-
-# Configuration des options d'encodage pour SQLAlchemy
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "client_encoding": "UTF8",
-    "connect_args": {
-        "options": "-c client_encoding=utf8"
-    },
-    'pool_size': 2,           # Réduire à 2 au lieu de 3
-    'max_overflow': 1,        # Réduire à 1 au lieu de 2
-    'pool_timeout': 20,       # Légèrement réduit
-    'pool_recycle': 30,       # Recycler plus rapidement
-    'pool_pre_ping': True
-}
-def safe_db_query(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            result = func(*args, **kwargs)
-            return result
-        except Exception as e:
-            app.logger.error(f"Database error: {e}")
-            db.session.rollback()
-            raise
-        finally:
-            # Important: libérer la connexion après chaque utilisation
-            db.session.close()
-    return wrapper
-# --- Configure Logging ---
-logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-if not os.path.exists(logs_dir):
-    os.makedirs(logs_dir)
-
-def configure_logging(app_instance):
-    log_level = logging.DEBUG if app_instance.debug else logging.INFO
-    formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
-    # Remove existing handlers to avoid duplication if reconfiguring
-    for handler in app_instance.logger.handlers[:]:
-        app_instance.logger.removeHandler(handler)
-    for handler in logging.getLogger('sqlalchemy.engine').handlers[:]:
-        logging.getLogger('sqlalchemy.engine').removeHandler(handler)
-    for handler in logging.getLogger('socketio').handlers[:]:
-        logging.getLogger('socketio').removeHandler(handler)
-    for handler in logging.getLogger('engineio').handlers[:]:
-        logging.getLogger('engineio').removeHandler(handler)
-
-    # Console Handler (always active, level depends on debug mode)
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(log_level)
-    app_instance.logger.addHandler(console_handler)
-    app_instance.logger.setLevel(log_level) # Ensure app logger level is set
-
-    if not app_instance.debug:
-        # File Handler for App (INFO and above)
-        app_log_file = os.path.join(logs_dir, 'app.log')
-        file_handler = RotatingFileHandler(app_log_file, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8')
-        file_handler.setFormatter(formatter)
-        file_handler.setLevel(logging.INFO)
-        app_instance.logger.addHandler(file_handler)
-
-        # File Handler for DB (WARNING and above)
-        db_log_file = os.path.join(logs_dir, 'db.log')
-        db_handler = RotatingFileHandler(db_log_file, maxBytes=2*1024*1024, backupCount=3, encoding='utf-8')
-        db_handler.setFormatter(formatter)
-        db_logger = logging.getLogger('sqlalchemy.engine')
-        db_logger.setLevel(logging.WARNING)
-        db_logger.addHandler(db_handler)
-        db_logger.propagate = False # Prevent DB logs from going to app logger
-
-        # File Handler for SocketIO (INFO and above)
-        socket_log_file = os.path.join(logs_dir, 'socketio.log')
-        socket_handler = RotatingFileHandler(socket_log_file, maxBytes=2*1024*1024, backupCount=3, encoding='utf-8')
-        socket_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
-        socket_logger = logging.getLogger('socketio')
-        socket_logger.setLevel(logging.INFO)
-        socket_logger.addHandler(socket_handler)
-        socket_logger.propagate = False
-
-        engineio_logger = logging.getLogger('engineio')
-        engineio_logger.setLevel(logging.WARNING) # Usually too verbose at INFO
-        engineio_logger.addHandler(socket_handler)
-        engineio_logger.propagate = False
-
-        app_instance.logger.info('Application logging initialized for production')
-    else:
-        # In debug mode, let SQLAlchemy engine logs go to console
-        logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
-        logging.getLogger('socketio').setLevel(logging.DEBUG)
-        logging.getLogger('engineio').setLevel(logging.DEBUG)
-        app_instance.logger.info('Application logging initialized for development (DEBUG)')
-
-# Initialize components
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'
-login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
-login_manager.login_message_category = "info"
-cache = Cache(app)
-
-# Configuration SocketIO (Polling only)
-socketio = SocketIO(
-    app,
-    cors_allowed_origins="*",
-    async_mode=ASYNC_MODE,
-    engineio_logger=False, # Usually too verbose
-    logger=False,          # Usually too verbose
-    ping_timeout=20000,
-    ping_interval=25000,
-    transports=['polling'], # Force polling
-    manage_session=False
-)
-
-# Setup logging AFTER initializing extensions
-configure_logging(app)
-
-# === Context Processors ===
-@app.context_processor
-def inject_now():
-    return dict(now=datetime.now(UTC))
 
 # === Modèles DB (Identiques à v7) ===
 class Service(db.Model):
