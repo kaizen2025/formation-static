@@ -70,20 +70,58 @@ def inject_debug_status():
 # Ajouter cette fonction dans votre code principal
 @app.teardown_appcontext
 def shutdown_session(exception=None):
-    """Ferme la session DB à la fin de chaque requête."""
+    """Ferme systématiquement la session DB à la fin de chaque requête."""
     db.session.remove()
+    
+# Remplacer le décorateur db_operation_with_retry par cette version améliorée
+def db_operation_with_retry(max_retries=3, retry_delay=0.5):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            last_exception = None
+            while retries < max_retries:
+                try:
+                    result = func(*args, **kwargs)
+                    return result
+                except (OperationalError, TimeoutError) as e:
+                    retries += 1
+                    last_exception = e
+                    app.logger.warning(f"DB operation failed (attempt {retries}/{max_retries}): {e}")
+                    db.session.rollback()
+                    if retries >= max_retries:
+                        app.logger.error(f"Max retries reached for DB operation: {e}")
+                        raise ServiceUnavailable("Database service temporarily unavailable")
+                    # Backoff exponentiel avec jitter
+                    jitter = random.uniform(0, 0.5)
+                    time.sleep((retry_delay * 2 ** retries) + jitter)
+                except SQLAlchemyError as e:
+                    db.session.rollback()
+                    app.logger.error(f"SQLAlchemyError during DB operation: {e}", exc_info=True)
+                    raise
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.error(f"Unexpected error during DB operation: {e}", exc_info=True)
+                    raise
+                finally:
+                    # IMPORTANT: toujours libérer la connexion, même en cas de succès
+                    db.session.close()
+            
+            raise ServiceUnavailable(f"Database service unavailable after multiple retries. Last error: {last_exception}")
+        return wrapper
+    return decorator
 
-# Réduire les limites du pool de connexions pour s'adapter au tier gratuit
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "client_encoding": "UTF8",
     "connect_args": {
         "options": "-c client_encoding=utf8"
     },
-    'pool_size': 2,
-    'max_overflow': 1,
-    'pool_timeout': 15,
-    'pool_recycle': 30,
-    'pool_pre_ping': True
+    # Configuration optimisée pour bases de données avec limites de connexions
+    'pool_size': 2,           # Réduit de 3 à 2
+    'max_overflow': 1,        # Réduit de 2 à 1
+    'pool_timeout': 20,       # Légèrement réduit
+    'pool_recycle': 30,       # Recycler plus rapidement
+    'pool_pre_ping': True     # Vérifier la validité des connexions
 }
 
 # --- Configuration générale ---
@@ -211,44 +249,6 @@ socketio = SocketIO(
 
 # Setup logging AFTER initializing extensions
 configure_logging(app)
-
-# ---- Decorateur DB Retry ----
-def db_operation_with_retry(max_retries=3, retry_delay=0.5):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            retries = 0
-            last_exception = None
-            while retries < max_retries:
-                try:
-                    result = func(*args, **kwargs)
-                    return result
-                except (OperationalError, TimeoutError) as e:
-                    retries += 1
-                    last_exception = e
-                    app.logger.warning(f"DB operation failed (attempt {retries}/{max_retries}): {e}")
-                    db.session.rollback()
-                    if retries >= max_retries:
-                        app.logger.error(f"Max retries reached for DB operation: {e}")
-                        raise ServiceUnavailable("Database service temporarily unavailable")
-                    # Exponential backoff with jitter
-                    jitter = random.uniform(0, 0.5)
-                    time.sleep((retry_delay * 2 ** retries) + jitter)
-                except SQLAlchemyError as e:
-                    db.session.rollback()
-                    app.logger.error(f"SQLAlchemyError during DB operation: {e}", exc_info=True)
-                    raise
-                except Exception as e:
-                    db.session.rollback()
-                    app.logger.error(f"Unexpected error during DB operation: {e}", exc_info=True)
-                    raise
-                finally:
-                    # Crucial: toujours libérer la connexion, même après succès
-                    db.session.close()
-            
-            raise ServiceUnavailable(f"Database service unavailable after multiple retries. Last error: {last_exception}")
-        return wrapper
-    return decorator
 
 # === Context Processors ===
 @app.context_processor
@@ -2772,6 +2772,7 @@ def api_dashboard_essential():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/api/sessions')
+@limiter.limit("30 per minute")
 @db_operation_with_retry(max_retries=2)
 def api_sessions():
     try:
@@ -2852,9 +2853,9 @@ def api_sessions():
             
             result.append({
                 'id': s.id,
-                'date': s.date.strftime('%d/%m/%Y') if hasattr(s, 'formatage_date') is False else s.formatage_date,
+                'date': s.formatage_date if hasattr(s, 'formatage_date') else s.date.strftime('%d/%m/%Y'),
                 'iso_date': s.date.isoformat(),
-                'horaire': f"{s.heure_debut.strftime('%H:%M')} - {s.heure_fin.strftime('%H:%M')}" if hasattr(s, 'formatage_horaire') is False else s.formatage_horaire,
+                'horaire': s.formatage_horaire if hasattr(s, 'formatage_horaire') else f"{s.heure_debut.strftime('%H:%M')} - {s.heure_fin.strftime('%H:%M')}",
                 'theme': s.theme.nom if s.theme else 'N/A',
                 'theme_id': s.theme_id,
                 'places_restantes': places_rest,
@@ -2879,12 +2880,15 @@ def api_sessions():
         
         return jsonify(response_data)
     except SQLAlchemyError as e:
+        db.session.rollback()
         app.logger.error(f"API Error fetching sessions: {e}", exc_info=True)
         return jsonify({"error": "Database error"}), 500
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f"API Unexpected Error fetching sessions: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
-
+    finally:
+        db.session.close()
 @app.route('/api/sessions/<int:session_id>')
 @db_operation_with_retry(max_retries=2)
 def api_single_session(session_id):
@@ -2962,6 +2966,7 @@ def api_single_session(session_id):
 
 
 @app.route('/api/participants')
+@limiter.limit("30 per minute")
 @db_operation_with_retry(max_retries=2)
 def api_participants():
     try:
@@ -3040,12 +3045,15 @@ def api_participants():
         
         return jsonify(response_data)
     except SQLAlchemyError as e:
+        db.session.rollback()
         app.logger.error(f"API Error fetching participants: {e}", exc_info=True)
         return jsonify({"error": "Database error"}), 500
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f"API Unexpected Error fetching participants: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
-
+    finally:
+        db.session.close()
 @app.route('/api/salles')
 @db_operation_with_retry(max_retries=2)
 def api_salles():
