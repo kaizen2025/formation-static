@@ -83,14 +83,12 @@ migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 cache = Cache(app)
 
-# Initialisation de Flask-Limiter APRÈS la création de 'app'
 limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"], # Ajustez selon vos besoins
-    storage_uri="memory://", # Pour des tests simples, pour la prod, envisagez Redis
-    # headers_enabled=True # Optionnel
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
 )
+limiter.init_app(app)  # Initialisation séparée
 
 socketio = SocketIO(
     app,
