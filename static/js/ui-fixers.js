@@ -1,5 +1,4 @@
-// static/js/ui-fixers.js
-// Version 1.0.2 - Refined selectors, improved logging, badge consistency.
+console.log("--- ui-fixers.js EXECUTING ---");
 document.addEventListener('DOMContentLoaded', function() {
     const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
     if (DASH_CONFIG.debugMode) console.log('UI Fixers initialized (v1.0.2)');
