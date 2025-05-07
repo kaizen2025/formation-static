@@ -1,299 +1,557 @@
-/* static/css/static-charts.css */
-/* Styles pour les graphiques statiques - version améliorée */
+/* 
+ * static-charts.css - Styles pour les graphiques statiques
+ * Version 2.1.0 - Solution aux problèmes d'affichage des graphiques
+ */
+
+/* ===== STYLES COMMUNS POUR TOUS LES GRAPHIQUES ===== */
 .static-chart-container {
     width: 100%;
-    padding: 1.25rem 1rem;
-    background-color: var(--white, #ffffff); /* Use CSS variables defined elsewhere or default */
+    min-height: 300px;
+    padding: 1.5rem;
+    background-color: var(--white, #ffffff);
     border-radius: var(--border-radius, 0.35rem);
     box-shadow: var(--shadow-sm, 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075));
     margin-bottom: 1.5rem;
-    position: relative;
     overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    min-height: 250px; /* Ensure minimum height */
+    transition: all 0.3s ease;
+    position: relative;
 }
 
 .static-chart-container:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+    transform: translateY(-3px);
+    box-shadow: var(--shadow, 0 0.3rem .8rem rgba(0, 0, 0, 0.1));
 }
 
 .static-chart-title {
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--dark, #343a40);
-    margin-bottom: 1.25rem; /* Increased margin */
+    margin-bottom: 1.25rem;
     text-align: center;
+    position: relative;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    position: relative;
-    padding-bottom: 8px; /* Space for underline */
 }
-/* Optional underline for title */
-/*
+
 .static-chart-title::after {
     content: '';
     display: block;
-    width: 30px;
+    width: 40px;
     height: 3px;
     background-color: var(--primary, #0078d4);
-    margin: 0.5rem auto 0;
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
     border-radius: 3px;
 }
-*/
 
-
-/* Donut chart (thèmes) */
-.static-chart-donut {
-    position: relative;
-    width: 160px; /* Slightly smaller */
-    height: 160px;
-    border-radius: 50%;
-    margin: 0 auto 1.25rem;
-    background-color: #f0f2f5; /* Lighter background */
-    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.05);
-    display: flex; /* Needed for potential future overlays */
-    justify-content: center;
-    align-items: center;
+/* Animation de chargement */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-/* Basic segment styling (replace if using advanced CSS conic-gradient or SVG) */
+.animate {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* ===== GRAPHIQUE DONUT (THÈMES) ===== */
+.static-chart-donut {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    margin: 0 auto 1.5rem;
+    background-color: #f5f7fa;
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.05);
+    overflow: visible;
+}
+
 .donut-segment {
     position: absolute;
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    clip-path: polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%); /* Example clip-path */
+    clip-path: polygon(50% 50%, 100% 0, 100% 100%, 0 100%, 0 0);
     transform-origin: 50% 50%;
-    background-color: var(--fill, #ccc); /* Use CSS variable */
-    transform: rotate(var(--start-angle, 0deg));
-    /* Add transitions if needed */
-    transition: transform 0.5s ease-out, opacity 0.3s ease;
+    transition: all 0.3s ease;
+    opacity: 0.9;
 }
-/* Note: Pure CSS donut segments are complex. Consider SVG or libraries for accuracy. */
-/* This basic segment approach won't create a perfect visual donut alone. */
-/* It's better suited if the JS calculates paths for SVG or uses conic-gradient */
+
+/* Animation des segments du donut */
+@keyframes donutFadeIn {
+    from { opacity: 0; transform: scale(0.9) rotate(var(--rotation, 0deg)); }
+    to { opacity: 0.9; transform: scale(1) rotate(var(--rotation, 0deg)); }
+}
+
+.animate .donut-segment {
+    animation: donutFadeIn 0.6s ease-out forwards;
+    animation-delay: calc(var(--index, 0) * 0.1s);
+}
+
+.donut-segment:hover {
+    opacity: 1;
+    transform: scale(1.02) rotate(var(--rotation, 0deg));
+    z-index: 2;
+}
 
 .donut-center {
     position: absolute;
-    width: 55%; /* Slightly larger hole */
-    height: 55%;
+    top: 25%;
+    left: 25%;
+    width: 50%;
+    height: 50%;
     border-radius: 50%;
     background-color: white;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     z-index: 3;
-    text-align: center;
 }
 
 .donut-total {
-    font-size: 1.4rem; /* Adjusted size */
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--dark, #343a40);
-    line-height: 1.1;
+    line-height: 1;
 }
 
 .donut-label {
-    font-size: 0.6rem; /* Smaller label */
+    font-size: 0.7rem;
     color: var(--secondary, #6c757d);
-    margin-top: 0.1rem;
+    margin-top: 0.2rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
-/* Legend pour les graphiques */
+/* Légende du graphique donut */
 .static-chart-legend {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    align-items: center;
-    gap: 0.5rem 0.75rem; /* Row and column gap */
-    padding: 0 0.5rem;
-    margin-top: 1rem; /* Space above legend */
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.5rem;
 }
 
 .legend-item {
     display: flex;
     align-items: center;
-    padding: 0.3rem 0.6rem; /* Adjusted padding */
-    font-size: 0.75rem;
-    border-radius: var(--border-radius-sm, 0.25rem); /* Smaller radius */
+    padding: 0.5rem 0.75rem;
     background-color: rgba(0, 0, 0, 0.03);
-    transition: all 0.2s ease;
-    cursor: default; /* Not interactive by default */
-    white-space: nowrap;
+    border-radius: var(--border-radius, 0.35rem);
+    transition: all 0.3s ease;
+    cursor: pointer;
 }
 
 .legend-item:hover {
     background-color: rgba(0, 0, 0, 0.06);
+    transform: translateX(3px);
 }
 
 .legend-color {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px; /* Slightly rounded square */
-    margin-right: 6px;
-    flex-shrink: 0; /* Prevent shrinking */
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    margin-right: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .legend-label {
-    margin-right: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 500;
     color: var(--dark, #343a40);
-    max-width: 150px; /* Limit width */
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .legend-value {
+    margin-left: 0.5rem;
+    padding: 0.15rem 0.4rem;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    font-size: 0.75rem;
     font-weight: 600;
-    color: var(--secondary, #6c757d); /* Muted value */
+    color: var(--dark, #343a40);
 }
 
-/* Graphique en barres (services) */
+/* ===== GRAPHIQUE EN BARRES (SERVICES) ===== */
 .static-chart-bars {
     width: 100%;
-    padding: 0.5rem 0;
+    padding-top: 0.5rem;
 }
 
 .bar-item {
-    margin-bottom: 1rem; /* Increased spacing */
-    transition: all 0.2s ease;
+    margin-bottom: 1.25rem;
+    transition: all 0.3s ease;
+    position: relative;
 }
 
 .bar-item:hover {
-    /* Subtle hover effect */
-    /* transform: translateX(2px); */
+    transform: translateX(5px);
 }
 
+/* En-tête de la barre (service + total) */
 .bar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.3rem; /* Reduced margin */
+    margin-bottom: 0.4rem;
 }
 
 .bar-label {
-    font-size: 0.8rem; /* Slightly smaller */
+    font-size: 0.85rem;
     font-weight: 500;
     color: var(--dark, #343a40);
     margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 80%; /* Adjust as needed */
+    display: flex;
+    align-items: center;
+}
+
+.bar-icon {
+    margin-right: 8px;
+    opacity: 0.8;
+    font-size: 0.9rem;
+    width: 16px;
+    text-align: center;
 }
 
 .bar-total {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    color: var(--primary, #0078d4); /* Use primary color */
+    color: var(--primary, #0078d4);
+    background-color: rgba(0, 120, 212, 0.1);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    min-width: 26px;
+    text-align: center;
 }
 
+/* Conteneur de la barre */
 .bar-container {
-    height: 8px; /* Thinner bars */
-    background-color: #e9ecef; /* Lighter background */
-    border-radius: 4px;
+    height: 10px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 5px;
     position: relative;
     overflow: hidden;
-    /* box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); */ /* Removed inset shadow */
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+/* Valeur de la barre */
 .bar-value {
     height: 100%;
-    border-radius: 4px;
-    transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1); /* Smoother transition */
-    /* box-shadow: 0 0 4px rgba(0, 0, 0, 0.1); */ /* Removed shadow */
-    width: 0; /* Start at 0 for animation */
+    border-radius: 5px;
+    position: relative;
+    width: 0; /* Pour l'animation */
 }
 
-/* Remove bar-count overlay, value shown in header */
-.bar-count {
-   display: none;
+/* Animation des barres */
+@keyframes barGrow {
+    from { width: 0; }
+    to { width: var(--percent, 100%); }
 }
 
-/* États de chargement et d'erreur */
-.chart-overlay {
+.animate .bar-value {
+    animation: barGrow 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--index, 0) * 0.1s);
+}
+
+/* Couleurs des barres par service */
+.bar-value.commerce {
+    background: linear-gradient(90deg, var(--service-commerce, #FFC107) 0%, var(--service-commerce, #FFC107) 85%, rgba(255, 193, 7, 0.8) 100%);
+}
+.bar-value.comptabilite {
+    background: linear-gradient(90deg, var(--service-comptabilite, #2196F3) 0%, var(--service-comptabilite, #2196F3) 85%, rgba(33, 150, 243, 0.8) 100%);
+}
+.bar-value.florensud {
+    background: linear-gradient(90deg, var(--service-florensud, #4CAF50) 0%, var(--service-florensud, #4CAF50) 85%, rgba(76, 175, 80, 0.8) 100%);
+}
+.bar-value.informatique {
+    background: linear-gradient(90deg, var(--service-informatique, #607D8B) 0%, var(--service-informatique, #607D8B) 85%, rgba(96, 125, 139, 0.8) 100%);
+}
+.bar-value.marketing {
+    background: linear-gradient(90deg, var(--service-marketing, #9C27B0) 0%, var(--service-marketing, #9C27B0) 85%, rgba(156, 39, 176, 0.8) 100%);
+}
+.bar-value.qualite {
+    background: linear-gradient(90deg, var(--service-qualite, #F44336) 0%, var(--service-qualite, #F44336) 85%, rgba(244, 67, 54, 0.8) 100%);
+}
+.bar-value.rh {
+    background: linear-gradient(90deg, var(--service-rh, #FF9800) 0%, var(--service-rh, #FF9800) 85%, rgba(255, 152, 0, 0.8) 100%);
+}
+
+/* Tooltip personnalisé pour les services */
+.bar-tooltip {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: rgba(255, 255, 255, 0.85);
+    top: -40px;
+    left: 0;
+    background-color: rgba(33, 37, 41, 0.95);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    width: 200px;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 10;
+    pointer-events: none;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.bar-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 15px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: rgba(33, 37, 41, 0.95) transparent transparent transparent;
+}
+
+.bar-item:hover .bar-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ===== BADGES DE THÈMES AMÉLIORÉS ===== */
+/* Styles de base */
+.theme-badge {
+    display: inline-block;
+    padding: 0.35em 0.75em;
+    font-size: 0.85em;
+    font-weight: 500;
+    line-height: 1.2;
+    color: #fff !important;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: var(--border-radius, 0.35rem);
+    box-shadow: var(--shadow-sm, 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075));
+    transition: all 0.3s ease;
+    margin: 0.15rem 0;
+    position: relative;
+    cursor: help;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 1;
+}
+
+.theme-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Couleurs spécifiques */
+.theme-badge.theme-comm {
+    background-color: var(--theme-teams, #0078d4);
+}
+.theme-badge.theme-planner {
+    background-color: var(--theme-planner, #7719aa);
+}
+.theme-badge.theme-onedrive {
+    background-color: var(--theme-onedrive, #0364b8);
+}
+.theme-badge.theme-sharepoint {
+    background-color: var(--theme-sharepoint, #038387);
+}
+
+/* Icônes dans les badges */
+.theme-badge i {
+    margin-right: 0.35em;
+    font-size: 0.9em;
+}
+
+/* Tooltip descriptif */
+.theme-badge .theme-tooltip {
+    visibility: hidden;
+    width: 280px;
+    background-color: rgba(33, 37, 41, 0.95);
+    color: #fff;
+    text-align: left;
+    border-radius: 6px;
+    padding: 12px;
+    position: absolute;
+    z-index: 1080;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -140px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    font-weight: normal;
+    font-size: 0.85rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+
+.theme-badge .theme-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: rgba(33, 37, 41, 0.95) transparent transparent transparent;
+}
+
+.theme-badge:hover .theme-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* À ajouter à la classe .theme-badge dans le cas où la description est trop longue */
+.theme-badge .theme-tooltip.wide {
+    width: 320px;
+    margin-left: -160px;
+}
+
+/* Feed d'activité récentes amélioré */
+.activity-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.activity-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.activity-item {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-left: 3px solid var(--primary, #0078d4);
+    background-color: rgba(0, 0, 0, 0.03);
+    border-radius: 0 0.35rem 0.35rem 0;
+    transition: all 0.3s ease;
+}
+
+.activity-item:hover {
+    transform: translateX(3px);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.activity-item.type-ajout {
+    border-left-color: var(--success, #4CAF50);
+}
+
+.activity-item.type-suppression {
+    border-left-color: var(--danger, #F44336);
+}
+
+.activity-item.type-modification {
+    border-left-color: var(--warning, #FF9800);
+}
+
+.activity-item.type-validation {
+    border-left-color: var(--info, #03A9F4);
+}
+
+.activity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.35rem;
+}
+
+.activity-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--dark, #343a40);
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.activity-icon {
+    margin-right: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: var(--secondary, #6c757d);
+    white-space: nowrap;
+    margin-left: 0.5rem;
+}
+
+.activity-details {
+    font-size: 0.8rem;
+    color: var(--secondary, #6c757d);
+    margin: 0.25rem 0 0;
+}
+
+.activity-user {
+    font-size: 0.75rem;
+    color: var(--primary, #0078d4);
+    margin-top: 0.25rem;
+}
+
+/* Loading spinner */
+.loading-spinner {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 5;
-    border-radius: var(--border-radius, 0.35rem);
-    transition: opacity 0.3s ease;
+    padding: 2rem 1rem;
+    color: var(--primary, #0078d4);
+}
+
+/* Message when no data available */
+.no-data-message {
     text-align: center;
+    padding: 2rem 1rem;
     color: var(--secondary, #6c757d);
-}
- .chart-error-message {
-     color: var(--warning, #ff9800);
-     padding: 1rem;
- }
-
-
-/* Animation pour les graphiques au chargement */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    font-style: italic;
 }
 
-/* Keyframes for donut segments if using advanced CSS */
-/* @keyframes donutSegmentGrow { ... } */
-
-@keyframes barGrow {
-    from { width: 0; }
-    to { width: var(--percent, 0%); } /* Use CSS variable set by JS */
+/* Error state */
+.error-state {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    color: var(--danger, #F44336);
+    background-color: rgba(244, 67, 54, 0.05);
+    border-radius: 0.35rem;
+    margin: 1rem 0;
 }
 
-.static-chart-container.animate {
-    /* animation: fadeIn 0.4s ease-out forwards; */ /* Optional container fade-in */
+.error-state i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
 }
 
-/* Apply animation directly in JS after render if needed */
-.static-chart-container.animate .bar-value {
-    animation: barGrow 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-    animation-delay: calc(var(--index, 0) * 0.08s); /* Faster delay */
-}
-
-/* Styles pour différents services (utilisés par JS pour définir background-color) */
-.bar-value.commerce {} /* JS sets background-color */
-.bar-value.comptabilite {}
-.bar-value.florensud {}
-.bar-value.informatique {}
-.bar-value.marketing {}
-.bar-value.qualite {}
-.bar-value.rh {}
-
-/* Ajustements responsive */
+/* Adaptations pour les mobiles */
 @media (max-width: 768px) {
     .static-chart-donut {
-        width: 140px;
-        height: 140px;
+        width: 150px;
+        height: 150px;
     }
-    .donut-total { font-size: 1.2rem; }
-    .bar-item { margin-bottom: 0.8rem; }
-    .legend-item { font-size: 0.7rem; padding: 0.25rem 0.5rem; }
-    .static-chart-title { font-size: 0.8rem; }
+    
+    .donut-total {
+        font-size: 1.3rem;
+    }
+    
+    .bar-item {
+        margin-bottom: 1rem;
+    }
+    
+    .bar-label {
+        font-size: 0.8rem;
+    }
+    
+    .bar-icon {
+        font-size: 0.8rem;
+    }
+    
+    .bar-container {
+        height: 8px;
+    }
+    
+    .theme-badge .theme-tooltip {
+        width: 220px;
+        margin-left: -110px;
+        font-size: 0.75rem;
+        padding: 8px;
+    }
 }
-
-/* Styles améliorés pour les badges de thèmes (déplacé de static-charts.css) */
-:root {
-    --theme-teams: #0078d4;
-    --theme-planner: #7719aa;
-    --theme-onedrive: #0364b8;
-    --theme-sharepoint: #038387;
-}
-.theme-badge { display: inline-flex; align-items: center; padding: 0.35em 0.75em; font-size: 0.8em; font-weight: 500; line-height: 1; color: #fff !important; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: 50rem; box-shadow: var(--shadow-sm, 0 0.125rem 0.25rem rgba(0,0,0,.075)); transition: all 0.2s ease-in-out; margin: 0.1rem 0; position: relative; cursor: help; }
-.theme-badge:hover { transform: translateY(-1px); box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
-.theme-badge.theme-comm { background-color: var(--theme-teams); }
-.theme-badge.theme-planner { background-color: var(--theme-planner); }
-.theme-badge.theme-onedrive { background-color: var(--theme-onedrive); }
-.theme-badge.theme-sharepoint { background-color: var(--theme-sharepoint); }
-.theme-badge i { margin-right: 0.4em; font-size: 0.9em; }
-.theme-badge .theme-tooltip { visibility: hidden; width: 260px; background-color: rgba(33,37,41,0.95); color: #fff; text-align: left; border-radius: 6px; padding: 10px 12px; position: absolute; z-index: 1080; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; font-weight: normal; font-size: 0.8rem; box-shadow: 0 4px 12px rgba(0,0,0,0.2); pointer-events: none; }
-.theme-badge .theme-tooltip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(33,37,41,0.95) transparent transparent transparent; }
-.theme-badge:hover .theme-tooltip { visibility: visible; opacity: 1; }
-@media (max-width: 768px) { .theme-badge .theme-tooltip { width: 200px; margin-left: -100px; font-size: 0.75rem; } .theme-badge { font-size: 0.75em; padding: 0.3em 0.6em; } }
