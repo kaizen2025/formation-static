@@ -1,46 +1,72 @@
-// static/js/static-charts.js
-// Version: 2.1.0 - Rôle réduit, ne dessine plus les graphiques principaux si charts-enhanced.js est actif.
-// S'assure que les fonctions sont disponibles pour polling-updates.js si ce dernier les appelle.
-
 document.addEventListener('DOMContentLoaded', function() {
-    const config = window.dashboardConfig || { debugMode: false };
-    if (config.debugMode) {
-        console.log("Static charts loader initialized (v2.1.0 - Rôle réduit)");
+    const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
+    if (DASH_CONFIG.debugMode) {
+        console.log("Static charts loader initialized (v2.1.1 - Primarily stubs)");
     }
-    
-    // Fonctions vides pour que polling-updates.js ne plante pas s'il les appelle
-    // et que charts-enhanced.js n'est pas là pour les remplacer.
-    // Idéalement, polling-updates.js devrait vérifier l'existence de ces fonctions
-    // ou s'abonner à un événement de charts-enhanced.js.
-    
+
+    // Define global theme/service data structures if not already defined by charts-enhanced.js
+    // These are used by polling-updates.js to pass color info.
+    if (typeof window.themesDataForChart === 'undefined') {
+        window.themesDataForChart = {
+            'Communiquer avec Teams': { color: 'var(--theme-teams, #0078d4)' },
+            'Gérer les tâches (Planner)': { color: 'var(--theme-planner, #7719aa)' },
+            'Gérer mes fichiers (OneDrive/SharePoint)': { color: 'var(--theme-onedrive, #0364b8)' },
+            'Collaborer avec Teams': { color: 'var(--theme-sharepoint, #038387)' },
+        };
+    }
+    if (typeof window.servicesDataForChart === 'undefined') {
+        window.servicesDataForChart = {
+            'Commerce Anecoop-Solagora': { color: 'var(--service-commerce, #FFC107)' },
+            'Comptabilité': { color: 'var(--service-comptabilite, #2196F3)' },
+            'Florensud': { color: 'var(--service-florensud, #4CAF50)' },
+            'Informatique': { color: 'var(--service-informatique, #607D8B)' },
+            // ... other services
+        };
+    }
+
+
+    // Module definition
     window.staticChartsModule = {
         initialize: function() {
-            if (config.debugMode) console.log("StaticCharts: initialize() called, mais ne fait rien si charts-enhanced.js est actif.");
-            // Si charts-enhanced.js n'est PAS utilisé, vous pourriez mettre la logique de fetch et render ici.
-            // Pour l'instant, on suppose que charts-enhanced.js s'en charge.
-            
-            // Appeler l'amélioration globale des badges au cas où
+            if (DASH_CONFIG.debugMode) console.log("StaticCharts: initialize() called. No rendering if charts-enhanced.js is active.");
+            // If charts-enhanced.js is NOT used, actual static chart rendering logic would go here.
+            // For now, it's assumed charts-enhanced.js handles the canvas elements.
+
+            // Call global theme badge enhancement, as it's a general UI improvement.
             if (typeof window.enhanceThemeBadgesGlobally === 'function') {
                 window.enhanceThemeBadgesGlobally();
             }
-            return Promise.resolve({ success: true }); // Retourner une promesse résolue
+            return Promise.resolve({ success: true, message: "Static chart module initialized (stubs only)." });
         },
-        updateThemeChart: function(data) {
-            if (config.debugMode) {
-                // console.log("StaticCharts: updateThemeChart called with data. Laissé à charts-enhanced.js.", data);
+        updateThemeChart: function(data) { // data is an array of {label, value, color}
+            if (DASH_CONFIG.debugMode) {
+                // console.log("StaticCharts: updateThemeChart called. Chart.js rendering is handled by charts-enhanced.js.", data);
             }
-            // Ne fait rien si charts-enhanced.js gère le canvas #themeChartCanvas
+            // This function would render a basic HTML/CSS chart if #themeChartCanvas was not present
+            // or if Chart.js failed. Since charts-enhanced.js targets #themeChartCanvas, this does nothing.
+            // However, it might update the legend or total if the static HTML structure is used as a fallback.
+            const donutTotalEl = document.getElementById('chart-theme-total');
+            if (donutTotalEl && data && Array.isArray(data)) {
+                const totalInscrits = data.reduce((sum, item) => sum + (item.value || 0), 0);
+                donutTotalEl.textContent = totalInscrits;
+            }
         },
-        updateServiceChart: function(data) {
-            if (config.debugMode) {
-                // console.log("StaticCharts: updateServiceChart called with data. Laissé à charts-enhanced.js.", data);
+        updateServiceChart: function(data) { // data is an array of {label, value, color}
+            if (DASH_CONFIG.debugMode) {
+                // console.log("StaticCharts: updateServiceChart called. Chart.js rendering is handled by charts-enhanced.js.", data);
             }
-            // Ne fait rien si charts-enhanced.js gère le canvas #serviceChartCanvas
+            // Similar to updateThemeChart, this would render a basic bar chart if needed.
         }
     };
 
-    // Appel initial pour les badges, au cas où.
+    // Ensure chartModule is an alias to staticChartsModule if charts-enhanced doesn't replace it.
+    // This helps dashboard-init.js call .initialize() without error.
+    if (typeof window.chartModule === 'undefined') {
+        window.chartModule = window.staticChartsModule;
+    }
+
+    // Initial call for global badge enhancements.
     if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-        setTimeout(window.enhanceThemeBadgesGlobally, 400); // Délai pour laisser les autres scripts s'initialiser
+        setTimeout(window.enhanceThemeBadgesGlobally, 450); // Delay for other scripts
     }
 });
