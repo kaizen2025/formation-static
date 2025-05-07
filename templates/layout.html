@@ -3,342 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Plateforme de gestion des formations Microsoft 365 pour Anecoop France">
-    <meta name="author" content="Anecoop France">
-
-    <title>{% block title %}{{ app_name | default('Formation Microsoft 365') }}{% endblock %}</title>
-
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    
     <!-- Favicon -->
-    <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
-
-    <!-- Styles -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}?v={{ range(1, 100000) | random }}">
-
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    
+    <!-- Styles Bootstrap et Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/static-charts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-modal-fixes.css') }}">
+    
+    <!-- Variables CSS pour les services et thèmes -->
+    <style>
+        :root {
+            /* Couleurs de Services */
+            --service-commerce: #FFC107;
+            --service-comptabilite: #2196F3;
+            --service-florensud: #4CAF50;
+            --service-informatique: #607D8B;
+            --service-marketing: #9C27B0;
+            --service-qualite: #F44336;
+            --service-rh: #FF9800;
+            
+            /* Couleurs de Thèmes */
+            --theme-teams: #0078d4;
+            --theme-planner: #7719aa;
+            --theme-onedrive: #0364b8;
+            --theme-sharepoint: #038387;
+        }
+    </style>
+    
+    <!-- Configuration du Dashboard -->
     <script>
-        document.documentElement.classList.add('no-transition');
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                document.documentElement.classList.remove('no-transition');
-            }, 100);
-        });
+        // Configuration du tableau de bord - Force le mode polling pour éviter les problèmes WebSocket
         window.dashboardConfig = {
-            debugMode: {{ 'true' if debug_mode else 'false' }},
-            baseApiUrl: "{{ url_for('index', _external=True).rstrip('/') }}/api", // Ensure no trailing slash then add /api
-            csrfToken: "{{ csrf_token() if csrf_token else '' }}",
-            // Default values for polling, can be overridden by dashboard-init.js
-            socketEnabled: true,
-            pollingEnabled: true,
+            debugMode: true,
             autoRefreshInterval: 30000,
-            preferredMode: 'auto'
+            pollingEnabled: true,
+            socketEnabled: false,
+            preferredMode: 'polling',
+            baseApiUrl: '/api'
+        };
+        
+        // Données des thèmes pour les graphiques
+        window.themesDataForChart = {
+            'Communiquer avec Teams': { 
+                color: 'var(--theme-teams)', 
+                description: 'Apprenez à utiliser Microsoft Teams pour communiquer efficacement.' 
+            },
+            'Gérer les tâches (Planner)': { 
+                color: 'var(--theme-planner)', 
+                description: 'Maîtrisez la gestion des tâches d\'équipe avec Planner et To Do.' 
+            },
+            'Gérer mes fichiers (OneDrive/SharePoint)': { 
+                color: 'var(--theme-onedrive)', 
+                description: 'Organisez et partagez vos fichiers avec OneDrive et SharePoint.' 
+            },
+            'Collaborer avec Teams': { 
+                color: 'var(--theme-sharepoint)', 
+                description: 'Découvrez comment collaborer sur des documents via Microsoft Teams.' 
+            }
+        };
+        
+        // Données des services pour les graphiques
+        window.servicesDataForChart = {
+            'Commerce Anecoop-Solagora': { color: 'var(--service-commerce)' },
+            'Comptabilité': { color: 'var(--service-comptabilite)' },
+            'Florensud': { color: 'var(--service-florensud)' },
+            'Informatique': { color: 'var(--service-informatique)' },
+            'Marketing': { color: 'var(--service-marketing)' },
+            'Qualité': { color: 'var(--service-qualite)' },
+            'RH': { color: 'var(--service-rh)' }
         };
     </script>
-
+    
+    <!-- Permet aux différentes pages d'ajouter leurs propres styles -->
     {% block styles %}{% endblock %}
-
-    <style>
-        .theme-badge {
-            display: inline-flex; align-items: center; padding: 0.35em 0.75em; font-size: 0.85em;
-            font-weight: 500; line-height: 1.2; color: #fff !important; text-align: center;
-            white-space: nowrap; vertical-align: baseline; border-radius: var(--bs-border-radius-sm, 0.25rem);
-            box-shadow: var(--bs-box-shadow-sm, 0 .125rem .25rem rgba(0,0,0,.075));
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            margin: 0.15rem 0; position: relative; cursor: default;
-        }
-        .theme-badge:hover { transform: translateY(-1px); box-shadow: var(--bs-box-shadow, 0 .5rem 1rem rgba(0,0,0,.15)); }
-        .theme-badge.theme-comm { background-color: var(--theme-teams, #0078d4); }
-        .theme-badge.theme-planner { background-color: var(--theme-planner, #7719aa); }
-        .theme-badge.theme-onedrive { background-color: var(--theme-onedrive, #0364b8); }
-        .theme-badge.theme-sharepoint { background-color: var(--theme-sharepoint, #038387); }
-        .theme-badge i { margin-right: 0.4em; }
-
-        .tooltip-inner { max-width: 300px; text-align: left; }
-        .stats-card .icon { opacity: 0.6; }
-        .stats-card .title { font-size: 0.7rem; }
-        .stats-card .value { font-size: 1.75rem; }
-        .table th { font-weight: 600; }
-        .table .btn-group-sm .btn { padding: 0.2rem 0.4rem; font-size: 0.75rem; }
-        .card-header h6 { font-size: 0.95rem; }
-        .chart-container { position: relative; } /* For absolute positioning of donut center text */
-    </style>
 </head>
-<body class="d-flex flex-column min-vh-100 bg-light">
-    <div id="loading-overlay" style="position: fixed; top:0; left:0; width:100%; height:100%; background-color: rgba(255,255,255,0.7); z-index: 1090; display:flex; align-items:center; justify-content:center; display: none;">
-        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+<body>
+    <!-- Navigation / Header -->
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-chalkboard-teacher me-2"></i>{{ app_name }}
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" 
+                        aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                
+                <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" 
+                               href="{{ url_for('dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'sessions' %}active{% endif %}" 
+                               href="{{ url_for('sessions') }}">
+                                <i class="fas fa-calendar-alt me-1"></i>Sessions
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'participants' %}active{% endif %}" 
+                               href="{{ url_for('participants') }}">
+                                <i class="fas fa-users me-1"></i>Participants
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" 
+                               href="{{ url_for('services') }}">
+                                <i class="fas fa-building me-1"></i>Services
+                            </a>
+                        </li>
+                        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['admin', 'salles', 'themes', 'activites'] %}active{% endif %}" 
+                               href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" 
+                               aria-expanded="false">
+                                <i class="fas fa-cogs me-1"></i>Administration
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                                <li>
+                                    <a class="dropdown-item {% if request.endpoint == 'admin' %}active{% endif %}" 
+                                       href="{{ url_for('admin') }}">
+                                        <i class="fas fa-toolbox me-1"></i>Panneau d'administration
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if request.endpoint == 'salles' %}active{% endif %}" 
+                                       href="{{ url_for('salles') }}">
+                                        <i class="fas fa-door-open me-1"></i>Gestion des salles
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if request.endpoint == 'themes' %}active{% endif %}" 
+                                       href="{{ url_for('themes') }}">
+                                        <i class="fas fa-book me-1"></i>Gestion des thèmes
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if request.endpoint == 'activites' %}active{% endif %}" 
+                                       href="{{ url_for('activites') }}">
+                                        <i class="fas fa-history me-1"></i>Journal d'activité
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    
+                    <!-- Right side user actions -->
+                    <ul class="navbar-nav">
+                        {% if current_user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user-circle me-1"></i>
+                                {{ current_user.username }}
+                                {% if current_user.role == 'admin' %}
+                                <span class="badge bg-danger">Admin</span>
+                                {% elif current_user.role == 'responsable' %}
+                                <span class="badge bg-success">Resp.</span>
+                                {% endif %}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Connexion
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    
+    <!-- Flash Messages -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    
+    <!-- Main Content -->
+    <main class="container my-4">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center text-muted">
+            <small>&copy; {{ now.year }} {{ app_name }} - Tous droits réservés</small>
+        </div>
+    </footer>
+    
+    <!-- Global Loading Overlay -->
+    <div id="loading-overlay" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center">
+        <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Chargement...</span>
         </div>
     </div>
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">
-                <i class="fab fa-microsoft me-2"></i>{{ app_name | default('Formation Microsoft 365') }}
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt fa-fw me-1"></i>Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'sessions' %}active{% endif %}" href="{{ url_for('sessions') }}"><i class="fas fa-calendar-alt fa-fw me-1"></i>Sessions</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-sitemap fa-fw me-1"></i>Services</a></li>
-
-                    {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['admin', 'participants', 'themes', 'salles', 'activites'] %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-cogs fa-fw me-1"></i>Administration</a>
-                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                             <li><a class="dropdown-item {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}"><i class="fas fa-sliders-h fa-fw me-2"></i>Panneau Admin</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'participants' %}active{% endif %}" href="{{ url_for('participants') }}"><i class="fas fa-users fa-fw me-2"></i>Participants</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'themes' %}active{% endif %}" href="{{ url_for('themes') }}"><i class="fas fa-book fa-fw me-2"></i>Thèmes</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'salles' %}active{% endif %}" href="{{ url_for('salles') }}"><i class="fas fa-building fa-fw me-2"></i>Salles</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'activites' %}active{% endif %}" href="{{ url_for('activites') }}"><i class="fas fa-history fa-fw me-2"></i>Journal d'activité</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-                </ul>
-                <ul class="navbar-nav ms-auto">
-                    {% if current_user.is_authenticated %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
-                            {% if current_user.role == 'admin' %}<span class="badge bg-danger ms-1 small">Admin</span>
-                            {% elif current_user.role == 'responsable' %}<span class="badge bg-info ms-1 small">Resp.</span>{% endif %}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-id-card fa-fw me-2"></i>Mon profil</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt fa-fw me-2"></i>Déconnexion</a></li>
-                        </ul>
-                    </li>
-                    {% else %}
-                    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'login' %}active{% endif %}" href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt fa-fw me-1"></i>Connexion</a></li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    {% block banner %}{% endblock %}
-
-    <main class="container-fluid py-4 px-md-4 flex-shrink-0">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="position-relative" style="z-index: 1100;">
-                    <div class="toast-container position-fixed top-0 end-0 p-3">
-                        {% for category, message in messages %}
-                            <div class="toast align-items-center text-bg-{{ category if category in ['success', 'danger', 'warning', 'info'] else 'secondary' }} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="7000">
-                                <div class="d-flex">
-                                    <div class="toast-body">
-                                         {% if category == 'success' %}<i class="fas fa-check-circle me-2"></i>
-                                         {% elif category == 'danger' %}<i class="fas fa-exclamation-circle me-2"></i>
-                                         {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle me-2"></i>
-                                         {% else %}<i class="fas fa-info-circle me-2"></i>{% endif %}
-                                        {{ message }}
-                                    </div>
-                                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
-    </main>
-
-    <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
-        <div class="container text-center">
-            <span class="text-muted small">© {{ now.year }} {{ app_name | default('Anecoop France - Formation Microsoft 365') }}. Version 1.2.6</span>
-        </div>
-    </footer>
-
-    <div id="toast-container-dynamic" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1150;"></div>
-
-    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="confirmModalLabel">Confirmation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><p id="confirmMessage">Êtes-vous sûr ?</p></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" id="confirmButton">Confirmer</button></div></div></div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js" integrity="sha512-ElRFoEQdI5Ht6kZvyzXhYG9NqjtkmlkfYk0wr6wHxU9JEHakS7UJZNeml5ALk+8IKlU6jDgMabC3vkumRokgJA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-    {% if current_user.is_authenticated %}<input type="hidden" id="user-id" value="{{ current_user.id }}" data-role="{{ current_user.role }}">{% endif %}
-
-    <script src="{{ url_for('static', filename='js/modal-fix.js') }}?v={{ range(1, 100000) | random }}"></script>
+    
+    <!-- JavaScript Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    
+    <!-- Socket.IO (désactivé mais gardé dans le code si besoin plus tard) -->
+    {% if config.get('SOCKETIO_ENABLED', False) %}
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    {% endif %}
+    
+    <!-- Custom Scripts -->
+    <script src="{{ url_for('static', filename='js/modal-fix.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/charts-enhanced.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/static-charts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/polling-updates.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-fixers.js') }}"></script>
+    
+    <!-- Fonction pour améliorer les badges de thème -->
     <script>
-        window.showToast = function(message, type = 'info', duration = 5000) {
-            const toastContainer = document.getElementById('toast-container-dynamic');
-            if (!toastContainer) { console.error('Toast container #toast-container-dynamic not found!'); return; }
-            const toastId = `toast-${Date.now()}`;
-            const toastElement = document.createElement('div');
-            const bsClass = `text-bg-${type === 'message' ? 'info' : type}`;
-            let iconClass = 'fas fa-info-circle';
-            if (type === 'success') iconClass = 'fas fa-check-circle';
-            else if (type === 'danger') iconClass = 'fas fa-times-circle';
-            else if (type === 'warning') iconClass = 'fas fa-exclamation-triangle';
-
-            toastElement.id = toastId;
-            toastElement.className = `toast align-items-center ${bsClass} border-0 mb-2`;
-            toastElement.setAttribute('role', 'alert'); toastElement.setAttribute('aria-live', 'assertive'); toastElement.setAttribute('aria-atomic', 'true');
-            toastElement.innerHTML = `<div class="d-flex"><div class="toast-body"><i class="${iconClass} me-2"></i>${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>`;
-            toastContainer.appendChild(toastElement);
-            const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: duration });
-            toast.show();
-            toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
-        };
-
-        window.showConfirmation = function(message, callback, options = {}) {
-            const modalElement = document.getElementById('confirmModal');
-            const confirmMessageEl = document.getElementById('confirmMessage');
-            const confirmButton = document.getElementById('confirmButton');
-            const modalTitle = modalElement.querySelector('.modal-title');
-
-            if (!modalElement || !confirmMessageEl || !confirmButton || !modalTitle) { console.error('Confirmation modal elements not found!'); return; }
-
-            modalTitle.textContent = options.title || 'Confirmation';
-            confirmMessageEl.innerHTML = message;
-            confirmButton.textContent = options.confirmText || 'Confirmer';
-            confirmButton.className = `btn ${options.confirmButtonClass || 'btn-primary'}`;
-
-            const newConfirmButton = confirmButton.cloneNode(true);
-            confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
-
-            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
-            newConfirmButton.onclick = function() { modalInstance.hide(); if (typeof callback === 'function') { callback(true); } };
-
-            const cancelButton = modalElement.querySelector('.btn-secondary[data-bs-dismiss="modal"]');
-            const newCancelButton = cancelButton.cloneNode(true);
-            cancelButton.parentNode.replaceChild(newCancelButton, cancelButton);
-            newCancelButton.onclick = function() { modalInstance.hide(); if (typeof callback === 'function') { callback(false); }};
-
-            modalInstance.show();
-        };
-
-        var toastElList = [].slice.call(document.querySelectorAll('.toast-container .toast'));
-        toastElList.forEach(function (toastEl) {
-            const toast = bootstrap.Toast.getOrCreateInstance(toastEl);
-            toast.show();
-        });
-
-        // Global theme data for badge enhancement
-        window.themesData = {
-            'Communiquer avec Teams': { description: 'Maîtrisez la communication en ligne avec Microsoft Teams...', color: 'var(--theme-teams, #0078d4)', icon: 'fas fa-comments', class: 'theme-comm' },
-            'Gérer les tâches (Planner)': { description: 'Organisez et suivez vos tâches d\'équipe avec Microsoft Planner...', color: 'var(--theme-planner, #7719aa)', icon: 'fas fa-tasks', class: 'theme-planner' },
-            'Gérer mes fichiers (OneDrive/SharePoint)': { description: 'Stockez, partagez et collaborez sur vos documents...', color: 'var(--theme-onedrive, #0364b8)', icon: 'fas fa-file-alt', class: 'theme-onedrive' },
-            'Collaborer avec Teams': { description: 'Travaillez en équipe efficacement grâce à Teams...', color: 'var(--theme-sharepoint, #038387)', icon: 'fas fa-users', class: 'theme-sharepoint' }
-            // Add other themes here if they have specific colors/icons
-        };
-
-        function createThemeBadgeHTML(themeName) {
-            const themeInfo = window.themesData[themeName] || { description: 'Formation Microsoft 365', color: '#6c757d', icon: 'fas fa-info-circle', class: 'bg-secondary text-white' };
-            return `<span class="theme-badge ${themeInfo.class}" data-theme="${themeName}" style="background-color: ${getResolvedColor(themeInfo.color)};" data-bs-toggle="tooltip" data-bs-placement="top" title="${themeInfo.description.replace(/"/g, '"')}">` +
-                   `<i class="${themeInfo.icon} me-1"></i>${themeName}` +
-                   `</span>`;
-        }
-
-        function getResolvedColor(colorNameOrVar, defaultColor = '#6c757d') {
-            if (typeof colorNameOrVar === 'string' && colorNameOrVar.startsWith('var(')) {
-                const varName = colorNameOrVar.match(/--[a-zA-Z0-9-]+/);
-                if (varName) {
-                    const resolved = getComputedStyle(document.documentElement).getPropertyValue(varName[0]);
-                    return resolved ? resolved.trim() : defaultColor;
-                }
-            }
-            return colorNameOrVar || defaultColor;
-        }
-
-        function isAlreadyEnhanced(element) {
-            return element.classList.contains('theme-badge') || element.querySelector('.theme-badge') || (element.parentElement && element.parentElement.classList.contains('theme-badge'));
-        }
-
+        // Fonction pour améliorer tous les badges de thème dans la page
         window.enhanceThemeBadgesGlobally = function() {
-            if (window.dashboardConfig && window.dashboardConfig.debugMode) console.log('Global Layout: Running enhanceThemeBadgesGlobally...');
-
-            document.querySelectorAll('.js-theme-cell').forEach(cell => {
-                const themeName = cell.textContent.trim();
-                if (themeName && window.themesData[themeName] && !isAlreadyEnhanced(cell)) {
-                    cell.innerHTML = createThemeBadgeHTML(themeName);
-                } else if (themeName && !isAlreadyEnhanced(cell) && !window.themesData[themeName]) { // Default badge for unknown themes
-                    cell.innerHTML = createThemeBadgeHTML(themeName); // Will use default from createThemeBadgeHTML
+            const themeBadges = document.querySelectorAll('.theme-badge');
+            themeBadges.forEach(function(badge) {
+                // Ne traiter que si l'élément n'a pas déjà été amélioré
+                if (badge.dataset.enhanced === 'true') return;
+                
+                const themeName = badge.textContent.trim();
+                const themeData = window.themesDataForChart[themeName];
+                
+                if (themeData) {
+                    // Ajouter une classe CSS spécifique selon le thème
+                    if (themeName.includes('Teams') && themeName.includes('Communiquer')) {
+                        badge.classList.add('theme-comm');
+                    } else if (themeName.includes('Planner')) {
+                        badge.classList.add('theme-planner');
+                    } else if (themeName.includes('OneDrive') || themeName.includes('fichiers')) {
+                        badge.classList.add('theme-onedrive');
+                    } else if (themeName.includes('Collaborer')) {
+                        badge.classList.add('theme-sharepoint');
+                    }
+                    
+                    // Ajouter une icône appropriée
+                    let icon = '';
+                    if (themeName.includes('Teams') && themeName.includes('Communiquer')) {
+                        icon = '<i class="fas fa-comments"></i> ';
+                    } else if (themeName.includes('Planner')) {
+                        icon = '<i class="fas fa-tasks"></i> ';
+                    } else if (themeName.includes('OneDrive') || themeName.includes('fichiers')) {
+                        icon = '<i class="fas fa-file"></i> ';
+                    } else if (themeName.includes('Collaborer')) {
+                        icon = '<i class="fas fa-users"></i> ';
+                    }
+                    
+                    // Ajouter un tooltip avec la description
+                    if (themeData.description) {
+                        const tooltip = document.createElement('span');
+                        tooltip.className = 'theme-tooltip';
+                        tooltip.textContent = themeData.description;
+                        badge.appendChild(tooltip);
+                    }
+                    
+                    // Mettre à jour le contenu avec l'icône
+                    badge.innerHTML = icon + themeName + (badge.querySelector('.theme-tooltip') ? badge.querySelector('.theme-tooltip').outerHTML : '');
+                    
+                    // Marquer comme amélioré
+                    badge.dataset.enhanced = 'true';
                 }
             });
-
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-                const newTooltipTriggerList = [].slice.call(document.querySelectorAll('.js-theme-cell [data-bs-toggle="tooltip"]'));
-                newTooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                    if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
-                       try { new bootstrap.Tooltip(tooltipTriggerEl); } catch(e) { console.warn("Tooltip init error in enhanceThemeBadgesGlobally:", e); }
-                    }
-                });
+        };
+        
+        // Fonction pour les toasts (notifications)
+        window.showToast = function(message, type) {
+            const toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) {
+                const newContainer = document.createElement('div');
+                newContainer.id = 'toast-container';
+                newContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                document.body.appendChild(newContainer);
             }
-        }
-    </script>
-
-    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}?v={{ range(1, 100000) | random }}"></script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ range(1, 100000) | random }}"></script>
-    <script src="{{ url_for('static', filename='js/static-charts.js') }}?v={{ range(1, 100000) | random }}"></script>
-    <script src="{{ url_for('static', filename='js/polling-updates.js') }}?v={{ range(1, 100000) | random }}"></script>
-    <script src="{{ url_for('static', filename='js/ui-fixers.js') }}?v={{ range(1, 100000) | random }}"></script>
-    <script src="{{ url_for('static', filename='js/charts-enhanced.js') }}?v={{ range(1, 100000) | random }}"></script>
-
-    <script>
+            
+            const container = document.getElementById('toast-container');
+            const toastId = 'toast-' + Date.now();
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center text-white bg-${type || 'primary'}" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', toastHTML);
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+            toast.show();
+        };
+        
+        // Appliquer les améliorations au chargement de la page
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-                console.log('Global layout.html DOMContentLoaded: Initializing theme badges and tooltips.');
-            }
-            enhanceThemeBadgesGlobally(); // Initial call for badges
-
-            // General tooltip initialization for the whole page
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                tooltipTriggerList.map(function (tooltipTriggerEl) {
-                    if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
-                        return new bootstrap.Tooltip(tooltipTriggerEl, { container: 'body' }); // Specify container to avoid z-index issues
-                    }
-                    return null;
-                });
-            }
-
-            // MutationObserver for dynamic content (badges and tooltips)
-            if (window.MutationObserver) {
-                const observer = new MutationObserver(function(mutations) {
-                    let needsReEnhance = false;
-                    let needsTooltipReinit = false;
-                    for (const mutation of mutations) {
-                        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                            for (const node of mutation.addedNodes) {
-                                if (node.nodeType === 1) { // Element node
-                                    if (node.matches('.js-theme-cell') || node.querySelector('.js-theme-cell')) {
-                                        needsReEnhance = true;
-                                    }
-                                    if (node.matches('[data-bs-toggle="tooltip"]') || node.querySelector('[data-bs-toggle="tooltip"]')) {
-                                        needsTooltipReinit = true;
-                                    }
-                                }
-                            }
-                        }
-                        if (needsReEnhance && needsTooltipReinit) break;
-                    }
-
-                    if (needsReEnhance) {
-                        if (window.dashboardConfig && window.dashboardConfig.debugMode) console.log('Global Layout Observer: DOM changed, re-enhancing theme badges.');
-                        setTimeout(enhanceThemeBadgesGlobally, 50);
-                    }
-                    if (needsTooltipReinit) {
-                         if (window.dashboardConfig && window.dashboardConfig.debugMode) console.log('Global Layout Observer: DOM changed, re-initializing tooltips.');
-                         setTimeout(() => {
-                            const newTooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                            newTooltips.forEach(el => {
-                                if (!bootstrap.Tooltip.getInstance(el)) new bootstrap.Tooltip(el, { container: 'body' });
-                            });
-                         }, 50);
-                    }
-                });
-                observer.observe(document.body, { childList: true, subtree: true });
-            }
+            window.enhanceThemeBadgesGlobally();
+            
+            // Initialiser tous les tooltips
+            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
         });
     </script>
-
+    
+    <!-- Custom Scripts par page -->
     {% block scripts %}{% endblock %}
 </body>
 </html>
