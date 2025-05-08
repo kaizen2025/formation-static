@@ -194,6 +194,31 @@ def shutdown_session_proper(exception=None):
         except Exception as e:
             app.logger.error(f"Teardown: Erreur lors du retrait de la session SQLAlchemy: {e}")
 
+@app.before_request
+def limit_connections_if_needed():
+    """Limite les connexions si le serveur est sous pression"""
+    try:
+        # Ne pas limiter les requêtes statiques 
+        if request.path.startswith('/static/'):
+            return None
+            
+        # Vérifier si le nombre d'erreurs récentes est trop élevé
+        connection_errors = getattr(app, '_connection_errors', 0)
+        if connection_errors > 10:
+            # Réinitialiser après un certain temps
+            if hasattr(app, '_last_connection_error') and (datetime.now(UTC) - app._last_connection_error).total_seconds() > 300:
+                app._connection_errors = 0
+                return None
+                
+            # Pour les requêtes API non essentielles, renvoyer une réponse 429 (too many requests)
+            if request.path.startswith('/api/') and not request.path.endswith('_essential'):
+                return jsonify({
+                    "error": "Service temporarily at capacity",
+                    "message": "The server is experiencing high load. Please try again later."
+                }), 429
+    except Exception as e:
+        app.logger.error(f"Error in limiting connections: {e}")
+    return None
 # --- Décorateur DB Retry ---
 def db_operation_with_retry(max_retries=3, retry_delay=0.5,
                             retry_on_exceptions=(OperationalError, TimeoutError),
@@ -2418,6 +2443,18 @@ def themes():
         flash("Une erreur interne est survenue lors du chargement des thèmes.", "danger")
         return redirect(url_for('admin'))
 
+def optimize_db_connections():
+    """Optimise les connexions à la base de données en cours"""
+    try:
+        # Exécuter DISCARD ALL pour libérer les ressources non essentielles
+        with db.engine.connect() as conn:
+            conn.execute(text("DISCARD ALL"))
+        
+        app.logger.info("Database connections optimized with DISCARD ALL")
+        return True
+    except Exception as e:
+        app.logger.error(f"Error optimizing database connections: {e}")
+        return False
 
 # --- add_theme, update_theme ---
 @app.route('/add_theme', methods=['POST'])
@@ -2810,20 +2847,43 @@ def api_dashboard_essential():
             'participants': participants_data,
             'activites': activites_data,
             'timestamp': datetime.now(UTC).timestamp(),
-            'light_mode': light_mode
+            'light_mode': light_mode,
+            'status': 'ok'
         }
         
-        # Cache for 20 seconds in light mode, 60 seconds in full mode
+        # Cache for shorter time (20 seconds in light mode, 60 seconds in full mode)
         cache.set(cache_key, response_data, timeout=20 if light_mode else 60)
         
+        # Optimiser les connexions DB après une requête complète
+        if not light_mode:
+            optimize_db_connections()
+            
         return jsonify(response_data)
     except SQLAlchemyError as e:
         db.session.rollback()
+        # Incrémenter le compteur d'erreurs
+        app._connection_errors = getattr(app, '_connection_errors', 0) + 1
+        app._last_connection_error = datetime.now(UTC)
+        
         app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
-        return jsonify({"error": "Database error", "message": str(e)}), 500
+        return jsonify({
+            "error": "Database error", 
+            "message": str(e),
+            "status": "error",
+            "timestamp": datetime.now(UTC).timestamp()
+        }), 500
     except Exception as e:
+        # Incrémenter le compteur d'erreurs
+        app._connection_errors = getattr(app, '_connection_errors', 0) + 1
+        app._last_connection_error = datetime.now(UTC)
+        
         app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error", "message": str(e)}), 500
+        return jsonify({
+            "error": "Internal server error", 
+            "message": str(e),
+            "status": "error",
+            "timestamp": datetime.now(UTC).timestamp()
+        }), 500
         
 @app.route('/api/sessions')
 @limiter.limit("30 per minute")
