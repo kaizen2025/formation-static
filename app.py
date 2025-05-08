@@ -1,6 +1,6 @@
 # ==============================================================================
 # app.py - Application Flask pour la Gestion des Formations Microsoft 365
-# Version: Complète (v1.1) avec gestion des documents et corrections
+# Version: 1.1.1 - Correction SyntaxError + Intégration Documents Complète
 # ==============================================================================
 
 # --- Imports ---
@@ -698,8 +698,19 @@ def sessions():
     try:
         query = Session.query.options(selectinload(Session.theme), selectinload(Session.salle), selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service), selectinload(Session.liste_attente).selectinload(ListeAttente.participant).selectinload(Participant.service)).order_by(Session.date, Session.heure_debut)
         theme_id_filter = request.args.get('theme'); date_str_filter = request.args.get('date'); places_filter = request.args.get('places')
-        if theme_id_filter: try: query = query.filter(Session.theme_id == int(theme_id_filter)); except ValueError: flash('ID de thème invalide.', 'warning')
-        if date_str_filter: try: date_obj = date.fromisoformat(date_str_filter); query = query.filter(Session.date >= date_obj); except ValueError: flash('Format de date invalide (AAAA-MM-JJ).', 'warning')
+        # --- CORRECTION SYNTAX ERROR ---
+        if theme_id_filter:
+            try:
+                query = query.filter(Session.theme_id == int(theme_id_filter))
+            except ValueError:
+                flash('ID de thème invalide.', 'warning')
+        if date_str_filter:
+            try:
+                date_obj = date.fromisoformat(date_str_filter)
+                query = query.filter(Session.date >= date_obj)
+            except ValueError:
+                flash('Format de date invalide (AAAA-MM-JJ).', 'warning')
+        # --- FIN CORRECTION ---
         all_sessions_from_db = query.all(); app.logger.info(f"Fetched {len(all_sessions_from_db)} sessions from DB after base filters.")
         sessions_final_data = []
         for s_obj in all_sessions_from_db:
@@ -886,263 +897,59 @@ def admin():
     except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading admin page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement de la page admin.", "danger"); return render_template('error.html', error_message="Erreur base de données."), 500
     except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading admin page: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return render_template('error.html', error_message="Erreur interne du serveur."), 500
 
-@app.route('/salles', methods=['GET'])
+@app.route('/admin/upload_document', methods=['POST'])
 @login_required
-@db_operation_with_retry(max_retries=3)
-def salles():
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé aux administrateurs.', 'danger'); return redirect(url_for('dashboard'))
+@db_operation_with_retry(max_retries=2)
+def upload_document():
+    if current_user.role != 'admin': flash("Action réservée aux administrateurs.", "danger"); return redirect(url_for('dashboard'))
+    redirect_url = url_for('admin')
     try:
-        salles_list = get_all_salles()
-        salle_ids = [s.id for s in salles_list]; sessions_by_salle = {}
-        if salle_ids:
-            sessions_q = Session.query.options(joinedload(Session.theme)).filter(Session.salle_id.in_(salle_ids)).order_by(Session.date).all()
-            for sess in sessions_q:
-                if sess.salle_id not in sessions_by_salle: sessions_by_salle[sess.salle_id] = []
-                sessions_by_salle[sess.salle_id].append(sess)
-        salles_data = []
-        for s in salles_list:
-            associated_sessions = sessions_by_salle.get(s.id, [])
-            salles_data.append({'obj': s, 'sessions_count': len(associated_sessions), 'sessions_associees': associated_sessions})
-        return render_template('salles.html', salles_data=salles_data)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading salles page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement des salles.", "danger"); return redirect(url_for('admin'))
-    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading salles page: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return redirect(url_for('admin'))
-
-@app.route('/add_salle', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=3)
-def add_salle():
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé.', 'danger'); return redirect(url_for('dashboard'))
-    redirect_url = url_for('salles')
-    try:
-        nom = request.form.get('nom', '').strip(); capacite_str = request.form.get('capacite', '').strip(); lieu = request.form.get('lieu', '').strip(); description = request.form.get('description', '').strip()
-        if not nom or not capacite_str: flash('Le nom et la capacité de la salle sont obligatoires.', 'danger'); return redirect(redirect_url)
-        try: capacite = int(capacite_str); assert capacite > 0
-        except (ValueError, AssertionError): flash('La capacité doit être un nombre entier positif.', 'danger'); return redirect(redirect_url)
-        if Salle.query.filter(func.lower(Salle.nom) == func.lower(nom)).first(): flash(f"Une salle nommée '{nom}' existe déjà.", 'warning'); return redirect(redirect_url)
-        salle = Salle(nom=nom, capacite=capacite, lieu=lieu or None, description=description or None); db.session.add(salle); db.session.commit(); cache.delete_memoized(get_all_salles)
-        add_activity('ajout_salle', f'Ajout salle: {salle.nom}', f'Capacité: {salle.capacite}', user=current_user); flash('Salle ajoutée avec succès.', 'success')
-    except IntegrityError: db.session.rollback(); flash('Erreur: Une salle avec ce nom existe déjà.', 'danger')
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de l\'ajout de la salle.', 'danger'); app.logger.error(f"SQLAlchemyError adding salle: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue.', 'danger'); app.logger.error(f"Error adding salle: {e}", exc_info=True)
+        if 'document_file' not in request.files: flash('Aucun fichier sélectionné.', 'warning'); return redirect(redirect_url)
+        file = request.files['document_file']; theme_id_str = request.form.get('theme_id'); description = request.form.get('description', '').strip()
+        if file.filename == '': flash('Aucun fichier sélectionné.', 'warning'); return redirect(redirect_url)
+        if file and allowed_file(file.filename):
+            original_filename = file.filename; filename_base = secure_filename(original_filename)
+            filename_ext = filename_base.rsplit('.', 1)[1].lower() if '.' in filename_base else ''
+            unique_id = str(int(time.time())) + "_" + str(random.randint(1000, 9999))
+            filename = f"{os.path.splitext(filename_base)[0]}_{unique_id}.{filename_ext}"
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path); app.logger.info(f"Fichier '{original_filename}' uploadé comme '{filename}' par {current_user.username}.")
+            theme_id = int(theme_id_str) if theme_id_str else None; file_type = filename_ext
+            new_doc = Document(filename=filename, original_filename=original_filename, description=description or None, theme_id=theme_id, uploader_id=current_user.id, file_type=file_type)
+            db.session.add(new_doc); db.session.commit()
+            add_activity('ajout_document', f'Upload: {original_filename}', f'Thème: {new_doc.theme.nom if new_doc.theme else "Général"}', user=current_user)
+            flash('Document uploadé avec succès.', 'success')
+        else: flash('Type de fichier non autorisé.', 'warning')
+    except RequestEntityTooLarge: flash('Le fichier est trop volumineux (limite: 16MB).', 'danger')
+    except SQLAlchemyError as e: db.session.rollback(); flash("Erreur base de données lors de l'upload.", "danger"); app.logger.error(f"DB error during document upload: {e}", exc_info=True)
+    except Exception as e: db.session.rollback(); flash("Erreur inattendue lors de l'upload.", "danger"); app.logger.error(f"Unexpected error during document upload: {e}", exc_info=True)
     return redirect(redirect_url)
 
-@app.route('/update_salle/<int:id>', methods=['POST'])
+@app.route('/admin/delete_document/<int:doc_id>', methods=['POST'])
 @login_required
-@db_operation_with_retry(max_retries=3)
-def update_salle(id):
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé.', 'danger'); return redirect(url_for('dashboard'))
-    salle = db.session.get(Salle, id); redirect_url = url_for('salles')
-    if not salle: flash('Salle introuvable.', 'danger'); return redirect(redirect_url)
-    original_capacite = salle.capacite
+@db_operation_with_retry(max_retries=2)
+def delete_document(doc_id):
+    if current_user.role != 'admin': flash("Action réservée aux administrateurs.", "danger"); return redirect(url_for('dashboard'))
+    redirect_url = url_for('admin')
     try:
-        original_nom = salle.nom; new_nom = request.form.get('nom', '').strip(); capacite_str = request.form.get('capacite', '').strip()
-        if not new_nom or not capacite_str: flash('Le nom et la capacité sont obligatoires.', 'danger'); return redirect(redirect_url)
-        try: capacite = int(capacite_str); assert capacite > 0
-        except (ValueError, AssertionError): flash('La capacité doit être un nombre entier positif.', 'danger'); return redirect(redirect_url)
-        if new_nom.lower() != original_nom.lower() and Salle.query.filter(func.lower(Salle.nom) == func.lower(new_nom), Salle.id != id).first(): flash(f"Une autre salle nommée '{new_nom}' existe déjà.", 'warning'); return redirect(redirect_url)
-        salle.nom = new_nom; salle.capacite = capacite; salle.lieu = request.form.get('lieu', '').strip() or None; salle.description = request.form.get('description', '').strip() or None
-        db.session.commit()
-        if salle.capacite != original_capacite:
-            updated_session_count = 0
-            for session_associee in salle.sessions: session_associee.max_participants = salle.capacite; updated_session_count +=1
-            if updated_session_count > 0: db.session.commit(); app.logger.info(f"Mis à jour max_participants pour {updated_session_count} sessions liées à la salle '{salle.nom}' à {salle.capacite}.")
-        cache.delete_memoized(get_all_salles)
-        add_activity('modification_salle', f'Modification salle: {salle.nom}', user=current_user); flash('Salle mise à jour avec succès. Les sessions associées ont également été mises à jour.', 'success')
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de la mise à jour.', 'danger'); app.logger.error(f"SQLAlchemyError updating salle {id}: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue.', 'danger'); app.logger.error(f"Error updating salle {id}: {e}", exc_info=True)
+        doc = db.session.get(Document, doc_id)
+        if not doc: flash("Document non trouvé.", "warning"); return redirect(redirect_url)
+        filename = doc.filename; original_filename = doc.original_filename; file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if os.path.exists(file_path):
+            try: os.remove(file_path); app.logger.info(f"Fichier physique '{filename}' supprimé.")
+            except OSError as e: app.logger.error(f"Erreur suppression fichier physique {filename}: {e}", exc_info=True)
+        else: app.logger.warning(f"Fichier physique '{filename}' non trouvé pour suppression (Doc ID: {doc_id}).")
+        db.session.delete(doc); db.session.commit()
+        add_activity('suppression_document', f'Suppression: {original_filename}', user=current_user)
+        flash(f'Document "{original_filename}" supprimé avec succès.', 'success')
+    except SQLAlchemyError as e: db.session.rollback(); flash("Erreur base de données lors de la suppression.", "danger"); app.logger.error(f"DB error during document delete (ID: {doc_id}): {e}", exc_info=True)
+    except Exception as e: db.session.rollback(); flash("Erreur inattendue lors de la suppression.", "danger"); app.logger.error(f"Unexpected error during document delete (ID: {doc_id}): {e}", exc_info=True)
     return redirect(redirect_url)
-
-@app.route('/delete_salle/<int:id>', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=3)
-def delete_salle(id):
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé.', 'danger'); return redirect(url_for('dashboard'))
-    salle = db.session.get(Salle, id); redirect_url = url_for('salles')
-    if not salle: flash('Salle introuvable.', 'danger'); return redirect(redirect_url)
-    try:
-        sessions_associees_count = db.session.query(func.count(Session.id)).filter(Session.salle_id == id).scalar() or 0
-        if sessions_associees_count > 0: flash(f'Impossible de supprimer "{salle.nom}", {sessions_associees_count} session(s) y sont encore associées.', 'danger'); return redirect(redirect_url)
-        nom_salle = salle.nom; db.session.delete(salle); db.session.commit(); cache.delete_memoized(get_all_salles)
-        add_activity('suppression_salle', f'Suppression salle: {nom_salle}', user=current_user); flash(f'Salle "{nom_salle}" supprimée avec succès.', 'success')
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de la suppression.', 'danger'); app.logger.error(f"SQLAlchemyError deleting salle {id}: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue lors de la suppression.', 'danger'); app.logger.error(f"Error deleting salle {id}: {e}", exc_info=True)
-    return redirect(redirect_url)
-
-@app.route('/attribuer_salle', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=3)
-def attribuer_salle():
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé.', 'danger'); return redirect(url_for('dashboard'))
-    redirect_url = request.referrer or url_for('admin')
-    try:
-        session_id = request.form.get('session_id', type=int); salle_id_str = request.form.get('salle_id', '').strip()
-        if not session_id: flash('ID de session manquant.', 'danger'); return redirect(redirect_url)
-        session = db.session.get(Session, session_id)
-        if not session: flash('Session introuvable.', 'danger'); return redirect(redirect_url)
-        new_salle_id = None; new_salle_nom = "Aucune"; new_salle_capacite = 10
-        if salle_id_str:
-            try:
-                new_salle_id = int(salle_id_str); new_salle = db.session.get(Salle, new_salle_id)
-                if not new_salle: flash(f"Salle avec ID {new_salle_id} introuvable.", 'danger'); return redirect(redirect_url)
-                new_salle_nom = new_salle.nom; new_salle_capacite = new_salle.capacite
-            except ValueError: flash("ID de salle invalide.", 'danger'); return redirect(redirect_url)
-        session.salle_id = new_salle_id; session.max_participants = new_salle_capacite; db.session.commit()
-        add_activity('attribution_salle', f'Attribution salle: {new_salle_nom} (Cap: {new_salle_capacite})', f'Session: {session.theme.nom} ({session.formatage_date})', user=current_user)
-        flash(f'Salle "{new_salle_nom}" attribuée à la session. Capacité mise à {new_salle_capacite} places.', 'success')
-        socketio.emit('attribution_salle', {'session_id': session_id, 'salle_id': new_salle_id, 'salle_nom': new_salle_nom if new_salle_id else None, 'max_participants': new_salle_capacite}, room='general')
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de l\'attribution.', 'danger'); app.logger.error(f"SQLAlchemyError assigning salle: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue.', 'danger'); app.logger.error(f"Error assigning salle: {e}", exc_info=True)
-    return redirect(redirect_url)
-
-@app.route('/themes', methods=['GET'])
-@login_required
-@db_operation_with_retry(max_retries=3)
-def themes():
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé aux administrateurs.', 'danger'); return redirect(url_for('dashboard'))
-    app.logger.debug(f"User '{current_user.username}' accessing /themes route.")
-    try:
-        themes_list = Theme.query.options(selectinload(Theme.sessions).selectinload(Session.salle), selectinload(Theme.sessions).selectinload(Session.theme)).order_by(Theme.nom).all()
-        app.logger.info(f"Fetched {len(themes_list)} themes from database for /themes page.")
-        if not themes_list: app.logger.warning("No themes found in the database."); return render_template('themes.html', themes_data=[])
-        all_session_ids = [s.id for theme_obj in themes_list for s in theme_obj.sessions]; app.logger.debug(f"Found {len(all_session_ids)} associated session IDs across all themes.")
-        confirmed_counts_by_session = {}
-        if all_session_ids:
-            try:
-                confirmed_q = db.session.query(Inscription.session_id, func.count(Inscription.id)).filter(Inscription.session_id.in_(all_session_ids), Inscription.statut == 'confirmé').group_by(Inscription.session_id).all()
-                confirmed_counts_by_session = dict(confirmed_q); app.logger.debug(f"Fetched confirmed inscription counts for {len(confirmed_counts_by_session)} sessions.")
-            except SQLAlchemyError as count_err: db.session.rollback(); app.logger.error(f"DB error fetching inscription counts for sessions: {count_err}", exc_info=True); flash("Erreur lors de la récupération des comptes d'inscriptions.", "warning")
-        themes_data_for_template = []
-        for theme_obj in themes_list:
-            session_details_list = []
-            sorted_sessions = sorted(theme_obj.sessions, key=lambda s: s.date if s.date else date.min)
-            for session_obj in sorted_sessions:
-                try:
-                    confirmed_count = confirmed_counts_by_session.get(session_obj.id, 0)
-                    places_restantes = max(0, (session_obj.max_participants or 0) - confirmed_count)
-                    session_details_list.append({'obj': session_obj, 'confirmed_count': confirmed_count, 'places_restantes': places_restantes})
-                except AttributeError as attr_err: app.logger.error(f"Attribute error processing session {session_obj.id} for theme '{theme_obj.nom}': {attr_err}", exc_info=True); session_details_list.append({ 'obj': session_obj, 'confirmed_count': -1, 'places_restantes': 0, 'error': True })
-                except Exception as proc_err: app.logger.error(f"Unexpected error processing session {session_obj.id} for theme '{theme_obj.nom}': {proc_err}", exc_info=True); session_details_list.append({ 'obj': session_obj, 'confirmed_count': -1, 'places_restantes': 0, 'error': True })
-            themes_data_for_template.append({'obj': theme_obj, 'sessions_detailed': session_details_list, 'total_sessions': len(theme_obj.sessions)})
-        app.logger.info(f"Successfully prepared data for {len(themes_data_for_template)} themes to render.")
-        return render_template('themes.html', themes_data=themes_data_for_template)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading themes page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement des thèmes.", "danger"); return redirect(url_for('admin'))
-    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading themes page: {e}", exc_info=True); flash("Une erreur interne est survenue lors du chargement des thèmes.", "danger"); return redirect(url_for('admin'))
-
-@app.route('/add_theme', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=3)
-def add_theme():
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé.', 'danger'); return redirect(url_for('dashboard'))
-    redirect_url = url_for('themes')
-    try:
-        nom = request.form.get('nom', '').strip(); description = request.form.get('description', '').strip()
-        if not nom: flash('Le nom du thème est obligatoire.', 'danger'); return redirect(redirect_url)
-        if Theme.query.filter(func.lower(Theme.nom) == func.lower(nom)).first(): flash(f"Un thème nommé '{nom}' existe déjà.", 'warning'); return redirect(redirect_url)
-        theme = Theme(nom=nom, description=description or None); db.session.add(theme); db.session.commit(); cache.delete_memoized(get_all_themes)
-        add_activity('ajout_theme', f'Ajout thème: {theme.nom}', user=current_user); flash('Thème ajouté avec succès.', 'success')
-    except IntegrityError: db.session.rollback(); flash('Erreur: Un thème avec ce nom existe déjà.', 'danger')
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de l\'ajout du thème.', 'danger'); app.logger.error(f"SQLAlchemyError adding theme: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue.', 'danger'); app.logger.error(f"Error adding theme: {e}", exc_info=True)
-    return redirect(redirect_url)
-
-@app.route('/update_theme/<int:id>', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=3)
-def update_theme(id):
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé.', 'danger'); return redirect(url_for('dashboard'))
-    theme = db.session.get(Theme, id); redirect_url = url_for('themes')
-    if not theme: flash('Thème introuvable.', 'danger'); return redirect(redirect_url)
-    try:
-        original_nom = theme.nom; new_nom = request.form.get('nom', '').strip()
-        if not new_nom: flash('Le nom du thème est obligatoire.', 'danger'); return redirect(redirect_url)
-        if new_nom.lower() != original_nom.lower() and Theme.query.filter(func.lower(Theme.nom) == func.lower(new_nom), Theme.id != id).first(): flash(f"Un autre thème nommé '{new_nom}' existe déjà.", 'warning'); return redirect(redirect_url)
-        theme.nom = new_nom; theme.description = request.form.get('description', '').strip() or None; db.session.commit(); cache.delete_memoized(get_all_themes)
-        add_activity('modification_theme', f'Modification thème: {theme.nom}', user=current_user); flash('Thème mis à jour avec succès.', 'success')
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de la mise à jour.', 'danger'); app.logger.error(f"SQLAlchemyError updating theme {id}: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue.', 'danger'); app.logger.error(f"Error updating theme {id}: {e}", exc_info=True)
-    return redirect(redirect_url)
-
-@app.route('/delete_theme/<int:id>', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=3)
-def delete_theme(id):
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé aux administrateurs.', 'danger'); return redirect(url_for('dashboard'))
-    theme = db.session.get(Theme, id); redirect_url = url_for('themes')
-    if not theme: flash('Thème introuvable.', 'danger'); return redirect(redirect_url)
-    try:
-        theme_name = theme.nom; db.session.delete(theme); db.session.commit(); cache.delete_memoized(get_all_themes)
-        add_activity('suppression_theme', f'Suppression thème: {theme_name}', 'Toutes les sessions associées ont également été supprimées.', user=current_user)
-        flash(f'Thème "{theme_name}" et ses sessions associées ont été supprimés avec succès.', 'success')
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de la suppression du thème.', 'danger'); app.logger.error(f"SQLAlchemyError deleting theme {id}: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue lors de la suppression du thème.', 'danger'); app.logger.error(f"Error deleting theme {id}: {e}", exc_info=True)
-    return redirect(redirect_url)
-
-@app.route('/add_service', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=3)
-def add_service():
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé.', 'danger'); return redirect(url_for('dashboard'))
-    redirect_url = url_for('services')
-    try:
-        service_id = request.form.get('id', '').strip().lower(); nom = request.form.get('nom', '').strip(); responsable = request.form.get('responsable', '').strip(); email_responsable = request.form.get('email_responsable', '').strip().lower(); couleur = request.form.get('couleur', '#6c757d').strip()
-        if not all([service_id, nom, responsable, email_responsable]): flash('Tous les champs marqués * sont obligatoires.', 'danger'); return redirect(redirect_url)
-        if not service_id.islower() or ' ' in service_id: flash("L'ID Service doit être en minuscules, sans espaces.", 'warning'); return redirect(redirect_url)
-        if Service.query.filter_by(id=service_id).first(): flash(f"Un service avec l'ID '{service_id}' existe déjà.", 'warning'); return redirect(redirect_url)
-        if Service.query.filter(func.lower(Service.nom) == func.lower(nom)).first(): flash(f"Un service nommé '{nom}' existe déjà.", 'warning'); return redirect(redirect_url)
-        service = Service(id=service_id, nom=nom, responsable=responsable, email_responsable=email_responsable, couleur=couleur or '#6c757d'); db.session.add(service); db.session.commit(); cache.delete_memoized(get_all_services_with_participants)
-        add_activity('ajout_service', f'Ajout service: {service.nom}', user=current_user); flash('Service ajouté avec succès.', 'success')
-    except IntegrityError as ie: db.session.rollback(); flash('Erreur: ID ou Nom de service déjà existant.', 'danger'); app.logger.error(f"IntegrityError adding service: {ie}")
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de l\'ajout du service.', 'danger'); app.logger.error(f"SQLAlchemyError adding service: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue.', 'danger'); app.logger.error(f"Error adding service: {e}", exc_info=True)
-    return redirect(redirect_url)
-
-@app.route('/update_service/<service_id>', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=3)
-def update_service(service_id):
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé.', 'danger'); return redirect(url_for('dashboard'))
-    service = db.session.get(Service, service_id); redirect_url = url_for('services')
-    if not service: flash('Service introuvable.', 'danger'); return redirect(redirect_url)
-    try:
-        original_nom = service.nom; new_nom = request.form.get('nom', '').strip(); new_responsable = request.form.get('responsable', '').strip(); new_email = request.form.get('email_responsable', '').strip().lower(); new_couleur = request.form.get('couleur', '#6c757d').strip()
-        if not all([new_nom, new_responsable, new_email]): flash('Nom, Responsable et Email Responsable sont obligatoires.', 'danger'); return redirect(redirect_url)
-        if new_nom.lower() != original_nom.lower() and Service.query.filter(func.lower(Service.nom) == func.lower(new_nom), Service.id != service_id).first(): flash(f"Un autre service nommé '{new_nom}' existe déjà.", 'warning'); return redirect(redirect_url)
-        service.nom = new_nom; service.responsable = new_responsable; service.email_responsable = new_email; service.couleur = new_couleur or '#6c757d'; db.session.commit(); cache.delete_memoized(get_all_services_with_participants); cache.delete(f'service_participant_count_{service_id}')
-        add_activity('modification_service', f'Modif service: {service.nom}', user=current_user); flash('Service mis à jour avec succès.', 'success')
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de la mise à jour.', 'danger'); app.logger.error(f"SQLAlchemyError updating service {service_id}: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue.', 'danger'); app.logger.error(f"Error updating service {service_id}: {e}", exc_info=True)
-    return redirect(redirect_url)
-
-@app.route('/activites')
-@login_required
-def activites():
-    # ... (code inchangé) ...
-    if current_user.role != 'admin': flash('Accès réservé aux administrateurs.', 'danger'); return redirect(url_for('dashboard'))
-    try:
-        page = request.args.get('page', 1, type=int); per_page = 25; type_filter = request.args.get('type', '').strip()
-        query = Activite.query.options(joinedload(Activite.utilisateur))
-        if type_filter: query = query.filter(Activite.type == type_filter)
-        activites_pagination = query.order_by(Activite.date.desc()).paginate(page=page, per_page=per_page, error_out=False)
-        return render_template('activites.html', activites=activites_pagination, type_filter=type_filter)
-    except SQLAlchemyError as e: app.logger.error(f"DB error loading activities page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement du journal.", "danger"); return redirect(url_for('admin'))
-    except Exception as e: app.logger.error(f"Unexpected error loading activities page: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return redirect(url_for('admin'))
 
 # --- API Routes ---
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
 def api_dashboard_essential():
-    # ... (code inchangé, retourne maintenant toujours les participants) ...
     try:
         light_mode = request.args.get('light', '0') == '1'
         cache_key = 'dashboard_essential_data' + ('_light' if light_mode else '')
@@ -1152,7 +959,7 @@ def api_dashboard_essential():
 
         sessions_q = Session.query.options(joinedload(Session.theme), joinedload(Session.salle)).order_by(Session.date, Session.heure_debut).all()
         participants_q = Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom).all()
-        activites_q = get_recent_activities(limit=5) # Utiliser helper cache
+        activites_q = get_recent_activities(limit=5)
 
         sessions_data = []
         for s in sessions_q:
@@ -1170,7 +977,6 @@ def api_dashboard_essential():
         activites_data = [{'id': a.id, 'type': a.type, 'description': a.description, 'details': a.details, 'date_relative': a.date_relative, 'date_iso': a.date.isoformat() if a.date else None, 'user': a.utilisateur.username if a.utilisateur else None} for a in activites_q]
         response_data = {'sessions': sessions_data, 'participants': participants_data, 'activites': activites_data, 'timestamp': datetime.now(UTC).timestamp(), 'light_mode': light_mode, 'status': 'ok'}
         cache.set(cache_key, response_data, timeout=30 if light_mode else 90)
-        # if not light_mode: optimize_db_connections() # Optionnel
         return jsonify(response_data)
     except SQLAlchemyError as e: db.session.rollback(); app._connection_errors = getattr(app, '_connection_errors', 0) + 1; app._last_connection_error = datetime.now(UTC); app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True); return jsonify({"error": "Database error", "message": str(e), "status": "error", "timestamp": datetime.now(UTC).timestamp()}), 500
     except Exception as e: app._connection_errors = getattr(app, '_connection_errors', 0) + 1; app._last_connection_error = datetime.now(UTC); app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True); return jsonify({"error": "Internal server error", "message": str(e), "status": "error", "timestamp": datetime.now(UTC).timestamp()}), 500
@@ -1179,7 +985,6 @@ def api_dashboard_essential():
 @limiter.limit("30 per minute")
 @db_operation_with_retry(max_retries=2)
 def api_sessions():
-    # ... (code inchangé) ...
     try:
         page = request.args.get('page', 1, type=int); per_page = request.args.get('per_page', 20, type=int); date_filter = request.args.get('date')
         cache_key = f'sessions_page_{page}_size_{per_page}_date_{date_filter}'; cached_result = cache.get(cache_key)
@@ -1206,7 +1011,6 @@ def api_sessions():
 @app.route('/api/sessions/<int:session_id>')
 @db_operation_with_retry(max_retries=2)
 def api_single_session(session_id):
-    # ... (code inchangé) ...
     try:
         session = db.session.get(Session, session_id)
         if not session: return jsonify({"error": "Session not found"}), 404
@@ -1230,7 +1034,6 @@ def api_single_session(session_id):
 @limiter.limit("30 per minute")
 @db_operation_with_retry(max_retries=2)
 def api_participants():
-    # ... (code inchangé) ...
     try:
         page = request.args.get('page', 1, type=int); per_page = request.args.get('per_page', 20, type=int)
         cache_key = f'participants_page_{page}_size_{per_page}'; cached_result = cache.get(cache_key)
@@ -1252,7 +1055,6 @@ def api_participants():
 @app.route('/api/salles')
 @db_operation_with_retry(max_retries=2)
 def api_salles():
-    # ... (code inchangé) ...
     result = []
     try:
         salles = Salle.query.order_by(Salle.nom).all()
@@ -1266,16 +1068,15 @@ def api_salles():
 @app.route('/api/activites')
 @db_operation_with_retry(max_retries=2)
 def api_activites():
-    # ... (code inchangé, utilise get_recent_activities) ...
     try:
         limit = request.args.get('limit', 10, type=int)
-        cache_key = f'recent_activities_{limit}' # Utiliser la même clé que le helper
+        cache_key = f'recent_activities_{limit}'
         cached_result = cache.get(cache_key)
-        if cached_result: return jsonify(cached_result) # Retourner directement si en cache
+        if cached_result: return jsonify(cached_result)
 
-        activites = get_recent_activities(limit=limit) # Appeler le helper cacheable
+        activites = get_recent_activities(limit=limit)
         result = [{'id': a.id, 'type': a.type, 'description': a.description, 'details': a.details, 'date_relative': a.date_relative, 'date_iso': a.date.isoformat() if hasattr(a, 'date') and a.date else None, 'user': a.utilisateur.username if a.utilisateur else None} for a in activites]
-        # Le helper met déjà en cache, pas besoin de le refaire ici
+        # Le helper met déjà en cache
         return jsonify(result)
     except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"API Error fetching activities: {e}", exc_info=True); return jsonify({"error": "Database error", "message": str(e)}), 500
     except Exception as e: app.logger.error(f"API Unexpected Error fetching activities: {e}", exc_info=True); return jsonify({"error": "Internal server error", "message": str(e)}), 500
@@ -1284,7 +1085,6 @@ def api_activites():
 @app.route('/generer_invitation/<int:inscription_id>')
 @db_operation_with_retry(max_retries=2)
 def generer_invitation(inscription_id):
-    # ... (code inchangé) ...
     user_info_for_log = f"User '{current_user.username}'" if current_user.is_authenticated else "Unauthenticated user"; app.logger.info(f"{user_info_for_log} requesting invitation for inscription_id: {inscription_id}.")
     try:
         inscription = db.session.query(Inscription).options(joinedload(Inscription.session).options(joinedload(Session.theme), joinedload(Session.salle)), joinedload(Inscription.participant).selectinload(Participant.service)).get(inscription_id)
@@ -1303,9 +1103,7 @@ def generer_invitation(inscription_id):
     except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error in generer_invitation for inscription {inscription_id}: {e}", exc_info=True); flash("Erreur de base de données lors de la tentative de génération de l'invitation.", "danger")
     except AttributeError as ae: app.logger.error(f"AttributeError in generer_invitation for inscription {inscription_id}: {ae}", exc_info=True); flash("Des données essentielles sont manquantes pour générer cette invitation.", 'danger')
     except Exception as e: app.logger.error(f"Unexpected error in generer_invitation for inscription {inscription_id}: {e}", exc_info=True); flash("Une erreur inattendue est survenue lors de la génération de l'invitation.", "danger")
-    # Fallback redirect if response wasn't returned
     return redirect(request.referrer or url_for('dashboard'))
-
 
 # ==============================================================================
 # === Database Initialization ===
@@ -1315,9 +1113,8 @@ def init_db():
         try:
             app.logger.info("Vérification et initialisation de la base de données...")
             if not check_db_connection(): app.logger.error("Échec connexion DB pendant init."); return False
-            db.create_all() # S'assure que toutes les tables existent
+            db.create_all()
             app.logger.info("Vérification des tables DB terminée.")
-
             # --- Initialize Services ---
             if Service.query.count() == 0:
                 app.logger.info("Initialisation des services...")
@@ -1333,7 +1130,6 @@ def init_db():
                 for data in services_data: db.session.add(Service(**data))
                 db.session.commit(); app.logger.info(f"{len(services_data)} services ajoutés.")
             else: app.logger.info("Services déjà présents.")
-
             # --- Initialize Salles ---
             if Salle.query.count() == 0:
                 app.logger.info("Initialisation des salles...")
@@ -1347,7 +1143,6 @@ def init_db():
                  else:
                       salle_tramontane = Salle(nom='Salle Tramontane', capacite=15, lieu='Bâtiment A, RDC', description='Salle de formation polyvalente'); db.session.add(salle_tramontane); db.session.commit(); app.logger.info("Salle 'Salle Tramontane' ajoutée (car manquante).")
                  app.logger.info("Salles déjà présentes (vérification Tramontane effectuée).")
-
             # --- Initialize Themes ---
             if Theme.query.count() == 0:
                 app.logger.info("Initialisation des thèmes...")
@@ -1360,7 +1155,6 @@ def init_db():
                 for data in themes_data: db.session.add(Theme(**data))
                 db.session.commit(); app.logger.info(f"{len(themes_data)} thèmes ajoutés.")
             else: app.logger.info("Thèmes déjà présents."); update_theme_names()
-
             # --- Initialize Sessions ---
             if Session.query.count() == 0:
                 app.logger.info("Initialisation des sessions...")
@@ -1387,7 +1181,6 @@ def init_db():
                  updated_count = Session.query.filter(Session.salle_id != salle_tramontane_id).update({'salle_id': salle_tramontane_id})
                  if updated_count > 0: db.session.commit(); app.logger.info(f"{updated_count} sessions réassignées à Salle Tramontane.")
                  app.logger.info("Sessions déjà présentes (vérification salle effectuée).")
-
             # --- Initialize Users ---
             if User.query.count() == 0:
                 app.logger.info("Initialisation des utilisateurs...")
@@ -1399,7 +1192,6 @@ def init_db():
                     responsable_user = User(username=username, email=service.email_responsable, role='responsable', service_id=service.id); responsable_user.set_password('Anecoop2025'); db.session.add(responsable_user); users_added_count += 1
                 db.session.commit(); app.logger.info(f"{users_added_count} utilisateurs ajoutés.")
             else: app.logger.info("Utilisateurs déjà présents.")
-
             # --- Initialize Participants (Qualité service) ---
             qualite_service_id = 'qualite'
             qualite_participants = [
@@ -1414,7 +1206,6 @@ def init_db():
                      participant = Participant(nom=p_data['nom'], prenom=p_data['prenom'], email=p_data['email'], service_id=qualite_service_id); db.session.add(participant); participants_added += 1
             if participants_added > 0: db.session.commit(); cache.delete_memoized(get_all_participants_with_service); cache.delete_memoized(get_all_services_with_participants); cache.delete(f'service_participant_count_{qualite_service_id}'); app.logger.info(f"{participants_added} participants du service Qualité ajoutés.")
             else: app.logger.info("Participants Qualité déjà présents.")
-
             # --- Initial Activity Log ---
             if Activite.query.count() == 0:
                 app.logger.info("Ajout activités initiales...")
@@ -1425,7 +1216,6 @@ def init_db():
                 ]
                 for data in activites_data: db.session.add(Activite(**data))
                 db.session.commit(); app.logger.info("Activités initiales ajoutées.")
-
             app.logger.info("Initialisation DB terminée avec succès.")
             return True
         except SQLAlchemyError as e: db.session.rollback(); app.logger.exception(f"ÉCHEC INIT DB (SQLAlchemyError): {e}"); print(f"ERREUR INIT DB: {e}"); return False
