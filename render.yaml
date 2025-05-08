@@ -1,15 +1,14 @@
 # FILE: render.yaml
-# Replace the existing 'services' section with this:
+# Ensure this uses gevent worker to match app.py patching
 services:
   - type: web
     name: formation-microsoft365
     env: python
     buildCommand: pip install -r requirements.txt
     # --- MODIFIED START COMMAND ---
-    # Explicitly use eventlet workers (matching Procfile intent)
-    # Increase timeout to 120 seconds (adjust if needed)
-    # Use a reasonable number of workers (e.g., 2-3 if plan allows, start with 1)
-    startCommand: gunicorn --worker-class eventlet -w 1 --timeout 120 app:app
+    # Explicitly use gevent worker (matching app.py patching behavior)
+    # Keep increased timeout
+    startCommand: gunicorn --worker-class gevent -w 1 --timeout 120 app:app
     # --- END MODIFIED START COMMAND ---
     envVars:
       - key: DATABASE_URL
