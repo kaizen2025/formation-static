@@ -286,34 +286,34 @@ class Session(db.Model):
     # Use dynamic for potentially large collections that need filtering/counting
     inscriptions = db.relationship('Inscription', backref='session', lazy='selectin', cascade="all, delete-orphan")
     liste_attente = db.relationship('ListeAttente', backref='session', lazy='selectin', cascade="all, delete-orphan")
-
-  def get_places_restantes(self, confirmed_count=None):
+    
+    def get_places_restantes(self, confirmed_count=None):
         try:
-        if confirmed_count is None:
-            # Efficient count query
-            confirmed_count = db.session.query(func.count(Inscription.id)).filter(
-                Inscription.session_id == self.id,
-                Inscription.statut == 'confirmé'
-            ).scalar() or 0
-        
-        # S'assurer que max_participants est un nombre valide
-        max_participants = 0
-        if self.max_participants is not None and isinstance(self.max_participants, int):
-            max_participants = self.max_participants
-        elif self.max_participants is not None:
-            try:
-                max_participants = int(self.max_participants)
-            except (ValueError, TypeError):
+            if confirmed_count is None:
+                # Efficient count query
+                confirmed_count = db.session.query(func.count(Inscription.id)).filter(
+                    Inscription.session_id == self.id,
+                    Inscription.statut == 'confirmé'
+                ).scalar() or 0
+            
+            # S'assurer que max_participants est un nombre valide
+            max_participants = 0
+            if self.max_participants is not None and isinstance(self.max_participants, int):
+                max_participants = self.max_participants
+            elif self.max_participants is not None:
+                try:
+                    max_participants = int(self.max_participants)
+                except (ValueError, TypeError):
+                    max_participants = 10  # Valeur par défaut sécuritaire
+            else:
                 max_participants = 10  # Valeur par défaut sécuritaire
-        else:
-            max_participants = 10  # Valeur par défaut sécuritaire
-        
-        return max(0, max_participants - confirmed_count)
-    except Exception as e:
-        app.logger.error(f"Error calculating places restantes for S:{self.id}: {e}")
-        # En cas d'erreur, retourner une valeur par défaut sécuritaire
-        return 0
-
+            
+            return max(0, max_participants - confirmed_count)
+        except Exception as e:
+            app.logger.error(f"Error calculating places restantes for S:{self.id}: {e}")
+            # En cas d'erreur, retourner une valeur par défaut sécuritaire
+            return 0
+            
     # Properties for formatting (handle potential errors)
     @property
     def formatage_date(self):
@@ -325,7 +325,6 @@ class Session(db.Model):
             return f"{jours[self.date.weekday()]} {self.date.day} {mois[self.date.month-1]} {self.date.year}"
         except Exception:
             return self.date.strftime('%d/%m/%Y') # Fallback
-
     @property
     def formatage_horaire(self):
         try:
