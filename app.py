@@ -28,7 +28,7 @@ from datetime import datetime, timedelta, UTC, date, time as time_obj
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    flash, jsonify, make_response, current_app
+    flash, jsonify, make_response, current_app, send_from_directory
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -51,7 +51,8 @@ from werkzeug.routing import BuildError
 from werkzeug.security import generate_password_hash, check_password_hash # <-- Import vérifié
 from ics import Calendar, Event
 from ics.alarm import DisplayAlarm
-from whitenoise import WhiteNoise # <-- Import vérifié
+from whitenoise import WhiteNoise
+from werkzeug.utils import secure_filename
 import json
 
 # --- Configuration d'Encodage PostgreSQL ---
@@ -115,6 +116,20 @@ limiter.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
 login_manager.login_message_category = "info"
+
+# AJOUT: Configuration pour les uploads
+UPLOAD_FOLDER = os.path.join(app.root_path, 'uploads')
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # Limite à 16MB (ajustez si besoin)
+
+# Créer le dossier d'upload s'il n'existe pas
+if not os.path.exists(UPLOAD_FOLDER):
+    try:
+        os.makedirs(UPLOAD_FOLDER)
+        app.logger.info(f"Dossier d'upload créé: {UPLOAD_FOLDER}")
+    except OSError as e:
+        app.logger.error(f"Impossible de créer le dossier d'upload {UPLOAD_FOLDER}: {e}")
 
 # Initialisation SocketIO - utilise la variable ASYNC_MODE définie au début
 socketio = SocketIO(
@@ -301,6 +316,41 @@ class Theme(db.Model):
 
     def __repr__(self):
         return f'<Theme {self.id}: {self.nom}>'
+# AJOUT: Nouveau modèle Document
+class Document(db.Model):
+    __tablename__ = 'document'
+    id = db.Column(db.Integer, primary_key=True)
+    # Nom de fichier sécurisé stocké sur le serveur
+    filename = db.Column(db.String(255), nullable=False, unique=True)
+    # Nom de fichier original de l'utilisateur
+    original_filename = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    upload_date = db.Column(db.DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    # Clé étrangère vers le thème (peut être nullable si un doc n'est pas lié à un thème)
+    theme_id = db.Column(db.Integer, db.ForeignKey('theme.id'), nullable=True, index=True)
+    # Clé étrangère vers l'utilisateur qui a uploadé
+    uploader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    # Type MIME ou extension pour l'icône
+    file_type = db.Column(db.String(50), nullable=True)
+
+    # Relations (backref ajoutés aux modèles Theme et User)
+    uploader = db.relationship('User', backref=db.backref('uploaded_documents', lazy='dynamic'))
+    # theme est défini par le backref dans Theme
+
+    def __repr__(self):
+        return f'<Document {self.id}: {self.original_filename}>'
+
+# AJOUT: Relation dans le modèle Theme
+class Theme(db.Model):
+    # ... (champs existants) ...
+    # Relation vers les documents associés à ce thème
+    documents = db.relationship('Document', backref='theme', lazy='select', cascade="all, delete-orphan")
+
+# AJOUT: Relation dans le modèle User (optionnel, si vous voulez lister les docs par uploader)
+class User(UserMixin, db.Model):
+    # ... (champs existants) ...
+    # uploaded_documents défini par backref dans Document
+    pass
 
 class Session(db.Model):
     __tablename__ = 'session'
@@ -832,7 +882,10 @@ def get_all_participants_with_service():
     app.logger.debug("Cache miss or expired: Fetching all participants with service from DB.")
     # Use joinedload for the one-to-one service relationship
     return Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).all()
-
+# AJOUT: Fonction pour vérifier les extensions autorisées
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # === WebSocket Event Handlers (Polling only, minimal handlers) ===
 @socketio.on('connect')
