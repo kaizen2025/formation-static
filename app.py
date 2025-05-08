@@ -1,6 +1,6 @@
 # ==============================================================================
 # app.py - Application Flask pour la Gestion des Formations Microsoft 365
-# Version: 1.1.4 - Correction SyntaxError api_sessions + Intégration Documents Complète
+# Version: 1.1.5 - Correction Finale SyntaxError + Intégration Documents Complète
 # ==============================================================================
 
 # --- Imports ---
@@ -1225,7 +1225,14 @@ if __name__ == '__main__':
                     except Exception as update_err: print(f"Note: Erreur lors de la standardisation des thèmes: {update_err}")
             else: print("⚠️ ERREUR CONNEXION DB au démarrage"); print("Impossible de vérifier/initialiser la DB.")
         except OperationalError as oe: print(f"⚠️ ERREUR CONNEXION DB au démarrage: {oe}"); print("Impossible de vérifier/initialiser la DB.")
-        except Exception as e: print(f"⚠️ Erreur lors de la vérification/initialisation de la DB: {e}"); try: db.session.rollback(); except Exception as rb_e: print(f"Erreur rollback: {rb_e}")
+        except Exception as e:
+            print(f"⚠️ Erreur lors de la vérification/initialisation de la DB: {e}")
+            # --- CORRECTION SYNTAXE ---
+            try:
+                db.session.rollback()
+            except Exception as rb_e:
+                print(f"Erreur supplémentaire pendant le rollback: {rb_e}")
+            # --- FIN CORRECTION ---
     try:
         host = '0.0.0.0'; print(f"Démarrage serveur en MODE {'PRODUCTION' if is_production else 'DÉVELOPPEMENT'} avec {ASYNC_MODE} sur http://{host}:{port} (Debug: {debug_mode})")
         if debug_mode: socketio.run(app, host=host, port=port, use_reloader=True, debug=debug_mode, log_output=False, allow_unsafe_werkzeug=True)
