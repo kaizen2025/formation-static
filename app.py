@@ -88,7 +88,10 @@ cache_config = {
     "CACHE_TYPE": "SimpleCache",
     "CACHE_DEFAULT_TIMEOUT": 300
 }
-app.config.from_mapping(cache_config)
+app.config.from_mapping({
+    "CACHE_TYPE": "SimpleCache",
+    "CACHE_DEFAULT_TIMEOUT": 600  # Augmenter de 300 à 600 secondes
+})
 
 # --- CONFIGURATION WHITENOISE ---
 static_folder_root = os.path.join(os.path.dirname(__file__), 'static')
@@ -2803,7 +2806,7 @@ def api_dashboard_essential():
         }
         
         # Cache for 20 seconds
-        cache.set(cache_key, response_data, timeout=20)
+        cache.set(cache_key, response_data, timeout=60)
         
         return jsonify(response_data)
     except SQLAlchemyError as e:
