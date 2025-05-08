@@ -1,23 +1,23 @@
 # FILE: render.yaml
-# Ensure this uses gevent worker to match app.py patching
 services:
   - type: web
     name: formation-microsoft365
     env: python
     buildCommand: pip install -r requirements.txt
     # --- MODIFIED START COMMAND ---
-    # Explicitly use gevent worker (matching app.py patching behavior)
-    # Keep increased timeout
-    startCommand: gunicorn --worker-class gevent -w 1 --timeout 120 app:app
+    # Utiliser un worker synchrone (sync).
+    # Augmentation du nombre de workers à 3 pour une meilleure gestion des requêtes.
+    # Le timeout est conservé à 120s.
+    startCommand: gunicorn -w 3 --timeout 120 app:app
     # --- END MODIFIED START COMMAND ---
     envVars:
       - key: DATABASE_URL
-        # Keep your existing DATABASE_URL value here
+        # Conservez votre valeur DATABASE_URL existante ici
         value: postgresql://xvcyuaga:rfodwjclemtvhwvqsrpp@alpha.europe.mkdb.sh:5432/usdtdsgq
       - key: SECRET_KEY
         generateValue: true
       - key: PYTHON_VERSION
-        value: 3.11.0 # Or your desired Python version
-      # Optional: Force Flask environment if needed
-      # - key: FLASK_ENV
-      #   value: production
+        value: 3.11.0 # Ou votre version Python désirée
+      # Optionnel: Forcer l'environnement Flask si nécessaire pour la production
+      - key: FLASK_ENV
+        value: production
