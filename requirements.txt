@@ -4,17 +4,17 @@ flask==2.3.3
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.5
 Flask-Login==0.6.3
-Flask-SocketIO==5.3.6
+Flask-SocketIO==5.3.6  # SocketIO will adapt or use long-polling
 Flask-Caching==2.1.0
 flask-limiter==2.8.0
 
 # --- Static File Serving ---
 whitenoise
 
-# --- async back-end (Ensure gevent is primary for this setup) ---
-gevent==24.11.1             # Required by start command and app.py patching
-greenlet>=3.2.1             # Dependency for gevent
-# eventlet==0.39.1          # Can be removed if not used elsewhere
+# --- async back-end (REMOVED - Using sync workers) ---
+# gevent==24.11.1
+# greenlet>=3.2.1
+# eventlet==0.39.1
 
 # --- base de données ---
 psycopg2-binary==2.9.10
