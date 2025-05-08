@@ -32,7 +32,7 @@ from flask_limiter.util import get_remote_address
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError
 from sqlalchemy.orm import joinedload, selectinload
-from sqlalchemy import func, text, select
+from sqlalchemy import func, text, select, update, delete
 
 from werkzeug.exceptions import ServiceUnavailable, RequestEntityTooLarge # Correction Import
 from werkzeug.routing import BuildError
@@ -540,12 +540,12 @@ def update_theme_names():
         except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error standardizing theme names: {e}"); print("Erreur DB lors de la standardisation des thèmes.")
         except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error standardizing theme names: {e}"); print("Erreur inattendue lors de la standardisation des thèmes.")
 
-# Cached helper functions
 @cache.memoize(timeout=300)
 @db_operation_with_retry(max_retries=3)
 def get_all_themes():
-    app.logger.debug("Cache miss or expired: Fetching all themes from DB.")
-    return Theme.query.order_by(Theme.nom).all()
+    app.logger.debug("Cache miss or expired: Fetching all themes WITH SESSIONS from DB.")
+    # AJOUT: options(selectinload(Theme.sessions)) pour charger les sessions immédiatement
+    return Theme.query.options(selectinload(Theme.sessions)).order_by(Theme.nom).all()
 
 @cache.memoize(timeout=300)
 @db_operation_with_retry(max_retries=3)
@@ -924,6 +924,473 @@ def download_document(filename):
         return send_from_directory(app.config['UPLOAD_FOLDER'], safe_filename, as_attachment=True, download_name=doc.original_filename)
     except FileNotFoundError: app.logger.error(f"Fichier non trouvé sur le disque pour le document: {safe_filename}", exc_info=True); flash("Erreur : le fichier demandé n'existe plus sur le serveur.", "danger"); return redirect(url_for('documents'))
     except Exception as e: app.logger.error(f"Erreur lors du téléchargement du document {safe_filename}: {e}", exc_info=True); flash("Erreur lors du téléchargement du document.", "danger"); return redirect(url_for('documents'))
+
+@app.route('/salle/add', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def add_salle():
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    nom = request.form.get('nom')
+    capacite_str = request.form.get('capacite')
+    lieu = request.form.get('lieu')
+    description = request.form.get('description')
+
+    if not nom or not capacite_str:
+        flash("Le nom et la capacité de la salle sont obligatoires.", "warning")
+        return redirect(url_for('salles_page'))
+
+    try:
+        capacite = int(capacite_str)
+        if capacite <= 0:
+            flash("La capacité doit être un nombre positif.", "warning")
+            return redirect(url_for('salles_page'))
+
+        # Vérifier si une salle avec ce nom existe déjà
+        existing_salle = Salle.query.filter(func.lower(Salle.nom) == func.lower(nom)).first()
+        if existing_salle:
+            flash(f"Une salle nommée '{nom}' existe déjà.", "warning")
+            return redirect(url_for('salles_page'))
+
+        new_salle = Salle(nom=nom, capacite=capacite, lieu=lieu, description=description)
+        db.session.add(new_salle)
+        db.session.commit()
+        cache.delete_memoized(get_all_salles) # Invalider le cache
+        cache.delete('dashboard_essential_data')
+        add_activity('ajout_salle', f'Ajout salle: {new_salle.nom}', f'Capacité: {new_salle.capacite}', user=current_user)
+        flash(f"Salle '{new_salle.nom}' ajoutée avec succès.", "success")
+
+    except ValueError:
+        flash("La capacité doit être un nombre valide.", "warning")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur : Une salle nommée '{nom}' existe probablement déjà.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB ajout salle: {e}", exc_info=True)
+        flash("Erreur de base de données lors de l'ajout de la salle.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue ajout salle: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+
+    return redirect(url_for('salles_page'))
+
+@app.route('/salle/update/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def update_salle(id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    salle = db.session.get(Salle, id)
+    if not salle:
+        flash("Salle introuvable.", "warning")
+        return redirect(url_for('salles_page'))
+
+    nom = request.form.get('nom')
+    capacite_str = request.form.get('capacite')
+    lieu = request.form.get('lieu')
+    description = request.form.get('description')
+
+    if not nom or not capacite_str:
+        flash("Le nom et la capacité sont obligatoires.", "warning")
+        return redirect(url_for('salles_page'))
+
+    try:
+        capacite = int(capacite_str)
+        if capacite <= 0:
+            flash("La capacité doit être un nombre positif.", "warning")
+            return redirect(url_for('salles_page'))
+
+        # Vérifier si le nouveau nom existe déjà (pour une autre salle)
+        if nom.lower() != salle.nom.lower():
+            existing_salle = Salle.query.filter(func.lower(Salle.nom) == func.lower(nom), Salle.id != id).first()
+            if existing_salle:
+                flash(f"Une autre salle nommée '{nom}' existe déjà.", "warning")
+                return redirect(url_for('salles_page'))
+
+        salle.nom = nom
+        salle.capacite = capacite
+        salle.lieu = lieu
+        salle.description = description
+        db.session.commit()
+        cache.delete_memoized(get_all_salles)
+        cache.delete('dashboard_essential_data')
+        add_activity('modification_salle', f'Modif salle: {salle.nom}', user=current_user)
+        flash(f"Salle '{salle.nom}' mise à jour avec succès.", "success")
+
+    except ValueError:
+        flash("La capacité doit être un nombre valide.", "warning")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur : Le nom '{nom}' est peut-être déjà utilisé par une autre salle.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB màj salle {id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la mise à jour.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue màj salle {id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+
+    return redirect(url_for('salles_page'))
+
+@app.route('/salle/delete/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def delete_salle(id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    salle = db.session.get(Salle, id)
+    if not salle:
+        flash("Salle introuvable.", "warning")
+        return redirect(url_for('salles_page'))
+
+    # Vérifier si des sessions sont associées
+    session_count = Session.query.filter_by(salle_id=id).count()
+    if session_count > 0:
+        flash(f"Impossible de supprimer la salle '{salle.nom}' car {session_count} session(s) y sont encore associées. Veuillez les réassigner d'abord.", "danger")
+        return redirect(url_for('salles_page'))
+
+    try:
+        salle_nom = salle.nom
+        db.session.delete(salle)
+        db.session.commit()
+        cache.delete_memoized(get_all_salles)
+        cache.delete('dashboard_essential_data')
+        add_activity('suppression_salle', f'Suppression salle: {salle_nom}', user=current_user)
+        flash(f"Salle '{salle_nom}' supprimée avec succès.", "success")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB suppression salle {id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la suppression.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue suppression salle {id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+
+    return redirect(url_for('salles_page'))
+
+@app.route('/attribuer_salle', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def attribuer_salle():
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    session_id_str = request.form.get('session_id')
+    salle_id_str = request.form.get('salle_id')
+    redirect_url = request.referrer or url_for('sessions') # Rediriger vers la page précédente
+
+    if not session_id_str:
+        flash("ID de session manquant.", "warning")
+        return redirect(redirect_url)
+
+    try:
+        session_id = int(session_id_str)
+        session = db.session.get(Session, session_id)
+        if not session:
+            flash("Session introuvable.", "warning")
+            return redirect(redirect_url)
+
+        salle_id = None
+        salle_nom = "Aucune"
+        if salle_id_str: # Si une salle est sélectionnée (pas l'option vide)
+            salle_id = int(salle_id_str)
+            salle = db.session.get(Salle, salle_id)
+            if not salle:
+                flash("Salle sélectionnée introuvable.", "warning")
+                return redirect(redirect_url)
+            salle_nom = salle.nom
+
+        session.salle_id = salle_id
+        db.session.commit()
+        cache.delete(f'session_details_{session_id}') # Invalider cache spécifique si existant
+        cache.delete('dashboard_essential_data')
+        add_activity('attribution_salle', f'Salle attribuée: {salle_nom}', f'Session: {session.theme.nom} ({session.formatage_date})', user=current_user)
+        flash(f"Salle '{salle_nom}' attribuée à la session '{session.theme.nom}' du {session.formatage_date}.", "success")
+
+    except ValueError:
+        flash("ID de session ou de salle invalide.", "warning")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB attribution salle: {e}", exc_info=True)
+        flash("Erreur de base de données lors de l'attribution.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue attribution salle: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+
+    return redirect(redirect_url)
+
+@app.route('/theme/add', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def add_theme():
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    nom = request.form.get('nom')
+    description = request.form.get('description')
+
+    if not nom:
+        flash("Le nom du thème est obligatoire.", "warning")
+        return redirect(url_for('themes_page'))
+
+    try:
+        # Vérifier si un thème avec ce nom existe déjà
+        existing_theme = Theme.query.filter(func.lower(Theme.nom) == func.lower(nom)).first()
+        if existing_theme:
+            flash(f"Un thème nommé '{nom}' existe déjà.", "warning")
+            return redirect(url_for('themes_page'))
+
+        new_theme = Theme(nom=nom, description=description)
+        db.session.add(new_theme)
+        db.session.commit()
+        cache.delete_memoized(get_all_themes) # Invalider le cache
+        cache.delete('dashboard_essential_data')
+        add_activity('ajout_theme', f'Ajout thème: {new_theme.nom}', user=current_user)
+        flash(f"Thème '{new_theme.nom}' ajouté avec succès.", "success")
+
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur : Un thème nommé '{nom}' existe probablement déjà.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB ajout thème: {e}", exc_info=True)
+        flash("Erreur de base de données lors de l'ajout du thème.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue ajout thème: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+
+    return redirect(url_for('themes_page'))
+
+@app.route('/theme/update/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def update_theme(id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    theme = db.session.get(Theme, id)
+    if not theme:
+        flash("Thème introuvable.", "warning")
+        return redirect(url_for('themes_page'))
+
+    nom = request.form.get('nom')
+    description = request.form.get('description')
+
+    if not nom:
+        flash("Le nom du thème est obligatoire.", "warning")
+        return redirect(url_for('themes_page'))
+
+    try:
+        # Vérifier si le nouveau nom existe déjà (pour un autre thème)
+        if nom.lower() != theme.nom.lower():
+            existing_theme = Theme.query.filter(func.lower(Theme.nom) == func.lower(nom), Theme.id != id).first()
+            if existing_theme:
+                flash(f"Un autre thème nommé '{nom}' existe déjà.", "warning")
+                return redirect(url_for('themes_page'))
+
+        theme.nom = nom
+        theme.description = description
+        db.session.commit()
+        cache.delete_memoized(get_all_themes)
+        cache.delete('dashboard_essential_data')
+        add_activity('modification_theme', f'Modif thème: {theme.nom}', user=current_user)
+        flash(f"Thème '{theme.nom}' mis à jour avec succès.", "success")
+
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur : Le nom '{nom}' est peut-être déjà utilisé par un autre thème.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB màj thème {id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la mise à jour.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue màj thème {id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+
+    return redirect(url_for('themes_page'))
+
+@app.route('/theme/delete/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def delete_theme(id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    theme = db.session.get(Theme, id)
+    if not theme:
+        flash("Thème introuvable.", "warning")
+        return redirect(url_for('themes_page'))
+
+    try:
+        theme_nom = theme.nom
+        # La suppression des sessions associées est gérée par la cascade SQLAlchemy
+        # si configurée correctement (lazy='select' ne suffit pas, il faut cascade)
+        # Vérifions la config du modèle Theme:
+        # sessions = db.relationship('Session', backref='theme', lazy='select') -> PAS DE CASCADE
+        # Il faut ajouter cascade="all, delete-orphan" pour que ça marche automatiquement
+        # SINON, il faut supprimer les sessions manuellement AVANT de supprimer le thème
+
+        # Solution Manuelle (plus sûre si cascade n'est pas défini):
+        sessions_associees = Session.query.filter_by(theme_id=id).all()
+        if sessions_associees:
+             # Supprimer les inscriptions et listes d'attente liées aux sessions AVANT de supprimer les sessions
+             session_ids = [s.id for s in sessions_associees]
+             Inscription.query.filter(Inscription.session_id.in_(session_ids)).delete(synchronize_session=False)
+             ListeAttente.query.filter(ListeAttente.session_id.in_(session_ids)).delete(synchronize_session=False)
+             # Supprimer les sessions elles-mêmes
+             Session.query.filter_by(theme_id=id).delete(synchronize_session=False)
+             app.logger.info(f"Suppression manuelle de {len(sessions_associees)} sessions et leurs dépendances pour le thème ID {id}.")
+
+
+        # Supprimer les documents associés (cascade="all, delete-orphan" devrait gérer ça)
+        # Document.query.filter_by(theme_id=id).delete(synchronize_session=False) # Normalement pas nécessaire
+
+        db.session.delete(theme)
+        db.session.commit()
+        cache.delete_memoized(get_all_themes)
+        cache.delete('dashboard_essential_data')
+        add_activity('suppression_theme', f'Suppression thème: {theme_nom}', user=current_user)
+        flash(f"Thème '{theme_nom}' et ses sessions associées supprimés avec succès.", "success")
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB suppression thème {id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la suppression.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue suppression thème {id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+
+    return redirect(url_for('themes_page'))
+
+@app.route('/service/add', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def add_service():
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    service_id = request.form.get('id')
+    nom = request.form.get('nom')
+    couleur = request.form.get('couleur', '#6c757d')
+    responsable = request.form.get('responsable')
+    email_responsable = request.form.get('email_responsable')
+
+    if not all([service_id, nom, responsable, email_responsable]):
+        flash("Tous les champs marqués * sont obligatoires (ID, Nom, Responsable, Email).", "warning")
+        return redirect(url_for('services')) # Redirige vers la page des services
+
+    # Vérifier si l'ID ou le nom existe déjà
+    existing_by_id = Service.query.filter(func.lower(Service.id) == func.lower(service_id)).first()
+    existing_by_name = Service.query.filter(func.lower(Service.nom) == func.lower(nom)).first()
+
+    if existing_by_id:
+        flash(f"Un service avec l'ID '{service_id}' existe déjà.", "warning")
+        return redirect(url_for('services'))
+    if existing_by_name:
+        flash(f"Un service nommé '{nom}' existe déjà.", "warning")
+        return redirect(url_for('services'))
+
+    try:
+        new_service = Service(
+            id=service_id.lower(), # Forcer minuscule pour l'ID
+            nom=nom,
+            couleur=couleur,
+            responsable=responsable,
+            email_responsable=email_responsable
+        )
+        db.session.add(new_service)
+        db.session.commit()
+        cache.delete_memoized(get_all_services_with_participants)
+        cache.delete('dashboard_essential_data')
+        add_activity('ajout_service', f'Ajout service: {new_service.nom}', f'ID: {new_service.id}', user=current_user)
+        flash(f"Service '{new_service.nom}' ajouté avec succès.", "success")
+
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur : L'ID '{service_id}' ou le nom '{nom}' existe probablement déjà.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB ajout service: {e}", exc_info=True)
+        flash("Erreur de base de données lors de l'ajout du service.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue ajout service: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+
+    return redirect(url_for('services'))
+
+@app.route('/service/update/<string:service_id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def update_service(service_id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    service = db.session.get(Service, service_id)
+    if not service:
+        flash("Service introuvable.", "warning")
+        return redirect(url_for('services'))
+
+    nom = request.form.get('nom')
+    couleur = request.form.get('couleur', '#6c757d')
+    responsable = request.form.get('responsable')
+    email_responsable = request.form.get('email_responsable')
+
+    if not all([nom, responsable, email_responsable]):
+        flash("Les champs Nom, Responsable et Email sont obligatoires.", "warning")
+        return redirect(url_for('services'))
+
+    try:
+        # Vérifier si le nouveau nom existe déjà (pour un autre service)
+        if nom.lower() != service.nom.lower():
+            existing_service = Service.query.filter(func.lower(Service.nom) == func.lower(nom), Service.id != service_id).first()
+            if existing_service:
+                flash(f"Un autre service nommé '{nom}' existe déjà.", "warning")
+                return redirect(url_for('services'))
+
+        service.nom = nom
+        service.couleur = couleur
+        service.responsable = responsable
+        service.email_responsable = email_responsable
+        db.session.commit()
+        cache.delete_memoized(get_all_services_with_participants)
+        cache.delete('dashboard_essential_data')
+        add_activity('modification_service', f'Modif service: {service.nom}', user=current_user)
+        flash(f"Service '{service.nom}' mis à jour avec succès.", "success")
+
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur : Le nom '{nom}' est peut-être déjà utilisé par un autre service.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB màj service {service_id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la mise à jour.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue màj service {service_id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+
+    return redirect(url_for('services'))
+
 
 # --- Admin Routes ---
 @app.route('/admin')
