@@ -1,3 +1,4 @@
+# FILE: requirements.txt
 # --- Flask core ---
 flask==2.3.3
 Flask-SQLAlchemy==3.1.1
@@ -7,13 +8,13 @@ Flask-SocketIO==5.3.6
 Flask-Caching==2.1.0
 flask-limiter==2.8.0
 
-# --- Static File Serving (RECOMMENDED FIX) ---
+# --- Static File Serving ---
 whitenoise
 
-# --- async back-end (choisis-en un seul en prod) ---
-eventlet==0.39.1            # compatible Py 3.13
-gevent==24.11.1
-greenlet>=3.2.1             # roue cp313
+# --- async back-end (Ensure gevent is primary for this setup) ---
+gevent==24.11.1             # Required by start command and app.py patching
+greenlet>=3.2.1             # Dependency for gevent
+# eventlet==0.39.1          # Can be removed if not used elsewhere
 
 # --- base de données ---
 psycopg2-binary==2.9.10
@@ -24,5 +25,5 @@ Werkzeug==2.3.7
 
 # --- divers utilitaires ---
 ics==0.7.2
-python-socketio>=5.13.0
-python-engineio>=4.12.0
+python-socketio>=5.13.0     # Dependency for Flask-SocketIO
+python-engineio>=4.12.0     # Dependency for Flask-SocketIO
