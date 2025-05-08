@@ -2702,8 +2702,11 @@ def activites():
 def api_dashboard_essential():
     """API combinée pour les données essentielles du dashboard."""
     try:
+        # Vérifier si le mode léger est demandé
+        light_mode = request.args.get('light', '0') == '1'
+        
         # Try to get from cache first
-        cache_key = 'dashboard_essential_data'
+        cache_key = 'dashboard_essential_data' + ('_light' if light_mode else '')
         cached_data = cache.get(cache_key)
         if cached_data:
             return jsonify(cached_data)
@@ -2714,10 +2717,12 @@ def api_dashboard_essential():
             joinedload(Session.salle)
         ).order_by(Session.date, Session.heure_debut).all()
         
-        # Fetch participants
-        participants_q = Participant.query.options(
-            joinedload(Participant.service)
-        ).order_by(Participant.nom).all()
+        # En mode léger, ne récupérer que les participants nécessaires
+        participants_q = []
+        if not light_mode:
+            participants_q = Participant.query.options(
+                joinedload(Participant.service)
+            ).order_by(Participant.nom).all()
         
         # Fetch recent activities
         activites_q = Activite.query.options(
@@ -2776,15 +2781,17 @@ def api_dashboard_essential():
                 # Continuer avec la session suivante plutôt que d'échouer complètement
                 continue
             
-        # Prepare participant data
-        participants_data = [{
-            'id': p.id,
-            'nom': p.nom,
-            'prenom': p.prenom,
-            'email': p.email,
-            'service': p.service.nom if p.service else 'N/A',
-            'service_id': p.service_id
-        } for p in participants_q]
+        # Prepare participant data (vide en mode léger)
+        participants_data = []
+        if not light_mode:
+            participants_data = [{
+                'id': p.id,
+                'nom': p.nom,
+                'prenom': p.prenom,
+                'email': p.email,
+                'service': p.service.nom if p.service else 'N/A',
+                'service_id': p.service_id
+            } for p in participants_q]
         
         # Prepare activity data
         activites_data = [{
@@ -2802,11 +2809,12 @@ def api_dashboard_essential():
             'sessions': sessions_data,
             'participants': participants_data,
             'activites': activites_data,
-            'timestamp': datetime.now(UTC).timestamp()
+            'timestamp': datetime.now(UTC).timestamp(),
+            'light_mode': light_mode
         }
         
-        # Cache for 20 seconds
-        cache.set(cache_key, response_data, timeout=60)
+        # Cache for 20 seconds in light mode, 60 seconds in full mode
+        cache.set(cache_key, response_data, timeout=20 if light_mode else 60)
         
         return jsonify(response_data)
     except SQLAlchemyError as e:
