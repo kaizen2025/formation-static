@@ -1037,28 +1037,288 @@ def api_single_session(session_id):
     except SQLAlchemyError as e: app.logger.error(f"API Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
     except Exception as e: app.logger.error(f"API Unexpected Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
 
-@app.route('/api/participants')
-@limiter.limit("30 per minute")
-@db_operation_with_retry(max_retries=2)
-def api_participants():
+@app.route('/participants') # Définit l'URL /participants
+@login_required # S'assurer que l'utilisateur est connecté
+@db_operation_with_retry(max_retries=3)
+def participants_page(): # Le nom de la fonction devient l'endpoint par défaut
+    """Affiche la page principale de la liste des participants."""
+    app.logger.info(f"Utilisateur '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accède à la page /participants.")
     try:
-        page = request.args.get('page', 1, type=int); per_page = request.args.get('per_page', 20, type=int)
-        cache_key = f'participants_page_{page}_size_{per_page}'; cached_result = cache.get(cache_key)
-        if cached_result: return jsonify(cached_result)
-        pagination = Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).paginate(page=page, per_page=per_page, error_out=False)
-        participant_ids = [p.id for p in pagination.items]; confirmed_counts = {}; waitlist_counts = {}
-        if participant_ids:
-            confirmed_counts = dict(db.session.query(Inscription.participant_id, func.count(Inscription.id)).filter(Inscription.participant_id.in_(participant_ids), Inscription.statut == 'confirmé').group_by(Inscription.participant_id).all())
-            waitlist_counts = dict(db.session.query(ListeAttente.participant_id, func.count(ListeAttente.id)).filter(ListeAttente.participant_id.in_(participant_ids)).group_by(ListeAttente.participant_id).all())
-        result = []
-        for p in pagination.items: result.append({'id': p.id, 'nom': p.nom, 'prenom': p.prenom, 'email': p.email, 'service': p.service.nom if p.service else 'N/A', 'service_id': p.service_id, 'inscriptions': confirmed_counts.get(p.id, 0), 'en_attente': waitlist_counts.get(p.id, 0)})
-        response_data = {'items': result, 'total': pagination.total, 'pages': pagination.pages, 'page': pagination.page, 'per_page': pagination.per_page}
-        cache.set(cache_key, response_data, timeout=60)
-        return jsonify(response_data)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"API Error fetching participants: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
-    except Exception as e: db.session.rollback(); app.logger.error(f"API Unexpected Error fetching participants: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
-    finally: db.session.close()
+        # Récupérer les participants avec leurs services (chargement eager)
+        participants_list = Participant.query.options(
+            joinedload(Participant.service)
+        ).order_by(Participant.nom, Participant.prenom).all()
 
+        # Récupérer tous les services pour le menu déroulant du modal "Ajouter Participant"
+        services_for_modal = Service.query.order_by(Service.nom).all()
+
+        # --- Calcul efficace des compteurs pour chaque participant ---
+        participant_ids = [p.id for p in participants_list]
+        confirmed_counts = {}
+        waitlist_counts = {}
+        pending_counts = {}
+
+        if participant_ids:
+            # Compter les inscriptions confirmées
+            confirmed_q = db.session.query(
+                Inscription.participant_id, func.count(Inscription.id)
+            ).filter(
+                Inscription.participant_id.in_(participant_ids),
+                Inscription.statut == 'confirmé'
+            ).group_by(Inscription.participant_id).all()
+            confirmed_counts = dict(confirmed_q)
+
+            # Compter les entrées en liste d'attente
+            waitlist_q = db.session.query(
+                ListeAttente.participant_id, func.count(ListeAttente.id)
+            ).filter(
+                ListeAttente.participant_id.in_(participant_ids)
+            ).group_by(ListeAttente.participant_id).all()
+            waitlist_counts = dict(waitlist_q)
+
+            # Compter les inscriptions en attente
+            pending_q = db.session.query(
+                Inscription.participant_id, func.count(Inscription.id)
+            ).filter(
+                Inscription.participant_id.in_(participant_ids),
+                Inscription.statut == 'en attente'
+            ).group_by(Inscription.participant_id).all()
+            pending_counts = dict(pending_q)
+        # --- Fin du calcul des compteurs ---
+
+        # Préparer la structure de données attendue par le template
+        participants_data_for_template = []
+        for p in participants_list:
+             # NOTE : On ne passe que les compteurs à la page principale pour la performance.
+             # Les listes détaillées ('loaded_...') pour les modales sont initialement vides.
+             # Pour les remplir, il faudrait soit :
+             # 1. Les charger ici (potentiellement lent si beaucoup de participants/inscriptions).
+             # 2. Implémenter des appels AJAX dans le JS des modales pour charger les détails à la demande.
+             participants_data_for_template.append({
+                 'obj': p,
+                 'inscriptions_count': confirmed_counts.get(p.id, 0),
+                 'attente_count': waitlist_counts.get(p.id, 0),
+                 'pending_count': pending_counts.get(p.id, 0),
+                 # Passer des listes vides pour les détails des modales initialement
+                 'loaded_confirmed_inscriptions': [],
+                 'loaded_pending_inscriptions': [],
+                 'loaded_waitlist': []
+             })
+
+        # Passer participants_data et la liste complète des services au template
+        return render_template('participants.html',
+                               participants_data=participants_data_for_template,
+                               services=services_for_modal) # 'services' est nécessaire pour le modal
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB chargement page participants: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement des participants.", "danger")
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue chargement page participants: {e}", exc_info=True)
+        flash("Une erreur interne est survenue lors du chargement des participants.", "danger")
+        return redirect(url_for('dashboard'))
+# === FIN DE LA NOUVELLE ROUTE ===
+
+
+# --- Autres Actions Participants (Vérifiez qu'elles sont présentes et correctes) ---
+
+@app.route('/participant/add', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def add_participant():
+    # Vérification des permissions (ex: admin ou responsable)
+    if not (current_user.role == 'admin' or current_user.role == 'responsable'):
+         flash("Action non autorisée.", "danger")
+         return redirect(request.referrer or url_for('dashboard'))
+
+    nom = request.form.get('nom')
+    prenom = request.form.get('prenom')
+    email = request.form.get('email')
+    service_id = request.form.get('service_id')
+    from_page = request.form.get('from_page', 'dashboard') # Page d'origine pour redirection
+    redirect_session_id = request.form.get('redirect_session_id', type=int) # Pour inscription après ajout
+    action_after_add = request.form.get('action_after_add') # ex: 'inscription'
+    from_modal_flag = request.form.get('from_modal') == 'true'
+
+    # Validation de base
+    if not all([nom, prenom, email, service_id]):
+        flash('Tous les champs marqués * sont obligatoires.', 'warning')
+        redirect_url = url_for(from_page) if from_page in ['dashboard', 'services', 'participants_page', 'admin'] else url_for('dashboard')
+        return redirect(redirect_url)
+
+    # Vérifier si l'email existe déjà
+    existing_participant = Participant.query.filter(func.lower(Participant.email) == func.lower(email)).first()
+    if existing_participant:
+        flash(f'Un participant avec l\'email {email} existe déjà.', 'warning')
+        redirect_url = url_for(from_page) if from_page in ['dashboard', 'services', 'participants_page', 'admin'] else url_for('dashboard')
+        return redirect(redirect_url)
+
+    try:
+        new_participant = Participant(nom=nom, prenom=prenom, email=email, service_id=service_id)
+        db.session.add(new_participant)
+        db.session.flush() # Obtenir l'ID avant le commit
+        participant_id = new_participant.id
+        participant_name = f"{new_participant.prenom} {new_participant.nom}"
+        db.session.commit()
+
+        # Vider les caches pertinents
+        cache.delete_memoized(get_all_participants_with_service)
+        cache.delete_memoized(get_all_services_with_participants)
+        cache.delete('dashboard_essential_data') # Invalider le cache du dashboard
+
+        add_activity('ajout_participant', f'Ajout: {participant_name}', f'Service: {new_participant.service.nom}', user=current_user)
+        flash(f'Participant "{participant_name}" ajouté avec succès.', 'success')
+
+        # Si l'action était d'ajouter ET inscrire
+        if action_after_add == 'inscription' and redirect_session_id:
+            app.logger.info(f"Participant {participant_id} ajouté, tentative d'inscription à la session {redirect_session_id}")
+
+            session_obj = db.session.get(Session, redirect_session_id)
+            if not session_obj:
+                 flash(f'Session {redirect_session_id} introuvable pour l\'inscription automatique.', 'warning')
+            else:
+                # Vérifier places, inscription existante etc. (Logique simplifiée de la route inscription)
+                existing_active = Inscription.query.filter_by(participant_id=participant_id, session_id=redirect_session_id).first()
+                if existing_active:
+                     flash(f'{participant_name} a déjà une inscription pour cette session.', 'warning')
+                elif session_obj.get_places_restantes() <= 0:
+                     # Ajouter à la liste d'attente
+                     position = db.session.query(func.count(ListeAttente.id)).filter(ListeAttente.session_id == redirect_session_id).scalar() + 1
+                     attente = ListeAttente(participant_id=participant_id, session_id=redirect_session_id, position=position)
+                     db.session.add(attente)
+                     db.session.commit()
+                     add_activity('liste_attente', f'Ajout liste attente (auto): {participant_name}', f'Session: {session_obj.theme.nom} - Pos: {position}', user=current_user)
+                     flash(f'{participant_name} ajouté et mis en liste d\'attente (position {position}) car la session est complète.', 'info')
+                else:
+                     # Créer une nouvelle inscription en attente
+                     new_inscription = Inscription(participant_id=participant_id, session_id=redirect_session_id, statut='en attente')
+                     db.session.add(new_inscription)
+                     db.session.commit()
+                     add_activity('inscription', f'Demande inscription (auto): {participant_name}', f'Session: {session_obj.theme.nom}', user=current_user)
+                     flash(f'{participant_name} ajouté et inscrit (en attente de validation) à la session "{session_obj.theme.nom}".', 'success')
+                     socketio.emit('inscription_nouvelle', {'session_id': redirect_session_id, 'participant_id': participant_id, 'statut': 'en attente'}, room='general')
+
+        # Déterminer l'URL de redirection finale
+        redirect_url = url_for(from_page) if from_page in ['dashboard', 'services', 'participants_page', 'admin'] else url_for('dashboard')
+        return redirect(redirect_url)
+
+    except IntegrityError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur d'intégrité ajout participant: {e}", exc_info=True)
+        flash('Erreur : Cet email existe peut-être déjà.', 'danger')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB ajout participant: {e}", exc_info=True)
+        flash('Erreur de base de données lors de l\'ajout du participant.', 'danger')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue ajout participant: {e}", exc_info=True)
+        flash('Une erreur inattendue est survenue.', 'danger')
+
+    # Redirection de secours en cas d'erreur
+    redirect_url = url_for(from_page) if from_page in ['dashboard', 'services', 'participants_page', 'admin'] else url_for('dashboard')
+    return redirect(redirect_url)
+
+
+@app.route('/participant/update/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def update_participant(id):
+    participant = db.session.get(Participant, id)
+    if not participant:
+        flash('Participant introuvable.', 'danger')
+        return redirect(url_for('participants_page')) # Rediriger vers la liste des participants
+
+    # Vérification autorisation
+    is_admin = current_user.role == 'admin'
+    is_responsable = (current_user.role == 'responsable' and current_user.service_id == participant.service_id)
+    if not (is_admin or is_responsable):
+        flash('Action non autorisée.', 'danger')
+        return redirect(url_for('participants_page'))
+
+    nom = request.form.get('nom')
+    prenom = request.form.get('prenom')
+    email = request.form.get('email')
+    service_id = request.form.get('service_id')
+
+    if not all([nom, prenom, email, service_id]):
+        flash('Tous les champs marqués * sont obligatoires.', 'warning')
+        return redirect(request.referrer or url_for('participants_page'))
+
+    # Vérifier si l'email est changé pour un email existant (autre participant)
+    if email.lower() != participant.email.lower():
+        existing = Participant.query.filter(func.lower(Participant.email) == func.lower(email), Participant.id != id).first()
+        if existing:
+            flash(f'L\'email {email} est déjà utilisé par un autre participant.', 'warning')
+            return redirect(request.referrer or url_for('participants_page'))
+
+    try:
+        participant.nom = nom
+        participant.prenom = prenom
+        participant.email = email
+        participant.service_id = service_id
+        db.session.commit()
+
+        # Vider les caches pertinents
+        cache.delete_memoized(get_all_participants_with_service)
+        cache.delete_memoized(get_all_services_with_participants)
+        cache.delete('dashboard_essential_data')
+
+        add_activity('modification_participant', f'Modif: {participant.prenom} {participant.nom}', user=current_user)
+        flash('Participant mis à jour avec succès.', 'success')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB màj participant {id}: {e}", exc_info=True)
+        flash('Erreur de base de données lors de la mise à jour.', 'danger')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue màj participant {id}: {e}", exc_info=True)
+        flash('Une erreur inattendue est survenue.', 'danger')
+
+    return redirect(url_for('participants_page'))
+
+
+@app.route('/participant/delete/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def delete_participant(id):
+    # Seuls les admins peuvent supprimer
+    if current_user.role != 'admin':
+        flash('Action réservée aux administrateurs.', 'danger')
+        return redirect(url_for('participants_page'))
+
+    participant = db.session.get(Participant, id)
+    if not participant:
+        flash('Participant introuvable.', 'warning')
+        return redirect(url_for('participants_page'))
+
+    participant_name = f"{participant.prenom} {participant.nom}"
+
+    try:
+        # La cascade SQLAlchemy devrait gérer la suppression des Inscription et ListeAttente liées
+        db.session.delete(participant)
+        db.session.commit()
+
+        # Vider les caches pertinents
+        cache.delete_memoized(get_all_participants_with_service)
+        cache.delete_memoized(get_all_services_with_participants)
+        cache.delete('dashboard_essential_data')
+
+        add_activity('suppression_participant', f'Suppression: {participant_name}', user=current_user)
+        flash(f'Participant "{participant_name}" et ses inscriptions/attentes supprimés.', 'success')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB suppression participant {id}: {e}", exc_info=True)
+        flash('Erreur de base de données lors de la suppression.', 'danger')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue suppression participant {id}: {e}", exc_info=True)
+        flash('Une erreur inattendue est survenue.', 'danger')
+
+    return redirect(url_for('participants_page'))
 @app.route('/api/salles')
 @db_operation_with_retry(max_retries=2)
 def api_salles():
