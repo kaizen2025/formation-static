@@ -1,20 +1,24 @@
 /**
  * ui-fixers.js - Amélioration de l'interface utilisateur et corrections automatiques
- * v1.1.0 - Amélioration de la gestion des erreurs de données et du rendu des éléments
+ * v1.2.0 - Amélioration majeure pour la résilience aux erreurs de données et API
  */
 console.log("--- ui-fixers.js EXECUTING ---");
 
 document.addEventListener('DOMContentLoaded', function() {
     const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
-    if (DASH_CONFIG.debugMode) console.log('UI Fixers initialized (v1.1.0)');
+    if (DASH_CONFIG.debugMode) console.log('UI Fixers initialized (v1.2.0)');
 
     const internalConfig = {
         enhanceLabels: true,
         fixTooltips: true,
         fixSessionInfo: true,
         fixSalleDisplay: true,
-        enhancePlacesRestantes: true, // Nouveau - spécifique pour "places_restantes"
+        enhancePlacesRestantes: true, 
         enhanceAccessibility: true,
+        fixBadges: true,
+        fixMissingData: true,
+        maxQueuedFixes: 5, // Limite le nombre de corrections en file d'attente
+        limitMutationCallbacks: true, // Limiter les callbacks de l'observateur de mutations
     };
 
     // État interne
@@ -22,11 +26,24 @@ document.addEventListener('DOMContentLoaded', function() {
     let scheduledFixId = null;
     let fixesCounter = 0;
     let apiCallDetectedAt = 0;
+    let queuedFixesCount = 0;
+    let lastMutationHandled = 0;
+    let mutationDebounceTime = 50; // ms minimum entre les appels de l'observateur de mutations
 
     // Debounce applyAllFixes pour éviter les appels rapides du MutationObserver
     function debouncedApplyAllFixes() {
+        // Limiter le nombre de corrections en file d'attente
+        if (queuedFixesCount >= internalConfig.maxQueuedFixes) {
+            console.log(`UI Fixers: Too many queued fixes (${queuedFixesCount}), skipping this request`);
+            return;
+        }
+        
         clearTimeout(scheduledFixId);
-        scheduledFixId = setTimeout(applyAllFixes, 150); // 150ms debounce
+        queuedFixesCount++;
+        scheduledFixId = setTimeout(() => {
+            applyAllFixes();
+            queuedFixesCount--;
+        }, 150); // 150ms debounce
     }
 
     // Application initiale des corrections
@@ -71,11 +88,13 @@ document.addEventListener('DOMContentLoaded', function() {
         lastFixTimestamp = now;
 
         try {
+            if (internalConfig.fixMissingData) fixMissingData();
             if (internalConfig.enhanceLabels) enhanceLabels();
             if (internalConfig.fixTooltips) fixTooltips(); // Les tooltips doivent être ré-initialisés après les changements DOM
             if (internalConfig.fixSessionInfo) fixSessionInfo();
             if (internalConfig.fixSalleDisplay) fixSalleDisplay();
-            if (internalConfig.enhancePlacesRestantes) enhancePlacesRestantes(); // Nouveau fix spécifique
+            if (internalConfig.enhancePlacesRestantes) enhancePlacesRestantes(); 
+            if (internalConfig.fixBadges) fixBadges();
             if (internalConfig.enhanceAccessibility) enhanceAccessibility();
 
             // Appeler l'enhancer de badges de thèmes global depuis layout.html 
@@ -87,6 +106,60 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('UI Fixers: Error applying fixes:', error);
         }
+    }
+    
+    /**
+     * Corrige les données manquantes ou invalides dans le DOM
+     */
+    function fixMissingData() {
+        // Fixer les éléments vides ou avec contenu invalide
+        document.querySelectorAll('[data-dynamic], .counter-value, .places-dispo').forEach(el => {
+            const text = el.textContent.trim();
+            
+            // Corriger les conteneurs vides
+            if (text === '' || text === 'undefined' || text === 'null' || text === 'NaN') {
+                if (el.classList.contains('counter-value')) {
+                    el.textContent = '0';
+                } else if (el.classList.contains('places-dispo')) {
+                    el.textContent = '? / ?';
+                    el.classList.add('text-secondary');
+                    el.title = 'Données temporairement indisponibles';
+                } else if (el.children.length === 0) {
+                    el.innerHTML = '<div class="text-muted text-center p-2">Données non disponibles</div>';
+                }
+            }
+            
+            // Corriger les valeurs NaN / NaN dans places-dispo
+            if (el.classList.contains('places-dispo') && (text.includes('NaN') || text.includes('undefined'))) {
+                el.textContent = '? / ?';
+                el.classList.add('text-secondary');
+                el.title = 'Données temporairement indisponibles';
+            }
+        });
+        
+        // Fixer les badges sans couleur
+        document.querySelectorAll('.badge').forEach(badge => {
+            if (!Array.from(badge.classList).some(c => c.startsWith('bg-') || badge.style.backgroundColor)) {
+                badge.classList.add('bg-secondary');
+            }
+        });
+        
+        // Fixer les tableaux sans données
+        document.querySelectorAll('table').forEach(table => {
+            const tbody = table.querySelector('tbody');
+            if (tbody && !tbody.querySelector('tr')) {
+                const cols = table.querySelectorAll('thead th').length || 3;
+                tbody.innerHTML = `<tr><td colspan="${cols}" class="text-center p-3 text-muted">Aucune donnée disponible</td></tr>`;
+            }
+        });
+        
+        // Fixer les listes vides
+        document.querySelectorAll('.list-group, [data-empty-message]').forEach(list => {
+            if (list.children.length === 0) {
+                const message = list.dataset.emptyMessage || 'Aucun élément disponible';
+                list.innerHTML = `<div class="list-group-item text-center text-muted">${message}</div>`;
+            }
+        });
     }
 
     /**
@@ -112,6 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 el.innerHTML = `<i class="fas fa-chart-bar me-2"></i>${text}`;
             } else if (text.includes('Répartition par thème') && !el.querySelector('i.fa-book, i.fa-chart-pie')) {
                 el.innerHTML = `<i class="fas fa-chart-pie me-2"></i>${text}`;
+            } else if (text.includes('Activité récente') && !el.querySelector('i.fa-history')) {
+                el.innerHTML = `<i class="fas fa-history me-2"></i>${text}`;
             }
         });
     }
@@ -214,6 +289,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     el.classList.add('text-secondary');
                     el.innerHTML = `<i class="fas fa-minus-circle me-1"></i> ${dispo} / ${total}`;
                 }
+            } else if (text === '? / ?' || text.includes('NaN') || text.includes('undefined')) {
+                // Cas d'erreur détecté
+                el.classList.remove('text-success', 'text-warning', 'text-danger');
+                el.classList.add('text-secondary');
+                el.innerHTML = `<i class="fas fa-question-circle me-1"></i> ? / ?`;
+                el.title = 'Données temporairement indisponibles';
             }
         });
     }
@@ -230,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.places-dispo').forEach(el => {
             const text = el.textContent.trim();
             if (text.includes('NaN') || text.includes('undefined') || text === '/ ' || text === ' / ' || text === ' /') {
-                suspiciousElements.push({element: el, type: 'invalid'});
+                suspiciousElements.push({el: el, type: 'invalid'});
             }
 
             // Cas 2: Places disponibles > capacité (impossible normalement)
@@ -240,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const total = parseInt(totalStr.trim(), 10);
                 
                 if (!isNaN(dispo) && !isNaN(total) && dispo > total) {
-                    suspiciousElements.push({element: el, type: 'inconsistent'});
+                    suspiciousElements.push({el: el, type: 'inconsistent'});
                 }
             }
         });
@@ -333,6 +414,45 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    /**
+     * Améliore l'apparence des badges
+     */
+    function fixBadges() {
+        // S'assurer que tous les badges ont une couleur de fond
+        document.querySelectorAll('.badge, .theme-badge').forEach(badge => {
+            // Si le badge n'a pas de classe bg-* et pas de background-color, ajouter une classe par défaut
+            const hasBgClass = Array.from(badge.classList).some(cls => cls.startsWith('bg-'));
+            const hasInlineStyle = badge.style.backgroundColor && badge.style.backgroundColor !== 'transparent';
+            
+            if (!hasBgClass && !hasInlineStyle) {
+                // Essayer de détecter le type de badge
+                if (badge.classList.contains('theme-badge')) {
+                    const theme = badge.textContent.trim();
+                    if (theme.includes('Teams') && theme.includes('Communiquer')) {
+                        badge.classList.add('theme-comm');
+                    } else if (theme.includes('Planner')) {
+                        badge.classList.add('theme-planner');
+                    } else if (theme.includes('OneDrive') || theme.includes('fichiers')) {
+                        badge.classList.add('theme-onedrive');
+                    } else if (theme.includes('Collaborer')) {
+                        badge.classList.add('theme-sharepoint');
+                    } else {
+                        badge.classList.add('bg-primary');
+                    }
+                } else if (badge.classList.contains('salle-badge')) {
+                    badge.classList.add('bg-info');
+                } else {
+                    badge.classList.add('bg-secondary');
+                }
+            }
+            
+            // S'assurer que le texte est lisible (texte blanc sur fond foncé)
+            if (!badge.classList.contains('text-white') && !badge.classList.contains('text-dark')) {
+                badge.classList.add('text-white');
+            }
+        });
+    }
 
     /**
      * Améliore l'accessibilité des éléments de la page
@@ -375,6 +495,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             img.setAttribute('alt', altText || 'Image');
         });
+        
+        // Assurer que la page a un favicon pour éviter erreur 404
+        if (!document.querySelector('link[rel="shortcut icon"]')) {
+            const link = document.createElement('link');
+            link.rel = 'shortcut icon';
+            link.href = '/static/favicon.ico';
+            document.head.appendChild(link);
+        }
     }
 
     /**
@@ -391,6 +519,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const callback = function(mutationsList, observer) {
             // Vérification rapide pour éviter trop d'invocations
             const now = Date.now();
+            
+            // Limiter la fréquence des appels de l'observateur de mutations
+            if (internalConfig.limitMutationCallbacks && now - lastMutationHandled < mutationDebounceTime) {
+                return;
+            }
+            
             const timeSinceLastApiCall = now - apiCallDetectedAt;
             let shouldTriggerFixes = false;
             
@@ -417,11 +551,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     for (const node of mutation.addedNodes) {
                         if (node.nodeType === 1) { // Element node
                             // Vérifier si l'élément ajouté contient des cibles intéressantes
-                            if (node.querySelector('.places-dispo, .js-salle-cell, [data-bs-toggle="tooltip"], .theme-badge') ||
+                            if (node.querySelector('.places-dispo, .js-salle-cell, [data-bs-toggle="tooltip"], .theme-badge, .counter-value, .badge') ||
                                 node.classList && (
                                     node.classList.contains('places-dispo') || 
                                     node.classList.contains('js-salle-cell') || 
-                                    node.classList.contains('theme-badge'))) {
+                                    node.classList.contains('theme-badge') ||
+                                    node.classList.contains('counter-value') ||
+                                    node.classList.contains('badge'))) {
                                 shouldTriggerFixes = true;
                                 break;
                             }
@@ -441,6 +577,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (shouldTriggerFixes) {
                 if (DASH_CONFIG.debugMode) console.log('UI Fixers: Relevant DOM change detected, queueing reapplication of fixes.');
                 debouncedApplyAllFixes();
+                lastMutationHandled = now;
             }
         };
         
@@ -458,6 +595,8 @@ document.addEventListener('DOMContentLoaded', function() {
         fixSessionInfo: fixSessionInfo,
         fixSalleDisplay: fixSalleDisplay,
         enhancePlacesRestantes: enhancePlacesRestantes,
-        enhanceAccessibility: enhanceAccessibility
+        enhanceAccessibility: enhanceAccessibility,
+        fixBadges: fixBadges,
+        fixMissingData: fixMissingData
     };
 });
