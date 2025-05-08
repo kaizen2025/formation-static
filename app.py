@@ -1420,6 +1420,121 @@ def api_salles():
     except SQLAlchemyError as e: app.logger.error(f"API Error fetching salles: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
     except Exception as e: app.logger.error(f"API Unexpected Error fetching salles: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
 
+@app.route('/salles')
+@login_required
+@db_operation_with_retry(max_retries=3)
+def salles_page(): # Changed function name for clarity
+    """Affiche la page de gestion des salles (Admin)."""
+    if current_user.role != 'admin':
+        flash("Accès réservé aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    app.logger.info(f"Admin '{current_user.username}' accède à la page /salles.")
+    try:
+        # Fetch salles data, potentially with associated session counts for display
+        salles_list = Salle.query.order_by(Salle.nom).all()
+        salles_data_for_template = []
+        salle_ids = [s.id for s in salles_list]
+        session_counts = {}
+        if salle_ids:
+             counts_q = db.session.query(
+                 Session.salle_id, func.count(Session.id)
+             ).filter(Session.salle_id.in_(salle_ids)).group_by(Session.salle_id).all()
+             session_counts = dict(counts_q)
+
+        # Fetch detailed sessions ONLY if needed by the template (salles.html currently doesn't seem to need full details)
+        # If you need full session details per salle, use selectinload or iterate carefully.
+        # For now, just pass the counts.
+        for s in salles_list:
+             salles_data_for_template.append({
+                 'obj': s,
+                 'sessions_count': session_counts.get(s.id, 0),
+                 'sessions_associees': [] # Pass empty list if details not needed now
+                 # If details needed: 'sessions_associees': sorted(s.sessions.options(joinedload(Session.theme)).all(), key=lambda sess: sess.date)
+             })
+
+
+        return render_template('salles.html', salles_data=salles_data_for_template) # Pass the prepared data
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB chargement page salles: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement des salles.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue chargement page salles: {e}", exc_info=True)
+        flash("Une erreur interne est survenue lors du chargement des salles.", "danger")
+
+    return redirect(url_for('admin')) # Redirect to admin panel on error
+
+@app.route('/themes')
+@login_required
+@db_operation_with_retry(max_retries=3)
+def themes_page():
+    """Affiche la page de gestion des thèmes (Admin)."""
+    if current_user.role != 'admin':
+        flash("Accès réservé aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    app.logger.info(f"Admin '{current_user.username}' accède à la page /themes.")
+    try:
+        # Fetch themes data, potentially with associated session counts
+        themes_list = Theme.query.options(
+            selectinload(Theme.sessions) # Load sessions efficiently
+        ).order_by(Theme.nom).all()
+
+        themes_data_for_template = []
+        session_ids = [s.id for theme in themes_list for s in theme.sessions]
+        confirmed_counts = {}
+        if session_ids:
+             counts_q = db.session.query(
+                 Inscription.session_id, func.count(Inscription.id)
+             ).filter(
+                 Inscription.session_id.in_(session_ids),
+                 Inscription.statut == 'confirmé'
+             ).group_by(Inscription.session_id).all()
+             confirmed_counts = dict(counts_q)
+
+        for theme in themes_list:
+            total_sessions_for_theme = len(theme.sessions)
+            sessions_detailed = []
+            for session in sorted(theme.sessions, key=lambda s: s.date):
+                 confirmed_count = confirmed_counts.get(session.id, 0)
+                 places_restantes = max(0, (session.max_participants or 0) - confirmed_count)
+                 sessions_detailed.append({
+                     'obj': session,
+                     'confirmed_count': confirmed_count,
+                     'places_restantes': places_restantes
+                 })
+
+            themes_data_for_template.append({
+                'obj': theme,
+                'total_sessions': total_sessions_for_theme,
+                'sessions_detailed': sessions_detailed
+            })
+
+        # Pass csrf_token_field if using Flask-WTF CSRF protection
+        csrf_token_field = None # Replace with actual CSRF field if needed
+        # from flask_wtf.csrf import generate_csrf
+        # csrf_token_field = generate_csrf
+
+        return render_template('themes.html', themes_data=themes_data_for_template, csrf_token_field=csrf_token_field)
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB chargement page thèmes: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement des thèmes.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue chargement page thèmes: {e}", exc_info=True)
+        flash("Une erreur interne est survenue lors du chargement des thèmes.", "danger")
+
+    return redirect(url_for('admin')) # Redirect to admin panel on error
+
+# Make sure to add necessary imports if not present (func, selectinload)
+from sqlalchemy import func
+from sqlalchemy.orm import selectinload
+
 @app.route('/api/activites')
 @db_operation_with_retry(max_retries=2)
 def api_activites():
@@ -1649,6 +1764,9 @@ def init_db():
 # ==============================================================================
 # === Main Execution ===
 # ==============================================================================
+# ==============================================================================
+# === Main Execution ===
+# ==============================================================================
 if __name__ == '__main__':
     # Configure logging first
     configure_logging(app)
@@ -1661,74 +1779,52 @@ if __name__ == '__main__':
     # Perform database checks and initialization within app context
     with app.app_context():
         app.logger.info("Application context entered for startup DB checks.")
+        db_ready = False
         try:
+            # 1. Check Connection
             connection_ok = check_db_connection()
             if connection_ok:
                 app.logger.info("Connexion DB OK.")
 
-                # --- Ensure ALL tables exist ---
-                app.logger.info("Vérification/Création des tables DB...")
+                # 2. Ensure ALL tables exist - ALWAYS run this after connection check
+                app.logger.info("Vérification/Création des tables DB (db.create_all())...")
                 try:
-                    # db.reflect() # Optional: Reflect existing tables if needed
                     db.create_all() # Creates tables defined in models if they don't exist
-                    app.logger.info("Vérification/Création des tables terminée.")
+                    app.logger.info("db.create_all() exécuté avec succès.")
+                    db_ready = True # Mark DB as ready for seeding check
                 except OperationalError as op_err:
-                     app.logger.error(f"Erreur opérationnelle lors de db.create_all() (vérifiez les permissions/connexion): {op_err}")
-                     # Depending on the error, you might want to exit or continue cautiously
+                    app.logger.error(f"Erreur opérationnelle lors de db.create_all() (vérifiez les permissions/connexion): {op_err}")
                 except Exception as create_err:
                     app.logger.error(f"⚠️ Erreur lors de db.create_all(): {create_err}", exc_info=True)
-                    try:
-                        db.session.rollback() # Rollback in case of error during create_all
-                    except Exception as rb_err:
-                         app.logger.error(f"Erreur supplémentaire pendant le rollback après create_all: {rb_err}")
-                    # Decide if you want to proceed without tables fully guaranteed
+                    try: db.session.rollback()
+                    except Exception as rb_err: app.logger.error(f"Erreur rollback après échec create_all: {rb_err}")
 
-                # --- Run initial data seeding if needed ---
-                # Check if a key table (like 'service' or 'user') is empty to decide if seeding is needed
-                # This prevents re-seeding data on every restart if tables already exist and have data.
-                try:
-                    needs_seeding = not db.session.query(Service).count() > 0 # Check if Service table is empty
-                    if needs_seeding:
-                        app.logger.info("Base de données vide ou table clé manquante, lancement init_db() pour le seeding...")
-                        if not init_db(): # init_db now focuses only on seeding data
-                            app.logger.error("⚠️ Échec de l'initialisation des données initiales (seeding).")
-                        else:
-                            app.logger.info("Données initiales (seed) ajoutées avec succès.")
+                # 3. Run initial data seeding IF tables were successfully created/verified
+                if db_ready:
+                    app.logger.info("Tentative d'initialisation des données (seeding via init_db())...")
+                    if not init_db(): # init_db now focuses only on seeding data if tables are empty
+                        app.logger.error("⚠️ Échec de l'initialisation des données initiales (seeding).")
                     else:
-                        app.logger.info("DB déjà initialisée et contient des données (seeding ignoré).")
-                        # Run updates that should happen on every start if needed
-                        try:
-                            update_theme_names()
-                            app.logger.info("Standardisation des noms de thèmes vérifiée/effectuée.")
-                        except Exception as update_err:
-                            app.logger.warning(f"Note: Erreur lors de la standardisation des thèmes au démarrage: {update_err}")
-
-                except Exception as seed_check_err:
-                     app.logger.error(f"Erreur lors de la vérification/exécution du seeding: {seed_check_err}", exc_info=True)
-                     try: db.session.rollback()
-                     except Exception as rb_err: app.logger.error(f"Erreur rollback après erreur seeding: {rb_err}")
-
+                        app.logger.info("Initialisation/Vérification des données initiales terminée.")
+                else:
+                     app.logger.warning("Skipping data seeding (init_db) because table creation failed or was uncertain.")
 
             else:
                 app.logger.error("⚠️ ERREUR CONNEXION DB au démarrage. Impossible de vérifier/initialiser la DB.")
                 print("⚠️ ERREUR CONNEXION DB au démarrage. Impossible de vérifier/initialiser la DB.")
-                # Consider exiting if DB connection is critical for startup
+                # Consider exiting if DB connection is critical
                 # sys.exit(1)
 
         except OperationalError as oe:
             app.logger.critical(f"⚠️ ERREUR CONNEXION DB CRITIQUE au démarrage: {oe}")
             print(f"⚠️ ERREUR CONNEXION DB CRITIQUE au démarrage: {oe}")
             print("Impossible de vérifier/initialiser la DB. L'application ne peut pas démarrer correctement.")
-            # Exit if DB connection fails critically at startup
-            sys.exit(1)
+            sys.exit(1) # Exit if DB connection fails critically at startup
         except Exception as e:
             app.logger.critical(f"⚠️ Erreur CRITIQUE lors de la vérification/initialisation de la DB au démarrage: {e}", exc_info=True)
             print(f"⚠️ Erreur CRITIQUE lors de la vérification/initialisation de la DB: {e}")
-            try:
-                db.session.rollback()
-            except Exception as rb_e:
-                app.logger.error(f"Erreur supplémentaire pendant le rollback après erreur critique: {rb_e}")
-                print(f"Erreur supplémentaire pendant le rollback: {rb_e}")
+            try: db.session.rollback()
+            except Exception as rb_e: app.logger.error(f"Erreur rollback après erreur critique: {rb_e}")
             # Consider exiting
             # sys.exit(1)
 
@@ -1739,12 +1835,9 @@ if __name__ == '__main__':
         print(f"Démarrage serveur en MODE {'PRODUCTION' if is_production else 'DÉVELOPPEMENT'} avec {ASYNC_MODE} sur http://{host}:{port} (Debug: {debug_mode})")
 
         if debug_mode:
-            # Development server with reloader
             socketio.run(app, host=host, port=port, use_reloader=True, debug=debug_mode, log_output=False, allow_unsafe_werkzeug=True)
         else:
-            # Production server (Gunicorn is typically used via Procfile on Render, this is a fallback)
             print("NOTE: Using Flask's built-in server or SocketIO's runner directly for production is not recommended. Ensure Gunicorn/Waitress is configured.")
-            # SocketIO runner is better than Flask's default for websockets
             socketio.run(app, host=host, port=port, debug=False, use_reloader=False)
 
     except Exception as e:
@@ -1753,3 +1846,5 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(1) # Exit if server fails to start
+
+# --- END OF COMPLETE app.py --- # Make sure this comment is accurate if you copy the whole file
