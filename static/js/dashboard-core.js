@@ -1,17 +1,18 @@
 /**
  * dashboard-core.js - Fichier JavaScript optimisé pour le tableau de bord
  * Remplace: polling-updates.js, ui-fixers.js, charts-enhanced.js, static-charts.js
- * Version: 1.1.1 - Ajout délai avant réinitialisation flag 'updating'
+ * Version: 1.2.0 - Augmentation intervalle, ajout debounce, simplification fetch logic
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard Core: Initializing (v1.1.1)');
+    console.log('Dashboard Core: Initializing (v1.2.0)');
 
     // Configuration centralisée
     const config = window.dashboardConfig || {
         debugMode: false,
-        refreshInterval: 150000, // 2.5 minutes
-        minRefreshDelay: 15000, // Minimum 15 secondes entre les requêtes auto
+        refreshInterval: 300000, // Augmenté à 5 minutes
+        minRefreshDelay: 30000, // Minimum 30 secondes entre les requêtes auto
+        debounceDelay: 500,     // Délai pour debounce fetch
         baseApiUrl: '/api',
         chartRendering: 'auto'
     };
@@ -26,20 +27,16 @@ document.addEventListener('DOMContentLoaded', function() {
         pollingActive: true,
         pollingInterval: null,
         themeChart: null,
-        serviceChart: null
+        serviceChart: null,
+        fetchTimeoutId: null // Pour debounce
     };
 
     // Référence au gestionnaire d'erreurs API
-    const errorHandler = window.apiErrorHandler || {
-        handleApiError: (endpoint, errorData, statusCode) => {
-            console.error(`Fallback Error Handler: Erreur ${statusCode} sur ${endpoint}`, errorData);
-            showToast(`Erreur ${statusCode} lors du chargement de ${endpoint}`, 'danger');
-            return false;
-        },
-        checkAndFixBrokenElements: () => {
-            console.warn("Fallback checkAndFixBrokenElements called");
-        }
+    const errorHandler = window.apiErrorHandler || { /* ... (identique) ... */
+        handleApiError: (endpoint, errorData, statusCode) => { console.error(`Fallback Error Handler: Erreur ${statusCode} sur ${endpoint}`, errorData); showToast(`Erreur ${statusCode} lors du chargement de ${endpoint}`, 'danger'); return false; },
+        checkAndFixBrokenElements: () => { console.warn("Fallback checkAndFixBrokenElements called"); }
     };
+
 
     // ====== INITIALISATION ET CYCLE DE VIE ======
 
@@ -47,12 +44,8 @@ document.addEventListener('DOMContentLoaded', function() {
         enhanceUI();
         setupEventListeners();
         initializeCharts();
-        fetchDashboardData(true).catch(err => {
-            console.error("Dashboard Core: Initial data fetch failed", err);
-            showErrorWarning(true);
-        }).finally(() => {
-             updateDonutTotal();
-        });
+        // Trigger initial fetch via debounced function
+        debouncedFetchDashboardData(true);
         startPolling();
         console.log('Dashboard Core: Initialization complete.');
     }
@@ -61,7 +54,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (dashboardState.pollingInterval) clearInterval(dashboardState.pollingInterval);
         dashboardState.pollingInterval = setInterval(() => {
             if (dashboardState.pollingActive && document.visibilityState === 'visible') {
-                fetchDashboardData();
+                // Trigger fetch via debounced function
+                debouncedFetchDashboardData();
             } else if (!dashboardState.pollingActive) {
                  console.log("Dashboard Core: Polling paused due to errors.");
             }
@@ -73,7 +67,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && dashboardState.pollingActive) {
                 console.log('Dashboard Core: Tab visible, triggering refresh');
-                fetchDashboardData();
+                // Trigger fetch via debounced function
+                debouncedFetchDashboardData();
             }
         });
 
@@ -84,10 +79,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
                 const overlay = document.getElementById('loading-overlay');
                 if (overlay) overlay.style.display = 'flex';
-                fetchDashboardData(true)
+
+                // Trigger fetch via debounced function, forcing it
+                debouncedFetchDashboardData(true)
                     .then((updated) => {
                         if (updated) showToast('Données actualisées avec succès', 'success');
-                        else showToast('Aucune nouvelle donnée détectée.', 'info');
+                        else showToast('Aucune nouvelle donnée détectée ou erreur.', 'info'); // Message ajusté
+                        // Réactiver le polling s'il était en pause
                         if (!dashboardState.pollingActive) {
                             dashboardState.pollingActive = true;
                             dashboardState.errorCount = 0;
@@ -95,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             startPolling();
                         }
                     })
-                    .catch(err => {
+                    .catch(err => { // Catch potentiel si debouncedFetch rejette (ne devrait pas)
                         console.error('Dashboard Core: Error during manual refresh:', err);
                         showToast('Erreur lors de l\'actualisation manuelle', 'danger');
                     })
@@ -110,44 +108,32 @@ document.addEventListener('DOMContentLoaded', function() {
         setupMutationObserver();
     }
 
-    function setupMutationObserver() {
-        // (Identique)
-        if (!window.MutationObserver) return;
-        let observerTimeout = null;
-        const observer = new MutationObserver(function(mutations) {
-            let important = false;
-            for (const mutation of mutations) {
-                 if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    for (const node of mutation.addedNodes) {
-                        if (node.nodeType === 1 && node.classList && (node.classList.contains('places-dispo') || node.classList.contains('theme-badge') || node.classList.contains('counter-value') || node.querySelector('.places-dispo, .theme-badge, .counter-value'))) {
-                            important = true; break;
-                        }
-                    }
-                }
-                if (important) break;
-            }
-            if (important) { clearTimeout(observerTimeout); observerTimeout = setTimeout(() => { fixDataIssues(); enhanceBadgesAndLabels(); }, 300); }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-        if (config.debugMode) console.log('Dashboard Core: Mutation observer initialized');
+    function setupMutationObserver() { /* ... (identique) ... */
+        if (!window.MutationObserver) return; let observerTimeout = null; const observer = new MutationObserver(function(mutations) { let important = false; for (const mutation of mutations) { if (mutation.type === 'childList' && mutation.addedNodes.length > 0) { for (const node of mutation.addedNodes) { if (node.nodeType === 1 && node.classList && (node.classList.contains('places-dispo') || node.classList.contains('theme-badge') || node.classList.contains('counter-value') || node.querySelector('.places-dispo, .theme-badge, .counter-value'))) { important = true; break; } } } if (important) break; } if (important) { clearTimeout(observerTimeout); observerTimeout = setTimeout(() => { fixDataIssues(); enhanceBadgesAndLabels(); }, 300); } }); observer.observe(document.body, { childList: true, subtree: true }); if (config.debugMode) console.log('Dashboard Core: Mutation observer initialized');
     }
 
     // ====== COMMUNICATION AVEC L'API ======
 
-    async function fetchDashboardData(forceRefresh = false) {
+    /**
+     * Fonction fetch réelle (appelée par la version debounced)
+     */
+    async function _fetchDashboardData(forceRefresh = false) {
+        // Vérifier le flag 'updating' ICI, juste avant la requête réelle
         if (dashboardState.updating) {
-            console.log('Dashboard Core: Skipping fetch (update in progress)');
-            return Promise.resolve(false);
-        }
-        const now = Date.now();
-        if (!forceRefresh && now - dashboardState.lastRefresh < config.minRefreshDelay) {
-            console.log(`Dashboard Core: Skipping fetch (too soon, last: ${dashboardState.lastRefresh}, now: ${now})`);
+            console.log('Dashboard Core: Skipping fetch (_fetchDashboardData - update already in progress)');
             return Promise.resolve(false);
         }
 
-        dashboardState.updating = true; // *** Set flag BEFORE fetch ***
+        const now = Date.now();
+        // Vérifier le délai minimum avant de lancer la requête
+        if (!forceRefresh && now - dashboardState.lastRefresh < config.minRefreshDelay) {
+            console.log(`Dashboard Core: Skipping fetch (_fetchDashboardData - too soon)`);
+            return Promise.resolve(false);
+        }
+
+        dashboardState.updating = true;
         dashboardState.lastRefresh = now;
-        let updateSucceeded = false; // Track success for finally block
+        let updateSucceeded = false;
 
         try {
             const url = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
@@ -165,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const hasChanged = processData(data, forceRefresh);
             dashboardState.errorCount = 0;
             showErrorWarning(false);
-            updateSucceeded = true; // Mark as success
+            updateSucceeded = true;
 
             if (hasChanged) {
                 console.log('Dashboard Core: Data updated, triggering dashboardDataRefreshed event');
@@ -186,26 +172,52 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return false;
         } finally {
-            // *** Add a small delay before resetting the flag ***
-            setTimeout(() => {
+            // Réinitialiser le flag après un court délai pour éviter les race conditions
+             setTimeout(() => {
                 dashboardState.updating = false;
                 console.log('Dashboard Core: Fetch cycle finished.');
-            }, 200); // Delay of 200ms
+            }, 100); // Délai court après la fin du cycle
         }
     }
+
+    /**
+     * Fonction debounced pour appeler _fetchDashboardData
+     * @param {boolean} forceRefresh Force une actualisation complète
+     * @returns {Promise} Une promesse qui se résout avec le résultat de _fetchDashboardData ou false si debounced
+     */
+    function debouncedFetchDashboardData(forceRefresh = false) {
+        // Si forcé, annuler tout timeout existant et exécuter immédiatement
+        if (forceRefresh) {
+            clearTimeout(dashboardState.fetchTimeoutId);
+            dashboardState.fetchTimeoutId = null; // Réinitialiser l'ID du timeout
+            console.log("Dashboard Core: Debounced fetch triggered (forced)");
+            // Retourner la promesse de l'exécution réelle
+            return _fetchDashboardData(true);
+        }
+
+        // Si un timeout est déjà en cours, ne rien faire
+        if (dashboardState.fetchTimeoutId) {
+            console.log("Dashboard Core: Debounced fetch skipped (timeout active)");
+            return Promise.resolve(false); // Indiquer qu'aucune nouvelle requête n'est lancée
+        }
+
+        // Sinon, programmer l'exécution après le délai
+        console.log(`Dashboard Core: Debounced fetch scheduled (delay: ${config.debounceDelay}ms)`);
+        return new Promise((resolve) => {
+             dashboardState.fetchTimeoutId = setTimeout(async () => {
+                dashboardState.fetchTimeoutId = null; // Réinitialiser l'ID avant l'exécution
+                const result = await _fetchDashboardData(false);
+                resolve(result); // Résoudre la promesse avec le résultat du fetch
+            }, config.debounceDelay);
+        });
+    }
+
 
     function processData(data, forceRefresh = false) {
         // (Identique)
         if (!data) return false; let hasChanged = forceRefresh;
-        if (data.sessions && Array.isArray(data.sessions)) {
-            const validatedSessions = data.sessions.map(s => { if (typeof s.places_restantes !== 'number' || isNaN(s.places_restantes)) s.places_restantes = Math.max(0, (s.max_participants || 0) - (s.inscrits || 0)); return s; });
-            const sessionsHash = simpleHash(validatedSessions);
-            if (forceRefresh || sessionsHash !== dashboardState.dataHashes.sessions) { updateSessionTable(validatedSessions); updateCharts(validatedSessions, data.participants || []); updateStatisticsCounters(validatedSessions); dashboardState.dataHashes.sessions = sessionsHash; hasChanged = true; }
-        }
-        if (data.activites && Array.isArray(data.activites)) {
-            const activitiesHash = simpleHash(data.activites);
-            if (forceRefresh || activitiesHash !== dashboardState.dataHashes.activites) { updateActivityFeed(data.activites); dashboardState.dataHashes.activites = activitiesHash; hasChanged = true; }
-        }
+        if (data.sessions && Array.isArray(data.sessions)) { const validatedSessions = data.sessions.map(s => { if (typeof s.places_restantes !== 'number' || isNaN(s.places_restantes)) s.places_restantes = Math.max(0, (s.max_participants || 0) - (s.inscrits || 0)); return s; }); const sessionsHash = simpleHash(validatedSessions); if (forceRefresh || sessionsHash !== dashboardState.dataHashes.sessions) { updateSessionTable(validatedSessions); updateCharts(validatedSessions, data.participants || []); updateStatisticsCounters(validatedSessions); dashboardState.dataHashes.sessions = sessionsHash; hasChanged = true; } }
+        if (data.activites && Array.isArray(data.activites)) { const activitiesHash = simpleHash(data.activites); if (forceRefresh || activitiesHash !== dashboardState.dataHashes.activites) { updateActivityFeed(data.activites); dashboardState.dataHashes.activites = activitiesHash; hasChanged = true; } }
         if (hasChanged) { setTimeout(() => { fixDataIssues(); enhanceBadgesAndLabels(); initTooltips(); errorHandler.checkAndFixBrokenElements(); }, 100); }
         return hasChanged;
     }
@@ -213,31 +225,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // ====== MISE À JOUR DES COMPOSANTS UI ======
     // updateSessionTable, updateStatisticsCounters, updateCounter, updateActivityFeed, getActivityIcon
     // (Identiques)
-    function updateSessionTable(sessions) { /* ... (identique) ... */
-        if (!sessions || !Array.isArray(sessions)) return; const sessionTableBody = document.querySelector('.session-table tbody'); if (!sessionTableBody) return;
-        sessions.forEach(session => { const row = sessionTableBody.querySelector(`tr[data-session-id="${session.id}"]`); if (!row) return; const placesCell = row.querySelector('.places-dispo');
-            if (placesCell) { const maxP = session.max_participants || 0; const placesR = session.places_restantes; placesCell.textContent = `${placesR} / ${maxP}`; placesCell.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary'); if (typeof placesR !== 'number' || isNaN(placesR)) { placesCell.classList.add('text-secondary'); placesCell.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?'; } else if (placesR <= 0) placesCell.classList.add('text-danger'); else if (placesR <= Math.floor(maxP * 0.3)) placesCell.classList.add('text-warning'); else placesCell.classList.add('text-success'); }
-            const participantsBadge = row.querySelector('.btn-outline-secondary .badge'); if (participantsBadge) participantsBadge.textContent = session.inscrits || 0; row.dataset.full = (session.places_restantes <= 0) ? '1' : '0';
-        });
-    }
-    function updateStatisticsCounters(sessions) { /* ... (identique) ... */
-        if (!sessions || !Array.isArray(sessions)) return; let totalInscriptions = 0, totalEnAttente = 0, totalSessionsCompletes = 0; const totalSessions = sessions.length;
-        sessions.forEach(session => { totalInscriptions += (session.inscrits || 0); totalEnAttente += (session.liste_attente || 0); if (session.places_restantes <= 0) totalSessionsCompletes++; });
-        updateCounter('total-inscriptions', totalInscriptions); updateCounter('total-en-attente', totalEnAttente); updateCounter('total-sessions', totalSessions); updateCounter('total-sessions-completes', totalSessionsCompletes);
-    }
-    function updateCounter(elementId, newValue) { /* ... (identique) ... */
-        const element = document.getElementById(elementId); if (!element) return; const currentValue = parseInt(element.textContent.replace(/[^\d]/g, '')) || 0;
-        if (currentValue !== newValue) { element.textContent = newValue.toLocaleString(); element.classList.add('updated'); setTimeout(() => element.classList.remove('updated'), 500); }
-    }
-    function updateActivityFeed(activities) { /* ... (identique) ... */
-        if (!activities || !Array.isArray(activities)) return; const container = document.getElementById('recent-activity'); if (!container) return; const spinner = container.querySelector('.loading-spinner'); if (spinner) spinner.remove();
-        if (activities.length === 0) { container.innerHTML = '<div class="text-center p-3 text-muted">Aucune activité récente</div>'; return; } let html = '';
-        activities.forEach(activity => { const icon = getActivityIcon(activity.type); const userInfo = activity.user ? `<span class="text-primary">${activity.user}</span>` : ''; html += `<div class="activity-item fade-in" data-activity-id="${activity.id}"><div class="activity-icon"><i class="${icon}"></i></div><div class="activity-content"><div class="activity-title">${activity.description} ${userInfo}</div><div class="activity-subtitle">${activity.details ? `<small>${activity.details}</small><br>` : ''}<small class="text-muted">${activity.date_relative || ''}</small></div></div></div>`; });
-        container.innerHTML = html;
-    }
-    function getActivityIcon(type) { /* ... (identique) ... */
-        const iconMap = { 'connexion': 'fas fa-sign-in-alt text-success', 'deconnexion': 'fas fa-sign-out-alt text-warning', 'inscription': 'fas fa-user-plus text-primary', 'validation': 'fas fa-check-circle text-success', 'refus': 'fas fa-times-circle text-danger', 'annulation': 'fas fa-ban text-danger', 'ajout_participant': 'fas fa-user-plus text-primary', 'suppression_participant': 'fas fa-user-minus text-danger', 'modification_participant': 'fas fa-user-edit text-warning', 'reinscription': 'fas fa-redo text-info', 'liste_attente': 'fas fa-clock text-warning', 'ajout_theme': 'fas fa-folder-plus text-primary', 'ajout_service': 'fas fa-building text-primary', 'ajout_salle': 'fas fa-door-open text-primary', 'attribution_salle': 'fas fa-map-marker-alt text-info', 'systeme': 'fas fa-cog text-secondary', 'notification': 'fas fa-bell text-warning', 'default': 'fas fa-info-circle text-secondary' }; return iconMap[type] || iconMap.default;
-    }
+    function updateSessionTable(sessions) { /* ... (identique) ... */ if (!sessions || !Array.isArray(sessions)) return; const sessionTableBody = document.querySelector('.session-table tbody'); if (!sessionTableBody) return; sessions.forEach(session => { const row = sessionTableBody.querySelector(`tr[data-session-id="${session.id}"]`); if (!row) return; const placesCell = row.querySelector('.places-dispo'); if (placesCell) { const maxP = session.max_participants || 0; const placesR = session.places_restantes; placesCell.textContent = `${placesR} / ${maxP}`; placesCell.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary'); if (typeof placesR !== 'number' || isNaN(placesR)) { placesCell.classList.add('text-secondary'); placesCell.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?'; } else if (placesR <= 0) placesCell.classList.add('text-danger'); else if (placesR <= Math.floor(maxP * 0.3)) placesCell.classList.add('text-warning'); else placesCell.classList.add('text-success'); } const participantsBadge = row.querySelector('.btn-outline-secondary .badge'); if (participantsBadge) participantsBadge.textContent = session.inscrits || 0; row.dataset.full = (session.places_restantes <= 0) ? '1' : '0'; }); }
+    function updateStatisticsCounters(sessions) { /* ... (identique) ... */ if (!sessions || !Array.isArray(sessions)) return; let totalInscriptions = 0, totalEnAttente = 0, totalSessionsCompletes = 0; const totalSessions = sessions.length; sessions.forEach(session => { totalInscriptions += (session.inscrits || 0); totalEnAttente += (session.liste_attente || 0); if (session.places_restantes <= 0) totalSessionsCompletes++; }); updateCounter('total-inscriptions', totalInscriptions); updateCounter('total-en-attente', totalEnAttente); updateCounter('total-sessions', totalSessions); updateCounter('total-sessions-completes', totalSessionsCompletes); }
+    function updateCounter(elementId, newValue) { /* ... (identique) ... */ const element = document.getElementById(elementId); if (!element) return; const currentValue = parseInt(element.textContent.replace(/[^\d]/g, '')) || 0; if (currentValue !== newValue) { element.textContent = newValue.toLocaleString(); element.classList.add('updated'); setTimeout(() => element.classList.remove('updated'), 500); } }
+    function updateActivityFeed(activities) { /* ... (identique) ... */ if (!activities || !Array.isArray(activities)) return; const container = document.getElementById('recent-activity'); if (!container) return; const spinner = container.querySelector('.loading-spinner'); if (spinner) spinner.remove(); if (activities.length === 0) { container.innerHTML = '<div class="text-center p-3 text-muted">Aucune activité récente</div>'; return; } let html = ''; activities.forEach(activity => { const icon = getActivityIcon(activity.type); const userInfo = activity.user ? `<span class="text-primary">${activity.user}</span>` : ''; html += `<div class="activity-item fade-in" data-activity-id="${activity.id}"><div class="activity-icon"><i class="${icon}"></i></div><div class="activity-content"><div class="activity-title">${activity.description} ${userInfo}</div><div class="activity-subtitle">${activity.details ? `<small>${activity.details}</small><br>` : ''}<small class="text-muted">${activity.date_relative || ''}</small></div></div></div>`; }); container.innerHTML = html; }
+    function getActivityIcon(type) { /* ... (identique) ... */ const iconMap = { 'connexion': 'fas fa-sign-in-alt text-success', 'deconnexion': 'fas fa-sign-out-alt text-warning', 'inscription': 'fas fa-user-plus text-primary', 'validation': 'fas fa-check-circle text-success', 'refus': 'fas fa-times-circle text-danger', 'annulation': 'fas fa-ban text-danger', 'ajout_participant': 'fas fa-user-plus text-primary', 'suppression_participant': 'fas fa-user-minus text-danger', 'modification_participant': 'fas fa-user-edit text-warning', 'reinscription': 'fas fa-redo text-info', 'liste_attente': 'fas fa-clock text-warning', 'ajout_theme': 'fas fa-folder-plus text-primary', 'ajout_service': 'fas fa-building text-primary', 'ajout_salle': 'fas fa-door-open text-primary', 'attribution_salle': 'fas fa-map-marker-alt text-info', 'systeme': 'fas fa-cog text-secondary', 'notification': 'fas fa-bell text-warning', 'default': 'fas fa-info-circle text-secondary' }; return iconMap[type] || iconMap.default; }
 
     // ====== AMÉLIORATION ET CORRECTION UI ======
     // enhanceUI, initTooltips, enhanceBadgesAndLabels, fixDataIssues, enhanceAccessibility, showErrorWarning, setupValidationListeners
@@ -248,7 +240,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function fixDataIssues() { document.querySelectorAll('.places-dispo').forEach(el => { const text = el.textContent.trim(); if (text.includes('/')) { const parts = text.split('/'); const available = parseInt(parts[0].trim()); const total = parseInt(parts[1].trim()); if (!isNaN(available) && !isNaN(total)) { let icon, colorClass; if (available <= 0) { icon = 'fa-times-circle'; colorClass = 'text-danger'; } else if (available <= 0.2 * total) { icon = 'fa-exclamation-circle'; colorClass = 'text-danger'; } else if (available <= 0.4 * total) { icon = 'fa-exclamation-triangle'; colorClass = 'text-warning'; } else { icon = 'fa-check-circle'; colorClass = 'text-success'; } if (!el.querySelector('.fas') || !el.classList.contains(colorClass)) { el.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary'); el.classList.add(colorClass); el.innerHTML = `<i class="fas ${icon} me-1"></i> ${available} / ${total}`; } } } else if (text === 'NaN / NaN' || text.includes('undefined') || text === '/ ' || text === ' / ') { el.classList.remove('text-success', 'text-warning', 'text-danger'); el.classList.add('text-secondary'); el.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?'; el.title = 'Données temporairement indisponibles'; } }); document.querySelectorAll('.counter-value').forEach(counter => { const text = counter.textContent.trim(); if (text === '' || text === 'undefined' || text === 'null' || text === 'NaN') counter.textContent = '0'; }); document.querySelectorAll('table tbody').forEach(tbody => { if (!tbody.querySelector('tr')) { const cols = tbody.closest('table').querySelectorAll('thead th').length || 3; tbody.innerHTML = `<tr><td colspan="${cols}" class="text-center p-3 text-muted">Aucune donnée disponible</td></tr>`; } }); }
     function enhanceAccessibility() { document.querySelectorAll('img:not([alt])').forEach(img => { const filename = img.src.split('/').pop().split('?')[0]; const name = filename.split('.')[0].replace(/[_-]/g, ' '); img.setAttribute('alt', name || 'Image'); }); document.querySelectorAll('button:not([type])').forEach(button => { button.setAttribute('type', button.closest('form') ? 'submit' : 'button'); }); }
     function showErrorWarning(show) { let errorDiv = document.getElementById('backend-error-warning'); if (show && !errorDiv) { errorDiv = document.createElement('div'); errorDiv.id = 'backend-error-warning'; errorDiv.className = 'alert alert-warning alert-dismissible fade show small p-2 mt-2 mx-4'; errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> Problème de communication avec le serveur. Certaines informations peuvent être temporairement indisponibles. <button type="button" class="btn-close p-2" data-bs-dismiss="alert" aria-label="Close"></button>`; const content = document.getElementById('dashboard-content'); if (content) content.prepend(errorDiv); } else if (!show && errorDiv) { errorDiv.remove(); } }
-    function setupValidationListeners() { document.querySelectorAll('.validation-ajax').forEach(button => { button.addEventListener('click', function() { const inscriptionId = this.getAttribute('data-inscription-id'); const action = this.getAttribute('data-action'); if (!inscriptionId || !action) return; this.disabled = true; fetch('/validation_inscription_ajax', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ inscription_id: inscriptionId, action: action }) }).then(response => response.json()).then(data => { if (data.success) { showToast(data.message, 'success'); fetchDashboardData(true); setTimeout(() => { const modal = this.closest('.modal'); if (modal && typeof bootstrap !== 'undefined') { const modalInstance = bootstrap.Modal.getInstance(modal); if (modalInstance) modalInstance.hide(); } }, 1000); } else { showToast(data.message || 'Erreur lors de la validation', 'danger'); this.disabled = false; } }).catch(error => { console.error('Error:', error); showToast('Erreur de communication avec le serveur', 'danger'); this.disabled = false; }); }); }); }
+    function setupValidationListeners() { document.querySelectorAll('.validation-ajax').forEach(button => { button.addEventListener('click', function() { const inscriptionId = this.getAttribute('data-inscription-id'); const action = this.getAttribute('data-action'); if (!inscriptionId || !action) return; this.disabled = true; fetch('/validation_inscription_ajax', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ inscription_id: inscriptionId, action: action }) }).then(response => response.json()).then(data => { if (data.success) { showToast(data.message, 'success'); debouncedFetchDashboardData(true); setTimeout(() => { const modal = this.closest('.modal'); if (modal && typeof bootstrap !== 'undefined') { const modalInstance = bootstrap.Modal.getInstance(modal); if (modalInstance) modalInstance.hide(); } }, 1000); } else { showToast(data.message || 'Erreur lors de la validation', 'danger'); this.disabled = false; } }).catch(error => { console.error('Error:', error); showToast('Erreur de communication avec le serveur', 'danger'); this.disabled = false; }); }); }); }
+
 
     // ====== GESTION DES GRAPHIQUES ======
     // initializeCharts, updateCharts, updateChartJsCharts, updateThemeChart, updateServiceChart, updateStaticCharts, updateStaticThemeChart, updateStaticServiceChart, updateDonutTotal
