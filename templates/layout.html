@@ -53,7 +53,7 @@
         .loading-text {
             margin-top: 1rem;
             font-size: 1.1rem;
-            color: var(--bs-primary, #0d6efd); /* Utilise la variable Bootstrap si disponible */
+            color: var(--bs-primary, #0d6efd);
         }
         /* Structure Flex pour pousser le footer en bas */
         body {
@@ -80,8 +80,64 @@
         <p class="loading-text">Chargement...</p>
     </div>
 
-    <!-- Barre de navigation -->
-    {% include 'partials/_navbar.html' ignore missing %} {# ignore missing évite une erreur si le partial n'existe pas #}
+    <!-- ==================== Barre de navigation ==================== -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">
+                <i class="fas fa-users-cog me-2"></i>{{ app_name | default('Gestion Formation') }}
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt me-1"></i>Tableau de bord</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'sessions' %}active{% endif %}" href="{{ url_for('sessions') }}"><i class="fas fa-calendar-alt me-1"></i>Sessions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'participants' %}active{% endif %}" href="{{ url_for('participants') }}"><i class="fas fa-users me-1"></i>Participants</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-concierge-bell me-1"></i>Services</a>
+                    </li>
+                    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['admin', 'salles', 'themes', 'activites'] %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-shield-alt me-1"></i>Administration
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            <li><a class="dropdown-item {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}">Panel Admin</a></li>
+                            <li><a class="dropdown-item {% if request.endpoint == 'salles' %}active{% endif %}" href="{{ url_for('salles') }}">Gérer les Salles</a></li>
+                            <li><a class="dropdown-item {% if request.endpoint == 'themes' %}active{% endif %}" href="{{ url_for('themes') }}">Gérer les Thèmes</a></li>
+                            <li><a class="dropdown-item {% if request.endpoint == 'activites' %}active{% endif %}" href="{{ url_for('activites') }}">Journal d'Activités</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <span class="navbar-text me-3">
+                                <i class="fas fa-user-circle me-1"></i>Connecté: {{ current_user.username }} ({{ current_user.role }})
+                            </span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i>Déconnexion</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt me-1"></i>Connexion</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <!-- ==================== Fin Barre de navigation ==================== -->
+
 
     <!-- Contenu principal -->
     <div class="container-fluid mt-4 content-wrapper" id="main-content">
@@ -107,15 +163,23 @@
         {% block content %}{% endblock %}
     </div>
 
-    <!-- Pied de page -->
-    {% include 'partials/_footer.html' ignore missing %}
+    <!-- ==================== Pied de page ==================== -->
+    <footer class="py-3 mt-auto bg-light border-top">
+        <div class="container-fluid text-center">
+            <small class="text-muted">
+                © {{ now.year }} {{ app_name | default('Votre Entreprise') }}. Tous droits réservés.
+                {% if debug_mode %}
+                 | Mode Debug Actif
+                {% endif %}
+            </small>
+        </div>
+    </footer>
+    <!-- ==================== Fin Pied de page ==================== -->
 
     <!-- Modales communes (si elles sont utilisées sur plusieurs pages) -->
     {% block modals %}
         {# Inclure les modales ici si nécessaire, ex: #}
         {# {% include 'modals/_inscription_modal.html' ignore missing %} #}
-        {# {% include 'modals/_participants_modal.html' ignore missing %} #}
-        {# {% include 'modals/_attribuer_salle_modal.html' ignore missing %} #}
     {% endblock %}
 
     <!-- Conteneur pour les Toasts/Notifications -->
@@ -174,15 +238,12 @@
 
         // Essayer de cacher plus tôt si possible
         window.addEventListener('load', () => {
-             // 'load' attend toutes les ressources (images, etc.)
-             // On donne un petit délai pour que dashboard-core puisse potentiellement
-             // indiquer qu'il est en train de charger des données initiales.
             setTimeout(() => {
                 const isUpdating = window.dashboardCore && window.dashboardCore.getState && window.dashboardCore.getState().updating;
                 if (!isUpdating && !loaderHidden) {
                     hideGlobalLoader();
                     loaderHidden = true;
-                    clearTimeout(hideLoaderTimeout); // Annuler le timeout de sécurité
+                    clearTimeout(hideLoaderTimeout);
                 }
             }, 200);
         });
@@ -193,13 +254,12 @@
                  loaderHidden = true;
                  clearTimeout(hideLoaderTimeout);
              }
-        }, { once: true }); // Écouter une seule fois
+        }, { once: true });
 
         // Initialiser les tooltips Bootstrap après le chargement du DOM
         document.addEventListener('DOMContentLoaded', function () {
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                // S'assurer de ne pas réinitialiser un tooltip existant
                 if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
                     return new bootstrap.Tooltip(tooltipTriggerEl)
                 }
