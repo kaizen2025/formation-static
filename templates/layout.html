@@ -3,559 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>{% block title %}{{ app_name }}{% endblock %}</title>
-    
-    <!-- Favicon -->
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    
-    <!-- Styles Bootstrap et Font Awesome -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-    
-    <!-- Custom Styles -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- CSRF Token (Décommentez si vous utilisez Flask-WTF ou similaire) -->
+    <!-- <meta name="csrf-token" content="{{ csrf_token() }}"> -->
+
+    <title>{% block title %}{{ app_name | default('Gestion Formation') }}{% endblock %}</title>
+
+    <!-- Favicon (Remplacez par votre chemin) -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+
+    <!-- Bootstrap CSS (Version 5.3.x recommandée) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+    <!-- Font Awesome (Version 6.x recommandée) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Styles personnalisés consolidés -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/static-charts.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-modal-fixes.css') }}">
-    
-    <!-- Variables CSS pour les services et thèmes -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}"> <!-- Inclut les styles des graphiques -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}"> <!-- Inclut les correctifs modales -->
+
+    {% block head_extra %}{% endblock %} {# Pour CSS spécifique à une page #}
+
     <style>
-        :root {
-            /* Couleurs de Services */
-            --service-commerce: #FFC107;
-            --service-comptabilite: #2196F3;
-            --service-florensud: #4CAF50;
-            --service-informatique: #607D8B;
-            --service-marketing: #9C27B0;
-            --service-qualite: #F44336;
-            --service-rh: #FF9800;
-            
-            /* Couleurs de Thèmes */
-            --theme-teams: #0078d4;
-            --theme-planner: #7719aa;
-            --theme-onedrive: #0364b8;
-            --theme-sharepoint: #038387;
-        }
-        
-        /* Styles pour l'indicateur de connexion */
-        #connection-status {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            z-index: 9999;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            display: none;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: background-color 0.3s ease;
-        }
-        
-        /* Animation pour éviter les clignotements du loading overlay */
+        /* Style pour le spinner de chargement global */
         #loading-overlay {
-            transition: opacity 0.5s ease;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.85);
+            z-index: 10000; /* Au-dessus de tout */
+            display: flex; /* Affiché par défaut, caché par JS */
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 0.3s ease-out;
         }
-        
-        /* Style pour indiquer un élément qui a échoué au chargement */
-        .load-failed {
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #f8f9fa;
-            border: 1px dashed #dee2e6;
-            color: #6c757d;
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        .loading-text {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            color: var(--bs-primary, #0d6efd); /* Utilise la variable Bootstrap si disponible */
+        }
+        /* Structure Flex pour pousser le footer en bas */
+        body {
+            padding-top: 70px; /* Ajuster selon la hauteur de votre navbar fixe */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .content-wrapper {
+            flex: 1; /* Le contenu principal prend l'espace disponible */
+        }
+        /* Style pour les toasts */
+        .toast-container {
+             z-index: 1100 !important; /* S'assurer que les toasts sont au-dessus des modales */
         }
     </style>
-    
-    <!-- Configuration du Dashboard -->
-    <script>
-        // Configuration du tableau de bord améliorée
-        window.dashboardConfig = {
-            debugMode: false, // Désactivé en production
-            autoRefreshInterval: 60000, // Augmenté à 60 secondes (était 30000)
-            pollingEnabled: true,
-            socketEnabled: false,
-            preferredMode: 'polling',
-            baseApiUrl: '/api',
-            minRefreshDelay: 30000, // Minimum 30 secondes entre rafraîchissements 
-            debounceDelay: 1500,    // Temporisation pour éviter les appels trop rapprochés
-            errorResilience: true,  // Activer la résilience aux erreurs
-            retryLimit: 3,          // Nombre maximum de tentatives
-            useFallbackEndpoints: false // Sera activé automatiquement en cas d'échec
-        };
-        
-        // Données des thèmes pour les graphiques
-        window.themesDataForChart = {
-            'Communiquer avec Teams': { 
-                color: 'var(--theme-teams)', 
-                description: 'Apprenez à utiliser Microsoft Teams pour communiquer efficacement.' 
-            },
-            'Gérer les tâches (Planner)': { 
-                color: 'var(--theme-planner)', 
-                description: 'Maîtrisez la gestion des tâches d\'équipe avec Planner et To Do.' 
-            },
-            'Gérer mes fichiers (OneDrive/SharePoint)': { 
-                color: 'var(--theme-onedrive)', 
-                description: 'Organisez et partagez vos fichiers avec OneDrive et SharePoint.' 
-            },
-            'Collaborer avec Teams': { 
-                color: 'var(--theme-sharepoint)', 
-                description: 'Découvrez comment collaborer sur des documents via Microsoft Teams.' 
-            }
-        };
-        
-        // Données des services pour les graphiques
-        window.servicesDataForChart = {
-            'Commerce Anecoop-Solagora': { color: 'var(--service-commerce)' },
-            'Comptabilité': { color: 'var(--service-comptabilite)' },
-            'Florensud': { color: 'var(--service-florensud)' },
-            'Informatique': { color: 'var(--service-informatique)' },
-            'Marketing': { color: 'var(--service-marketing)' },
-            'Qualité': { color: 'var(--service-qualite)' },
-            'RH': { color: 'var(--service-rh)' }
-        };
-        
-        // Mécanisme de récupération sur erreur
-        window.errorRecovery = {
-            attempts: 0,
-            maxAttempts: 3,
-            lastErrorTime: 0,
-            inProgress: false,
-            
-            // Réinitialiser après un certain temps
-            reset: function() {
-                this.attempts = 0;
-                this.inProgress = false;
-            }
-        };
-    </script>
-    
-    <!-- Permet aux différentes pages d'ajouter leurs propres styles -->
-    {% block styles %}{% endblock %}
 </head>
 <body>
-    <!-- Navigation / Header -->
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="{{ url_for('dashboard') }}">
-                    <i class="fas fa-chalkboard-teacher me-2"></i>{{ app_name }}
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" 
-                        aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                
-                <div class="collapse navbar-collapse" id="navbarNavDropdown">
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" 
-                               href="{{ url_for('dashboard') }}">
-                                <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'sessions' %}active{% endif %}" 
-                               href="{{ url_for('sessions') }}">
-                                <i class="fas fa-calendar-alt me-1"></i>Sessions
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'participants' %}active{% endif %}" 
-                               href="{{ url_for('participants') }}">
-                                <i class="fas fa-users me-1"></i>Participants
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" 
-                               href="{{ url_for('services') }}">
-                                <i class="fas fa-building me-1"></i>Services
-                            </a>
-                        </li>
-                        {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['admin', 'salles', 'themes', 'activites'] %}active{% endif %}" 
-                               href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" 
-                               aria-expanded="false">
-                                <i class="fas fa-cogs me-1"></i>Administration
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                                <li>
-                                    <a class="dropdown-item {% if request.endpoint == 'admin' %}active{% endif %}" 
-                                       href="{{ url_for('admin') }}">
-                                        <i class="fas fa-toolbox me-1"></i>Panneau d'administration
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item {% if request.endpoint == 'salles' %}active{% endif %}" 
-                                       href="{{ url_for('salles') }}">
-                                        <i class="fas fa-door-open me-1"></i>Gestion des salles
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item {% if request.endpoint == 'themes' %}active{% endif %}" 
-                                       href="{{ url_for('themes') }}">
-                                        <i class="fas fa-book me-1"></i>Gestion des thèmes
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item {% if request.endpoint == 'activites' %}active{% endif %}" 
-                                       href="{{ url_for('activites') }}">
-                                        <i class="fas fa-history me-1"></i>Journal d'activité
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                        {% endif %}
-                    </ul>
-                    
-                    <!-- Right side user actions -->
-                    <ul class="navbar-nav">
-                        {% if current_user.is_authenticated %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
-                               data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user-circle me-1"></i>
-                                {{ current_user.username }}
-                                {% if current_user.role == 'admin' %}
-                                <span class="badge bg-danger">Admin</span>
-                                {% elif current_user.role == 'responsable' %}
-                                <span class="badge bg-success">Resp.</span>
-                                {% endif %}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('logout') }}">
-                                        <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                        {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('login') }}">
-                                <i class="fas fa-sign-in-alt me-1"></i>Connexion
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
-    
-    <!-- Flash Messages -->
-    <div class="container mt-3">
+    <!-- Spinner de chargement global -->
+    <div id="loading-overlay">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Chargement...</span>
+        </div>
+        <p class="loading-text">Chargement...</p>
+    </div>
+
+    <!-- Barre de navigation -->
+    {% include 'partials/_navbar.html' ignore missing %} {# ignore missing évite une erreur si le partial n'existe pas #}
+
+    <!-- Contenu principal -->
+    <div class="container-fluid mt-4 content-wrapper" id="main-content">
+        {# Affichage des messages Flash #}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <div class="row justify-content-center mb-3">
+                    <div class="col-md-10 col-lg-8">
+                        {% for category, message in messages %}
+                            {# Utiliser 'warning' pour 'info' pour une meilleure visibilité #}
+                            {% set alert_category = 'warning' if category == 'info' else category %}
+                            <div class="alert alert-{{ alert_category }} alert-dismissible fade show shadow-sm" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
                     </div>
-                {% endfor %}
+                </div>
             {% endif %}
         {% endwith %}
-    </div>
-    
-    <!-- Main Content -->
-    <main class="container my-4">
+
+        {# Bloc de contenu spécifique à la page #}
         {% block content %}{% endblock %}
-    </main>
-    
-    <!-- Footer -->
-    <footer class="bg-light py-3 mt-5">
-        <div class="container text-center text-muted">
-            <small>&copy; {{ now.year }} {{ app_name }} - Tous droits réservés</small>
-            <div class="d-inline-block ms-3">
-                <small>
-                    <button id="reset-app-button" class="btn btn-sm btn-link text-muted p-0" title="Réinitialiser la page en cas de problème">
-                        <i class="fas fa-redo-alt"></i> Réinitialiser
-                    </button>
-                </small>
-            </div>
-        </div>
-    </footer>
-    
-    <!-- Global Loading Overlay avec timeout intégré -->
-    <div id="loading-overlay" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center">
-        <div class="text-center">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Chargement...</span>
-            </div>
-            <p class="mt-2">Chargement des données...</p>
-            <div id="loading-timeout-message" style="display: none;">
-                <div class="alert alert-warning mt-2">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Le chargement prend plus de temps que prévu.
-                    <br>
-                    <button class="btn btn-sm btn-outline-dark mt-2" id="force-continue-button">
-                        <i class="fas fa-forward me-1"></i>Continuer quand même
-                    </button>
-                </div>
-            </div>
-        </div>
     </div>
-    
-    <!-- Indicateur visuel de l'état de chargement -->
-    <div id="connection-status" style="position: fixed; bottom: 10px; left: 10px; z-index: 9999; padding: 5px 10px; border-radius: 5px; background-color: #4caf50; color: white; font-size: 12px; display: none;">
-        <i class="fas fa-signal"></i> <span id="connection-status-text">Connecté</span>
+
+    <!-- Pied de page -->
+    {% include 'partials/_footer.html' ignore missing %}
+
+    <!-- Modales communes (si elles sont utilisées sur plusieurs pages) -->
+    {% block modals %}
+        {# Inclure les modales ici si nécessaire, ex: #}
+        {# {% include 'modals/_inscription_modal.html' ignore missing %} #}
+        {# {% include 'modals/_participants_modal.html' ignore missing %} #}
+        {# {% include 'modals/_attribuer_salle_modal.html' ignore missing %} #}
+    {% endblock %}
+
+    <!-- Conteneur pour les Toasts/Notifications -->
+    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3">
+        <!-- Les toasts seront ajoutés ici par JavaScript -->
     </div>
-    
-    <!-- JavaScript Dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-    
-    <!-- Chargement des scripts en mode non-bloquant -->
+
+    <!-- Scripts JavaScript -->
+    <!-- Bootstrap JS Bundle (inclut Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <!-- Chart.js (Décommentez si vous utilisez des graphiques dynamiques Chart.js) -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script> -->
+
+    <!-- Scripts personnalisés (l'ordre est important) -->
+    <script src="{{ url_for('static', filename='js/api-error-handler.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modal-fix.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/modal-fix-patch.js') }}" defer></script>
+
+    <!-- Configuration JS (si nécessaire, avant dashboard-init) -->
     <script>
-        // Fonction pour charger les scripts de façon asynchrone
-        function loadScript(url, callback) {
-            var script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.src = url;
-            script.async = true;
-            
-            if (callback) {
-                script.onload = callback;
-            }
-            
-            document.head.appendChild(script);
-        }
-        
-        // Définir une fonction globale pour afficher les toasts
-        window.showToast = function(message, type) {
-            const toastContainer = document.getElementById('toast-container') || (function() {
-                const newContainer = document.createElement('div');
-                newContainer.id = 'toast-container';
-                newContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-                document.body.appendChild(newContainer);
-                return newContainer;
-            })();
-            
-            const toastId = 'toast-' + Date.now();
-            const toastHTML = `
-                <div id="${toastId}" class="toast align-items-center text-white bg-${type || 'primary'}" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="d-flex">
-                        <div class="toast-body">
-                            ${message}
-                        </div>
-                        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                </div>
-            `;
-            
-            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
-            const toastElement = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
-            toast.show();
-        };
-        
-        // Gérer le timeout du loading overlay
-        document.addEventListener('DOMContentLoaded', function() {
+        window.dashboardConfig = window.dashboardConfig || {}; // Assure que l'objet existe
+        // Passer des variables Flask à JS (exemple)
+        window.dashboardConfig.debugMode = {{ debug_mode | default(false) | tojson }};
+        // Ajoutez d'autres configurations si nécessaire
+        // window.dashboardConfig.baseApiUrl = "{{ url_for('index') }}api";
+    </script>
+
+    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}" defer></script>
+    {# dashboard-core-fix.js n'est plus inclus #}
+
+    {% block scripts_extra %}{% endblock %} {# Pour JS spécifique à une page #}
+
+    <!-- Script final pour gérer le loader et initialiser les tooltips -->
+    <script>
+        function hideGlobalLoader() {
             const overlay = document.getElementById('loading-overlay');
-            const timeoutMessage = document.getElementById('loading-timeout-message');
-            const continueButton = document.getElementById('force-continue-button');
-            
-            // Afficher le message de timeout après 8 secondes
-            setTimeout(function() {
-                if (overlay && overlay.style.display !== 'none') {
-                    if (timeoutMessage) timeoutMessage.style.display = 'block';
-                }
-            }, 8000);
-            
-            // Forcer la fermeture après 15 secondes
-            setTimeout(function() {
-                if (overlay && overlay.style.display !== 'none') {
-                    overlay.style.display = 'none';
-                    if (typeof window.showToast === 'function') {
-                        window.showToast("Chargement interrompu pour éviter un blocage", "warning");
-                    }
-                }
-            }, 15000);
-            
-            // Forcer la continuation quand l'utilisateur clique sur le bouton
-            if (continueButton) {
-                continueButton.addEventListener('click', function() {
-                    if (overlay) overlay.style.display = 'none';
-                });
+            if (overlay && !overlay.classList.contains('hidden')) {
+                overlay.classList.add('hidden');
+                // Optionnel: supprimer après transition
+                // setTimeout(() => { overlay.remove(); }, 300);
             }
-            
-            // Bouton de réinitialisation de l'application
-            const resetButton = document.getElementById('reset-app-button');
-            if (resetButton) {
-                resetButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Nettoyer les caches localStorage
-                    try {
-                        const keysToKeep = ['auth_token']; // Garder certaines clés importantes
-                        Object.keys(localStorage).forEach(key => {
-                            if (!keysToKeep.includes(key)) {
-                                localStorage.removeItem(key);
-                            }
-                        });
-                    } catch (e) {
-                        console.error("Error clearing localStorage:", e);
-                    }
-                    
-                    // Ajouter un paramètre cache-buster pour forcer un rafraîchissement
-                    window.location.href = window.location.pathname + '?reset=' + Date.now();
-                });
+        }
+
+        // Cacher le loader une fois que le DOM est prêt et les scripts defer exécutés
+        // ou après un timeout de sécurité.
+        let loaderHidden = false;
+        const hideLoaderTimeout = setTimeout(() => {
+            if (!loaderHidden) {
+                hideGlobalLoader();
+                console.warn("Layout.html: Forcing loading overlay hide (fallback timeout).");
+                loaderHidden = true;
             }
+        }, 7000); // 7 secondes
+
+        // Essayer de cacher plus tôt si possible
+        window.addEventListener('load', () => {
+             // 'load' attend toutes les ressources (images, etc.)
+             // On donne un petit délai pour que dashboard-core puisse potentiellement
+             // indiquer qu'il est en train de charger des données initiales.
+            setTimeout(() => {
+                const isUpdating = window.dashboardCore && window.dashboardCore.getState && window.dashboardCore.getState().updating;
+                if (!isUpdating && !loaderHidden) {
+                    hideGlobalLoader();
+                    loaderHidden = true;
+                    clearTimeout(hideLoaderTimeout); // Annuler le timeout de sécurité
+                }
+            }, 200);
         });
-        
-        // Mise à jour de l'indicateur de connexion
-        document.addEventListener('DOMContentLoaded', function() {
-            const statusIndicator = document.getElementById('connection-status');
-            const statusText = document.getElementById('connection-status-text');
-            
-            if (statusIndicator && statusText) {
-                statusIndicator.style.display = 'block';
-                
-                // Mettre à jour l'indicateur
-                window.updateConnectionStatus = function(status) {
-                    if (status === 'connected') {
-                        statusIndicator.style.backgroundColor = '#4caf50';
-                        statusText.textContent = 'Connecté';
-                    } else if (status === 'loading') {
-                        statusIndicator.style.backgroundColor = '#ff9800';
-                        statusText.textContent = 'Chargement...';
-                    } else if (status === 'error') {
-                        statusIndicator.style.backgroundColor = '#f44336';
-                        statusText.textContent = 'Erreur de connexion';
-                    } else if (status === 'offline') {
-                        statusIndicator.style.backgroundColor = '#9e9e9e';
-                        statusText.textContent = 'Hors ligne';
-                    }
-                };
-                
-                // Intercepter les requêtes fetch pour montrer l'état
-                const originalFetch = window.fetch;
-                window.fetch = async function(...args) {
-                    updateConnectionStatus('loading');
-                    try {
-                        const response = await originalFetch.apply(this, args);
-                        
-                        if (response.ok) {
-                            updateConnectionStatus('connected');
-                        } else {
-                            updateConnectionStatus('error');
-                            setTimeout(() => updateConnectionStatus('connected'), 5000);
-                        }
-                        
-                        return response;
-                    } catch (error) {
-                        updateConnectionStatus('offline');
-                        throw error;
-                    }
-                };
-                
-                // État initial
-                updateConnectionStatus('connected');
-            }
-        });
-        
-        // Fonction pour améliorer tous les badges de thème dans la page
-        window.enhanceThemeBadgesGlobally = function() {
-            const themeBadges = document.querySelectorAll('.theme-badge');
-            themeBadges.forEach(function(badge) {
-                // Ne traiter que si l'élément n'a pas déjà été amélioré
-                if (badge.dataset.enhanced === 'true') return;
-                
-                const themeName = badge.textContent.trim();
-                const themeData = window.themesDataForChart[themeName];
-                
-                if (themeData) {
-                    // Ajouter une classe CSS spécifique selon le thème
-                    if (themeName.includes('Teams') && themeName.includes('Communiquer')) {
-                        badge.classList.add('theme-comm');
-                    } else if (themeName.includes('Planner')) {
-                        badge.classList.add('theme-planner');
-                    } else if (themeName.includes('OneDrive') || themeName.includes('fichiers')) {
-                        badge.classList.add('theme-onedrive');
-                    } else if (themeName.includes('Collaborer')) {
-                        badge.classList.add('theme-sharepoint');
-                    }
-                    
-                    // Ajouter une icône appropriée
-                    let icon = '';
-                    if (themeName.includes('Teams') && themeName.includes('Communiquer')) {
-                        icon = '<i class="fas fa-comments"></i> ';
-                    } else if (themeName.includes('Planner')) {
-                        icon = '<i class="fas fa-tasks"></i> ';
-                    } else if (themeName.includes('OneDrive') || themeName.includes('fichiers')) {
-                        icon = '<i class="fas fa-file"></i> ';
-                    } else if (themeName.includes('Collaborer')) {
-                        icon = '<i class="fas fa-users"></i> ';
-                    }
-                    
-                    // Ajouter un tooltip avec la description
-                    if (themeData.description) {
-                        const tooltip = document.createElement('span');
-                        tooltip.className = 'theme-tooltip';
-                        tooltip.textContent = themeData.description;
-                        badge.appendChild(tooltip);
-                    }
-                    
-                    // Mettre à jour le contenu avec l'icône
-                    badge.innerHTML = icon + themeName + (badge.querySelector('.theme-tooltip') ? badge.querySelector('.theme-tooltip').outerHTML : '');
-                    
-                    // Marquer comme amélioré
-                    badge.dataset.enhanced = 'true';
+        // Si dashboard-core finit son chargement initial avant 'window.load'
+        document.addEventListener('dashboardDataRefreshed', () => {
+             if (!loaderHidden) {
+                 hideGlobalLoader();
+                 loaderHidden = true;
+                 clearTimeout(hideLoaderTimeout);
+             }
+        }, { once: true }); // Écouter une seule fois
+
+        // Initialiser les tooltips Bootstrap après le chargement du DOM
+        document.addEventListener('DOMContentLoaded', function () {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                // S'assurer de ne pas réinitialiser un tooltip existant
+                if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl)
                 }
-            });
-        };
-    </script>
-    
-    <!-- Chargement des scripts core séquentiellement -->
-    <script>
-        // Démarrer la séquence de chargement des scripts
-        document.addEventListener('DOMContentLoaded', function() {
-            // 1. Charger modal-fix.js - essentiel pour les interactions UI
-            loadScript('{{ url_for("static", filename="js/modal-fix.js") }}', function() {
-                // 2. Charger dashboard-init.js après modal-fix
-                loadScript('{{ url_for("static", filename="js/dashboard-init.js") }}', function() {
-                    // 3. Charger dashboard-core.js après dashboard-init
-                    loadScript('{{ url_for("static", filename="js/dashboard-core.js") }}', function() {
-                        // 4. Finalement, charger les correctifs
-                        loadScript('{{ url_for("static", filename="js/modal-fix-patch.js") }}', function() {
-                            loadScript('{{ url_for("static", filename="js/dashboard-core-fix.js") }}');
-                        });
-                    });
-                });
-            });
-            
-            // Appliquer les améliorations au chargement de la page
-            window.enhanceThemeBadgesGlobally();
-            
-            // Initialiser tous les tooltips
-            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-            [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+                return bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+            })
         });
     </script>
-    
-    <!-- Vérifier l'état de la page et réinitialiser si nécessaire -->
-    <script>
-        // Après 30 secondes, vérifier si la page est toujours en train de charger
-        setTimeout(function() {
-            const spinner = document.querySelector('#loading-overlay .spinner-border');
-            if (spinner) {
-                // La page est probablement bloquée, créer un bouton de secours
-                const emergencyButton = document.createElement('div');
-                emergencyButton.className = 'position-fixed top-0 end-0 m-3';
-                emergencyButton.style.zIndex = '9999';
-                emergencyButton.innerHTML = `
-                    <button class="btn btn-danger" onclick="window.location.reload()">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Page bloquée - Cliquez pour recharger
-                    </button>
-                `;
-                document.body.appendChild(emergencyButton);
-            }
-        }, 30000);
-    </script>
-    
-    <!-- Custom Scripts par page -->
-    {% block scripts %}{% endblock %}
+
 </body>
 </html>
