@@ -18,7 +18,7 @@
 
     <!-- Styles personnalisés consolidés -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}"> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
 
     {% block head_extra %}{% endblock %}
@@ -115,14 +115,16 @@
                     </li>
                     {% if current_user.is_authenticated and current_user.role == 'admin' %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['admin', 'salles', 'themes', 'activites_page'] %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        {# Vérifier les endpoints des pages réelles pour 'active' #}
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['admin', 'salles_page', 'themes_page', 'activites_journal'] %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-shield-alt me-1"></i>Administration
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="adminDropdown">
                             <li><a class="dropdown-item {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}">Panel Admin</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'salles' %}active{% endif %}" href="{{ url_for('salles') }}">Gérer les Salles</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'themes' %}active{% endif %}" href="{{ url_for('themes') }}">Gérer les Thèmes</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'activites_page' %}active{% endif %}" href="{{ url_for('activites_page') }}">Journal d'Activités</a></li>
+                            {# CORRECTION: Utiliser les noms de fonction des routes de page #}
+                            <li><a class="dropdown-item {% if request.endpoint == 'salles_page' %}active{% endif %}" href="{{ url_for('salles_page') }}">Gérer les Salles</a></li>
+                            <li><a class="dropdown-item {% if request.endpoint == 'themes_page' %}active{% endif %}" href="{{ url_for('themes_page') }}">Gérer les Thèmes</a></li>
+                            <li><a class="dropdown-item {% if request.endpoint == 'activites_journal' %}active{% endif %}" href="{{ url_for('activites_journal') }}">Journal d'Activités</a></li>
                         </ul>
                     </li>
                     {% endif %}
@@ -207,7 +209,7 @@
         window.dashboardConfig = window.dashboardConfig || {}; // Assure que l'objet existe
         // Passer des variables Flask à JS (exemple)
         window.dashboardConfig.debugMode = {{ debug_mode | default(false) | tojson }};
-        
+
         // Données globales pour les graphiques (utilisées par dashboard-core.js)
         window.themesDataForChart = {
             'Communiquer avec Teams': { color: 'var(--theme-teams, #0078d4)', description: 'Apprenez à utiliser Microsoft Teams pour communiquer efficacement.' },
@@ -281,6 +283,56 @@
                 return bootstrap.Tooltip.getInstance(tooltipTriggerEl);
             })
         });
+
+        // Fonction globale pour améliorer les badges de thème (peut être appelée par d'autres scripts)
+        window.enhanceThemeBadgesGlobally = function() {
+            document.querySelectorAll('.theme-badge').forEach(badge => {
+                if (badge.dataset.enhanced === 'true') return; // Éviter le double traitement
+                const themeName = badge.dataset.theme || badge.textContent.trim();
+                badge.textContent = themeName; // Assurer que le nom est là
+                badge.classList.remove('theme-comm', 'theme-planner', 'theme-onedrive', 'theme-sharepoint', 'bg-secondary'); // Nettoyer les anciennes classes
+
+                let iconClass = 'fa-info-circle'; // Icône par défaut
+                let themeClass = 'bg-secondary'; // Classe par défaut
+
+                if (themeName.includes('Communiquer avec Teams')) { themeClass = 'theme-comm'; iconClass = 'fa-comments'; }
+                else if (themeName.includes('Gérer les tâches')) { themeClass = 'theme-planner'; iconClass = 'fa-tasks'; }
+                else if (themeName.includes('Gérer mes fichiers')) { themeClass = 'theme-onedrive'; iconClass = 'fa-file-alt'; }
+                else if (themeName.includes('Collaborer avec Teams')) { themeClass = 'theme-sharepoint'; iconClass = 'fa-users'; }
+
+                badge.classList.add(themeClass);
+
+                // Ajouter l'icône seulement si elle n'existe pas déjà
+                if (!badge.querySelector('i.fas')) {
+                    badge.insertAdjacentHTML('afterbegin', `<i class="fas ${iconClass} me-1"></i>`);
+                } else {
+                    // Mettre à jour l'icône existante si nécessaire
+                    const iconElement = badge.querySelector('i.fas');
+                    iconElement.className = `fas ${iconClass} me-1`;
+                }
+
+                // Ajouter le tooltip si une description est disponible
+                const themeDescription = window.themesDataForChart?.[themeName]?.description;
+                if (themeDescription) {
+                    badge.setAttribute('data-bs-toggle', 'tooltip');
+                    badge.setAttribute('data-bs-placement', 'top');
+                    badge.setAttribute('title', themeDescription);
+                    // Réinitialiser le tooltip si nécessaire
+                    const tooltipInstance = bootstrap.Tooltip.getInstance(badge);
+                    if (tooltipInstance) {
+                        tooltipInstance.dispose();
+                    }
+                    new bootstrap.Tooltip(badge);
+                }
+
+                badge.dataset.enhanced = 'true'; // Marquer comme traité
+            });
+        };
+
+        // Appeler la fonction globale au chargement initial
+        document.addEventListener('DOMContentLoaded', window.enhanceThemeBadgesGlobally);
+
     </script>
+
 </body>
 </html>
