@@ -38,18 +38,51 @@
             --theme-onedrive: #0364b8;
             --theme-sharepoint: #038387;
         }
+        
+        /* Styles pour l'indicateur de connexion */
+        #connection-status {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            z-index: 9999;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Animation pour éviter les clignotements du loading overlay */
+        #loading-overlay {
+            transition: opacity 0.5s ease;
+        }
+        
+        /* Style pour indiquer un élément qui a échoué au chargement */
+        .load-failed {
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            border: 1px dashed #dee2e6;
+            color: #6c757d;
+        }
     </style>
     
     <!-- Configuration du Dashboard -->
     <script>
-        // Configuration du tableau de bord - Force le mode polling pour éviter les problèmes WebSocket
+        // Configuration du tableau de bord améliorée
         window.dashboardConfig = {
-            debugMode: true,
-            autoRefreshInterval: 30000,
+            debugMode: false, // Désactivé en production
+            autoRefreshInterval: 60000, // Augmenté à 60 secondes (était 30000)
             pollingEnabled: true,
             socketEnabled: false,
             preferredMode: 'polling',
-            baseApiUrl: '/api'
+            baseApiUrl: '/api',
+            minRefreshDelay: 30000, // Minimum 30 secondes entre rafraîchissements 
+            debounceDelay: 1500,    // Temporisation pour éviter les appels trop rapprochés
+            errorResilience: true,  // Activer la résilience aux erreurs
+            retryLimit: 3,          // Nombre maximum de tentatives
+            useFallbackEndpoints: false // Sera activé automatiquement en cas d'échec
         };
         
         // Données des thèmes pour les graphiques
@@ -81,6 +114,20 @@
             'Marketing': { color: 'var(--service-marketing)' },
             'Qualité': { color: 'var(--service-qualite)' },
             'RH': { color: 'var(--service-rh)' }
+        };
+        
+        // Mécanisme de récupération sur erreur
+        window.errorRecovery = {
+            attempts: 0,
+            maxAttempts: 3,
+            lastErrorTime: 0,
+            inProgress: false,
+            
+            // Réinitialiser après un certain temps
+            reset: function() {
+                this.attempts = 0;
+                this.inProgress = false;
+            }
         };
     </script>
     
@@ -221,32 +268,194 @@
     <footer class="bg-light py-3 mt-5">
         <div class="container text-center text-muted">
             <small>&copy; {{ now.year }} {{ app_name }} - Tous droits réservés</small>
+            <div class="d-inline-block ms-3">
+                <small>
+                    <button id="reset-app-button" class="btn btn-sm btn-link text-muted p-0" title="Réinitialiser la page en cas de problème">
+                        <i class="fas fa-redo-alt"></i> Réinitialiser
+                    </button>
+                </small>
+            </div>
         </div>
     </footer>
     
-    <!-- Global Loading Overlay -->
+    <!-- Global Loading Overlay avec timeout intégré -->
     <div id="loading-overlay" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Chargement...</span>
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p class="mt-2">Chargement des données...</p>
+            <div id="loading-timeout-message" style="display: none;">
+                <div class="alert alert-warning mt-2">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Le chargement prend plus de temps que prévu.
+                    <br>
+                    <button class="btn btn-sm btn-outline-dark mt-2" id="force-continue-button">
+                        <i class="fas fa-forward me-1"></i>Continuer quand même
+                    </button>
+                </div>
+            </div>
         </div>
+    </div>
+    
+    <!-- Indicateur visuel de l'état de chargement -->
+    <div id="connection-status" style="position: fixed; bottom: 10px; left: 10px; z-index: 9999; padding: 5px 10px; border-radius: 5px; background-color: #4caf50; color: white; font-size: 12px; display: none;">
+        <i class="fas fa-signal"></i> <span id="connection-status-text">Connecté</span>
     </div>
     
     <!-- JavaScript Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     
-    <!-- Socket.IO (désactivé mais gardé dans le code si besoin plus tard) -->
-    {% if config.get('SOCKETIO_ENABLED', False) %}
-    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
-    {% endif %}
-    
-    <!-- Custom Scripts -->
-    <script src="{{ url_for('static', filename='js/modal-fix.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}"></script>
-    
-    <!-- Fonction pour améliorer les badges de thème -->
+    <!-- Chargement des scripts en mode non-bloquant -->
     <script>
+        // Fonction pour charger les scripts de façon asynchrone
+        function loadScript(url, callback) {
+            var script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = url;
+            script.async = true;
+            
+            if (callback) {
+                script.onload = callback;
+            }
+            
+            document.head.appendChild(script);
+        }
+        
+        // Définir une fonction globale pour afficher les toasts
+        window.showToast = function(message, type) {
+            const toastContainer = document.getElementById('toast-container') || (function() {
+                const newContainer = document.createElement('div');
+                newContainer.id = 'toast-container';
+                newContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                document.body.appendChild(newContainer);
+                return newContainer;
+            })();
+            
+            const toastId = 'toast-' + Date.now();
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center text-white bg-${type || 'primary'}" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+            toast.show();
+        };
+        
+        // Gérer le timeout du loading overlay
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('loading-overlay');
+            const timeoutMessage = document.getElementById('loading-timeout-message');
+            const continueButton = document.getElementById('force-continue-button');
+            
+            // Afficher le message de timeout après 8 secondes
+            setTimeout(function() {
+                if (overlay && overlay.style.display !== 'none') {
+                    if (timeoutMessage) timeoutMessage.style.display = 'block';
+                }
+            }, 8000);
+            
+            // Forcer la fermeture après 15 secondes
+            setTimeout(function() {
+                if (overlay && overlay.style.display !== 'none') {
+                    overlay.style.display = 'none';
+                    if (typeof window.showToast === 'function') {
+                        window.showToast("Chargement interrompu pour éviter un blocage", "warning");
+                    }
+                }
+            }, 15000);
+            
+            // Forcer la continuation quand l'utilisateur clique sur le bouton
+            if (continueButton) {
+                continueButton.addEventListener('click', function() {
+                    if (overlay) overlay.style.display = 'none';
+                });
+            }
+            
+            // Bouton de réinitialisation de l'application
+            const resetButton = document.getElementById('reset-app-button');
+            if (resetButton) {
+                resetButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Nettoyer les caches localStorage
+                    try {
+                        const keysToKeep = ['auth_token']; // Garder certaines clés importantes
+                        Object.keys(localStorage).forEach(key => {
+                            if (!keysToKeep.includes(key)) {
+                                localStorage.removeItem(key);
+                            }
+                        });
+                    } catch (e) {
+                        console.error("Error clearing localStorage:", e);
+                    }
+                    
+                    // Ajouter un paramètre cache-buster pour forcer un rafraîchissement
+                    window.location.href = window.location.pathname + '?reset=' + Date.now();
+                });
+            }
+        });
+        
+        // Mise à jour de l'indicateur de connexion
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusIndicator = document.getElementById('connection-status');
+            const statusText = document.getElementById('connection-status-text');
+            
+            if (statusIndicator && statusText) {
+                statusIndicator.style.display = 'block';
+                
+                // Mettre à jour l'indicateur
+                window.updateConnectionStatus = function(status) {
+                    if (status === 'connected') {
+                        statusIndicator.style.backgroundColor = '#4caf50';
+                        statusText.textContent = 'Connecté';
+                    } else if (status === 'loading') {
+                        statusIndicator.style.backgroundColor = '#ff9800';
+                        statusText.textContent = 'Chargement...';
+                    } else if (status === 'error') {
+                        statusIndicator.style.backgroundColor = '#f44336';
+                        statusText.textContent = 'Erreur de connexion';
+                    } else if (status === 'offline') {
+                        statusIndicator.style.backgroundColor = '#9e9e9e';
+                        statusText.textContent = 'Hors ligne';
+                    }
+                };
+                
+                // Intercepter les requêtes fetch pour montrer l'état
+                const originalFetch = window.fetch;
+                window.fetch = async function(...args) {
+                    updateConnectionStatus('loading');
+                    try {
+                        const response = await originalFetch.apply(this, args);
+                        
+                        if (response.ok) {
+                            updateConnectionStatus('connected');
+                        } else {
+                            updateConnectionStatus('error');
+                            setTimeout(() => updateConnectionStatus('connected'), 5000);
+                        }
+                        
+                        return response;
+                    } catch (error) {
+                        updateConnectionStatus('offline');
+                        throw error;
+                    }
+                };
+                
+                // État initial
+                updateConnectionStatus('connected');
+            }
+        });
+        
         // Fonction pour améliorer tous les badges de thème dans la page
         window.enhanceThemeBadgesGlobally = function() {
             const themeBadges = document.querySelectorAll('.theme-badge');
@@ -297,44 +506,53 @@
                 }
             });
         };
-        
-        // Fonction pour les toasts (notifications)
-        window.showToast = function(message, type) {
-            const toastContainer = document.getElementById('toast-container');
-            if (!toastContainer) {
-                const newContainer = document.createElement('div');
-                newContainer.id = 'toast-container';
-                newContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-                document.body.appendChild(newContainer);
-            }
-            
-            const container = document.getElementById('toast-container');
-            const toastId = 'toast-' + Date.now();
-            const toastHTML = `
-                <div id="${toastId}" class="toast align-items-center text-white bg-${type || 'primary'}" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="d-flex">
-                        <div class="toast-body">
-                            ${message}
-                        </div>
-                        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                </div>
-            `;
-            
-            container.insertAdjacentHTML('beforeend', toastHTML);
-            const toastElement = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
-            toast.show();
-        };
-        
-        // Appliquer les améliorations au chargement de la page
+    </script>
+    
+    <!-- Chargement des scripts core séquentiellement -->
+    <script>
+        // Démarrer la séquence de chargement des scripts
         document.addEventListener('DOMContentLoaded', function() {
+            // 1. Charger modal-fix.js - essentiel pour les interactions UI
+            loadScript('{{ url_for("static", filename="js/modal-fix.js") }}', function() {
+                // 2. Charger dashboard-init.js après modal-fix
+                loadScript('{{ url_for("static", filename="js/dashboard-init.js") }}', function() {
+                    // 3. Charger dashboard-core.js après dashboard-init
+                    loadScript('{{ url_for("static", filename="js/dashboard-core.js") }}', function() {
+                        // 4. Finalement, charger les correctifs
+                        loadScript('{{ url_for("static", filename="js/modal-fix-patch.js") }}', function() {
+                            loadScript('{{ url_for("static", filename="js/dashboard-core-fix.js") }}');
+                        });
+                    });
+                });
+            });
+            
+            // Appliquer les améliorations au chargement de la page
             window.enhanceThemeBadgesGlobally();
             
             // Initialiser tous les tooltips
             const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
             [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
         });
+    </script>
+    
+    <!-- Vérifier l'état de la page et réinitialiser si nécessaire -->
+    <script>
+        // Après 30 secondes, vérifier si la page est toujours en train de charger
+        setTimeout(function() {
+            const spinner = document.querySelector('#loading-overlay .spinner-border');
+            if (spinner) {
+                // La page est probablement bloquée, créer un bouton de secours
+                const emergencyButton = document.createElement('div');
+                emergencyButton.className = 'position-fixed top-0 end-0 m-3';
+                emergencyButton.style.zIndex = '9999';
+                emergencyButton.innerHTML = `
+                    <button class="btn btn-danger" onclick="window.location.reload()">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Page bloquée - Cliquez pour recharger
+                    </button>
+                `;
+                document.body.appendChild(emergencyButton);
+            }
+        }, 30000);
     </script>
     
     <!-- Custom Scripts par page -->
