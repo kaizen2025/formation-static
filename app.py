@@ -816,6 +816,39 @@ def validation_inscription(inscription_id):
     except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue.', 'danger'); app.logger.error(f"Unexpected error during inscription validation/cancellation: {e}", exc_info=True)
     return redirect(redirect_url)
 
+# --- Add this new route for the Activity Log page ---
+@app.route('/activites')
+@login_required # Or specific role check if needed
+@db_operation_with_retry(max_retries=3)
+def activites_page(): # Use a distinct function name
+    """Displays the full activity log with pagination."""
+    app.logger.info(f"User '{current_user.username}' accessing full activity log.")
+    try:
+        page = request.args.get('page', 1, type=int)
+        # Query activities, ordered by date descending, with user info loaded
+        pagination = Activite.query.options(
+            joinedload(Activite.utilisateur) # Eager load user
+        ).order_by(
+            Activite.date.desc()
+        ).paginate(page=page, per_page=25, error_out=False) # Show 25 activities per page
+
+        activites_items = pagination.items
+
+        return render_template('activites.html',
+                               activites=pagination, # Pass the pagination object
+                               activites_items=activites_items) # Pass the items list if needed separately
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"DB error loading activity log page: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement du journal d'activités.", "danger")
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Unexpected error loading activity log page: {e}", exc_info=True)
+        flash("Une erreur interne est survenue lors du chargement du journal.", "danger")
+        return redirect(url_for('dashboard'))
+# --- End of new route ---
 @app.route('/validation_inscription_ajax', methods=['POST'])
 @login_required
 @db_operation_with_retry(max_retries=2)
