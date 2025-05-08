@@ -905,7 +905,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return acc;
         }, {});
 
-        const totalInscriptions = Object.values(themeInscriptionCounts).reduce((sum, count) => sum + count, 0); // *** TOTAL INSCRIPTIONS ***
+        const totalInscriptions = Object.values(themeInscriptionCounts).reduce((sum, count) => sum + count, 0);
 
         if (totalInscriptions === 0) {
             container.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucune inscription confirmée pour afficher la répartition par thème.</div>';
@@ -933,10 +933,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="static-chart-title">Inscriptions par Thème</div>
             <div class="static-chart-donut">
                  <div class="donut-center">
-                    <div class="donut-total">${totalInscriptions}</div> {# *** AFFICHE TOTAL INSCRIPTIONS *** #}
+                    <div class="donut-total">${totalInscriptions}</div>
                     <div class="donut-label">Inscrits</div>
                 </div>
-                {# Le visuel donut reste simplifié #}
             </div>
             <div class="static-chart-legend">${legendHtml}</div>`;
     }
