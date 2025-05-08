@@ -957,7 +957,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="donut-total">${totalInscriptions}</div>
                     <div class="donut-label">Inscrits</div>
                 </div>
-                {# On pourrait ajouter des segments SVG ici si un visuel donut est souhaité #}
             </div>
             <div class="static-chart-legend">${legendHtml}</div>`;
     }
