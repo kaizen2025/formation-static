@@ -20,8 +20,10 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                {# CORRECTION: Utiliser url_for('add_theme') #}
                 <form action="{{ url_for('add_theme') }}" method="post" class="needs-validation" novalidate>
-                    {{ csrf_token_field() if csrf_token_field else '' }} {# Include CSRF token if your app uses Flask-WTF or similar #}
+                    {# Include CSRF token if your app uses Flask-WTF or similar #}
+                    {# Example: {{ form.csrf_token }} or manually generate if needed #}
                     <div class="mb-3">
                         <label for="add_nom_theme" class="form-label">Nom du thème*</label>
                         <input type="text" class="form-control" id="add_nom_theme" name="nom" required>
@@ -51,7 +53,8 @@
             <div class="card theme-card h-100 shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                      <h5 class="mb-0 text-truncate js-theme-cell" title="{{ theme.nom }}">
-                         {{ theme.nom }} {# JS will enhance this with icon and badge styling #}
+                         {# Le JS va ajouter l'icône et le style #}
+                         {{ theme.nom }}
                      </h5>
                      {% if current_user.is_authenticated and current_user.role == 'admin' %}
                      <div class="btn-group btn-group-sm">
@@ -111,8 +114,9 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
+                                {# CORRECTION: Utiliser url_for('update_theme') #}
                                 <form action="{{ url_for('update_theme', id=theme.id) }}" method="post" class="needs-validation" novalidate>
-                                    {{ csrf_token_field() if csrf_token_field else '' }}
+                                    {# Include CSRF token if needed #}
                                     <div class="mb-3">
                                         <label for="edit_nom{{ theme.id }}" class="form-label">Nom*</label>
                                         <input type="text" class="form-control" id="edit_nom{{ theme.id }}" name="nom" value="{{ theme.nom }}" required>
@@ -140,12 +144,13 @@
                              </div>
                              <div class="modal-body">
                                  <p>Êtes-vous sûr de vouloir supprimer le thème "<strong>{{ theme.nom }}</strong>" ?</p>
-                                 <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Attention : Toutes les sessions associées à ce thème seront également supprimées. Cette action est irréversible.</p>
+                                 <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Attention : Toutes les sessions et documents associés à ce thème seront également supprimés. Cette action est irréversible.</p>
                              </div>
                              <div class="modal-footer">
                                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                 {# CORRECTION: Utiliser url_for('delete_theme') #}
                                  <form id="deleteThemeForm{{ theme.id }}" action="{{ url_for('delete_theme', id=theme.id) }}" method="post" class="d-inline">
-                                     {{ csrf_token_field() if csrf_token_field else '' }}
+                                     {# Include CSRF token if needed #}
                                      <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
                                  </form>
                              </div>
@@ -174,11 +179,12 @@
 {{ super() }}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-            console.log('Themes page specific JS loaded');
+        // Appliquer les styles de badge thème
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            window.enhanceThemeBadgesGlobally();
         }
 
-        // Bootstrap Form Validation
+        // Validation Bootstrap
         const forms = document.querySelectorAll('.needs-validation');
         Array.from(forms).forEach(form => {
             form.addEventListener('submit', event => {
@@ -189,23 +195,6 @@
             form.classList.add('was-validated');
             }, false);
         });
-
-        // Specific modal fixes for this page (if modal-fix.js isn't sufficient or causes issues)
-        // This is generally handled by modal-fix.js and Bootstrap itself.
-        // function applyThemePageModalFixes() {
-        //     document.querySelectorAll('#addThemeModal, [id^="editThemeModal"], [id^="deleteThemeModal"]').forEach(modalEl => {
-        //         // Example: modalEl.style.zIndex = '1060'; // If needed
-        //     });
-        // }
-        // document.querySelectorAll('.modal').forEach(modal => {
-        //     modal.addEventListener('shown.bs.modal', applyThemePageModalFixes);
-        // });
-        // applyThemePageModalFixes();
-
-        // Enhance theme names in card headers on this page as well
-        // The global one in layout.html should cover this if .js-theme-cell is used consistently.
-        // If not, you can call window.enhanceThemeBadgesGlobally(); here or a more specific function.
-        // setTimeout(window.enhanceThemeBadgesGlobally, 100); // Ensure it runs after DOM is fully ready
     });
 </script>
 {% endblock %}
