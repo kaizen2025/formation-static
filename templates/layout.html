@@ -1,286 +1,468 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+{% extends "layout.html" %}
 
-    <title>{% block title %}{{ app_name | default('Gestion Formation') }}{% endblock %}</title>
+{% block title %}Administration - {{ app_name }}{% endblock %}
 
-    <!-- Favicon (Remplacez par votre chemin) -->
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+{% block head_extra %}
+<style>
+    /* Styles spécifiques pour la page admin */
+    .admin-card .card-body { padding: 1.25rem; }
+    .admin-card .list-group-item { padding: 0.6rem 0; font-size: 0.9rem; }
+    .admin-card .badge { font-size: 0.8rem; }
+    .admin-card .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+    .admin-card .small { font-size: 0.8rem; }
+    .admin-card .text-muted { color: #6c757d !important; }
+    .admin-card .text-primary-light { color: #a6cff7; }
+    .admin-card .text-success-light { color: #a3d9a5; }
+    .admin-card .text-warning-light { color: #ffd580; }
+    .admin-card .text-info-light { color: #9eeaf9; }
+    .admin-card .text-dark.opacity-50 { opacity: 0.3 !important; }
 
-    <!-- Bootstrap CSS (Version 5.3.x recommandée) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    #recent-activity-admin .list-group-item {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    #recent-activity-admin .activity-title { font-size: 0.85rem; }
+    #recent-activity-admin .activity-subtitle small { font-size: 0.75rem; }
 
-    <!-- Font Awesome (Version 6.x recommandée) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    /* Style pour la table des documents */
+    .documents-table th, .documents-table td {
+        font-size: 0.85rem;
+        padding: 0.5rem;
+        vertical-align: middle;
+    }
+    .documents-table .text-truncate { max-width: 250px; } /* Ajuster si nécessaire */
+</style>
+{% endblock %}
 
-    <!-- Styles personnalisés consolidés -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}"> <!-- Inclut les styles des graphiques -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}"> <!-- Inclut les correctifs modales -->
+{% block content %}
+<div class="container-fluid px-4" id="admin-content">
+    <h1 class="mb-4"><i class="fas fa-cogs me-2"></i>Panneau d'Administration</h1>
 
-    {% block head_extra %}{% endblock %} {# Pour CSS spécifique à une page #}
-
-    <style>
-        /* Style pour le spinner de chargement global */
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.85);
-            z-index: 10000; /* Au-dessus de tout */
-            display: flex; /* Affiché par défaut, caché par JS */
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            transition: opacity 0.3s ease-out;
-        }
-        #loading-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
-        }
-        .loading-text {
-            margin-top: 1rem;
-            font-size: 1.1rem;
-            color: var(--bs-primary, #0d6efd);
-        }
-        /* Structure Flex pour pousser le footer en bas */
-        body {
-            padding-top: 70px; /* Ajuster selon la hauteur de votre navbar fixe */
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        .content-wrapper {
-            flex: 1; /* Le contenu principal prend l'espace disponible */
-        }
-        /* Style pour les toasts */
-        .toast-container {
-             z-index: 1100 !important; /* S'assurer que les toasts sont au-dessus des modales */
-        }
-    </style>
-</head>
-<body>
-    <!-- Spinner de chargement global -->
-    <div id="loading-overlay">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Chargement...</span>
-        </div>
-        <p class="loading-text">Chargement...</p>
-    </div>
-
-    <!-- ==================== Barre de navigation ==================== -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top shadow-sm">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">
-                <i class="fas fa-users-cog me-2"></i>{{ app_name | default('Gestion Formation') }}
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt me-1"></i>Tableau de bord</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'sessions' %}active{% endif %}" href="{{ url_for('sessions') }}"><i class="fas fa-calendar-alt me-1"></i>Sessions</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'participants' %}active{% endif %}" href="{{ url_for('participants') }}"><i class="fas fa-users me-1"></i>Participants</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-concierge-bell me-1"></i>Services</a>
-                    </li>
-                    {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['admin', 'salles', 'themes', 'activites'] %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-shield-alt me-1"></i>Administration
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                            <li><a class="dropdown-item {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}">Panel Admin</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'salles' %}active{% endif %}" href="{{ url_for('salles') }}">Gérer les Salles</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'themes' %}active{% endif %}" href="{{ url_for('themes') }}">Gérer les Thèmes</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'activites' %}active{% endif %}" href="{{ url_for('activites') }}">Journal d'Activités</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-                </ul>
-                <ul class="navbar-nav ms-auto">
-                    {% if current_user.is_authenticated %}
-                        <li class="nav-item">
-                            <span class="navbar-text me-3">
-                                <i class="fas fa-user-circle me-1"></i>Connecté: {{ current_user.username }} ({{ current_user.role }})
-                            </span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i>Déconnexion</a>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt me-1"></i>Connexion</a>
-                        </li>
-                    {% endif %}
-                </ul>
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="alert alert-info d-flex align-items-center shadow-sm">
+                 <i class="fas fa-info-circle fa-2x me-3"></i>
+                 <div>
+                    Bienvenue dans le panneau d'administration. Gérez ici les sessions, participants, salles, thèmes, services, documents et consultez les activités.
+                 </div>
             </div>
         </div>
-    </nav>
-    <!-- ==================== Fin Barre de navigation ==================== -->
+    </div>
 
+    <!-- Stats Overview Cards -->
+    <div class="row mb-4">
+        <!-- Sessions Card -->
+        <div class="col-md-6 col-xl-4 mb-4">
+            <div class="card h-100 shadow-sm border-left-primary admin-card">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                         <h5 class="card-title text-primary mb-0"><i class="fas fa-calendar-alt me-2"></i>Sessions</h5>
+                         <i class="fas fa-calendar-alt fa-2x text-primary-light"></i>
+                    </div>
+                    <p class="small text-muted">Gérer les sessions, salles et inscriptions.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Programmées <span class="badge bg-primary rounded-pill" id="counter-sessions">{{ sessions|length }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Complètes <span class="badge bg-danger rounded-pill" id="counter-sessions-completes">{{ total_sessions_completes }}</span>
+                        </li>
+                    </ul>
+                     <a href="{{ url_for('dashboard') }}" class="btn btn-primary w-100 btn-sm mt-auto">
+                        <i class="fas fa-tasks me-1"></i>Gérer les Sessions
+                    </a>
+                </div>
+            </div>
+        </div>
 
-    <!-- Contenu principal -->
-    <div class="container-fluid mt-4 content-wrapper" id="main-content">
-        {# Affichage des messages Flash #}
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="row justify-content-center mb-3">
-                    <div class="col-md-10 col-lg-8">
-                        {% for category, message in messages %}
-                            {# Utiliser 'warning' pour 'info' pour une meilleure visibilité #}
-                            {% set alert_category = 'warning' if category == 'info' else category %}
-                            <div class="alert alert-{{ alert_category }} alert-dismissible fade show shadow-sm" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
+        <!-- Participants Card -->
+        <div class="col-md-6 col-xl-4 mb-4">
+            <div class="card h-100 shadow-sm border-left-success admin-card">
+                 <div class="card-body d-flex flex-column">
+                     <div class="d-flex justify-content-between align-items-center mb-2">
+                         <h5 class="card-title text-success mb-0"><i class="fas fa-users me-2"></i>Participants</h5>
+                          <i class="fas fa-users fa-2x text-success-light"></i>
+                    </div>
+                    <p class="small text-muted">Ajouter, modifier et suivre les participants.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Total <span class="badge bg-success rounded-pill" id="counter-participants">{{ participants|length }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            En liste d'attente <span class="badge bg-warning text-dark rounded-pill" id="counter-attente">{{ total_en_attente }}</span>
+                        </li>
+                    </ul>
+                     <a href="{{ url_for('participants') }}" class="btn btn-success w-100 btn-sm mt-auto">
+                        <i class="fas fa-user-edit me-1"></i>Gérer Participants
+                    </a>
+                </div>
+            </div>
+        </div>
+
+         <!-- Salles Card -->
+        <div class="col-md-6 col-xl-4 mb-4">
+            <div class="card h-100 shadow-sm border-left-info admin-card">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                         <h5 class="card-title text-info mb-0"><i class="fas fa-building me-2"></i>Salles</h5>
+                         <i class="fas fa-building fa-2x text-info-light"></i>
+                    </div>
+                    <p class="small text-muted">Gérer les salles et leur capacité.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Disponibles <span class="badge bg-info rounded-pill" id="counter-salles">{{ salles|length }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Capacité totale <span class="badge bg-secondary rounded-pill" id="counter-capacite">{{ salles|sum(attribute='capacite') }}</span>
+                        </li>
+                    </ul>
+                     <a href="{{ url_for('salles') }}" class="btn btn-info w-100 btn-sm mt-auto">
+                        <i class="fas fa-door-open me-1"></i>Gérer les Salles
+                    </a>
+                </div>
+            </div>
+        </div>
+
+         <!-- Thèmes Card -->
+         <div class="col-md-6 col-xl-4 mb-4">
+            <div class="card h-100 shadow-sm border-left-warning admin-card">
+                 <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title text-warning mb-0"><i class="fas fa-book-open me-2"></i>Thèmes</h5>
+                        <i class="fas fa-book-open fa-2x text-warning-light"></i>
+                    </div>
+                    <p class="small text-muted">Gérer les thèmes de formation.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                             Disponibles <span class="badge bg-warning text-dark rounded-pill" id="counter-themes">{{ themes|length }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                             Total Sessions <span class="badge bg-secondary rounded-pill">{{ total_sessions_count }}</span>
+                        </li>
+                    </ul>
+                    <div class="mt-2">
+                        {% for theme in themes %}
+                        <span class="badge {% if theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% else %}bg-secondary{% endif %} me-1 mb-1">
+                            {{ theme.nom }} ({{ theme_session_counts.get(theme.id, 0) }}) {# Utiliser le dict pré-calculé #}
+                        </span>
                         {% endfor %}
                     </div>
+                     <a href="{{ url_for('themes') }}" class="btn btn-warning text-dark w-100 btn-sm mt-3">
+                        <i class="fas fa-edit me-1"></i>Gérer les Thèmes
+                    </a>
                 </div>
-            {% endif %}
-        {% endwith %}
-
-        {# Bloc de contenu spécifique à la page #}
-        {% block content %}{% endblock %}
-    </div>
-
-    <!-- ==================== Pied de page ==================== -->
-    <footer class="py-3 mt-auto bg-light border-top">
-        <div class="container-fluid text-center">
-            <small class="text-muted">
-                © {{ now.year }} {{ app_name | default('Votre Entreprise') }}. Tous droits réservés.
-                {% if debug_mode %}
-                 | Mode Debug Actif
-                {% endif %}
-            </small>
+            </div>
         </div>
-    </footer>
-    <!-- ==================== Fin Pied de page ==================== -->
 
-    <!-- Modales communes (si elles sont utilisées sur plusieurs pages) -->
-    {% block modals %}
-        {# Inclure les modales ici si nécessaire, ex: #}
-        {# {% include 'modals/_inscription_modal.html' ignore missing %} #}
-    {% endblock %}
+         <!-- Services Card -->
+        <div class="col-md-6 col-xl-4 mb-4">
+             <div class="card h-100 shadow-sm border-left-secondary admin-card">
+                 <div class="card-body d-flex flex-column">
+                     <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title text-secondary mb-0"><i class="fas fa-sitemap me-2"></i>Services</h5>
+                        <i class="fas fa-sitemap fa-2x text-secondary"></i>
+                    </div>
+                    <p class="small text-muted">Gérer les services et responsables.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                            Enregistrés <span class="badge bg-secondary rounded-pill" id="counter-services">{{ services|length }}</span>
+                        </li>
+                    </ul>
+                     <div class="mt-2" style="max-height: 80px; overflow-y: auto;">
+                        {% for service in services|sort(attribute='nom') %}
+                        <div class="mb-1 small">
+                            <span class="service-badge me-1" style="background-color: {{ service.couleur or '#6c757d' }};"></span>
+                            {{ service.nom }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                     <a href="{{ url_for('services') }}" class="btn btn-secondary w-100 btn-sm mt-3">
+                        <i class="fas fa-users-cog me-1"></i>Gérer les Services
+                    </a>
+                </div>
+            </div>
+        </div>
 
-    <!-- Conteneur pour les Toasts/Notifications -->
-    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3">
-        <!-- Les toasts seront ajoutés ici par JavaScript -->
+         <!-- Activity Log Card -->
+        <div class="col-md-6 col-xl-4 mb-4">
+             <div class="card h-100 shadow-sm border-left-dark admin-card">
+                 <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title text-dark mb-0"><i class="fas fa-history me-2"></i>Journal d'activité</h5>
+                        <i class="fas fa-history fa-2x text-dark opacity-50"></i>
+                    </div>
+                    <p class="small text-muted flex-grow-0">Consulter l'historique des actions.</p>
+                     <div class="list-group list-group-flush small flex-grow-1 activity-container" id="recent-activity-admin">
+                         {# Le contenu sera chargé par JS #}
+                         <div class="list-group-item px-0 text-center text-muted loading-spinner">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            Chargement...
+                        </div>
+                     </div>
+                     <a href="{{ url_for('activites') }}" class="btn btn-dark w-100 btn-sm mt-3">
+                        <i class="fas fa-list me-1"></i>Voir Tout le Journal
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Scripts JavaScript -->
-    <!-- Bootstrap JS Bundle (inclut Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <!-- Quick Actions Section -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0 text-primary"><i class="fas fa-bolt me-2"></i>Actions rapides</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                         <!-- Quick Room Assignment -->
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-info"><i class="fas fa-building me-2"></i>Attribution rapide de salle</h6>
+                                    <hr class="mt-1 mb-3">
+                                    <form action="{{ url_for('attribuer_salle') }}" method="post" class="row g-3 needs-validation" novalidate>
+                                        <div class="col-md-6">
+                                            <label for="quick_session_id" class="form-label form-label-sm">Session (sans salle)</label>
+                                            <select class="form-select form-select-sm" id="quick_session_id" name="session_id" required>
+                                                <option value="" disabled selected>-- Choisir --</option>
+                                                {% for session in sessions|selectattr("salle_id", "none")|sort(attribute='date') %}
+                                                 <option value="{{ session.id }}">
+                                                    {{ session.formatage_date }} | {{ session.theme.nom|truncate(20) }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            <div class="invalid-feedback">Sélectionnez une session.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="quick_salle_id" class="form-label form-label-sm">Salle</label>
+                                            <select class="form-select form-select-sm" id="quick_salle_id" name="salle_id" required>
+                                                 <option value="" disabled selected>-- Choisir --</option>
+                                                {% for salle in salles|sort(attribute='nom') %}
+                                                <option value="{{ salle.id }}">{{ salle.nom }} ({{ salle.capacite }})</option>
+                                                {% endfor %}
+                                            </select>
+                                             <div class="invalid-feedback">Sélectionnez une salle.</div>
+                                        </div>
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-info btn-sm w-100">
+                                                <i class="fas fa-check me-1"></i>Attribuer
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
 
-    <!-- Chart.js (Décommentez si vous utilisez des graphiques dynamiques Chart.js) -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script> -->
+                         <!-- Quick Participant Add -->
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-light">
+                                <div class="card-body">
+                                     <h6 class="card-title text-success"><i class="fas fa-user-plus me-2"></i>Ajout rapide de participant</h6>
+                                     <hr class="mt-1 mb-3">
+                                    <form action="{{ url_for('add_participant') }}" method="post" class="row g-3 needs-validation" novalidate>
+                                         <input type="hidden" name="from_page" value="admin">
+                                        <div class="col-md-6">
+                                            <label for="quick_nom" class="form-label form-label-sm">Nom*</label>
+                                            <input type="text" class="form-control form-control-sm" id="quick_nom" name="nom" required>
+                                            <div class="invalid-feedback">Nom requis.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="quick_prenom" class="form-label form-label-sm">Prénom*</label>
+                                            <input type="text" class="form-control form-control-sm" id="quick_prenom" name="prenom" required>
+                                            <div class="invalid-feedback">Prénom requis.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="quick_email" class="form-label form-label-sm">Email*</label>
+                                            <input type="email" class="form-control form-control-sm" id="quick_email" name="email" required>
+                                            <div class="invalid-feedback">Email valide requis.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="quick_service_id" class="form-label form-label-sm">Service*</label>
+                                            <select class="form-select form-select-sm" id="quick_service_id" name="service_id" required>
+                                                <option value="" disabled selected>-- Choisir --</option>
+                                                {% for service in services|sort(attribute='nom') %}
+                                                <option value="{{ service.id }}">{{ service.nom }}</option>
+                                                {% endfor %}
+                                            </select>
+                                             <div class="invalid-feedback">Service requis.</div>
+                                        </div>
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                                <i class="fas fa-plus-circle me-1"></i>Ajouter
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <!-- Scripts personnalisés (l'ordre est important) -->
-    <script src="{{ url_for('static', filename='js/api-error-handler.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/modal-fix.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/modal-fix-patch.js') }}" defer></script>
+    <!-- ==================== Gestion des Documents ==================== -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-folder-open me-2"></i>Gestion des Documents</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Formulaire d'Upload -->
+                        <div class="col-lg-5 mb-4 mb-lg-0">
+                            <h6><i class="fas fa-upload me-2"></i>Uploader un nouveau document</h6>
+                            <hr class="mt-1 mb-3">
+                            <form action="{{ url_for('upload_document') }}" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                                <div class="mb-3">
+                                    <label for="document_file" class="form-label">Fichier*</label>
+                                    <input class="form-control form-control-sm" type="file" id="document_file" name="document_file" required
+                                           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.txt"> {# Limiter les types acceptés #}
+                                    <div class="form-text small">Types autorisés: PDF, Word, Excel, PowerPoint, Images, Texte. Max 16MB.</div>
+                                    <div class="invalid-feedback">Veuillez sélectionner un fichier.</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="upload_theme_id" class="form-label">Associer au thème (Optionnel)</label>
+                                    <select class="form-select form-select-sm" id="upload_theme_id" name="theme_id">
+                                        <option value="">-- Aucun thème (Général) --</option>
+                                        {% for theme_item in themes|sort(attribute='nom') %} {# Utiliser themes passé à admin.html #}
+                                        <option value="{{ theme_item.id }}">{{ theme_item.nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="upload_description" class="form-label">Description (Optionnel)</label>
+                                    <textarea class="form-control form-control-sm" id="upload_description" name="description" rows="2" placeholder="Brève description du contenu..."></textarea>
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-cloud-upload-alt me-2"></i>Uploader le document
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
 
-    <!-- Configuration JS (si nécessaire, avant dashboard-init) -->
-    <script>
-        window.dashboardConfig = window.dashboardConfig || {}; // Assure que l'objet existe
-        // Passer des variables Flask à JS (exemple)
-        window.dashboardConfig.debugMode = {{ debug_mode | default(false) | tojson }};
-        // Ajoutez d'autres configurations si nécessaire
-        // window.dashboardConfig.baseApiUrl = "{{ url_for('index') }}api";
+                        <!-- Liste des Documents Existants -->
+                        <div class="col-lg-7">
+                             <h6><i class="fas fa-list me-2"></i>Documents existants</h6>
+                             <hr class="mt-1 mb-3">
+                             {% if existing_documents %}
+                             <div class="table-responsive" style="max-height: 300px; overflow-y: auto;"> {# Hauteur réduite #}
+                                 <table class="table table-sm table-striped table-hover documents-table">
+                                     <thead class="table-light sticky-top">
+                                         <tr>
+                                             <th>Nom Fichier</th>
+                                             <th>Thème</th>
+                                             <th>Ajouté le</th>
+                                             <th class="text-end">Action</th>
+                                         </tr>
+                                     </thead>
+                                     <tbody>
+                                         {% for doc in existing_documents %}
+                                         <tr>
+                                             <td class="text-truncate" title="{{ doc.original_filename }}">
+                                                 <a href="{{ url_for('download_document', filename=doc.filename) }}" target="_blank">
+                                                     <i class="fas fa-file me-1"></i>{{ doc.original_filename }}
+                                                 </a>
+                                             </td>
+                                             <td>
+                                                 {% if doc.theme %}
+                                                     <span class="badge {% if 'Communiquer avec Teams' in doc.theme.nom %}theme-comm{% elif 'Gérer les tâches' in doc.theme.nom %}theme-planner{% elif 'Gérer mes fichiers' in doc.theme.nom %}theme-onedrive{% elif 'Collaborer avec Teams' in doc.theme.nom %}theme-sharepoint{% else %}bg-secondary{% endif %}">
+                                                         {{ doc.theme.nom }}
+                                                     </span>
+                                                 {% else %}
+                                                     <span class="badge bg-light text-dark border">Général</span>
+                                                 {% endif %}
+                                             </td>
+                                             <td><small>{{ doc.upload_date.strftime('%d/%m/%y') }}</small></td>
+                                             <td class="text-end">
+                                                 <form action="{{ url_for('delete_document', doc_id=doc.id) }}" method="post" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer le document \'{{ doc.original_filename|escape }}\' ?');">
+                                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
+                                                         <i class="fas fa-trash"></i>
+                                                     </button>
+                                                 </form>
+                                             </td>
+                                         </tr>
+                                         {% endfor %}
+                                     </tbody>
+                                 </table>
+                             </div>
+                             {% else %}
+                             <div class="alert alert-light text-center border">Aucun document uploadé pour le moment.</div>
+                             {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ==================== Fin Gestion des Documents ==================== -->
 
-        // Données globales pour les graphiques (utilisées par dashboard-core.js)
-        window.themesDataForChart = {
-            'Communiquer avec Teams': { color: 'var(--theme-teams, #0078d4)', description: 'Apprenez à utiliser Microsoft Teams pour communiquer efficacement.' },
-            'Gérer les tâches (Planner)': { color: 'var(--theme-planner, #7719aa)', description: 'Maîtrisez la gestion des tâches d\'équipe avec Planner et To Do.' },
-            'Gérer mes fichiers (OneDrive/SharePoint)': { color: 'var(--theme-onedrive, #0364b8)', description: 'Organisez et partagez vos fichiers avec OneDrive et SharePoint.' },
-            'Collaborer avec Teams': { color: 'var(--theme-sharepoint, #038387)', description: 'Découvrez comment collaborer sur des documents via Microsoft Teams.' }
-        };
-        window.servicesDataForChart = { // Utilisé pour obtenir la couleur dans le graphique service
-             'Commerce Anecoop-Solagora': { color: 'var(--service-commerce, #FFC107)' },
-             'Comptabilité': { color: 'var(--service-comptabilite, #2196F3)' },
-             'Florensud': { color: 'var(--service-florensud, #4CAF50)' },
-             'Informatique': { color: 'var(--service-informatique, #607D8B)' },
-             'Marketing': { color: 'var(--service-marketing, #9C27B0)' },
-             'Qualité': { color: 'var(--service-qualite, #F44336)' },
-             'RH': { color: 'var(--service-rh, #FF9800)' }
-        };
-    </script>
+</div>
+{% endblock %}
 
-    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}" defer></script>
-    {# dashboard-core-fix.js n'est plus inclus #}
-
-    {% block scripts_extra %}{% endblock %} {# Pour JS spécifique à une page #}
-
-    <!-- Script final pour gérer le loader et initialiser les tooltips -->
-    <script>
-        function hideGlobalLoader() {
-            const overlay = document.getElementById('loading-overlay');
-            if (overlay && !overlay.classList.contains('hidden')) {
-                overlay.classList.add('hidden');
-                // Optionnel: supprimer après transition
-                // setTimeout(() => { overlay.remove(); }, 300);
-            }
+{% block scripts_extra %}
+{# Inclure les scripts de layout.html #}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.dashboardConfig && window.dashboardConfig.debugMode) {
+            console.log('Admin page specific JS loaded');
         }
 
-        // Cacher le loader une fois que le DOM est prêt et les scripts defer exécutés
-        // ou après un timeout de sécurité.
-        let loaderHidden = false;
-        const hideLoaderTimeout = setTimeout(() => {
-            if (!loaderHidden) {
-                hideGlobalLoader();
-                console.warn("Layout.html: Forcing loading overlay hide (fallback timeout).");
-                loaderHidden = true;
-            }
-        }, 7000); // 7 secondes
-
-        // Essayer de cacher plus tôt si possible
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const isUpdating = window.dashboardCore && window.dashboardCore.getState && window.dashboardCore.getState().updating;
-                if (!isUpdating && !loaderHidden) {
-                    hideGlobalLoader();
-                    loaderHidden = true;
-                    clearTimeout(hideLoaderTimeout);
+        // Validation Bootstrap pour les formulaires rapides et upload
+        const formsToValidate = document.querySelectorAll('#admin-content .needs-validation');
+        Array.from(formsToValidate).forEach(form => {
+            form.addEventListener('submit', event => {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
                 }
-            }, 200);
+                form.classList.add('was-validated');
+            }, false);
         });
-        // Si dashboard-core finit son chargement initial avant 'window.load'
-        document.addEventListener('dashboardDataRefreshed', () => {
-             if (!loaderHidden) {
-                 hideGlobalLoader();
-                 loaderHidden = true;
-                 clearTimeout(hideLoaderTimeout);
-             }
-        }, { once: true });
 
-        // Initialiser les tooltips Bootstrap après le chargement du DOM
-        document.addEventListener('DOMContentLoaded', function () {
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl)
-                }
-                return bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-            })
-        });
-    </script>
+        // Rafraîchir l'activité récente sur la page admin
+        const adminActivityContainer = document.getElementById('recent-activity-admin');
+        function refreshAdminActivity() {
+            if (!adminActivityContainer) return;
+            fetch('/api/activites?limit=7') // Charger 7 activités pour cet affichage
+                .then(response => response.ok ? response.json() : Promise.reject('Failed to fetch'))
+                .then(activities => {
+                    if (activities && activities.length > 0) {
+                        let html = '';
+                        activities.forEach(activity => {
+                            const icon = getActivityIcon(activity.type); // Utilise la fonction globale de dashboard-core
+                            const userInfo = activity.user ? `<span class="text-primary fw-bold">${activity.user}</span>` : '';
+                            html += `<a href="#" class="list-group-item list-group-item-action activity-item type-${activity.type || 'default'}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1 activity-title"><i class="${icon} me-2"></i>${activity.description || 'Activité'} ${userInfo}</h6>
+                                            <small class="text-muted activity-time">${activity.date_relative || ''}</small>
+                                        </div>
+                                        ${activity.details ? `<p class="mb-1 activity-details"><small>${activity.details}</small></p>` : ''}
+                                    </a>`;
+                        });
+                        adminActivityContainer.innerHTML = html;
+                    } else {
+                        adminActivityContainer.innerHTML = '<div class="list-group-item text-center text-muted p-3">Aucune activité récente.</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching admin activities:", error);
+                    adminActivityContainer.innerHTML = '<div class="list-group-item text-center text-danger p-3">Erreur chargement activités.</div>';
+                });
+        }
+        // Charger l'activité initiale
+        refreshAdminActivity();
 
-</body>
-</html>
+        // Appliquer les améliorations de badges
+         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            setTimeout(window.enhanceThemeBadgesGlobally, 100);
+        }
+
+    });
+</script>
+{% endblock %}
