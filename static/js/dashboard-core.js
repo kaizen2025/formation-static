@@ -1,10 +1,10 @@
 /**
  * dashboard-core.js - Fichier JavaScript optimisé pour le tableau de bord
- * Version: 1.5.1 - Correction rendu graphiques + robustesse
+ * Version: 1.6.0 - Correction calculs graphiques + gestion états vides/chargement
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard Core: Initializing (v1.5.1)');
+    console.log('Dashboard Core: Initializing (v1.6.0)');
 
     if (window.dashboardCoreInitialized) {
         console.log('Dashboard Core: Already initialized. Skipping.');
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
         minRefreshDelay: dashInitConfig.minRefreshDelay || 30000,
         debounceDelay: dashInitConfig.debounceDelay || 1000,
         baseApiUrl: dashInitConfig.baseApiUrl || '/api',
-        chartRendering: dashInitConfig.chartRendering || 'auto', // 'auto', 'static', 'chartjs', 'none'
+        chartRendering: dashInitConfig.chartRendering || 'auto',
         usingDashboardInit: !!dashInitConfig.autoRefreshInterval || !!dashInitConfig.preferredMode,
         socketEnabled: dashInitConfig.socketEnabled !== undefined ? dashInitConfig.socketEnabled : true,
         pollingEnabled: dashInitConfig.pollingEnabled !== undefined ? dashInitConfig.pollingEnabled : true,
@@ -36,14 +36,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let dashboardState = {
         lastRefresh: 0,
         updating: false,
-        dataHashes: { sessions: null, participants: null, activites: null }, // Initialiser à null
+        dataHashes: { sessions: null, participants: null, activites: null },
+        rawData: { sessions: [], participants: [], activites: [] }, // Stocker les données brutes
         errorCount: 0,
         maxErrors: 5,
         pollingActive: true,
         pollingTimeout: null,
         pollingTimeoutScheduled: false,
-        themeChart: null, // Instance Chart.js (si utilisé)
-        serviceChart: null, // Instance Chart.js (si utilisé)
+        themeChart: null,
+        serviceChart: null,
         fetchTimeoutId: null
     };
 
@@ -62,30 +63,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ====== INITIALISATION ET CYCLE DE VIE ======
     function initializeDashboard() {
-        enhanceUI(); // Améliorations UI de base
-
-        // Initialiser les conteneurs de graphiques avec un état de chargement
-        initializeCharts();
+        enhanceUI();
+        initializeCharts(); // Afficher les placeholders de chargement
 
         if (!config.usingDashboardInit) {
             setupEventListeners();
-            // Le fetch initial est déclenché après l'initialisation des composants
-            startPolling(); // Le polling démarrera le premier fetch via debounce
+            startPolling();
         } else {
-            // Exposer les fonctions pour dashboard-init.js
             window.forcePollingUpdate = (forceRefresh) => debouncedFetchDashboardData(forceRefresh);
-            window.updateStatsCounters = updateStatisticsCounters; // Sera appelé par processData
-            window.refreshRecentActivity = () => updateActivityFeed(null); // Permet un refresh manuel de l'activité
-            window.chartModule = { initialize: initializeCharts, update: updateCharts }; // Exposer update aussi
+            window.updateStatsCounters = updateStatisticsCounters;
+            window.refreshRecentActivity = () => updateActivityFeed(null);
+            window.chartModule = { initialize: initializeCharts, update: updateCharts };
         }
 
-        // Déclencher le premier chargement de données
-        debouncedFetchDashboardData(true); // Forcer le premier chargement
+        debouncedFetchDashboardData(true); // Premier chargement forcé
 
         if (config.debugMode) console.log('Dashboard Core: Initialization sequence complete.');
     }
 
-    function startPolling() {
+    // ... (startPolling, setupEventListeners, setupMutationObserver identiques) ...
+     function startPolling() {
         if (config.usingDashboardInit && config.preferredMode !== 'polling') {
             if (config.debugMode) console.log("Dashboard Core: Polling not started (managed by dashboard-init or mode is not polling).");
             return;
@@ -106,18 +103,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 dashboardState.pollingTimeoutScheduled = false;
                 if (dashboardState.pollingActive && document.visibilityState === 'visible' && !dashboardState.updating) {
                     try {
-                        // Utiliser le mode léger pour les mises à jour en arrière-plan
                         await debouncedFetchDashboardData(false, true);
                     } catch (err) {
                         console.error("Dashboard Core: Error during scheduled poll:", err);
                     } finally {
                         if (dashboardState.pollingActive) {
-                            scheduleNextPoll(); // Replanifier après la fin de l'exécution
+                            scheduleNextPoll();
                         }
                     }
                 } else {
                     if (dashboardState.pollingActive) {
-                         scheduleNextPoll(); // Replanifier si les conditions ne sont pas remplies
+                         scheduleNextPoll();
                     }
                 }
             }, config.refreshInterval);
@@ -128,8 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setupEventListeners() {
-        // ... (code identique à la version précédente pour visibilitychange et refreshButton) ...
-         document.addEventListener('visibilitychange', () => {
+        document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && dashboardState.pollingActive) {
                 if (config.debugMode) console.log('Dashboard Core: Tab visible, triggering refresh');
                 debouncedFetchDashboardData(false, true);
@@ -154,7 +149,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (typeof showToast === 'function') {
                             if (updated === true) showToast('Données actualisées avec succès', 'success');
                             else if (updated === false) showToast('Aucune nouvelle donnée ou erreur lors de l\'actualisation.', 'info');
-                            // Si updated est undefined/null, ne rien afficher
                         }
                         if (!dashboardState.pollingActive) {
                             dashboardState.pollingActive = true;
@@ -168,22 +162,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (typeof showToast === 'function') showToast('Erreur lors de l\'actualisation manuelle', 'danger');
                     })
                     .finally(() => {
-                        // Vérifier si le bouton existe toujours avant de le modifier
                         const currentRefreshButton = document.getElementById('refresh-dashboard');
                         if(currentRefreshButton) {
                             currentRefreshButton.disabled = false;
                             currentRefreshButton.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualiser';
                         }
-                        if (globalLoadingOverlay && !dashboardState.updating) globalLoadingOverlay.style.display = 'none';
+                        if (globalLoadingOverlay && !dashboardState.updating) {
+                             globalLoadingOverlay.style.display = 'none';
+                             globalLoadingOverlay.classList.add('hidden');
+                        }
                     });
             });
         }
-        setupValidationListeners(); // S'assurer que les listeners AJAX sont actifs
-        setupMutationObserver(); // Observer les changements du DOM
+        setupValidationListeners();
+        setupMutationObserver();
     }
 
-    function setupMutationObserver() {
-        // ... (code identique à la version précédente) ...
+     function setupMutationObserver() {
          if (!window.MutationObserver) return;
         let observerTimeout = null;
         const observer = new MutationObserver(function(mutations) {
@@ -221,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // ... (code identique à la version précédente, incluant la gestion du loader) ...
         if (dashboardState.updating && !forceRefresh) {
             if (config.debugMode) console.log('Dashboard Core: Skipping fetch (update in progress, not forced)');
-            return Promise.resolve(false); // Retourne false si skippé
+            return Promise.resolve(false);
         }
 
         if (config.errorThrottleMode && !forceRefresh) {
@@ -249,11 +244,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            currentUrl = lightMode ?
-                `${config.baseApiUrl}/dashboard_essential?light=1&_=${Date.now()}` :
-                `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
+            // Toujours utiliser le fetch complet pour avoir les données participants
+            currentUrl = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
 
-            if (config.debugMode) console.log(`Dashboard Core: Fetching data from ${currentUrl}${lightMode ? ' (light mode)' : ''}`);
+            if (config.debugMode) console.log(`Dashboard Core: Fetching data from ${currentUrl}`);
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => {
@@ -304,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
 
-            // Stocker les données brutes pour les graphiques
+            // Stocker les données brutes
             dashboardState.rawData = data;
 
             const hasChanged = processData(data, forceRefresh);
@@ -319,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (config.debugMode) console.log('Dashboard Core: No significant data changes detected');
             }
 
-            return hasChanged; // Retourne true si des changements ont été traités, false sinon
+            return hasChanged;
 
         } catch (error) {
             console.error(`Dashboard Core: Error fetching dashboard data from ${currentUrl}:`, error.name, error.message);
@@ -342,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 dashboardState.pollingTimeoutScheduled = false;
                 showErrorWarning(true);
             }
-            return undefined; // Indiquer une erreur plutôt que false (qui signifie "pas de changement")
+            return undefined; // Indiquer une erreur
         } finally {
             dashboardState.updating = false;
             if (globalLoadingOverlay && (forceRefresh || !lightMode)) {
@@ -358,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function debouncedFetchDashboardData(forceRefresh = false, lightModeForDebounce = false) {
-        // ... (code identique à la version précédente) ...
+        // ... (code identique) ...
          if (forceRefresh) {
             if (dashboardState.fetchTimeoutId) {
                 clearTimeout(dashboardState.fetchTimeoutId);
@@ -381,7 +375,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 dashboardState.fetchTimeoutId = null;
                 try {
                     // Utiliser lightModeForDebounce pour les appels debounced non forcés
-                    const result = await _fetchDashboardData(false, lightModeForDebounce);
+                    // MAIS on a besoin des participants, donc on force le mode non-light
+                    const result = await _fetchDashboardData(false, false); // Toujours fetch complet
                     resolve(result);
                 } catch (error) {
                     console.error("Dashboard Core: Error in debounced fetch execution:", error);
@@ -392,7 +387,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function processData(data, forceRefresh = false) {
-        if (!data || typeof data !== 'object') {
+        // ... (code identique à la version précédente) ...
+         if (!data || typeof data !== 'object') {
              console.error("ProcessData: Invalid data received", data);
              return false;
         }
@@ -423,16 +419,18 @@ document.addEventListener('DOMContentLoaded', function() {
              const participantsHash = simpleHash(data.participants);
              if (participantsHash !== dashboardState.dataHashes.participants) {
                  dashboardState.dataHashes.participants = participantsHash;
-                 // On ne met pas hasChanged = true ici, car les participants seuls ne modifient pas forcément l'UI principale
-                 // mais on met à jour le graphique si les données sessions sont aussi là
+                 // Mettre à jour le graphique si les données sessions sont aussi là
                  if (dashboardState.dataHashes.sessions !== null) {
                      updateCharts(data.sessions, data.participants);
                  }
+                 // Marquer comme changé si les participants changent (pour le graphique)
+                 hasChanged = true;
              }
         } else if (dashboardState.dataHashes.participants !== null) {
              dashboardState.dataHashes.participants = null;
              // Mettre à jour le graphique service pour montrer l'absence de données
              updateCharts(data.sessions, []);
+             hasChanged = true;
         }
 
         // Traiter les activités
@@ -466,12 +464,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // ====== MISE À JOUR DES COMPOSANTS UI ======
     // ... (updateSessionTable, updateStatisticsCounters, updateCounter, updateActivityFeed, getActivityIcon identiques) ...
     function updateSessionTable(sessions) {
-        if (!sessions || !Array.isArray(sessions)) return;
+        // ... (code identique) ...
+         if (!sessions || !Array.isArray(sessions)) return;
         const sessionTableBody = document.querySelector('.session-table tbody, #sessions-table tbody');
         if (!sessionTableBody) return;
 
-        // Vider le corps de la table avant de la remplir (plus simple que de chercher/modifier chaque ligne)
-        sessionTableBody.innerHTML = '';
+        sessionTableBody.innerHTML = ''; // Vider avant de remplir
 
         if (sessions.length === 0) {
              const cols = sessionTableBody.closest('table')?.querySelectorAll('thead th').length || 5;
@@ -525,9 +523,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 </tr>`;
             sessionTableBody.insertAdjacentHTML('beforeend', rowHtml);
         });
-         // Réappliquer les améliorations UI après avoir modifié le DOM
          enhanceBadgesAndLabels();
-         initTooltips(); // Important de réinitialiser les tooltips
+         initTooltips();
     }
 
     function updateStatisticsCounters(sessions) {
@@ -571,7 +568,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateActivityFeed(activities) {
-        // ... (code identique, y compris le fetch interne si activities est null) ...
+        // ... (code identique) ...
          if (activities === null) {
             fetch(`${config.baseApiUrl}/activites?limit=5`)
                 .then(response => {
@@ -647,8 +644,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ====== AMÉLIORATION ET CORRECTION UI ======
-    function enhanceUI() {
-        // ... (code identique) ...
+    // ... (enhanceUI, initTooltips, enhanceBadgesAndLabels, fixDataIssues, checkAndFixHangingModals, enhanceAccessibility, showErrorWarning, setupValidationListeners identiques) ...
+     function enhanceUI() {
          initTooltips();
         enhanceBadgesAndLabels();
         fixDataIssues();
@@ -656,63 +653,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function initTooltips() {
-        // ... (code identique) ...
          if (typeof bootstrap === 'undefined' || typeof bootstrap.Tooltip !== 'function') return;
-
-        // Supprimer les anciens tooltips avant d'en créer de nouveaux
         const existingTooltips = document.querySelectorAll('.tooltip');
         existingTooltips.forEach(tt => tt.remove());
-
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not(iframe):not(script):not(style)');
-        // Créer une nouvelle liste d'instances de tooltips
-        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => {
-             // Vérifier si une instance existe déjà et la détruire si c'est le cas
+        [...tooltipTriggerList].map(tooltipTriggerEl => {
              const existingInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-             if (existingInstance) {
-                 existingInstance.dispose();
-             }
-             // Créer une nouvelle instance
-             try {
-                 return new bootstrap.Tooltip(tooltipTriggerEl, { container: 'body', boundary: document.body });
-             } catch (e) {
-                 if (config.debugMode) console.warn('Dashboard Core: Error creating tooltip for element:', tooltipTriggerEl, e);
-                 return null;
-             }
+             if (existingInstance) { existingInstance.dispose(); }
+             try { return new bootstrap.Tooltip(tooltipTriggerEl, { container: 'body', boundary: document.body }); }
+             catch (e) { if (config.debugMode) console.warn('Tooltip Error:', e, tooltipTriggerEl); return null; }
         });
-        // Filtrer les instances nulles si nécessaire
-        // window.activeTooltips = tooltipList.filter(t => t !== null);
     }
 
     function enhanceBadgesAndLabels() {
-        // ... (code identique, utilise window.enhanceThemeBadgesGlobally si défini) ...
          if (typeof window.enhanceThemeBadgesGlobally === 'function') {
             window.enhanceThemeBadgesGlobally();
         } else {
             document.querySelectorAll('.theme-badge').forEach(badge => {
                 if (badge.dataset.enhanced === 'true') return;
-                const themeName = badge.dataset.theme || badge.textContent.trim(); // Utiliser data-theme si présent
-                badge.textContent = themeName; // Assurer que le texte est correct
-                badge.classList.remove('theme-comm', 'theme-planner', 'theme-onedrive', 'theme-sharepoint'); // Nettoyer anciennes classes
+                const themeName = badge.dataset.theme || badge.textContent.trim();
+                badge.textContent = themeName;
+                badge.classList.remove('theme-comm', 'theme-planner', 'theme-onedrive', 'theme-sharepoint');
 
-                if (themeName.includes('Teams') && themeName.includes('Communiquer'))
-                    badge.classList.add('theme-comm');
-                else if (themeName.includes('Planner'))
-                    badge.classList.add('theme-planner');
-                else if (themeName.includes('OneDrive') || themeName.includes('fichiers'))
-                    badge.classList.add('theme-onedrive');
-                else if (themeName.includes('Collaborer'))
-                    badge.classList.add('theme-sharepoint');
+                if (themeName.includes('Teams') && themeName.includes('Communiquer')) badge.classList.add('theme-comm');
+                else if (themeName.includes('Planner')) badge.classList.add('theme-planner');
+                else if (themeName.includes('OneDrive') || themeName.includes('fichiers')) badge.classList.add('theme-onedrive');
+                else if (themeName.includes('Collaborer')) badge.classList.add('theme-sharepoint');
 
-                // Ajouter l'icône si elle n'existe pas déjà
                 if (!badge.querySelector('i.fas')) {
                      let iconClass = '';
                      if (themeName.includes('Teams') && themeName.includes('Communiquer')) iconClass = 'fa-comments';
                      else if (themeName.includes('Planner')) iconClass = 'fa-tasks';
                      else if (themeName.includes('OneDrive') || themeName.includes('fichiers')) iconClass = 'fa-file-alt';
                      else if (themeName.includes('Collaborer')) iconClass = 'fa-users';
-                     if (iconClass) {
-                         badge.insertAdjacentHTML('afterbegin', `<i class="fas ${iconClass} me-1"></i>`);
-                     }
+                     if (iconClass) badge.insertAdjacentHTML('afterbegin', `<i class="fas ${iconClass} me-1"></i>`);
                 }
                 badge.dataset.enhanced = 'true';
             });
@@ -721,16 +695,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.js-salle-cell').forEach(cell => {
             const textContent = cell.textContent.trim();
             if (!cell.querySelector('.salle-badge') && textContent) {
-                if (textContent === 'Non définie' || textContent === 'N/A')
-                    cell.innerHTML = '<span class="badge bg-secondary salle-badge">Non définie</span>';
-                else
-                    cell.innerHTML = `<span class="badge bg-info salle-badge">${textContent}</span>`;
+                if (textContent === 'Non définie' || textContent === 'N/A') cell.innerHTML = '<span class="badge bg-secondary salle-badge">Non définie</span>';
+                else cell.innerHTML = `<span class="badge bg-info salle-badge">${textContent}</span>`;
             }
         });
     }
 
     function fixDataIssues() {
-        // ... (code identique) ...
          document.querySelectorAll('.places-dispo').forEach(el => {
             const text = el.textContent.trim();
             if (text.includes('/')) {
@@ -747,21 +718,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 let icon, colorClass;
-                if (available <= 0) {
-                    icon = 'fa-times-circle';
-                    colorClass = 'text-danger';
-                } else if (available <= 0.2 * total) {
-                    icon = 'fa-exclamation-circle';
-                    colorClass = 'text-danger';
-                } else if (available <= 0.4 * total) {
-                    icon = 'fa-exclamation-triangle';
-                    colorClass = 'text-warning';
-                } else {
-                    icon = 'fa-check-circle';
-                    colorClass = 'text-success';
-                }
+                if (available <= 0) { icon = 'fa-times-circle'; colorClass = 'text-danger'; }
+                else if (available <= 0.2 * total) { icon = 'fa-exclamation-circle'; colorClass = 'text-danger'; }
+                else if (available <= 0.4 * total) { icon = 'fa-exclamation-triangle'; colorClass = 'text-warning'; }
+                else { icon = 'fa-check-circle'; colorClass = 'text-success'; }
 
-                // Vérifier si l'icône ou la classe doit être mise à jour
                 const currentIcon = el.querySelector('.fas');
                 const needsUpdate = !currentIcon || !currentIcon.classList.contains(icon) || !el.classList.contains(colorClass);
 
@@ -771,7 +732,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     el.innerHTML = `<i class="fas ${icon} me-1"></i> ${available} / ${total}`;
                 }
             } else if (text === 'NaN / NaN' || text.includes('undefined') || text === '/ ' || text === ' / ' || text.includes('null') || text === '? / ?') {
-                if (!el.innerHTML.includes('fa-question-circle')) { // Éviter de réécrire si déjà corrigé
+                if (!el.innerHTML.includes('fa-question-circle')) {
                     el.classList.remove('text-success', 'text-warning', 'text-danger');
                     el.classList.add('text-secondary');
                     el.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?';
@@ -811,7 +772,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function checkAndFixHangingModals() {
-        // ... (code identique) ...
          const backdrop = document.querySelector('.modal-backdrop');
         const visibleModal = document.querySelector('.modal.show');
 
@@ -832,7 +792,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function enhanceAccessibility() {
-        // ... (code identique) ...
          document.querySelectorAll('img:not([alt])').forEach(img => {
             const filename = img.src.split('/').pop().split('?')[0];
             const name = filename.split('.')[0].replace(/[_-]/g, ' ');
@@ -845,7 +804,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showErrorWarning(show) {
-        // ... (code identique) ...
          let errorDiv = document.getElementById('backend-error-warning');
 
         if (show && !errorDiv) {
@@ -855,7 +813,7 @@ document.addEventListener('DOMContentLoaded', function() {
             errorDiv.style.maxWidth = '800px';
             errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> Problème de communication avec le serveur. Le rafraîchissement automatique est en pause. Veuillez actualiser manuellement. <button type="button" class="btn-close p-2" data-bs-dismiss="alert" aria-label="Close"></button>`;
 
-            const mainContentArea = document.querySelector('.container-fluid, #main-content, main'); // Essayer plusieurs sélecteurs
+            const mainContentArea = document.querySelector('.container-fluid, #main-content, main');
             if (mainContentArea) {
                 mainContentArea.insertBefore(errorDiv, mainContentArea.firstChild);
             } else {
@@ -867,7 +825,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setupValidationListeners() {
-        // ... (code identique, utilise getCsrfToken) ...
+        // ... (code identique) ...
          document.body.addEventListener('click', function(event) {
             const button = event.target.closest('.validation-ajax');
             if (!button) return;
@@ -883,14 +841,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             fetch('/validation_inscription_ajax', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, // Assurez-vous que getCsrfToken est défini si vous utilisez CSRF
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
                 body: JSON.stringify({ inscription_id: inscriptionId, action: action })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     if (typeof showToast === 'function') showToast(data.message, 'success');
-                    debouncedFetchDashboardData(true); // Forcer refresh après action
+                    debouncedFetchDashboardData(true);
 
                     setTimeout(() => {
                         const modal = button.closest('.modal');
@@ -908,7 +866,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof showToast === 'function') showToast('Erreur de communication lors de la validation.', 'danger');
             })
             .finally(() => {
-                // Vérifier si le bouton existe toujours
                 const currentButton = document.querySelector(`.validation-ajax[data-inscription-id="${inscriptionId}"][data-action="${action}"]`);
                 if(currentButton) {
                     currentButton.disabled = false;
@@ -921,7 +878,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ====== GRAPHIQUES ======
     function initializeCharts() {
         if (config.chartRendering === 'none') return;
-        // Afficher les placeholders de chargement
+        // Afficher les placeholders de chargement pour les graphiques statiques
         renderStaticCharts(null, null);
     }
 
@@ -953,18 +910,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // CORRECTION: Calculer les inscriptions par thème
     function renderThemeDistributionChart(sessionsData) {
-        // ... (code identique à la version précédente) ...
-         const container = document.getElementById('themeChartStatic');
+        const container = document.getElementById('themeChartStatic');
         if (!container) return;
 
         // Calculer les inscriptions confirmées par thème
         const themeInscriptionCounts = sessionsData.reduce((acc, session) => {
             const themeName = session.theme || 'Non défini';
+            // *** CORRECTION ICI: Sommer les inscrits ***
             acc[themeName] = (acc[themeName] || 0) + (session.inscrits || 0);
             return acc;
         }, {});
 
+        // *** CORRECTION ICI: Utiliser la somme des inscriptions pour le total ***
         const totalInscriptions = Object.values(themeInscriptionCounts).reduce((sum, count) => sum + count, 0);
 
         if (totalInscriptions === 0) {
@@ -976,8 +935,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const themeColors = window.themesDataForChart || {};
         const sortedThemes = Object.entries(themeInscriptionCounts).sort(([, countA], [, countB]) => countB - countA);
 
+        // Générer la légende
         sortedThemes.forEach(([theme, count], index) => {
-            if (count === 0) return;
+            if (count === 0) return; // Ne pas afficher les thèmes sans inscription
             const themeInfo = themeColors[theme] || {};
             const color = themeInfo.color || getRandomColor(index);
 
@@ -989,6 +949,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>`;
         });
 
+        // Affichage simplifié: Total au centre et légende
         container.innerHTML = `
             <div class="static-chart-title">Inscriptions par Thème</div>
             <div class="static-chart-donut">
@@ -996,18 +957,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="donut-total">${totalInscriptions}</div>
                     <div class="donut-label">Inscrits</div>
                 </div>
+                {# On pourrait ajouter des segments SVG ici si un visuel donut est souhaité #}
             </div>
             <div class="static-chart-legend">${legendHtml}</div>`;
     }
 
+    // CORRECTION: Implémentation complète du graphique par service
     function renderParticipantByServiceChart(participantsData) {
-        // ... (code identique à la version précédente) ...
          const container = document.getElementById('serviceChartStatic');
         if (!container) return;
 
+        // Vérifier si les données sont valides
+        if (!participantsData || !Array.isArray(participantsData)) {
+             container.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-exclamation-triangle me-2"></i>Données participants invalides reçues.</div>';
+             console.error("RenderServiceChart: Invalid participantsData received", participantsData);
+             return;
+        }
+
         const serviceCounts = participantsData.reduce((acc, participant) => {
             const serviceName = participant.service || 'Non défini';
-            const serviceColor = participant.service_color || '#6c757d';
+            // Utiliser la couleur fournie par l'API ou une couleur par défaut
+            const serviceColor = participant.service_color || (window.servicesDataForChart?.[serviceName]?.color) || '#6c757d';
             if (!acc[serviceName]) {
                 acc[serviceName] = { count: 0, color: serviceColor };
             }
@@ -1018,23 +988,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalParticipants = participantsData.length;
 
         if (totalParticipants === 0) {
-            container.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucun participant pour afficher la distribution par service.</div>';
+            container.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucun participant trouvé pour afficher la distribution par service.</div>';
             return;
         }
 
         const sortedServices = Object.entries(serviceCounts).sort(([, dataA], [, dataB]) => dataB.count - dataA.count);
         let barsHtml = '';
-        const maxCount = Math.max(1, ...sortedServices.map(([, data]) => data.count)); // Éviter division par zéro
+        const maxCount = Math.max(1, ...sortedServices.map(([, data]) => data.count));
 
         sortedServices.forEach(([service, data], index) => {
+            if (data.count === 0) return; // Ne pas afficher les services sans participant
             const percentage = (data.count / maxCount) * 100;
             const serviceClass = service.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'non-defini';
 
             barsHtml += `
                 <div class="bar-item animate" style="--index: ${index};">
                     <div class="bar-header">
-                        <span class="bar-label">
-                           <span class="service-badge me-2" style="background-color: ${data.color}; width:10px; height:10px; display:inline-block; border-radius:50%;"></span>
+                        <span class="bar-label" title="${service} (${data.count} participant(s))">
+                           <span class="service-badge me-2" style="background-color: ${data.color};"></span>
                            ${service}
                         </span>
                         <span class="bar-total">${data.count}</span>
@@ -1055,7 +1026,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ====== UTILITAIRES ======
     function simpleHash(obj) {
-        const str = JSON.stringify(obj);
+        // ... (code identique) ...
+         const str = JSON.stringify(obj);
         let hash = 0;
         if (str.length === 0) return hash;
         for (let i = 0; i < str.length; i++) {
@@ -1067,16 +1039,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getCsrfToken() {
-        // Implémentation basique - à adapter si vous utilisez un framework spécifique
-        const meta = document.querySelector('meta[name="csrf-token"]');
+        // ... (code identique) ...
+         const meta = document.querySelector('meta[name="csrf-token"]');
         if (meta) return meta.content;
         const input = document.querySelector('input[name="csrf_token"]');
         if (input) return input.value;
-        return ''; // Retourner une chaîne vide si non trouvé
+        return '';
     }
 
     function getRandomColor(index) {
-        const colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69', '#fd7e14', '#6f42c1', '#d63384'];
+        // ... (code identique) ...
+         const colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69', '#fd7e14', '#6f42c1', '#d63384'];
         return colors[index % colors.length];
     }
 
@@ -1092,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderThemeChart: renderThemeDistributionChart,
         renderServiceChart: renderParticipantByServiceChart,
         initializeCharts: initializeCharts,
-        startPolling: startPolling, // Exposer pour contrôle externe si nécessaire
+        startPolling: startPolling,
         stopPolling: () => {
              dashboardState.pollingActive = false;
              if(dashboardState.pollingTimeout) clearTimeout(dashboardState.pollingTimeout);
@@ -1107,8 +1080,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Fonction showToast globale (si non définie ailleurs)
 if (typeof window.showToast !== 'function') {
-    window.showToast = function(message, type = 'info', duration = 5000) { // Durée augmentée
-        const toastContainer = document.getElementById('toast-container') || (() => {
+    window.showToast = function(message, type = 'info', duration = 5000) {
+        // ... (code identique) ...
+         const toastContainer = document.getElementById('toast-container') || (() => {
             const container = document.createElement('div');
             container.id = 'toast-container';
             container.className = 'toast-container position-fixed top-0 end-0 p-3';
@@ -1119,10 +1093,9 @@ if (typeof window.showToast !== 'function') {
         const toastId = 'toast-' + Date.now();
         const toastElement = document.createElement('div');
         toastElement.id = toastId;
-        // Assurer que la classe bg-* est valide
         const validTypes = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
         const bgType = validTypes.includes(type) ? type : 'info';
-        const textClass = (bgType === 'light') ? 'text-dark' : 'text-white'; // Texte sombre sur fond clair
+        const textClass = (bgType === 'light') ? 'text-dark' : 'text-white';
 
         toastElement.className = `toast align-items-center ${textClass} bg-${bgType} border-0 fade`;
         toastElement.setAttribute('role', 'alert');
