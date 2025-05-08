@@ -21,26 +21,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const dashInitConfig = window.dashboardConfig || {};
     
     // Configuration centralisée avec valeurs par défaut garanties et compatibilité avec dashboard-init.js
-    const config = {
-        // Paramètres standard utilisés par dashboard-core.js
-        debugMode: dashInitConfig.debugMode || false,
-        // Si dashboard-init.js est présent, utilise autoRefreshInterval, sinon utilise refreshInterval ou valeur par défaut
-        refreshInterval: dashInitConfig.autoRefreshInterval || 
-                        (window.dashboardConfig && window.dashboardConfig.refreshInterval) || 
-                        300000, // 5 minutes par défaut
-        minRefreshDelay: (window.dashboardConfig && window.dashboardConfig.minRefreshDelay) || 30000, // 30 secondes
-        debounceDelay: (window.dashboardConfig && window.dashboardConfig.debounceDelay) || 1000, // 1 seconde
-        baseApiUrl: (window.dashboardConfig && window.dashboardConfig.baseApiUrl) || '/api',
-        chartRendering: (window.dashboardConfig && window.dashboardConfig.chartRendering) || 'auto',
-        
-        // Indicateur pour déterminer si dashboard-init.js est utilisé
-        usingDashboardInit: !!dashInitConfig.autoRefreshInterval || !!dashInitConfig.preferredMode,
-        
-        // Support pour les paramètres de dashboard-init.js
-        socketEnabled: dashInitConfig.socketEnabled !== undefined ? dashInitConfig.socketEnabled : true,
-        pollingEnabled: dashInitConfig.pollingEnabled !== undefined ? dashInitConfig.pollingEnabled : true,
-        preferredMode: dashInitConfig.preferredMode || 'polling'
-    };
+    // Remplacez la configuration de polling actuelle
+const config = {
+    // Paramètres standard utilisés par dashboard-core.js
+    debugMode: dashInitConfig.debugMode || false,
+    // Si dashboard-init.js est présent, utilise autoRefreshInterval, sinon utilise refreshInterval ou valeur par défaut
+    refreshInterval: dashInitConfig.autoRefreshInterval || 
+                    (window.dashboardConfig && window.dashboardConfig.refreshInterval) || 
+                    300000, // Augmenter à 5 minutes par défaut (était trop bas)
+    minRefreshDelay: (window.dashboardConfig && window.dashboardConfig.minRefreshDelay) || 60000, // Augmenter à 60 secondes
+    debounceDelay: (window.dashboardConfig && window.dashboardConfig.debounceDelay) || 1500, // Augmenter à 1.5 secondes
+    baseApiUrl: (window.dashboardConfig && window.dashboardConfig.baseApiUrl) || '/api',
+    chartRendering: (window.dashboardConfig && window.dashboardConfig.chartRendering) || 'auto',
+    
+    // Indicateur pour déterminer si dashboard-init.js est utilisé
+    usingDashboardInit: !!dashInitConfig.autoRefreshInterval || !!dashInitConfig.preferredMode,
+    
+    // Support pour les paramètres de dashboard-init.js
+    socketEnabled: dashInitConfig.socketEnabled !== undefined ? dashInitConfig.socketEnabled : true,
+    pollingEnabled: dashInitConfig.pollingEnabled !== undefined ? dashInitConfig.pollingEnabled : true,
+    preferredMode: dashInitConfig.preferredMode || 'polling',
+    
+    // Nouvelle option pour limiter les requêtes en cas d'erreur
+    errorThrottleMode: false
+};
     
     console.log(`Dashboard Core: Configured with refreshInterval=${config.refreshInterval}ms, debounceDelay=${config.debounceDelay}ms, usingDashboardInit=${config.usingDashboardInit}`);
 
