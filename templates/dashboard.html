@@ -194,7 +194,8 @@
                     </div>
                 </div>
                  <div class="card-footer text-center py-2">
-                    <a href="{{ url_for('activites') }}" class="btn btn-sm btn-outline-secondary">Voir toute l'activité</a>
+                    {# === LIEN CORRIGÉ === #}
+                    <a href="{{ url_for('activites_page') }}" class="btn btn-sm btn-outline-secondary">Voir toute l'activité</a>
                 </div>
             </div>
         </div>
@@ -268,11 +269,14 @@
     {% if sessions_data %}
         {% for session_data in sessions_data %}
             {% set session = session_data.obj %}
-            {% include 'modals/_participants_modal.html' ignore missing with context %}
-            {% include 'modals/_inscription_modal.html' ignore missing with context %}
-             {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                 {% include 'modals/_attribuer_salle_modal.html' ignore missing with context %}
-             {% endif %}
+            {# Utiliser 'with' pour passer le contexte correctement aux includes #}
+            {% with session=session, session_data=session_data, participants=participants, services=services, salles=salles %}
+                {% include 'modals/_participants_modal.html' ignore missing %}
+                {% include 'modals/_inscription_modal.html' ignore missing %}
+                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                     {% include 'modals/_attribuer_salle_modal.html' ignore missing %}
+                 {% endif %}
+            {% endwith %}
         {% endfor %}
     {% endif %}
 {% endblock %}
@@ -295,10 +299,12 @@
         if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('#dashboard-content [data-bs-toggle="tooltip"]'))
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                 if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl)
-                }
-                return bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                 // Détruire l'ancien tooltip s'il existe avant d'en créer un nouveau
+                 const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                 if (existingTooltip) {
+                     existingTooltip.dispose();
+                 }
+                 return new bootstrap.Tooltip(tooltipTriggerEl);
             })
         }
     });
