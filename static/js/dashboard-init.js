@@ -514,7 +514,65 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+// Protection contre les erreurs catastrophiques dans l'initialisation
+let initializationStartTime = Date.now();
+let originalInitFunction = initializeDashboard;
 
+initializeDashboard = function() {
+    try {
+        // Détecter si l'initialisation prend trop de temps
+        const now = Date.now();
+        if (now - initializationStartTime > 30000) { // 30 secondes max
+            console.error("DashboardInit: Initialization timeout exceeded! Performing emergency recovery.");
+            
+            // Forcer l'arrêt du loading overlay
+            showGlobalLoadingOverlay(false);
+            
+            // Forcer l'affichage du contenu principal
+            const dashboardContent = document.getElementById('dashboard-content');
+            if (dashboardContent) {
+                dashboardContent.style.visibility = 'visible';
+                dashboardContent.style.opacity = '1';
+            }
+            
+            // Afficher un message d'erreur à l'utilisateur
+            if (typeof showToast === 'function') {
+                showToast("Erreur d'initialisation. Certaines fonctionnalités peuvent être limitées.", "warning");
+            }
+            
+            return; // Ne pas exécuter l'initialisation normale
+        }
+        
+        // Exécuter la fonction d'initialisation originale
+        originalInitFunction();
+    } catch (error) {
+        console.error("DashboardInit: Critical error during initialization!", error);
+        
+        // Forcer l'arrêt du loading overlay
+        showGlobalLoadingOverlay(false);
+        
+        // Rendre l'interface visible malgré l'erreur
+        document.body.classList.remove('modal-open');
+        const modals = document.querySelectorAll('.modal.show');
+        modals.forEach(modal => {
+            try {
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                if (bsModal) bsModal.hide();
+            } catch (e) {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+            }
+        });
+        
+        // Supprimer les backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        
+        // Afficher un message d'erreur à l'utilisateur
+        if (typeof showToast === 'function') {
+            showToast("Erreur critique lors de l'initialisation. Veuillez rafraîchir la page.", "danger");
+        }
+    }
+};
     // Démarrer l'initialisation avec un léger délai pour s'assurer que le DOM est prêt
     setTimeout(initializeDashboard, 150);
 });
