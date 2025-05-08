@@ -1650,51 +1650,106 @@ def init_db():
 # === Main Execution ===
 # ==============================================================================
 if __name__ == '__main__':
+    # Configure logging first
     configure_logging(app)
+
     is_production = os.environ.get('RENDER') or os.environ.get('FLASK_ENV') == 'production'
-    port = int(os.environ.get('PORT', 5000)); debug_mode = not is_production; app.debug = debug_mode
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = not is_production
+    app.debug = debug_mode
+
+    # Perform database checks and initialization within app context
     with app.app_context():
+        app.logger.info("Application context entered for startup DB checks.")
         try:
-             connection_ok = check_db_connection()
-        if connection_ok:
-            print("Connexion DB OK.")
-            # --- Ensure ALL tables exist ---
-            print("Vérification/Création des tables DB...")
-            try:
-                # db.reflect() # Optional: Reflect existing tables if needed, but create_all is usually sufficient
-                db.create_all() # This is safe to run even if tables exist
-                print("Vérification/Création des tables terminée.")
-            except Exception as create_err:
-                print(f"⚠️ Erreur lors de db.create_all(): {create_err}")
-                db.session.rollback() # Rollback in case of error during create_all
+            connection_ok = check_db_connection()
+            if connection_ok:
+                app.logger.info("Connexion DB OK.")
 
-            # --- Run initial data seeding if needed ---
-            # Check if a key table (like 'service' or 'user') is empty to decide if seeding is needed
-            # This prevents re-seeding data on every restart if tables already exist and have data.
-            needs_seeding = not db.session.query(Service).count() > 0 # Example check
-            if needs_seeding:
-                print("Base de données vide ou table clé manquante, lancement init_db() pour le seeding...")
-                if not init_db(): # init_db now focuses more on seeding data
-                    print("⚠️ Échec de l'initialisation des données initiales (seeding).")
-                else:
-                    print("Données initiales (seed) ajoutées.")
-            else:
-                print("DB déjà initialisée et contient des données (seeding ignoré).")
-                # Run updates that should happen on every start if needed
+                # --- Ensure ALL tables exist ---
+                app.logger.info("Vérification/Création des tables DB...")
                 try:
-                    update_theme_names()
-                except Exception as update_err:
-                    print(f"Note: Erreur lors de la standardisation des thèmes au démarrage: {update_err}")
+                    # db.reflect() # Optional: Reflect existing tables if needed
+                    db.create_all() # Creates tables defined in models if they don't exist
+                    app.logger.info("Vérification/Création des tables terminée.")
+                except OperationalError as op_err:
+                     app.logger.error(f"Erreur opérationnelle lors de db.create_all() (vérifiez les permissions/connexion): {op_err}")
+                     # Depending on the error, you might want to exit or continue cautiously
+                except Exception as create_err:
+                    app.logger.error(f"⚠️ Erreur lors de db.create_all(): {create_err}", exc_info=True)
+                    try:
+                        db.session.rollback() # Rollback in case of error during create_all
+                    except Exception as rb_err:
+                         app.logger.error(f"Erreur supplémentaire pendant le rollback après create_all: {rb_err}")
+                    # Decide if you want to proceed without tables fully guaranteed
 
-        else: print("⚠️ ERREUR CONNEXION DB au démarrage"); print("Impossible de vérifier/initialiser la DB.")
+                # --- Run initial data seeding if needed ---
+                # Check if a key table (like 'service' or 'user') is empty to decide if seeding is needed
+                # This prevents re-seeding data on every restart if tables already exist and have data.
+                try:
+                    needs_seeding = not db.session.query(Service).count() > 0 # Check if Service table is empty
+                    if needs_seeding:
+                        app.logger.info("Base de données vide ou table clé manquante, lancement init_db() pour le seeding...")
+                        if not init_db(): # init_db now focuses only on seeding data
+                            app.logger.error("⚠️ Échec de l'initialisation des données initiales (seeding).")
+                        else:
+                            app.logger.info("Données initiales (seed) ajoutées avec succès.")
+                    else:
+                        app.logger.info("DB déjà initialisée et contient des données (seeding ignoré).")
+                        # Run updates that should happen on every start if needed
+                        try:
+                            update_theme_names()
+                            app.logger.info("Standardisation des noms de thèmes vérifiée/effectuée.")
+                        except Exception as update_err:
+                            app.logger.warning(f"Note: Erreur lors de la standardisation des thèmes au démarrage: {update_err}")
+
+                except Exception as seed_check_err:
+                     app.logger.error(f"Erreur lors de la vérification/exécution du seeding: {seed_check_err}", exc_info=True)
+                     try: db.session.rollback()
+                     except Exception as rb_err: app.logger.error(f"Erreur rollback après erreur seeding: {rb_err}")
+
+
+            else:
+                app.logger.error("⚠️ ERREUR CONNEXION DB au démarrage. Impossible de vérifier/initialiser la DB.")
+                print("⚠️ ERREUR CONNEXION DB au démarrage. Impossible de vérifier/initialiser la DB.")
+                # Consider exiting if DB connection is critical for startup
+                # sys.exit(1)
+
+        except OperationalError as oe:
+            app.logger.critical(f"⚠️ ERREUR CONNEXION DB CRITIQUE au démarrage: {oe}")
+            print(f"⚠️ ERREUR CONNEXION DB CRITIQUE au démarrage: {oe}")
+            print("Impossible de vérifier/initialiser la DB. L'application ne peut pas démarrer correctement.")
+            # Exit if DB connection fails critically at startup
+            sys.exit(1)
+        except Exception as e:
+            app.logger.critical(f"⚠️ Erreur CRITIQUE lors de la vérification/initialisation de la DB au démarrage: {e}", exc_info=True)
+            print(f"⚠️ Erreur CRITIQUE lors de la vérification/initialisation de la DB: {e}")
             try:
                 db.session.rollback()
             except Exception as rb_e:
+                app.logger.error(f"Erreur supplémentaire pendant le rollback après erreur critique: {rb_e}")
                 print(f"Erreur supplémentaire pendant le rollback: {rb_e}")
-    try:
-        host = '0.0.0.0'; print(f"Démarrage serveur en MODE {'PRODUCTION' if is_production else 'DÉVELOPPEMENT'} avec {ASYNC_MODE} sur http://{host}:{port} (Debug: {debug_mode})")
-        if debug_mode: socketio.run(app, host=host, port=port, use_reloader=True, debug=debug_mode, log_output=False, allow_unsafe_werkzeug=True)
-        else: print("NOTE: Using Flask's built-in server for production is not recommended. Use Gunicorn or Waitress."); socketio.run(app, host=host, port=port, debug=False, use_reloader=False)
-    except Exception as e: print(f"⚠️ ERREUR CRITIQUE au démarrage du serveur: {e}"); import traceback; traceback.print_exc()
+            # Consider exiting
+            # sys.exit(1)
 
-# --- END OF COMPLETE app.py ---
+    # Start the Flask-SocketIO server
+    try:
+        host = '0.0.0.0'
+        app.logger.info(f"Démarrage serveur en MODE {'PRODUCTION' if is_production else 'DÉVELOPPEMENT'} avec {ASYNC_MODE} sur http://{host}:{port} (Debug: {debug_mode})")
+        print(f"Démarrage serveur en MODE {'PRODUCTION' if is_production else 'DÉVELOPPEMENT'} avec {ASYNC_MODE} sur http://{host}:{port} (Debug: {debug_mode})")
+
+        if debug_mode:
+            # Development server with reloader
+            socketio.run(app, host=host, port=port, use_reloader=True, debug=debug_mode, log_output=False, allow_unsafe_werkzeug=True)
+        else:
+            # Production server (Gunicorn is typically used via Procfile on Render, this is a fallback)
+            print("NOTE: Using Flask's built-in server or SocketIO's runner directly for production is not recommended. Ensure Gunicorn/Waitress is configured.")
+            # SocketIO runner is better than Flask's default for websockets
+            socketio.run(app, host=host, port=port, debug=False, use_reloader=False)
+
+    except Exception as e:
+        app.logger.critical(f"⚠️ ERREUR CRITIQUE au démarrage du serveur: {e}", exc_info=True)
+        print(f"⚠️ ERREUR CRITIQUE au démarrage du serveur: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1) # Exit if server fails to start
