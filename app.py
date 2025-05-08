@@ -1,6 +1,6 @@
 # ==============================================================================
 # app.py - Application Flask pour la Gestion des Formations Microsoft 365
-# Version: 1.1.3 - Correction Erreurs de Syntaxe + Intégration Documents Complète
+# Version: 1.1.4 - Correction SyntaxError api_sessions + Intégration Documents Complète
 # ==============================================================================
 
 # --- Imports ---
@@ -992,7 +992,12 @@ def api_sessions():
         cache_key = f'sessions_page_{page}_size_{per_page}_date_{date_filter}'; cached_result = cache.get(cache_key)
         if cached_result: return jsonify(cached_result)
         query = Session.query.options(joinedload(Session.theme), joinedload(Session.salle))
-        if date_filter: try: filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date(); query = query.filter(Session.date == filter_date); except ValueError: pass
+        if date_filter:
+            try:
+                filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+                query = query.filter(Session.date == filter_date)
+            except ValueError:
+                pass # Ignorer si format de date invalide
         pagination = query.order_by(Session.date, Session.heure_debut).paginate(page=page, per_page=per_page, error_out=False)
         session_ids = [s.id for s in pagination.items]; confirmed_counts = {}; waitlist_counts = {}
         if session_ids:
@@ -1082,30 +1087,6 @@ def api_activites():
         return jsonify(result)
     except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"API Error fetching activities: {e}", exc_info=True); return jsonify({"error": "Database error", "message": str(e)}), 500
     except Exception as e: app.logger.error(f"API Unexpected Error fetching activities: {e}", exc_info=True); return jsonify({"error": "Internal server error", "message": str(e)}), 500
-
-# --- Other Routes ---
-@app.route('/generer_invitation/<int:inscription_id>')
-@db_operation_with_retry(max_retries=2)
-def generer_invitation(inscription_id):
-    user_info_for_log = f"User '{current_user.username}'" if current_user.is_authenticated else "Unauthenticated user"; app.logger.info(f"{user_info_for_log} requesting invitation for inscription_id: {inscription_id}.")
-    try:
-        inscription = db.session.query(Inscription).options(joinedload(Inscription.session).options(joinedload(Session.theme), joinedload(Session.salle)), joinedload(Inscription.participant).selectinload(Participant.service)).get(inscription_id)
-        if not inscription: app.logger.warning(f"generer_invitation: Inscription {inscription_id} not found."); flash('Lien d\'invitation invalide ou inscription introuvable.', 'danger'); return redirect(request.referrer or url_for('dashboard'))
-        if not inscription.session: app.logger.error(f"generer_invitation: Session object missing for inscription {inscription_id}."); flash('Données de session manquantes pour cette inscription.', 'danger'); return redirect(request.referrer or url_for('dashboard'))
-        if not inscription.participant: app.logger.error(f"generer_invitation: Participant object missing for inscription {inscription_id}."); flash('Données du participant manquantes pour cette inscription.', 'danger'); return redirect(request.referrer or url_for('dashboard'))
-        if not inscription.session.theme or not inscription.session.theme.nom: app.logger.error(f"generer_invitation: Theme or theme name missing for session {inscription.session.id} (inscription {inscription_id})."); flash('Données du thème manquantes pour cette session.', 'danger'); return redirect(request.referrer or url_for('dashboard'))
-        if inscription.statut != 'confirmé': app.logger.info(f"generer_invitation: Attempt to generate ICS for non-confirmed inscription {inscription_id} (status: {inscription.statut})."); flash('L\'invitation n\'est disponible que pour les inscriptions confirmées.', 'warning'); return redirect(request.referrer or url_for('dashboard'))
-        session_obj = inscription.session; participant_obj = inscription.participant; salle_obj = session_obj.salle
-        ics_content = generate_ics(session_obj, participant_obj, salle_obj)
-        if ics_content is None: app.logger.error(f"generer_invitation: ICS content generation returned None for inscription {inscription_id}."); flash('Une erreur est survenue lors de la création du fichier d\'invitation.', 'danger'); return redirect(request.referrer or url_for('dashboard'))
-        if current_user.is_authenticated and current_user.email != participant_obj.email: add_activity(type='telecharger_invitation', description=f'Invitation ICS téléchargée pour : {participant_obj.prenom} {participant_obj.nom}', details=f'Session : {session_obj.theme.nom} du {session_obj.formatage_date}. Généré par : {current_user.username}.', user=current_user)
-        safe_theme_name = "".join(c if c.isalnum() or c in " -" else "_" for c in session_obj.theme.nom); filename = f"Formation_{safe_theme_name.replace(' ', '_')}_{session_obj.date.strftime('%Y%m%d')}.ics"
-        response = make_response(ics_content); response.headers["Content-Disposition"] = f"attachment; filename=\"{filename}\""; response.headers["Content-Type"] = "text/calendar; charset=utf-8"; app.logger.info(f"Successfully served ICS file '{filename}' for inscription {inscription_id}.")
-        return response
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error in generer_invitation for inscription {inscription_id}: {e}", exc_info=True); flash("Erreur de base de données lors de la tentative de génération de l'invitation.", "danger")
-    except AttributeError as ae: app.logger.error(f"AttributeError in generer_invitation for inscription {inscription_id}: {ae}", exc_info=True); flash("Des données essentielles sont manquantes pour générer cette invitation.", 'danger')
-    except Exception as e: app.logger.error(f"Unexpected error in generer_invitation for inscription {inscription_id}: {e}", exc_info=True); flash("Une erreur inattendue est survenue lors de la génération de l'invitation.", "danger")
-    return redirect(request.referrer or url_for('dashboard'))
 
 # ==============================================================================
 # === Database Initialization ===
