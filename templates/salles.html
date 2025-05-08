@@ -1,3 +1,4 @@
+<!-- templates/salles.html -->
 {% extends "layout.html" %}
 
 {% block content %}
@@ -21,6 +22,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                {# CORRECTION: Utiliser url_for('add_salle') #}
                 <form action="{{ url_for('add_salle') }}" method="post">
                     <div class="mb-3">
                         <label for="add_nom_salle" class="form-label">Nom de la salle*</label>
@@ -115,6 +117,7 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
+                                 {# CORRECTION: Utiliser url_for('update_salle') #}
                                  <form action="{{ url_for('update_salle', id=salle.id) }}" method="post">
                                     <div class="mb-3">
                                         <label for="edit_nom{{ salle.id }}" class="form-label">Nom*</label>
@@ -142,7 +145,6 @@
                 </div>
                  <!-- Modal de suppression -->
                  <div class="modal fade" id="deleteSalleModal{{ salle.id }}" tabindex="-1" aria-labelledby="deleteSalleModalLabel{{ salle.id }}" aria-hidden="true">
-                     <!-- Structure de confirmation de suppression -->
                       <div class="modal-dialog">
                          <div class="modal-content">
                              <div class="modal-header">
@@ -154,7 +156,8 @@
                              </div>
                              <div class="modal-footer">
                                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                 <form action="{{ url_for('delete_salle', id=salle.id) }}" method="post" class="d-inline"> {# Assurez-vous que cette route existe #}
+                                 {# CORRECTION: Utiliser url_for('delete_salle') #}
+                                 <form action="{{ url_for('delete_salle', id=salle.id) }}" method="post" class="d-inline">
                                      <button type="submit" class="btn btn-danger">Supprimer</button>
                                  </form>
                              </div>
@@ -182,26 +185,11 @@
 {{ super() }} <!-- Include scripts from layout.html -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Salles JS loaded');
-        // Apply specific JS fixes for modals on this page
-         function applySalleModalFixes() {
-             // No selects in these modals currently, but target buttons
-              {% if current_user.role == 'admin' %}
-                document.querySelectorAll('#addSalleModal button, #addSalleModal .btn, [id^="editSalleModal"] button, [id^="editSalleModal"] .btn, [id^="deleteSalleModal"] button, [id^="deleteSalleModal"] .btn').forEach(button => {
-                    button.style.position = 'relative';
-                    button.style.zIndex = '2001';
-                     button.style.pointerEvents = 'auto';
-                 });
-              {% endif %}
-             // Utiliser la config globale pour le debug mode
-             const isDebug = window.dashboardConfig && window.dashboardConfig.debugMode;
-             if (isDebug) console.log('Salles specific modal JS fixes applied.');
-         }
-        // Apply fixes after a short delay
-         setTimeout(applySalleModalFixes, 500);
-
-         // Add confirmation logic for delete button if implemented
-         // document.body.addEventListener('click', function(e) { ... });
+        // Appliquer les styles de badge thème si nécessaire
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            window.enhanceThemeBadgesGlobally();
+        }
+        // Autres scripts spécifiques à la page salles si besoin
     });
 </script>
 {% endblock %}
