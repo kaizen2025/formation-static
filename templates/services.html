@@ -91,7 +91,7 @@
                             <input type="email" class="form-control" id="email_{{service.id}}" name="email" required>
                         </div>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">
+                            <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-plus me-2"></i>Ajouter Participant
                             </button>
                         </div>
@@ -112,6 +112,7 @@
                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                  </div>
                  <div class="modal-body">
+                     {# CORRECTION: Utiliser url_for('update_service') #}
                      <form action="{{ url_for('update_service', service_id=service.id) }}" method="post">
                          <div class="mb-3">
                              <label for="edit_nom_{{service.id}}" class="form-label">Nom Service*</label>
@@ -130,7 +131,7 @@
                             <input type="color" class="form-control form-control-color" id="edit_couleur_{{service.id}}" name="couleur" value="{{ service.couleur or '#6c757d' }}" title="Choisir une couleur">
                         </div>
                          <div class="d-grid">
-                             <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">Enregistrer</button>
+                             <button type="submit" class="btn btn-primary">Enregistrer</button>
                          </div>
                      </form>
                  </div>
@@ -161,6 +162,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                {# CORRECTION: Utiliser url_for('add_service') #}
                 <form action="{{ url_for('add_service') }}" method="post">
                     <div class="mb-3">
                         <label for="add_nom" class="form-label">Nom Service*</label>
@@ -183,7 +185,7 @@
                         <input type="color" class="form-control form-control-color" id="add_couleur" name="couleur" value="#6c757d" title="Choisir une couleur">
                     </div>
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">Ajouter Service</button>
+                        <button type="submit" class="btn btn-primary">Ajouter Service</button>
                     </div>
                 </form>
             </div>
@@ -198,36 +200,7 @@
 {{ super() }}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Services JS loaded');
-        // const config = window.config || { debugMode: false }; // Assuming window.config might be set elsewhere
-        // For simplicity, let's assume debugMode is false if not explicitly set.
-        const debugMode = (typeof window.dashboardConfig !== 'undefined' && window.dashboardConfig.debugMode) || false;
-
-         function applyServiceModalFixes() {
-            document.querySelectorAll('.modal button, .modal .btn').forEach(button => {
-                 if (!button.classList.contains('btn-close')) { // Avoid affecting the close button's default styling too much
-                    button.style.position = 'relative'; // Keep relative for layout
-                    button.style.zIndex = '2001'; // Ensure buttons are above other modal content
-                    button.style.pointerEvents = 'auto'; // Ensure clickable
-                 }
-             });
-             const closeButtons = document.querySelectorAll('.modal .btn-close');
-             closeButtons.forEach(btn => {
-                btn.style.zIndex = '2005'; // Ensure close button is on top
-                btn.style.position = 'relative'; // Ensure z-index applies
-             });
-             if (debugMode) console.log('Services specific modal JS fixes applied.');
-         }
-         // Apply fixes after a short delay to ensure modals are in the DOM if loaded dynamically
-         // and also on modal show events if needed.
-         setTimeout(applyServiceModalFixes, 300);
-
-         // If modals are dynamically added or shown, you might need to re-apply fixes:
-         document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('shown.bs.modal', function () {
-                applyServiceModalFixes();
-            });
-         });
+        // Scripts spécifiques à la page services si besoin
     });
 </script>
 {% endblock %}
