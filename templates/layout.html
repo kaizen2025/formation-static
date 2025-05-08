@@ -7,65 +7,47 @@
 
     <title>{% block title %}{{ app_name | default('Gestion Formation') }}{% endblock %}</title>
 
-    <!-- Favicon (Remplacez par votre chemin) -->
+    <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 
-    <!-- Bootstrap CSS (Version 5.3.x recommandée) -->
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
 
-    <!-- Font Awesome (Version 6.x recommandée) -->
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-    <!-- Styles personnalisés consolidés -->
+    <!-- Custom Stylesheets -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}"> <!-- Inclut les styles des graphiques -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}"> <!-- Inclut les correctifs modales -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
 
     {% block head_extra %}{% endblock %} {# Pour CSS spécifique à une page #}
 
     <style>
         /* Style pour le spinner de chargement global */
         #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(255, 255, 255, 0.85);
-            z-index: 10000; /* Au-dessus de tout */
-            display: flex; /* Affiché par défaut, caché par JS */
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
+            z-index: 10000; display: flex; justify-content: center;
+            align-items: center; flex-direction: column;
             transition: opacity 0.3s ease-out;
         }
-        #loading-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
-        }
-        .loading-text {
-            margin-top: 1rem;
-            font-size: 1.1rem;
-            color: var(--bs-primary, #0d6efd);
-        }
+        #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        #loading-overlay .spinner-border { width: 3rem; height: 3rem; }
+        #loading-overlay .loading-text { margin-top: 1rem; font-size: 1.1rem; color: var(--bs-primary, #0d6efd); }
+
         /* Structure Flex pour pousser le footer en bas */
+        html, body { height: 100%; }
         body {
             padding-top: 70px; /* Ajuster selon la hauteur de votre navbar fixe */
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
         }
-        .content-wrapper {
-            flex: 1; /* Le contenu principal prend l'espace disponible */
-        }
+        .content-wrapper { flex: 1 0 auto; /* Permet au contenu de grandir/rétrécir */ }
+        footer { flex-shrink: 0; /* Empêche le footer de rétrécir */ }
+
         /* Style pour les toasts */
-        .toast-container {
-             z-index: 1100 !important; /* S'assurer que les toasts sont au-dessus des modales */
-        }
+        .toast-container { z-index: 1100 !important; /* Au-dessus des modales */ }
     </style>
 </head>
 <body>
@@ -95,8 +77,8 @@
                         <a class="nav-link {% if request.endpoint == 'sessions' %}active{% endif %}" href="{{ url_for('sessions') }}"><i class="fas fa-calendar-alt me-1"></i>Sessions</a>
                     </li>
                     <li class="nav-item">
-                        {# === VÉRIFIÉ : Utilise 'participants' === #}
-                        <a class="nav-link {% if request.endpoint == 'participants' %}active{% endif %}" href="{{ url_for('participants') }}"><i class="fas fa-users me-1"></i>Participants</a>
+                        {# === LIEN CORRIGÉ === #}
+                        <a class="nav-link {% if request.endpoint == 'participants_page' %}active{% endif %}" href="{{ url_for('participants_page') }}"><i class="fas fa-users me-1"></i>Participants</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-concierge-bell me-1"></i>Services</a>
@@ -114,19 +96,21 @@
                             <li><a class="dropdown-item {% if request.endpoint == 'salles' %}active{% endif %}" href="{{ url_for('salles') }}">Gérer les Salles</a></li>
                             <li><a class="dropdown-item {% if request.endpoint == 'themes' %}active{% endif %}" href="{{ url_for('themes') }}">Gérer les Thèmes</a></li>
                             <li><a class="dropdown-item {% if request.endpoint == 'activites' %}active{% endif %}" href="{{ url_for('activites') }}">Journal d'Activités</a></li>
+                            {# Ajoutez d'autres liens admin si nécessaire #}
                         </ul>
                     </li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item">
-                            <span class="navbar-text me-3">
-                                <i class="fas fa-user-circle me-1"></i>Connecté: {{ current_user.username }} ({{ current_user.role }})
-                            </span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i>Déconnexion</a>
+                        <li class="nav-item dropdown">
+                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user-circle me-1"></i>{{ current_user.username }} ({{ current_user.role }})
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                {# Ajoutez des liens profil/paramètres ici si besoin #}
+                                <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt fa-fw me-2"></i>Déconnexion</a></li>
+                            </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
@@ -139,16 +123,14 @@
     </nav>
     <!-- ==================== Fin Barre de navigation ==================== -->
 
-
     <!-- Contenu principal -->
     <div class="container-fluid mt-4 content-wrapper" id="main-content">
         {# Affichage des messages Flash #}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="row justify-content-center mb-3">
-                    <div class="col-md-10 col-lg-8">
+                    <div class="col-md-10 col-lg-8" id="flash-message-container">
                         {% for category, message in messages %}
-                            {# Utiliser 'warning' pour 'info' pour une meilleure visibilité #}
                             {% set alert_category = 'warning' if category == 'info' else category %}
                             <div class="alert alert-{{ alert_category }} alert-dismissible fade show shadow-sm" role="alert">
                                 {{ message }}
@@ -170,43 +152,40 @@
             <small class="text-muted">
                 © {{ now.year }} {{ app_name | default('Votre Entreprise') }}. Tous droits réservés.
                 {% if debug_mode %}
-                 | Mode Debug Actif
+                 | <span class="text-danger">Mode Debug Actif</span>
                 {% endif %}
             </small>
         </div>
     </footer>
     <!-- ==================== Fin Pied de page ==================== -->
 
-    <!-- Modales communes (si elles sont utilisées sur plusieurs pages) -->
-    {% block modals %}
-        {# Inclure les modales ici si nécessaire, ex: #}
-        {# {% include 'modals/_inscription_modal.html' ignore missing %} #}
-    {% endblock %}
+    <!-- Bloc pour les Modales Communes -->
+    {% block modals %}{% endblock %}
 
-    <!-- Conteneur pour les Toasts/Notifications -->
+    <!-- Conteneur pour les Notifications Toast -->
     <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3">
-        <!-- Les toasts seront ajoutés ici par JavaScript -->
+        <!-- Les toasts seront ajoutés dynamiquement ici -->
     </div>
 
-    <!-- Scripts JavaScript -->
-    <!-- Bootstrap JS Bundle (inclut Popper) -->
+    <!-- ==================== Inclusions JavaScript ==================== -->
+    <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
 
-    <!-- Chart.js (Décommentez si vous utilisez des graphiques dynamiques Chart.js) -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script> -->
-
-    <!-- Scripts personnalisés (l'ordre est important) -->
+    <!-- Scripts Personnalisés (L'ordre est important) -->
     <script src="{{ url_for('static', filename='js/api-error-handler.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/modal-fix.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/modal-fix-patch.js') }}" defer></script>
+    {# <script src="{{ url_for('static', filename='js/modal-fix-patch.js') }}" defer></script> #} {# Souvent non nécessaire avec modal-fix.js #}
 
-    <!-- Configuration JS (si nécessaire, avant dashboard-init) -->
+    <!-- Configuration JS Globale -->
     <script>
-        window.dashboardConfig = window.dashboardConfig || {}; // Assure que l'objet existe
-        // Passer des variables Flask à JS (exemple)
+        // Assurer l'existence de dashboardConfig et définir les valeurs par défaut
+        window.dashboardConfig = window.dashboardConfig || {};
         window.dashboardConfig.debugMode = {{ debug_mode | default(false) | tojson }};
-        // Ajoutez d'autres configurations si nécessaire
-        // window.dashboardConfig.baseApiUrl = "{{ url_for('index') }}api";
+        window.dashboardConfig.baseApiUrl = "{{ url_for('index', _external=True) }}api"; // Utiliser _external=True si nécessaire
+        window.dashboardConfig.socketEnabled = true; // Activer par défaut
+        window.dashboardConfig.pollingEnabled = true; // Activer par défaut
+        window.dashboardConfig.autoRefreshInterval = 60000; // 60 secondes par défaut
+        window.dashboardConfig.preferredMode = 'auto'; // 'auto' par défaut
 
         // Données globales pour les graphiques (utilisées par dashboard-core.js)
         window.themesDataForChart = {
@@ -215,7 +194,7 @@
             'Gérer mes fichiers (OneDrive/SharePoint)': { color: 'var(--theme-onedrive, #0364b8)', description: 'Organisez et partagez vos fichiers avec OneDrive et SharePoint.' },
             'Collaborer avec Teams': { color: 'var(--theme-sharepoint, #038387)', description: 'Découvrez comment collaborer sur des documents via Microsoft Teams.' }
         };
-        window.servicesDataForChart = { // Utilisé pour obtenir la couleur dans le graphique service
+        window.servicesDataForChart = {
              'Commerce Anecoop-Solagora': { color: 'var(--service-commerce, #FFC107)' },
              'Comptabilité': { color: 'var(--service-comptabilite, #2196F3)' },
              'Florensud': { color: 'var(--service-florensud, #4CAF50)' },
@@ -224,65 +203,111 @@
              'Qualité': { color: 'var(--service-qualite, #F44336)' },
              'RH': { color: 'var(--service-rh, #FF9800)' }
         };
+
+        // Fonction globale pour améliorer les badges de thème (appelable depuis d'autres scripts)
+        window.enhanceThemeBadgesGlobally = function() {
+            document.querySelectorAll('.theme-badge').forEach(badge => {
+                if (badge.dataset.enhanced === 'true') return;
+                const themeName = badge.dataset.theme || badge.textContent.trim();
+                badge.textContent = ''; // Vider avant d'ajouter icône + texte
+                badge.classList.remove('theme-comm', 'theme-planner', 'theme-onedrive', 'theme-sharepoint', 'bg-secondary'); // Réinitialiser
+
+                let iconClass = 'fa-info-circle'; // Icône par défaut
+                let themeClass = 'bg-secondary'; // Classe couleur par défaut
+
+                if (themeName.includes('Communiquer avec Teams')) { iconClass = 'fa-comments'; themeClass = 'theme-comm'; }
+                else if (themeName.includes('Gérer les tâches') || themeName.includes('Planner')) { iconClass = 'fa-tasks'; themeClass = 'theme-planner'; }
+                else if (themeName.includes('Gérer mes fichiers') || themeName.includes('OneDrive')) { iconClass = 'fa-file-alt'; themeClass = 'theme-onedrive'; }
+                else if (themeName.includes('Collaborer avec Teams')) { iconClass = 'fa-users'; themeClass = 'theme-sharepoint'; }
+
+                badge.classList.add(themeClass);
+                badge.innerHTML = `<i class="fas ${iconClass} me-1"></i> ${themeName}`; // Ajouter icône et texte
+                badge.dataset.enhanced = 'true';
+
+                // Ajouter tooltip si description existe dans les données globales
+                const themeDesc = window.themesDataForChart?.[themeName]?.description;
+                if (themeDesc && !badge.hasAttribute('data-bs-toggle')) {
+                    badge.setAttribute('data-bs-toggle', 'tooltip');
+                    badge.setAttribute('data-bs-placement', 'top');
+                    badge.setAttribute('title', themeDesc);
+                }
+            });
+            // Ré-initialiser les tooltips pour les attributs nouvellement ajoutés
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('.theme-badge[data-bs-toggle="tooltip"]'))
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    // Détruire l'ancien tooltip s'il existe avant d'en créer un nouveau
+                    const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                    if (existingTooltip) {
+                        existingTooltip.dispose();
+                    }
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            }
+        };
+
     </script>
 
+    <!-- Logique Principale du Dashboard -->
     <script src="{{ url_for('static', filename='js/dashboard-init.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/dashboard-core.js') }}" defer></script>
-    {# dashboard-core-fix.js n'est plus inclus #}
 
-    {% block scripts_extra %}{% endblock %} {# Pour JS spécifique à une page #}
+    <!-- Bloc pour les Scripts Spécifiques à la Page -->
+    {% block scripts_extra %}{% endblock %}
 
-    <!-- Script final pour gérer le loader et initialiser les tooltips -->
+    <!-- Script Final (Masquage Loader, Init Tooltips Globale) -->
     <script>
         function hideGlobalLoader() {
             const overlay = document.getElementById('loading-overlay');
             if (overlay && !overlay.classList.contains('hidden')) {
                 overlay.classList.add('hidden');
-                // Optionnel: supprimer après transition
-                // setTimeout(() => { overlay.remove(); }, 300);
             }
         }
 
-        // Cacher le loader une fois que le DOM est prêt et les scripts defer exécutés
-        // ou après un timeout de sécurité.
         let loaderHidden = false;
         const hideLoaderTimeout = setTimeout(() => {
             if (!loaderHidden) {
                 hideGlobalLoader();
-                console.warn("Layout.html: Forcing loading overlay hide (fallback timeout).");
+                console.warn("Layout.html: Forçage masquage overlay (timeout).");
                 loaderHidden = true;
             }
-        }, 7000); // 7 secondes
+        }, 7000); // Timeout de 7 secondes
 
-        // Essayer de cacher plus tôt si possible
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const isUpdating = window.dashboardCore && window.dashboardCore.getState && window.dashboardCore.getState().updating;
-                if (!isUpdating && !loaderHidden) {
-                    hideGlobalLoader();
-                    loaderHidden = true;
-                    clearTimeout(hideLoaderTimeout);
-                }
-            }, 200);
+        // Masquer le loader quand la page est visuellement prête ou les données du dashboard chargées
+        const hideLoaderEvents = ['load', 'dashboardDataRefreshed'];
+        hideLoaderEvents.forEach(eventType => {
+            window.addEventListener(eventType, () => {
+                // Léger délai pour s'assurer que le rendu est complet
+                setTimeout(() => {
+                    const isUpdating = window.dashboardCore && window.dashboardCore.getState && window.dashboardCore.getState().updating;
+                    if (!isUpdating && !loaderHidden) {
+                        hideGlobalLoader();
+                        loaderHidden = true;
+                        clearTimeout(hideLoaderTimeout);
+                    }
+                }, eventType === 'load' ? 100 : 50); // Délai plus court après refresh des données
+            }, { once: true });
         });
-        // Si dashboard-core finit son chargement initial avant 'window.load'
-        document.addEventListener('dashboardDataRefreshed', () => {
-             if (!loaderHidden) {
-                 hideGlobalLoader();
-                 loaderHidden = true;
-                 clearTimeout(hideLoaderTimeout);
-             }
-        }, { once: true });
 
-        // Initialiser les tooltips Bootstrap après le chargement du DOM
+
+        // Initialiser les Tooltips Bootstrap globalement après chargement du DOM
         document.addEventListener('DOMContentLoaded', function () {
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl)
-                }
-                return bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-            })
+            // Améliorer les badges d'abord
+            if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+                window.enhanceThemeBadgesGlobally();
+            }
+            // Puis initialiser les tooltips
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    // Détruire l'ancien tooltip s'il existe avant d'en créer un nouveau
+                    const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                    if (existingTooltip) {
+                        existingTooltip.dispose();
+                    }
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            }
         });
     </script>
 
