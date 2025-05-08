@@ -203,6 +203,23 @@
         window.dashboardConfig.debugMode = {{ debug_mode | default(false) | tojson }};
         // Ajoutez d'autres configurations si nécessaire
         // window.dashboardConfig.baseApiUrl = "{{ url_for('index') }}api";
+
+        // Données globales pour les graphiques (utilisées par dashboard-core.js)
+        window.themesDataForChart = {
+            'Communiquer avec Teams': { color: 'var(--theme-teams, #0078d4)', description: 'Apprenez à utiliser Microsoft Teams pour communiquer efficacement.' },
+            'Gérer les tâches (Planner)': { color: 'var(--theme-planner, #7719aa)', description: 'Maîtrisez la gestion des tâches d\'équipe avec Planner et To Do.' },
+            'Gérer mes fichiers (OneDrive/SharePoint)': { color: 'var(--theme-onedrive, #0364b8)', description: 'Organisez et partagez vos fichiers avec OneDrive et SharePoint.' },
+            'Collaborer avec Teams': { color: 'var(--theme-sharepoint, #038387)', description: 'Découvrez comment collaborer sur des documents via Microsoft Teams.' }
+        };
+        window.servicesDataForChart = { // Utilisé pour obtenir la couleur dans le graphique service
+             'Commerce Anecoop-Solagora': { color: 'var(--service-commerce, #FFC107)' },
+             'Comptabilité': { color: 'var(--service-comptabilite, #2196F3)' },
+             'Florensud': { color: 'var(--service-florensud, #4CAF50)' },
+             'Informatique': { color: 'var(--service-informatique, #607D8B)' },
+             'Marketing': { color: 'var(--service-marketing, #9C27B0)' },
+             'Qualité': { color: 'var(--service-qualite, #F44336)' },
+             'RH': { color: 'var(--service-rh, #FF9800)' }
+        };
     </script>
 
     <script src="{{ url_for('static', filename='js/dashboard-init.js') }}" defer></script>
