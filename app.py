@@ -1070,10 +1070,14 @@ def api_single_session(session_id):
     except SQLAlchemyError as e: app.logger.error(f"API Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
     except Exception as e: app.logger.error(f"API Unexpected Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
 
-@app.route('/participants') # Définit l'URL /participants
-@login_required # S'assurer que l'utilisateur est connecté
+# ==============================================================================
+# === Routes participants et activités ===
+# ==============================================================================
+
+@app.route('/participants')
+@login_required
 @db_operation_with_retry(max_retries=3)
-def participants_page(): # Le nom de la fonction devient l'endpoint par défaut
+def participants_page():
     """Affiche la page principale de la liste des participants."""
     app.logger.info(f"Utilisateur '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accède à la page /participants.")
     try:
@@ -1117,31 +1121,24 @@ def participants_page(): # Le nom de la fonction devient l'endpoint par défaut
                 Inscription.statut == 'en attente'
             ).group_by(Inscription.participant_id).all()
             pending_counts = dict(pending_q)
-        # --- Fin du calcul des compteurs ---
 
         # Préparer la structure de données attendue par le template
         participants_data_for_template = []
         for p in participants_list:
-             # NOTE : On ne passe que les compteurs à la page principale pour la performance.
-             # Les listes détaillées ('loaded_...') pour les modales sont initialement vides.
-             # Pour les remplir, il faudrait soit :
-             # 1. Les charger ici (potentiellement lent si beaucoup de participants/inscriptions).
-             # 2. Implémenter des appels AJAX dans le JS des modales pour charger les détails à la demande.
-             participants_data_for_template.append({
-                 'obj': p,
-                 'inscriptions_count': confirmed_counts.get(p.id, 0),
-                 'attente_count': waitlist_counts.get(p.id, 0),
-                 'pending_count': pending_counts.get(p.id, 0),
-                 # Passer des listes vides pour les détails des modales initialement
-                 'loaded_confirmed_inscriptions': [],
-                 'loaded_pending_inscriptions': [],
-                 'loaded_waitlist': []
-             })
+            participants_data_for_template.append({
+                'obj': p,
+                'inscriptions_count': confirmed_counts.get(p.id, 0),
+                'attente_count': waitlist_counts.get(p.id, 0),
+                'pending_count': pending_counts.get(p.id, 0),
+                # Passer des listes vides pour les détails des modales initialement
+                'loaded_confirmed_inscriptions': [],
+                'loaded_pending_inscriptions': [],
+                'loaded_waitlist': []
+            })
 
-        # Passer participants_data et la liste complète des services au template
         return render_template('participants.html',
-                               participants_data=participants_data_for_template,
-                               services=services_for_modal) # 'services' est nécessaire pour le modal
+                              participants_data=participants_data_for_template,
+                              services=services_for_modal)
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -1153,10 +1150,6 @@ def participants_page(): # Le nom de la fonction devient l'endpoint par défaut
         app.logger.error(f"Erreur inattendue chargement page participants: {e}", exc_info=True)
         flash("Une erreur interne est survenue lors du chargement des participants.", "danger")
         return redirect(url_for('dashboard'))
-# === FIN DE LA NOUVELLE ROUTE ===
-
-
-# --- Autres Actions Participants (Vérifiez qu'elles sont présentes et correctes) ---
 
 @app.route('/participant/add', methods=['POST'])
 @login_required
@@ -1179,14 +1172,16 @@ def add_participant():
     # Validation de base
     if not all([nom, prenom, email, service_id]):
         flash('Tous les champs marqués * sont obligatoires.', 'warning')
-        redirect_url = url_for(from_page) if from_page in ['dashboard', 'services', 'participants_page', 'admin'] else url_for('dashboard')
+        valid_from_pages = ['dashboard', 'services', 'participants_page', 'admin']
+        redirect_url = url_for(from_page) if from_page in valid_from_pages else url_for('dashboard')
         return redirect(redirect_url)
 
     # Vérifier si l'email existe déjà
     existing_participant = Participant.query.filter(func.lower(Participant.email) == func.lower(email)).first()
     if existing_participant:
         flash(f'Un participant avec l\'email {email} existe déjà.', 'warning')
-        redirect_url = url_for(from_page) if from_page in ['dashboard', 'services', 'participants_page', 'admin'] else url_for('dashboard')
+        valid_from_pages = ['dashboard', 'services', 'participants_page', 'admin']
+        redirect_url = url_for(from_page) if from_page in valid_from_pages else url_for('dashboard')
         return redirect(redirect_url)
 
     try:
@@ -1235,7 +1230,8 @@ def add_participant():
                      socketio.emit('inscription_nouvelle', {'session_id': redirect_session_id, 'participant_id': participant_id, 'statut': 'en attente'}, room='general')
 
         # Déterminer l'URL de redirection finale
-        redirect_url = url_for(from_page) if from_page in ['dashboard', 'services', 'participants_page', 'admin'] else url_for('dashboard')
+        valid_from_pages = ['dashboard', 'services', 'participants_page', 'admin']
+        redirect_url = url_for(from_page) if from_page in valid_from_pages else url_for('dashboard')
         return redirect(redirect_url)
 
     except IntegrityError as e:
@@ -1252,9 +1248,9 @@ def add_participant():
         flash('Une erreur inattendue est survenue.', 'danger')
 
     # Redirection de secours en cas d'erreur
-    redirect_url = url_for(from_page) if from_page in ['dashboard', 'services', 'participants_page', 'admin'] else url_for('dashboard')
+    valid_from_pages = ['dashboard', 'services', 'participants_page', 'admin']
+    redirect_url = url_for(from_page) if from_page in valid_from_pages else url_for('dashboard')
     return redirect(redirect_url)
-
 
 @app.route('/participant/update/<int:id>', methods=['POST'])
 @login_required
@@ -1313,7 +1309,6 @@ def update_participant(id):
 
     return redirect(url_for('participants_page'))
 
-
 @app.route('/participant/delete/<int:id>', methods=['POST'])
 @login_required
 @db_operation_with_retry(max_retries=2)
@@ -1352,6 +1347,42 @@ def delete_participant(id):
         flash('Une erreur inattendue est survenue.', 'danger')
 
     return redirect(url_for('participants_page'))
+
+@app.route('/activites')
+@login_required
+@db_operation_with_retry(max_retries=3)
+def activites_page():
+    """Affiche le journal d'activités complet avec pagination."""
+    app.logger.info(f"Utilisateur '{current_user.username}' accède au journal d'activités.")
+    try:
+        page = request.args.get('page', 1, type=int)
+        type_filter = request.args.get('type')
+        
+        # Construire la requête de base
+        query = Activite.query.options(joinedload(Activite.utilisateur))
+        
+        # Appliquer le filtre par type si présent
+        if type_filter:
+            query = query.filter(Activite.type == type_filter)
+            
+        # Appliquer le tri et la pagination
+        pagination = query.order_by(Activite.date.desc()).paginate(
+            page=page, per_page=25, error_out=False
+        )
+
+        return render_template('activites.html',
+                              activites=pagination)
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB chargement journal d'activités: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement du journal d'activités.", "danger")
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue chargement journal d'activités: {e}", exc_info=True)
+        flash("Une erreur interne est survenue lors du chargement du journal.", "danger")
+        return redirect(url_for('dashboard'))
+        
 @app.route('/api/salles')
 @db_operation_with_retry(max_retries=2)
 def api_salles():
