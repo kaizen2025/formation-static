@@ -287,8 +287,7 @@ class Session(db.Model):
     inscriptions = db.relationship('Inscription', backref='session', lazy='selectin', cascade="all, delete-orphan")
     liste_attente = db.relationship('ListeAttente', backref='session', lazy='selectin', cascade="all, delete-orphan")
 
-    # Calculate places restantes efficiently (can be cached)
-  def get_places_restantes(self, confirmed_count=None):  # ← Fixed indentation (4 spaces)
+  def get_places_restantes(self, confirmed_count=None):
         try:
         if confirmed_count is None:
             # Efficient count query
