@@ -228,90 +228,121 @@ const config = {
     /**
      * Fonction fetch réelle (appelée par la version debounced)
      */
-    async function _fetchDashboardData(forceRefresh = false) {
-        // Check if already updating to avoid concurrent fetches
-        if (dashboardState.updating) {
-            console.log('Dashboard Core: Skipping fetch (update in progress)');
-            return Promise.resolve(false);
-        }
-
-        const now = Date.now();
-        
-        // Respect minimum delay between fetches
-        if (!forceRefresh && now - dashboardState.lastRefresh < config.minRefreshDelay) {
-            console.log(`Dashboard Core: Skipping fetch (too soon)`);
-            return Promise.resolve(false);
-        }
-
-        // Set the updating flag and record the fetch time
-        dashboardState.updating = true;
-        dashboardState.lastRefresh = now;
-        let updateSucceeded = false;
-
-        try {
-            const url = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
-            console.log(`Dashboard Core: Fetching data from ${url}`);
-            
-            // Création d'un contrôleur d'abort pour le timeout
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes de timeout
-            
-            const response = await fetch(url, { 
-                method: 'GET', 
-                headers: { 
-                    'Accept': 'application/json', 
-                    'X-Requested-With': 'XMLHttpRequest' 
-                },
-                signal: controller.signal
-            });
-            
-            // Nettoyage du timeout
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                let errorData = null;
-                try { 
-                    errorData = await response.clone().json(); 
-                } catch (e) { 
-                    // Ignorer les erreurs de parsing
-                }
-                errorHandler.handleApiError(url, errorData, response.status);
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const hasChanged = processData(data, forceRefresh);
-            dashboardState.errorCount = 0;
-            showErrorWarning(false);
-            updateSucceeded = true;
-
-            if (hasChanged) {
-                console.log('Dashboard Core: Data updated, triggering dashboardDataRefreshed event');
-                document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: data } }));
-            } else {
-                console.log('Dashboard Core: No significant data changes detected');
-            }
-            
-            return hasChanged;
-
-        } catch (error) {
-            console.error('Dashboard Core: Error fetching dashboard data:', error);
-            dashboardState.errorCount++;
-            if (dashboardState.errorCount >= dashboardState.maxErrors && dashboardState.pollingActive) {
-                console.warn(`Dashboard Core: Too many errors (${dashboardState.errorCount}), pausing polling`);
-                dashboardState.pollingActive = false;
-                clearInterval(dashboardState.pollingInterval);
-                clearTimeout(dashboardState.pollingTimeout);
-                showErrorWarning(true);
-            }
-            return false;
-        } finally {
-            // IMPORTANT FIX: Reset updating flag immediately, not in a timeout
-            dashboardState.updating = false;
-            console.log('Dashboard Core: Fetch cycle finished.');
-        }
+    // Modifiez la fonction _fetchDashboardData dans dashboard-core.js
+async function _fetchDashboardData(forceRefresh = false, lightMode = false) {
+    // Check if already updating to avoid concurrent fetches
+    if (dashboardState.updating) {
+        console.log('Dashboard Core: Skipping fetch (update in progress)');
+        return Promise.resolve(false);
     }
 
+    // Check if we're in error throttle mode
+    if (config.errorThrottleMode && !forceRefresh) {
+        console.log('Dashboard Core: Skipping fetch (error throttle mode active)');
+        return Promise.resolve(false);
+    }
+
+    const now = Date.now();
+    
+    // Respect minimum delay between fetches
+    if (!forceRefresh && now - dashboardState.lastRefresh < config.minRefreshDelay) {
+        console.log(`Dashboard Core: Skipping fetch (too soon)`);
+        return Promise.resolve(false);
+    }
+
+    // Set the updating flag and record the fetch time
+    dashboardState.updating = true;
+    dashboardState.lastRefresh = now;
+    let updateSucceeded = false;
+
+    try {
+        // Modifier l'URL pour utiliser le mode allégé si demandé
+        const url = lightMode ? 
+            `${config.baseApiUrl}/dashboard_essential?light=1&_=${Date.now()}` : 
+            `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
+            
+        console.log(`Dashboard Core: Fetching data from ${url}${lightMode ? ' (light mode)' : ''}`);
+        
+        // Création d'un contrôleur d'abort pour le timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // Réduire à 15 secondes de timeout
+        
+        const response = await fetch(url, { 
+            method: 'GET', 
+            headers: { 
+                'Accept': 'application/json', 
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache' // S'assurer que la requête n'est pas mise en cache
+            },
+            signal: controller.signal
+        });
+        
+        // Nettoyage du timeout
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            let errorData = null;
+            try { 
+                errorData = await response.clone().json(); 
+            } catch (e) { 
+                // Ignorer les erreurs de parsing
+            }
+            
+            // Activer le mode throttle en cas d'erreur 500
+            if (response.status >= 500) {
+                config.errorThrottleMode = true;
+                setTimeout(() => {
+                    config.errorThrottleMode = false;
+                    console.log('Dashboard Core: Error throttle mode deactivated');
+                }, 60000); // Désactiver après 1 minute
+            }
+            
+            errorHandler.handleApiError(url, errorData, response.status);
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const hasChanged = processData(data, forceRefresh);
+        dashboardState.errorCount = 0;
+        showErrorWarning(false);
+        updateSucceeded = true;
+
+        if (hasChanged) {
+            console.log('Dashboard Core: Data updated, triggering dashboardDataRefreshed event');
+            document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: data } }));
+        } else {
+            console.log('Dashboard Core: No significant data changes detected');
+        }
+        
+        return hasChanged;
+
+    } catch (error) {
+        console.error('Dashboard Core: Error fetching dashboard data:', error);
+        dashboardState.errorCount++;
+        
+        // Activer le mode throttle après plusieurs erreurs
+        if (dashboardState.errorCount >= 3) {
+            config.errorThrottleMode = true;
+            setTimeout(() => {
+                config.errorThrottleMode = false;
+                console.log('Dashboard Core: Error throttle mode deactivated');
+            }, 120000); // Désactiver après 2 minutes
+        }
+        
+        if (dashboardState.errorCount >= dashboardState.maxErrors && dashboardState.pollingActive) {
+            console.warn(`Dashboard Core: Too many errors (${dashboardState.errorCount}), pausing polling`);
+            dashboardState.pollingActive = false;
+            clearInterval(dashboardState.pollingInterval);
+            clearTimeout(dashboardState.pollingTimeout);
+            showErrorWarning(true);
+        }
+        return false;
+    } finally {
+        // Reset updating flag immediately
+        dashboardState.updating = false;
+        console.log('Dashboard Core: Fetch cycle finished.');
+    }
+}
     /**
      * Fonction debounced pour appeler _fetchDashboardData
      * @param {boolean} forceRefresh Force une actualisation complète
@@ -601,70 +632,103 @@ const config = {
     }
     
     function fixDataIssues() { 
-        document.querySelectorAll('.places-dispo').forEach(el => { 
-            const text = el.textContent.trim(); 
-            if (text.includes('/')) { 
-                const parts = text.split('/'); 
-                const available = parseInt(parts[0].trim()); 
-                const total = parseInt(parts[1].trim()); 
-                
-                if (!isNaN(available) && !isNaN(total)) { 
-                    let icon, colorClass; 
-                    if (available <= 0) { 
-                        icon = 'fa-times-circle'; 
-                        colorClass = 'text-danger'; 
-                    } else if (available <= 0.2 * total) { 
-                        icon = 'fa-exclamation-circle'; 
-                        colorClass = 'text-danger'; 
-                    } else if (available <= 0.4 * total) { 
-                        icon = 'fa-exclamation-triangle'; 
-                        colorClass = 'text-warning'; 
-                    } else { 
-                        icon = 'fa-check-circle'; 
-                        colorClass = 'text-success'; 
-                    } 
-                    
-                    if (!el.querySelector('.fas') || !el.classList.contains(colorClass)) { 
-                        el.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary'); 
-                        el.classList.add(colorClass); 
-                        el.innerHTML = `<i class="fas ${icon} me-1"></i> ${available} / ${total}`; 
-                    } 
-                } 
-            } else if (text === 'NaN / NaN' || text.includes('undefined') || text === '/ ' || text === ' / ') { 
+    // Correction des éléments places-dispo
+    document.querySelectorAll('.places-dispo').forEach(el => { 
+        const text = el.textContent.trim(); 
+        if (text.includes('/')) { 
+            const parts = text.split('/'); 
+            const available = parseInt(parts[0].trim()); 
+            const total = parseInt(parts[1].trim()); 
+            
+            if (isNaN(available) || isNaN(total)) { 
+                // Si l'un des nombres n'est pas valide
                 el.classList.remove('text-success', 'text-warning', 'text-danger'); 
                 el.classList.add('text-secondary'); 
                 el.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?'; 
-                el.title = 'Données temporairement indisponibles'; 
+                el.title = 'Données temporairement indisponibles';
+                return;
+            }
+            
+            let icon, colorClass; 
+            if (available <= 0) { 
+                icon = 'fa-times-circle'; 
+                colorClass = 'text-danger'; 
+            } else if (available <= 0.2 * total) { 
+                icon = 'fa-exclamation-circle'; 
+                colorClass = 'text-danger'; 
+            } else if (available <= 0.4 * total) { 
+                icon = 'fa-exclamation-triangle'; 
+                colorClass = 'text-warning'; 
+            } else { 
+                icon = 'fa-check-circle'; 
+                colorClass = 'text-success'; 
             } 
-        }); 
-        
-        document.querySelectorAll('.counter-value').forEach(counter => { 
-            const text = counter.textContent.trim(); 
-            if (text === '' || text === 'undefined' || text === 'null' || text === 'NaN') 
-                counter.textContent = '0'; 
-        }); 
-        
-        document.querySelectorAll('table tbody').forEach(tbody => { 
-            if (!tbody.querySelector('tr')) { 
-                const cols = tbody.closest('table').querySelectorAll('thead th').length || 3; 
-                tbody.innerHTML = `<tr><td colspan="${cols}" class="text-center p-3 text-muted">Aucune donnée disponible</td></tr>`; 
+            
+            if (!el.querySelector('.fas') || !el.classList.contains(colorClass)) { 
+                el.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary'); 
+                el.classList.add(colorClass); 
+                el.innerHTML = `<i class="fas ${icon} me-1"></i> ${available} / ${total}`; 
             } 
-        }); 
-        
-        // Exposer cette fonction pour dashboard-init.js
-        if (!window.uiFixers) {
-            window.uiFixers = {
-                applyAllFixes: function() {
-                    fixDataIssues();
-                    enhanceBadgesAndLabels();
-                    initTooltips();
-                },
-                enhancePlacesRestantes: function() {
-                    fixDataIssues();
-                }
-            };
+        } else if (text === 'NaN / NaN' || text.includes('undefined') || text === '/ ' || text === ' / ' || text.includes('null')) { 
+            el.classList.remove('text-success', 'text-warning', 'text-danger'); 
+            el.classList.add('text-secondary'); 
+            el.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?'; 
+            el.title = 'Données temporairement indisponibles'; 
+        } 
+    }); 
+    
+    // Correction des compteurs vides ou invalides
+    document.querySelectorAll('.counter-value, .badge-count').forEach(counter => { 
+        const text = counter.textContent.trim(); 
+        if (text === '' || text === 'undefined' || text === 'null' || text === 'NaN') {
+            counter.textContent = '—'; 
+            counter.classList.add('text-muted'); 
+            counter.title = 'Valeur temporairement indisponible'; 
         }
+    }); 
+    
+    // Correction des tableaux vides
+    document.querySelectorAll('table tbody').forEach(tbody => { 
+        if (!tbody.querySelector('tr') || tbody.querySelector('tr').cells.length === 0) { 
+            const cols = tbody.closest('table').querySelectorAll('thead th').length || 3;
+            const emptyMessage = '<tr><td colspan="' + cols + '" class="text-center p-3 text-muted">' +
+                '<i class="fas fa-info-circle me-2"></i>Aucune donnée disponible' +
+                '<button class="btn btn-sm btn-outline-secondary ms-3" onclick="if(typeof window.forcePollingUpdate === \'function\') window.forcePollingUpdate(true);">' +
+                '<i class="fas fa-sync me-1"></i>Actualiser</button></td></tr>';
+            tbody.innerHTML = emptyMessage;
+        } 
+    });
+    
+    // Vérifier et corriger les modales qui pourraient être bloquées
+    checkAndFixHangingModals();
+}
+
+// Nouvelle fonction pour vérifier et corriger les modales bloquées
+function checkAndFixHangingModals() {
+    // Vérifier si un backdrop est présent sans modale visible
+    const backdrop = document.querySelector('.modal-backdrop');
+    const visibleModal = document.querySelector('.modal.show');
+    
+    if (backdrop && !visibleModal) {
+        // Nettoyer le backdrop orphelin
+        backdrop.remove();
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
     }
+    
+    // S'assurer que les modales visibles ont un backdrop
+    const visibleModals = document.querySelectorAll('.modal.show');
+    visibleModals.forEach(modal => {
+        if (!document.querySelector('.modal-backdrop')) {
+            // Créer un nouveau backdrop si nécessaire
+            const newBackdrop = document.createElement('div');
+            newBackdrop.className = 'modal-backdrop fade show';
+            document.body.appendChild(newBackdrop);
+            document.body.classList.add('modal-open');
+        }
+    });
+}
     
     function enhanceAccessibility() { 
         document.querySelectorAll('img:not([alt])').forEach(img => { 
