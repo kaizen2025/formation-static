@@ -288,19 +288,32 @@ class Session(db.Model):
     liste_attente = db.relationship('ListeAttente', backref='session', lazy='selectin', cascade="all, delete-orphan")
 
     # Calculate places restantes efficiently (can be cached)
-    def get_places_restantes(self, confirmed_count=None):
-        try:
-            if confirmed_count is None:
-                # Efficient count query
-                confirmed_count = db.session.query(func.count(Inscription.id)).filter(
-                    Inscription.session_id == self.id,
-                    Inscription.statut == 'confirmé'
-                ).scalar() or 0
-            return max(0, self.max_participants - confirmed_count)
-        except Exception as e:
-            app.logger.error(f"Error calculating places restantes for S:{self.id}: {e}")
-            # In case of error, assume full to prevent overbooking
-            return 0
+  def get_places_restantes(self, confirmed_count=None):
+    try:
+        if confirmed_count is None:
+            # Efficient count query
+            confirmed_count = db.session.query(func.count(Inscription.id)).filter(
+                Inscription.session_id == self.id,
+                Inscription.statut == 'confirmé'
+            ).scalar() or 0
+        
+        # S'assurer que max_participants est un nombre valide
+        max_participants = 0
+        if self.max_participants is not None and isinstance(self.max_participants, int):
+            max_participants = self.max_participants
+        elif self.max_participants is not None:
+            try:
+                max_participants = int(self.max_participants)
+            except (ValueError, TypeError):
+                max_participants = 10  # Valeur par défaut sécuritaire
+        else:
+            max_participants = 10  # Valeur par défaut sécuritaire
+        
+        return max(0, max_participants - confirmed_count)
+    except Exception as e:
+        app.logger.error(f"Error calculating places restantes for S:{self.id}: {e}")
+        # En cas d'erreur, retourner une valeur par défaut sécuritaire
+        return 0
 
     # Properties for formatting (handle potential errors)
     @property
@@ -2710,62 +2723,57 @@ def api_dashboard_essential():
             joinedload(Activite.utilisateur)
         ).order_by(Activite.date.desc()).limit(5).all()
         
-        # Prepare session data with counts (use cache if available)
+        # Prepare session data with counts and fix places_restantes
         sessions_data = []
         for s in sessions_q:
-            cache_key = f'session_counts_{s.id}'
-            session_counts = cache.get(cache_key)
-            if session_counts is None:
-                # Count confirmed inscriptions
+            try:
+                # Récupérer le compte sécuritaire des inscriptions confirmées
                 inscrits_count = db.session.query(func.count(Inscription.id)).filter(
                     Inscription.session_id == s.id, 
                     Inscription.statut == 'confirmé'
                 ).scalar() or 0
                 
-                # Count waitlist entries
+                # Récupérer le compte sécuritaire des inscriptions en attente
                 attente_count = db.session.query(func.count(ListeAttente.id)).filter(
                     ListeAttente.session_id == s.id
                 ).scalar() or 0
                 
-                # Count pending validations
+                # Récupérer le compte sécuritaire des inscriptions en validation
                 pending_count = db.session.query(func.count(Inscription.id)).filter(
                     Inscription.session_id == s.id, 
                     Inscription.statut == 'en attente'
                 ).scalar() or 0
                 
-                # Calculate remaining places
-                places_rest = max(0, s.max_participants - inscrits_count)
+                # S'assurer que max_participants est un nombre valide
+                max_participants = 10  # Valeur par défaut
+                if s.max_participants is not None:
+                    try:
+                        max_participants = int(s.max_participants)
+                    except (ValueError, TypeError):
+                        pass
                 
-                session_counts = {
-                    'inscrits_confirmes_count': inscrits_count,
-                    'liste_attente_count': attente_count,
+                # Calculer de manière sécuritaire places_restantes
+                places_rest = max(0, max_participants - inscrits_count)
+                
+                # Créer un dictionnaire de session avec toutes les données nécessaires
+                sessions_data.append({
+                    'id': s.id,
+                    'date': s.formatage_date,
+                    'horaire': s.formatage_horaire,
+                    'theme': s.theme.nom if s.theme else 'N/A',
+                    'theme_id': s.theme_id,
+                    'places_restantes': places_rest,
+                    'inscrits': inscrits_count,
+                    'max_participants': max_participants,
+                    'liste_attente': attente_count,
                     'pending_count': pending_count,
-                    'places_restantes': places_rest
-                }
-                cache.set(cache_key, session_counts, timeout=60)
-            else:
-                # Ensure pending count exists if loaded from cache
-                if 'pending_count' not in session_counts:
-                    session_counts['pending_count'] = db.session.query(func.count(Inscription.id)).filter(
-                        Inscription.session_id == s.id, 
-                        Inscription.statut == 'en attente'
-                    ).scalar() or 0
-            
-            # Create session data structure
-            sessions_data.append({
-                'id': s.id,
-                'date': s.formatage_date,
-                'horaire': s.formatage_horaire,
-                'theme': s.theme.nom if s.theme else 'N/A',
-                'theme_id': s.theme_id,
-                'places_restantes': session_counts['places_restantes'],
-                'inscrits': session_counts['inscrits_confirmes_count'],
-                'max_participants': s.max_participants,
-                'liste_attente': session_counts['liste_attente_count'],
-                'pending_count': session_counts['pending_count'],
-                'salle': s.salle.nom if s.salle else None,
-                'salle_id': s.salle_id
-            })
+                    'salle': s.salle.nom if s.salle else None,
+                    'salle_id': s.salle_id
+                })
+            except Exception as session_error:
+                app.logger.error(f"Error processing session {s.id} in dashboard_essential: {session_error}")
+                # Continuer avec la session suivante plutôt que d'échouer complètement
+                continue
             
         # Prepare participant data
         participants_data = [{
@@ -2784,6 +2792,7 @@ def api_dashboard_essential():
             'description': a.description,
             'details': a.details, 
             'date_relative': a.date_relative,
+            'date_iso': a.date.isoformat() if a.date else None,
             'user': a.utilisateur.username if a.utilisateur else None
         } for a in activites_q]
         
