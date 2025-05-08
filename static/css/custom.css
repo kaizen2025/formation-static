@@ -1,18 +1,23 @@
 /* static/css/custom.css */
-/* Contenu fusionné de custom.css et static-charts.css (version améliorée des graphiques) */
+/* Contient les styles personnalisés et ceux des graphiques statiques */
 
 /* ===== VARIABLES DE COULEUR (si non définies dans modern.css ou bootstrap) ===== */
 :root {
-    --primary: #0078d4; /* Assurez-vous que ces variables sont définies globalement */
+    --primary: #0078d4;
     --secondary: #6c757d;
-    --dark: #343a40;
+    --success: #198754; /* Couleur Bootstrap 5 */
+    --warning: #ffc107; /* Couleur Bootstrap 5 */
+    --danger: #dc3545;  /* Couleur Bootstrap 5 */
+    --info: #0dcaf0;    /* Couleur Bootstrap 5 */
+    --light: #f8f9fa;
+    --dark: #212529;    /* Couleur Bootstrap 5 */
     --white: #ffffff;
-    --border-radius: 0.35rem;
-    --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    --shadow: 0 0.3rem .8rem rgba(0, 0, 0, 0.1);
-    --transition-speed: 0.3s;
+    --border-radius: 0.375rem; /* Rayon Bootstrap 5 */
+    --shadow-sm: 0 .125rem .25rem rgba(0,0,0,.075);
+    --shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+    --transition-speed: 0.2s;
 
-    /* Couleurs des services (exemple, à adapter à vos couleurs réelles) */
+    /* Couleurs des services */
     --service-commerce: #FFC107;
     --service-comptabilite: #2196F3;
     --service-florensud: #4CAF50;
@@ -25,132 +30,115 @@
     --theme-teams: #0078d4;
     --theme-planner: #7719aa;
     --theme-onedrive: #0364b8;
-    --theme-sharepoint: #038387; /* Note: Dans votre code, 'Collaborer avec Teams' utilise cette couleur */
+    --theme-sharepoint: #038387;
 }
 
-/* ===== STYLES COMMUNS POUR TOUS LES GRAPHIQUES (tiré de static-charts.css) ===== */
+/* ===== STYLES COMMUNS POUR TOUS LES GRAPHIQUES ===== */
 .static-chart-container {
     width: 100%;
-    min-height: 300px; /* Hauteur minimale pour éviter l'effondrement */
-    padding: 1.5rem;
+    min-height: 300px;
+    padding: 1rem 1.25rem;
     background-color: var(--white, #ffffff);
-    border-radius: var(--border-radius, 0.35rem);
-    box-shadow: var(--shadow-sm, 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075));
+    border-radius: var(--border-radius, 0.375rem);
+    box-shadow: var(--shadow-sm);
     margin-bottom: 1.5rem;
     overflow: hidden;
-    transition: all 0.3s ease;
+    transition: all var(--transition-speed) ease;
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
-
 .static-chart-container:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow, 0 0.3rem .8rem rgba(0, 0, 0, 0.1));
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
 }
-
 .static-chart-title {
-    font-size: 1rem; /* Un peu plus grand */
+    font-size: 0.9rem; /* Taille réduite */
     font-weight: 600;
-    color: var(--dark, #343a40);
-    margin-bottom: 1.25rem; /* Plus d'espace */
+    color: var(--dark, #212529);
+    margin-bottom: 1rem; /* Espace réduit */
+    padding-bottom: 0.5rem; /* Espace sous le titre */
     text-align: center;
     position: relative;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    border-bottom: 1px solid #eee; /* Ligne de séparation légère */
 }
-
-.static-chart-title::after { /* Soulignement décoratif */
-    content: '';
-    display: block;
-    width: 40px;
-    height: 3px;
-    background-color: var(--primary, #0078d4);
-    position: absolute;
-    bottom: -8px; /* Positionné sous le titre */
-    left: 50%;
-    transform: translateX(-50%);
-    border-radius: 3px;
-}
+/* Retrait du ::after pour un look plus épuré */
+/* .static-chart-title::after { ... } */
 
 /* Animation de chargement */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(15px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
-
-.animate { /* Classe à ajouter pour animer le conteneur */
+.animate {
     animation: fadeIn 0.5s ease-out forwards;
 }
+
+/* Spinner et messages dans les graphiques */
+.static-chart-container .loading-spinner,
+.static-chart-container .no-data-message {
+    flex-grow: 1; /* Prend l'espace restant */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--secondary, #6c757d);
+}
+.static-chart-container .loading-spinner .spinner-border {
+    width: 1.5rem; /* Spinner plus petit */
+    height: 1.5rem;
+    border-width: .2em;
+}
+.static-chart-container .loading-spinner p,
+.static-chart-container .no-data-message {
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+.static-chart-container .no-data-message i {
+    font-size: 1.2rem;
+    margin-bottom: 0.25rem;
+}
+
 
 /* ===== GRAPHIQUE DONUT (THÈMES) ===== */
 .static-chart-donut {
     position: relative;
-    width: 180px; /* Taille du donut */
-    height: 180px;
+    width: 140px; /* Encore plus petit pour s'adapter */
+    height: 140px;
     border-radius: 50%;
-    margin: 0 auto 1.5rem; /* Centré avec marge en bas */
-    background-color: #f5f7fa; /* Couleur de fond légère */
-    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.05);
-    overflow: visible; /* Permet aux tooltips/effets de survol de déborder */
+    margin: 0.5rem auto 1rem; /* Marges ajustées */
+    background-color: #f8f9fa;
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.05);
 }
-
-.donut-segment {
+.donut-center {
     position: absolute;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    /* Crée un segment de tarte. Les valeurs --rotation et --fill sont définies en JS ou inline style */
-    clip-path: polygon(50% 50%, 100% 0, 100% 100%, 0 100%, 0 0);
-    transform-origin: 50% 50%;
-    transform: rotate(calc(var(--rotation, 0deg))); /* Rotation du segment */
-    background-color: var(--fill, var(--secondary)); /* Couleur du segment */
-    transition: all 0.3s ease;
-    opacity: 0.9;
-}
-
-/* Animation des segments du donut */
-@keyframes donutFadeIn {
-    from { opacity: 0; transform: scale(0.9) rotate(var(--rotation, 0deg)); }
-    to { opacity: 0.9; transform: scale(1) rotate(var(--rotation, 0deg)); }
-}
-
-.animate .donut-segment {
-    animation: donutFadeIn 0.6s ease-out forwards;
-    animation-delay: calc(var(--index, 0) * 0.1s); /* Délai pour chaque segment */
-}
-
-.donut-segment:hover {
-    opacity: 1;
-    transform: scale(1.02) rotate(var(--rotation, 0deg)); /* Léger zoom au survol */
-    z-index: 2; /* Pour passer au-dessus des autres segments */
-}
-
-.donut-center { /* Cercle central du donut */
-    position: absolute;
-    top: 25%; /* (100% - 50%) / 2 */
-    left: 25%;
-    width: 50%; /* Taille du trou central */
-    height: 50%;
+    top: 28%; /* Ajusté pour la taille */
+    left: 28%;
+    width: 44%;
+    height: 44%;
     border-radius: 50%;
     background-color: white;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-    z-index: 3; /* Au-dessus des segments */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+    z-index: 3;
 }
-
 .donut-total {
-    font-size: 1.5rem;
+    font-size: 1.3rem; /* Ajusté */
     font-weight: 700;
-    color: var(--dark, #343a40);
+    color: var(--dark, #212529);
     line-height: 1;
 }
-
 .donut-label {
-    font-size: 0.7rem;
+    font-size: 0.6rem; /* Ajusté */
     color: var(--secondary, #6c757d);
-    margin-top: 0.2rem;
+    margin-top: 0.1rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -160,429 +148,272 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    align-items: flex-start; /* Aligner en haut si les textes sont de hauteurs différentes */
-    gap: 0.5rem; /* Espace entre les items de la légende */
-    padding: 0.5rem;
+    align-items: center;
+    gap: 0.3rem 0.6rem; /* Espacement réduit */
+    padding: 0.5rem 0;
+    font-size: 0.75rem; /* Taille de police réduite */
+    margin-top: auto; /* Pousse la légende vers le bas */
 }
-
 .legend-item {
     display: flex;
     align-items: center;
-    padding: 0.5rem 0.75rem;
-    background-color: rgba(0, 0, 0, 0.03);
-    border-radius: var(--border-radius, 0.35rem);
-    transition: all 0.3s ease;
-    cursor: pointer; /* Suggère l'interactivité */
+    padding: 0.25rem 0.5rem;
+    background-color: #f8f9fa; /* Fond léger */
+    border-radius: 0.25rem; /* Rayon réduit */
+    transition: all var(--transition-speed) ease;
+    cursor: default;
 }
-
 .legend-item:hover {
-    background-color: rgba(0, 0, 0, 0.06);
-    transform: translateX(3px);
+    background-color: #e9ecef;
 }
-
-.legend-color { /* Carré de couleur */
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    margin-right: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.legend-color {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    margin-right: 5px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
 }
-
 .legend-label {
-    font-size: 0.8rem;
     font-weight: 500;
-    color: var(--dark, #343a40);
+    color: var(--dark, #212529);
+    white-space: nowrap;
 }
-
-.legend-value { /* Valeur numérique dans la légende */
-    margin-left: 0.5rem;
-    padding: 0.15rem 0.4rem;
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 10px; /* Badge arrondi */
-    font-size: 0.75rem;
+.legend-value {
+    margin-left: 0.3rem;
+    padding: 0.05rem 0.3rem;
+    background-color: #e9ecef;
+    border-radius: 6px;
+    font-size: 0.65rem;
     font-weight: 600;
-    color: var(--dark, #343a40);
+    color: var(--dark, #212529);
 }
 
 /* ===== GRAPHIQUE EN BARRES (SERVICES) ===== */
 .static-chart-bars {
     width: 100%;
     padding-top: 0.5rem;
+    flex-grow: 1; /* Permet aux barres de prendre l'espace */
 }
-
 .bar-item {
-    margin-bottom: 1.25rem; /* Espace entre les barres */
-    transition: all 0.3s ease;
-    position: relative; /* Pour le tooltip */
+    margin-bottom: 0.8rem; /* Espacement réduit */
+    transition: all var(--transition-speed) ease;
+    position: relative;
 }
-
 .bar-item:hover {
-    transform: translateX(5px); /* Léger décalage au survol */
+    transform: translateX(3px);
 }
-
-/* En-tête de la barre (service + total) */
 .bar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.25rem; /* Espace réduit */
 }
-
 .bar-label {
-    font-size: 0.85rem;
+    font-size: 0.8rem; /* Taille réduite */
     font-weight: 500;
-    color: var(--dark, #343a40);
+    color: var(--dark, #212529);
     margin: 0;
-    display: flex; /* Pour l'icône */
+    display: flex;
     align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Gérer les noms de service longs */
+    max-width: 75%; /* Limiter la largeur du label */
 }
-
-.bar-icon { /* Icône optionnelle avant le label */
-    margin-right: 8px;
-    opacity: 0.8;
-    font-size: 0.9rem;
-    width: 16px; /* Pour alignement */
-    text-align: center;
+.service-badge { /* Style pour le carré de couleur */
+    width: 9px;
+    height: 9px;
+    display: inline-block;
+    border-radius: 50%;
+    margin-right: 6px;
+    flex-shrink: 0;
 }
-
-.bar-total { /* Total à droite du label */
-    font-size: 0.8rem;
+.bar-total {
+    font-size: 0.75rem; /* Taille réduite */
     font-weight: 600;
-    color: var(--primary, #0078d4);
-    background-color: rgba(0, 120, 212, 0.1);
-    padding: 0.2rem 0.5rem;
-    border-radius: 12px;
-    min-width: 26px; /* Pour que les petits nombres aient un fond visible */
+    color: var(--primary, #0d6efd);
+    background-color: rgba(13, 110, 253, 0.1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 10px;
+    min-width: 22px;
     text-align: center;
+    flex-shrink: 0; /* Empêcher le total de rétrécir */
 }
-
-/* Conteneur de la barre */
 .bar-container {
-    height: 10px; /* Hauteur de la barre */
-    background-color: rgba(0, 0, 0, 0.05); /* Fond de la barre */
-    border-radius: 5px;
+    height: 6px; /* Barre encore plus fine */
+    background-color: #e9ecef; /* Fond plus clair */
+    border-radius: 3px;
     position: relative;
-    overflow: hidden; /* Pour les coins arrondis de la barre de valeur */
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04);
 }
-
-/* Valeur de la barre */
 .bar-value {
     height: 100%;
-    border-radius: 5px;
+    border-radius: 3px;
     position: relative;
-    width: 0; /* Initial pour l'animation */
-    background-color: var(--fill, var(--secondary)); /* Couleur de la barre, var(--fill) définie en JS/inline */
+    width: 0;
+    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1); /* Animation plus rapide */
 }
-
-/* Animation des barres */
 @keyframes barGrow {
     from { width: 0; }
-    to { width: var(--percent, 100%); } /* var(--percent) définie en JS/inline */
+    to { width: var(--percent, 0%); } /* Assurer une valeur par défaut */
 }
-
 .animate .bar-value {
-    animation: barGrow 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    animation-delay: calc(var(--index, 0) * 0.1s); /* Délai pour chaque barre */
+    animation: barGrow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--index, 0) * 0.08s); /* Délai plus court */
 }
+/* Couleurs des barres (définies inline par JS maintenant) */
+/* .bar-value.commerce { ... } etc. retirés */
 
-/* Couleurs des barres par service (utilisant les variables CSS) */
-.bar-value.commerce { background: linear-gradient(90deg, var(--service-commerce) 0%, var(--service-commerce) 85%, color-mix(in srgb, var(--service-commerce) 80%, white) 100%); }
-.bar-value.comptabilite { background: linear-gradient(90deg, var(--service-comptabilite) 0%, var(--service-comptabilite) 85%, color-mix(in srgb, var(--service-comptabilite) 80%, white) 100%); }
-.bar-value.florensud { background: linear-gradient(90deg, var(--service-florensud) 0%, var(--service-florensud) 85%, color-mix(in srgb, var(--service-florensud) 80%, white) 100%); }
-.bar-value.informatique { background: linear-gradient(90deg, var(--service-informatique) 0%, var(--service-informatique) 85%, color-mix(in srgb, var(--service-informatique) 80%, white) 100%); }
-.bar-value.marketing { background: linear-gradient(90deg, var(--service-marketing) 0%, var(--service-marketing) 85%, color-mix(in srgb, var(--service-marketing) 80%, white) 100%); }
-.bar-value.qualite { background: linear-gradient(90deg, var(--service-qualite) 0%, var(--service-qualite) 85%, color-mix(in srgb, var(--service-qualite) 80%, white) 100%); }
-.bar-value.rh { background: linear-gradient(90deg, var(--service-rh) 0%, var(--service-rh) 85%, color-mix(in srgb, var(--service-rh) 80%, white) 100%); }
-
-
-/* Tooltip personnalisé pour les services (optionnel) */
-.bar-tooltip {
-    position: absolute;
-    top: -40px; /* Au-dessus de la barre */
-    left: 0;
-    background-color: rgba(33, 37, 41, 0.95);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    width: 200px;
-    text-align: center;
-    opacity: 0; /* Caché par défaut */
-    visibility: hidden;
-    transition: all 0.3s ease;
-    z-index: 10;
-    pointer-events: none; /* Pour ne pas interférer avec le survol */
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-}
-
-.bar-tooltip::after { /* Flèche du tooltip */
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 15px; /* Position de la flèche */
-    border-width: 5px;
-    border-style: solid;
-    border-color: rgba(33, 37, 41, 0.95) transparent transparent transparent;
-}
-
-.bar-item:hover .bar-tooltip { /* Affichage au survol de .bar-item */
-    opacity: 1;
-    visibility: visible;
-}
-
-/* ===== BADGES DE THÈMES AMÉLIORÉS (tiré de custom.css et static-charts.css) ===== */
+/* ===== BADGES DE THÈMES AMÉLIORÉS ===== */
 .theme-badge {
-    display: inline-block;
-    padding: 0.35em 0.75em;
-    font-size: 0.85em; /* Taille de police cohérente */
+    display: inline-flex; /* Utiliser flex pour aligner icône et texte */
+    align-items: center;
+    padding: 0.3em 0.65em; /* Padding ajusté */
+    font-size: 0.8rem; /* Taille ajustée */
     font-weight: 500;
-    line-height: 1.2; /* Hauteur de ligne pour une meilleure lisibilité */
-    color: #fff !important; /* Forcer la couleur du texte en blanc */
+    line-height: 1.2;
+    color: #fff !important;
     text-align: center;
     white-space: nowrap;
     vertical-align: baseline;
-    border-radius: var(--border-radius, 0.35rem); /* Utiliser la variable globale */
-    box-shadow: var(--shadow-sm, 0 0.125rem 0.25rem rgba(0,0,0,.075));
-    transition: all 0.3s ease;
-    margin: 0.15rem 0; /* Petite marge pour espacement */
-    position: relative; /* Pour le tooltip */
-    cursor: help; /* Indique qu'un tooltip est disponible */
-    visibility: visible !important; /* Assurer la visibilité */
+    border-radius: 0.25rem; /* Rayon Bootstrap 5 */
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-speed) ease;
+    margin: 0.1rem 0;
+    position: relative;
+    cursor: help;
+    visibility: visible !important;
     opacity: 1 !important;
-    z-index: 1; /* Pour éviter les problèmes de superposition mineurs */
+    z-index: 1;
 }
-
 .theme-badge:hover {
-    transform: translateY(-2px); /* Effet de lévitation */
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* Ombre plus prononcée */
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
 }
-
-/* Couleurs spécifiques des thèmes (utilisant les variables CSS) */
-.theme-badge.theme-comm,
-.theme-badge[data-theme*="Communiquer avec Teams"] { /* Sélecteur d'attribut pour plus de flexibilité */
-    background-color: var(--theme-teams);
+/* Couleurs spécifiques (utilisent les variables :root) */
+.theme-badge.theme-comm { background-color: var(--theme-teams); }
+.theme-badge.theme-planner { background-color: var(--theme-planner); }
+.theme-badge.theme-onedrive { background-color: var(--theme-onedrive); }
+.theme-badge.theme-sharepoint { background-color: var(--theme-sharepoint); }
+/* Icônes dans les badges */
+.theme-badge i.fas {
+    margin-right: 0.3em;
+    font-size: 0.9em;
+    line-height: 1; /* Assurer l'alignement vertical */
 }
-.theme-badge.theme-planner,
-.theme-badge[data-theme*="Gérer les tâches (Planner)"] {
-    background-color: var(--theme-planner);
-}
-.theme-badge.theme-onedrive,
-.theme-badge[data-theme*="Gérer mes fichiers (OneDrive/SharePoint)"] {
-    background-color: var(--theme-onedrive);
-}
-.theme-badge.theme-sharepoint, /* Ancien nom de classe */
-.theme-badge[data-theme*="Collaborer avec Teams"] { /* Nouveau thème pour la collaboration */
-    background-color: var(--theme-sharepoint); /* Couleur pour la collaboration */
-}
-
-
-/* Icônes dans les badges (si vous utilisez FontAwesome ou similaire) */
-.theme-badge i {
-    margin-right: 0.35em;
-    font-size: 0.9em; /* Icône légèrement plus petite que le texte */
-}
-
-/* Tooltip descriptif pour les badges de thèmes */
+/* Tooltip (styles inchangés, mais vérifier le positionnement si nécessaire) */
 .theme-badge .theme-tooltip {
-    visibility: hidden; /* Caché par défaut */
-    width: 280px; /* Largeur du tooltip */
-    background-color: rgba(33, 37, 41, 0.95); /* Fond sombre semi-transparent */
-    color: #fff;
-    text-align: left; /* Texte aligné à gauche pour la description */
-    border-radius: 6px;
-    padding: 12px;
-    position: absolute;
-    z-index: 1080; /* Au-dessus de la plupart des éléments */
-    bottom: 125%; /* Positionné au-dessus du badge */
-    left: 50%;
-    margin-left: -140px; /* (width / 2) pour centrer */
-    opacity: 0;
-    transition: all 0.3s ease; /* Transition douce */
-    font-weight: normal; /* Police normale pour la description */
-    font-size: 0.85rem;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    pointer-events: none; /* Le tooltip ne doit pas intercepter les clics */
+    /* ... styles du tooltip ... */
+    z-index: 1081; /* Légèrement plus haut que les éléments de la modale */
 }
 
-.theme-badge .theme-tooltip::after { /* Flèche du tooltip */
-    content: "";
-    position: absolute;
-    top: 100%; /* En bas du corps du tooltip */
-    left: 50%;
-    margin-left: -5px; /* (largeur de la flèche / 2) */
-    border-width: 5px;
-    border-style: solid;
-    border-color: rgba(33, 37, 41, 0.95) transparent transparent transparent; /* Flèche pointant vers le bas */
-}
-
-.theme-badge:hover .theme-tooltip { /* Affichage au survol du badge */
-    visibility: visible;
-    opacity: 1;
-}
-
-.theme-badge .theme-tooltip.wide { /* Pour les descriptions plus longues */
-    width: 320px;
-    margin-left: -160px;
-}
-
-/* Assurer la visibilité dans les tableaux */
-table td .theme-badge, .table td .theme-badge, td .theme-badge {
-    display: inline-block !important;
-}
-
-
-/* Feed d'activité récentes amélioré */
+/* ===== Feed d'activité récentes amélioré ===== */
 .activity-container {
-    max-height: 400px; /* Hauteur maximale avant scroll */
-    overflow-y: auto; /* Activer le scroll vertical si nécessaire */
+    max-height: 350px; /* Hauteur ajustée */
+    overflow-y: auto;
 }
-
-.activity-list { /* Si vous utilisez une liste <ul> ou <ol> */
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
 .activity-item {
-    padding: 0.75rem;
-    margin-bottom: 0.75rem;
-    border-left: 3px solid var(--primary, #0078d4); /* Bordure de couleur par défaut */
-    background-color: rgba(0,0,0,0.03); /* Fond très léger */
-    border-radius: 0 var(--border-radius, 0.35rem) var(--border-radius, 0.35rem) 0;
-    transition: all 0.3s ease;
+    padding: 0.6rem 0.75rem; /* Padding réduit */
+    margin-bottom: 0.5rem; /* Marge réduite */
+    border-left-width: 3px;
+    background-color: #fdfdfd; /* Fond très clair */
+    border-radius: 0 0.25rem 0.25rem 0;
+    transition: all var(--transition-speed) ease;
+    display: flex; /* Utiliser flex pour aligner icône et contenu */
+    align-items: flex-start; /* Aligner en haut */
 }
-
 .activity-item:hover {
-    transform: translateX(3px);
-    background-color: rgba(0,0,0,0.05); /* Fond légèrement plus sombre au survol */
+    transform: translateX(2px);
+    background-color: #f8f9fa;
 }
-
-/* Couleurs par type d'activité */
-.activity-item.type-ajout { border-left-color: var(--success, #4CAF50); }
-.activity-item.type-suppression { border-left-color: var(--danger, #F44336); }
-.activity-item.type-modification { border-left-color: var(--warning, #FF9800); }
-.activity-item.type-validation { border-left-color: var(--info, #03A9F4); }
-.activity-item.type-connexion { border-left-color: var(--success); }
-.activity-item.type-deconnexion { border-left-color: var(--secondary); }
-.activity-item.type-systeme { border-left-color: var(--dark); }
-
-
-.activity-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start; /* Pour que le temps ne pousse pas le titre vers le bas */
-    margin-bottom: 0.35rem;
-}
-
-.activity-title {
-    font-weight: 600;
+/* Couleurs par type (inchangé) */
+.activity-icon {
+    margin-right: 0.6rem;
+    margin-top: 0.1rem; /* Ajuster l'alignement vertical de l'icône */
     font-size: 0.9rem;
-    color: var(--dark, #343a40);
-    margin: 0;
-    display: flex; /* Pour l'icône */
-    align-items: center;
+    width: 1.2em; /* Donner une largeur fixe pour l'alignement */
+    text-align: center;
 }
-
-.activity-icon { /* Icône avant le titre de l'activité */
-    margin-right: 0.5rem;
-    font-size: 0.9rem; /* Ajuster selon la taille de l'icône */
+.activity-content {
+    flex-grow: 1; /* Le contenu prend l'espace restant */
 }
-
-.activity-time {
+.activity-title {
+    font-weight: 500; /* Moins gras */
+    font-size: 0.85rem;
+    color: var(--dark, #212529);
+    margin-bottom: 0.1rem; /* Espace réduit */
+    line-height: 1.3;
+}
+.activity-subtitle {
     font-size: 0.75rem;
     color: var(--secondary, #6c757d);
-    white-space: nowrap; /* Empêcher le retour à la ligne du temps */
-    margin-left: 0.5rem; /* Espace par rapport au titre */
+    line-height: 1.3;
+}
+.activity-subtitle small { font-size: 100%; } /* Hériter la taille */
+.activity-time { /* Style pour le temps relatif */
+     display: block; /* Mettre le temps sur sa propre ligne */
+     margin-top: 0.2rem;
 }
 
-.activity-details {
-    font-size: 0.8rem;
-    color: var(--secondary, #6c757d);
-    margin: 0.25rem 0 0;
+/* ===== RESPONSIVITÉ GÉNÉRALE ===== */
+/* Styles pour la table des sessions (déplacés depuis dashboard.html) */
+.session-table th, .session-table td {
+    padding: 0.5rem 0.4rem;
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+.session-table th:nth-child(1), .session-table td:nth-child(1) { width: 130px; } /* Date/Horaire */
+.session-table th:nth-child(2), .session-table td:nth-child(2) { min-width: 150px; } /* Thème */
+.session-table th:nth-child(3), .session-table td:nth-child(3) { width: 90px; text-align: center; } /* Places */
+.session-table th:nth-child(4), .session-table td:nth-child(4) { width: 130px; } /* Salle */
+.session-table th:nth-child(5), .session-table td:nth-child(5) { width: 110px; text-align: center;} /* Actions */
+
+/* Ajustements pour écrans plus petits */
+@media (max-width: 1200px) {
+    .session-table th, .session-table td { font-size: 0.8rem; padding: 0.4rem; }
+    .session-table th:nth-child(1), .session-table td:nth-child(1) { width: auto; min-width: 110px; } /* Donner une largeur min */
+    .session-table th:nth-child(4), .session-table td:nth-child(4) { width: auto; min-width: 100px; }
+    .session-table th:nth-child(5), .session-table td:nth-child(5) { width: auto; min-width: 90px; }
 }
 
-.activity-user {
-    font-size: 0.75rem;
-    color: var(--primary, #0078d4);
-    margin-top: 0.25rem;
+@media (max-width: 992px) {
+    .static-chart-container { min-height: 280px; }
+    .static-chart-donut { width: 140px; height: 140px; }
+    .donut-total { font-size: 1.2rem; }
+    .donut-label { font-size: 0.6rem; }
+    .static-chart-legend { font-size: 0.75rem; }
+    .legend-label { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
 }
 
-/* Loading spinner (si utilisé dans les conteneurs de graphiques/activités) */
-.loading-spinner {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 2rem 1rem;
-    color: var(--primary, #0078d4);
-}
-.loading-spinner .spinner-border { /* Style pour le spinner Bootstrap */
-    width: 2rem;
-    height: 2rem;
-}
-
-/* Message when no data available */
-.no-data-message {
-    text-align: center;
-    padding: 2rem 1rem;
-    color: var(--secondary, #6c757d);
-    font-style: italic;
-}
-
-/* Error state */
-.error-state {
-    text-align: center;
-    padding: 1.5rem 1rem;
-    color: var(--danger, #F44336);
-    background-color: rgba(244, 67, 54, 0.05); /* Fond rouge très clair */
-    border-radius: var(--border-radius, 0.35rem);
-    margin: 1rem 0;
-}
-
-.error-state i { /* Icône d'erreur */
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-}
-
-
-/* Adaptations pour les mobiles */
 @media (max-width: 768px) {
-    .static-chart-donut {
-        width: 150px;
-        height: 150px;
-    }
-    
-    .donut-total {
-        font-size: 1.3rem;
-    }
-    
-    .bar-item {
-        margin-bottom: 1rem;
-    }
-    
-    .bar-label {
-        font-size: 0.8rem;
-    }
-    
-    .bar-icon {
-        font-size: 0.8rem;
-    }
-    
-    .bar-container {
-        height: 8px;
-    }
-    
-    .theme-badge .theme-tooltip {
-        width: 220px; /* Tooltip plus petit sur mobile */
-        margin-left: -110px;
-        font-size: 0.75rem;
-        padding: 8px;
-    }
+    .static-chart-donut { width: 120px; height: 120px; }
+    .bar-label { font-size: 0.8rem; max-width: 70%; } /* Réduire encore max-width */
+    .bar-total { font-size: 0.7rem; padding: 0.1rem 0.3rem;}
+    .session-table .btn-sm { padding: 0.2rem 0.4rem; font-size: 0.7rem; }
+    .session-table .badge { font-size: 0.7rem; }
+    .places-dispo { font-size: 0.8rem; }
+    .theme-badge { font-size: 0.75rem; padding: 0.3em 0.6em;}
+    .activity-title { font-size: 0.8rem; }
+    .activity-subtitle { font-size: 0.7rem; }
+}
 
-    .activity-title {
-        font-size: 0.85rem;
-    }
-    .activity-details, .activity-time, .activity-user {
-        font-size: 0.7rem;
-    }
+/* Styles pour les éléments mis à jour (animation subtile) */
+.updated {
+    animation: highlightUpdate 0.7s ease-out;
+}
+@keyframes highlightUpdate {
+    0% { background-color: rgba(255, 255, 0, 0.3); }
+    100% { background-color: transparent; }
+}
+
+/* Style pour les données invalides/erreur */
+.data-error {
+    color: var(--danger, #dc3545) !important;
+    font-style: italic;
+    opacity: 0.8;
+}
+.data-error i { /* Icône pour erreur */
+    margin-right: 0.2em;
 }
