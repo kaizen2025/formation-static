@@ -2734,71 +2734,72 @@ def activites():
         return redirect(url_for('admin'))
 
 
+# Dans app.py, modifiez la fonction api_dashboard_essential
+
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
 def api_dashboard_essential():
     """API combinée pour les données essentielles du dashboard."""
     try:
-        # Vérifier si le mode léger est demandé
+        # Vérifier si le mode léger est demandé (mais on ignore pour les participants maintenant)
         light_mode = request.args.get('light', '0') == '1'
-        
+
         # Try to get from cache first
+        # Le cache peut encore différencier light/full si d'autres données sont omises en light mode
         cache_key = 'dashboard_essential_data' + ('_light' if light_mode else '')
         cached_data = cache.get(cache_key)
         if cached_data:
-            return jsonify(cached_data)
-            
+            # Vérifier si les participants sont dans le cache (au cas où une ancienne version serait mise en cache)
+             if 'participants' in cached_data and cached_data['participants']:
+                 return jsonify(cached_data)
+             else:
+                 # Forcer la récupération si les participants manquent dans le cache
+                 app.logger.debug("API dashboard_essential: Participants missing from cache, re-fetching.")
+                 cache.delete(cache_key) # Supprimer l'entrée de cache invalide
+
+
         # Fetch sessions with necessary relationships
         sessions_q = Session.query.options(
             joinedload(Session.theme),
             joinedload(Session.salle)
         ).order_by(Session.date, Session.heure_debut).all()
-        
-        # En mode léger, ne récupérer que les participants nécessaires
-        participants_q = []
-        if not light_mode:
-            participants_q = Participant.query.options(
-                joinedload(Participant.service)
-            ).order_by(Participant.nom).all()
-        
-        # Fetch recent activities
+
+        # --- MODIFICATION ICI ---
+        # Toujours récupérer les participants, même en light_mode pour les graphiques
+        participants_q = Participant.query.options(
+            joinedload(Participant.service) # Charger le service associé
+        ).order_by(Participant.nom).all()
+        # --- FIN MODIFICATION ---
+
+        # Fetch recent activities (limité à 5 pour le dashboard)
         activites_q = Activite.query.options(
             joinedload(Activite.utilisateur)
         ).order_by(Activite.date.desc()).limit(5).all()
-        
-        # Prepare session data with counts and fix places_restantes
+
+        # Prepare session data (inchangé)
         sessions_data = []
         for s in sessions_q:
             try:
-                # Récupérer le compte sécuritaire des inscriptions confirmées
                 inscrits_count = db.session.query(func.count(Inscription.id)).filter(
-                    Inscription.session_id == s.id, 
+                    Inscription.session_id == s.id,
                     Inscription.statut == 'confirmé'
                 ).scalar() or 0
-                
-                # Récupérer le compte sécuritaire des inscriptions en attente
                 attente_count = db.session.query(func.count(ListeAttente.id)).filter(
                     ListeAttente.session_id == s.id
                 ).scalar() or 0
-                
-                # Récupérer le compte sécuritaire des inscriptions en validation
                 pending_count = db.session.query(func.count(Inscription.id)).filter(
-                    Inscription.session_id == s.id, 
+                    Inscription.session_id == s.id,
                     Inscription.statut == 'en attente'
                 ).scalar() or 0
-                
-                # S'assurer que max_participants est un nombre valide
-                max_participants = 10  # Valeur par défaut
+
+                max_participants = 10
                 if s.max_participants is not None:
                     try:
                         max_participants = int(s.max_participants)
-                    except (ValueError, TypeError):
-                        pass
-                
-                # Calculer de manière sécuritaire places_restantes
+                    except (ValueError, TypeError): pass
+
                 places_rest = max(0, max_participants - inscrits_count)
-                
-                # Créer un dictionnaire de session avec toutes les données nécessaires
+
                 sessions_data.append({
                     'id': s.id,
                     'date': s.formatage_date,
@@ -2815,71 +2816,66 @@ def api_dashboard_essential():
                 })
             except Exception as session_error:
                 app.logger.error(f"Error processing session {s.id} in dashboard_essential: {session_error}")
-                # Continuer avec la session suivante plutôt que d'échouer complètement
                 continue
-            
-        # Prepare participant data (vide en mode léger)
-        participants_data = []
-        if not light_mode:
-            participants_data = [{
-                'id': p.id,
-                'nom': p.nom,
-                'prenom': p.prenom,
-                'email': p.email,
-                'service': p.service.nom if p.service else 'N/A',
-                'service_id': p.service_id
-            } for p in participants_q]
-        
-        # Prepare activity data
+
+        # Prepare participant data (maintenant toujours inclus)
+        participants_data = [{
+            'id': p.id,
+            'nom': p.nom,
+            'prenom': p.prenom,
+            'email': p.email,
+            'service': p.service.nom if p.service else 'N/A',
+            'service_id': p.service_id,
+            # Ajouter la couleur du service pour le graphique
+            'service_color': p.service.couleur if p.service else '#6c757d'
+        } for p in participants_q]
+
+        # Prepare activity data (inchangé)
         activites_data = [{
-            'id': a.id, 
-            'type': a.type, 
+            'id': a.id,
+            'type': a.type,
             'description': a.description,
-            'details': a.details, 
+            'details': a.details,
             'date_relative': a.date_relative,
             'date_iso': a.date.isoformat() if a.date else None,
             'user': a.utilisateur.username if a.utilisateur else None
         } for a in activites_q]
-        
+
         # Create response data structure
         response_data = {
             'sessions': sessions_data,
-            'participants': participants_data,
+            'participants': participants_data, # Toujours inclus
             'activites': activites_data,
             'timestamp': datetime.now(UTC).timestamp(),
-            'light_mode': light_mode,
+            'light_mode': light_mode, # Garder l'info si d'autres optimisations sont faites
             'status': 'ok'
         }
-        
-        # Cache for shorter time (20 seconds in light mode, 60 seconds in full mode)
-        cache.set(cache_key, response_data, timeout=20 if light_mode else 60)
-        
-        # Optimiser les connexions DB après une requête complète
-        if not light_mode:
-            optimize_db_connections()
-            
+
+        # Cache (le timeout peut rester différent pour light/full si pertinent)
+        cache.set(cache_key, response_data, timeout=30 if light_mode else 90) # Augmenter timeout cache complet
+
+        # Optimiser les connexions DB après une requête complète (non-light)
+        # if not light_mode: # On peut garder cette condition si 'light' a un autre sens
+        #     optimize_db_connections()
+
         return jsonify(response_data)
     except SQLAlchemyError as e:
         db.session.rollback()
-        # Incrémenter le compteur d'erreurs
         app._connection_errors = getattr(app, '_connection_errors', 0) + 1
         app._last_connection_error = datetime.now(UTC)
-        
         app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
         return jsonify({
-            "error": "Database error", 
+            "error": "Database error",
             "message": str(e),
             "status": "error",
             "timestamp": datetime.now(UTC).timestamp()
         }), 500
     except Exception as e:
-        # Incrémenter le compteur d'erreurs
         app._connection_errors = getattr(app, '_connection_errors', 0) + 1
         app._last_connection_error = datetime.now(UTC)
-        
         app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
         return jsonify({
-            "error": "Internal server error", 
+            "error": "Internal server error",
             "message": str(e),
             "status": "error",
             "timestamp": datetime.now(UTC).timestamp()
