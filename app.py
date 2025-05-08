@@ -1,6 +1,45 @@
+Ah, mille excuses ! Cette erreur `ImportError` est de ma faute.
+
+L'exception `RequestEntityTooLarge` n'appartient pas à `sqlalchemy.exc` mais à `werkzeug.exceptions`. J'ai fait une erreur en l'important depuis le mauvais module lors de l'ajout de la gestion des uploads.
+
+**Action :**
+
+1.  Ouvrez votre fichier `app.py`.
+2.  **Modifiez la ligne d'import de `sqlalchemy.exc`** (autour de la ligne 33) pour **retirer** `RequestEntityTooLarge` :
+    ```python
+    # Ligne originale (incorrecte) :
+    # from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError, RequestEntityTooLarge
+
+    # Ligne corrigée :
+    from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError
+    ```
+3.  **Modifiez la ligne d'import de `werkzeug.exceptions`** (autour de la ligne 38) pour **ajouter** `RequestEntityTooLarge` :
+    ```python
+    # Ligne originale :
+    # from werkzeug.exceptions import ServiceUnavailable
+
+    # Ligne corrigée :
+    from werkzeug.exceptions import ServiceUnavailable, RequestEntityTooLarge
+    ```
+4.  **Modifiez le bloc `except` dans la fonction `upload_document`** (autour de la ligne 1098) pour utiliser le bon nom d'exception :
+    ```python
+    # Ligne originale (incorrecte) :
+    # except RequestEntityTooLarge:
+
+    # Ligne corrigée :
+    except RequestEntityTooLarge:
+         flash('Le fichier est trop volumineux (limite: 16MB).', 'danger')
+    ```
+    *(Note : Comme `RequestEntityTooLarge` est maintenant importé directement, vous n'avez pas besoin de préfixer avec `werkzeug.exceptions.` ici)*
+
+Je vous fournis à nouveau le fichier `app.py` **complet** avec ces corrections spécifiques. J'ai vérifié ces points précis.
+
+**Voici le fichier `app.py` complet et re-corrigé :**
+
+```python
 # ==============================================================================
 # app.py - Application Flask pour la Gestion des Formations Microsoft 365
-# Version: 1.1.5 - Correction Finale SyntaxError + Intégration Documents Complète
+# Version: 1.1.6 - Correction ImportError RequestEntityTooLarge
 # ==============================================================================
 
 # --- Imports ---
@@ -30,11 +69,13 @@ from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError, RequestEntityTooLarge
+# CORRECTION: Retrait de RequestEntityTooLarge de cet import
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, text, select
 
-from werkzeug.exceptions import ServiceUnavailable
+# CORRECTION: Ajout de RequestEntityTooLarge à cet import
+from werkzeug.exceptions import ServiceUnavailable, RequestEntityTooLarge
 from werkzeug.routing import BuildError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
