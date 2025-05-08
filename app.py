@@ -17,7 +17,7 @@ import json
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    flash, jsonify, make_response, current_app, send_from_directory
+    flash, jsonify, make_response, current_app, send_from_directory, make_response
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -632,6 +632,63 @@ def logout():
     except Exception as e: app.logger.error(f"Error during logout for user {current_user.username}: {e}", exc_info=True); flash("Erreur lors de la déconnexion.", "warning")
     return redirect(url_for('login'))
 
+@app.route('/generer_invitation/<int:inscription_id>')
+@login_required # Keep login required for downloading specific invitations
+@db_operation_with_retry(max_retries=2)
+def generer_invitation(inscription_id):
+    """Génère un fichier .ics pour une inscription confirmée."""
+    app.logger.info(f"Tentative de génération ICS pour Inscription ID: {inscription_id}")
+    try:
+        inscription = db.session.query(Inscription).options(
+            joinedload(Inscription.participant),
+            joinedload(Inscription.session).joinedload(Session.theme),
+            joinedload(Inscription.session).joinedload(Session.salle)
+        ).get(inscription_id)
+
+        if not inscription:
+            flash("Inscription non trouvée.", "danger")
+            return redirect(request.referrer or url_for('dashboard'))
+
+        if inscription.statut != 'confirmé':
+            flash("L'invitation ne peut être générée que pour une inscription confirmée.", "warning")
+            return redirect(request.referrer or url_for('dashboard'))
+
+        # Ensure participant and session are loaded
+        if not inscription.participant or not inscription.session or not inscription.session.theme:
+             flash("Données participant ou session manquantes pour générer l'invitation.", "danger")
+             app.logger.error(f"ICS Gen Error: Missing data for Inscription ID {inscription_id}")
+             return redirect(request.referrer or url_for('dashboard'))
+
+        # Call your existing helper function
+        ics_content = generate_ics(inscription.session, inscription.participant, inscription.session.salle)
+
+        if ics_content is None:
+            flash("Erreur lors de la génération du fichier d'invitation.", "danger")
+            app.logger.error(f"generate_ics returned None for Inscription ID {inscription_id}")
+            return redirect(request.referrer or url_for('dashboard'))
+
+        # Create the response
+        response = make_response(ics_content)
+        filename = f"formation_{inscription.session.theme.nom.replace(' ', '_')}_{inscription.session.date.strftime('%Y%m%d')}.ics"
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Type'] = 'text/calendar; charset=utf-8'
+        
+        add_activity('telecharger_invitation', f'Téléchargement invitation: {inscription.participant.prenom} {inscription.participant.nom}', f'Session: {inscription.session.theme.nom}', user=current_user)
+        app.logger.info(f"ICS généré et envoyé pour Inscription ID: {inscription_id}")
+        return response
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB lors de la génération ICS pour Inscription ID {inscription_id}: {e}", exc_info=True)
+        flash("Erreur base de données lors de la génération de l'invitation.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue lors de la génération ICS pour Inscription ID {inscription_id}: {e}", exc_info=True)
+        flash("Une erreur interne est survenue lors de la génération de l'invitation.", "danger")
+    
+    return redirect(request.referrer or url_for('dashboard'))
+# === End of new route ===
+
 # --- Main Application Routes ---
 @app.route('/dashboard')
 @db_operation_with_retry(max_retries=3)
@@ -1043,7 +1100,6 @@ def api_single_session(session_id):
 # ==============================================================================
 
 @app.route('/participants')
-@login_required
 @db_operation_with_retry(max_retries=3)
 def participants_page():
     """Affiche la page principale de la liste des participants."""
@@ -1383,16 +1439,26 @@ def api_activites():
 # ==============================================================================
 # === Database Initialization ===
 # ==============================================================================
+# ==============================================================================
+# === Database Initialization (Data Seeding) ===
+# ==============================================================================
 def init_db():
+    """
+    Seeds the database with initial data (Services, Salles, Themes, Users, etc.)
+    if they don't already exist. Assumes tables have been created previously.
+    """
     with app.app_context():
         try:
-            app.logger.info("Vérification et initialisation de la base de données...")
-            if not check_db_connection(): app.logger.error("Échec connexion DB pendant init."); return False
-            db.create_all()
-            app.logger.info("Vérification des tables DB terminée.")
-            # --- Initialize Services ---
+            app.logger.info("Vérification et initialisation des DONNÉES initiales (seeding)...")
+            if not check_db_connection():
+                app.logger.error("Échec connexion DB pendant l'initialisation des données.")
+                return False
+
+            app.logger.info("Vérification des tables supposée faite au démarrage.")
+
+            # --- Initialize Services (Seeding Logic) ---
             if Service.query.count() == 0:
-                app.logger.info("Initialisation des services...")
+                app.logger.info("Initialisation des services (seeding)...")
                 services_data = [
                     {'id':'commerce', 'nom':'Commerce Anecoop-Solagora', 'couleur':'#FFC107', 'responsable':'Andreu MIR SOLAGORA', 'email_responsable':'amir@solagora.com'},
                     {'id':'comptabilite', 'nom':'Comptabilité', 'couleur':'#2196F3', 'responsable':'Lisa VAN SCHOORISSE', 'email_responsable':'lvanschoorisse@anecoop-france.com'},
@@ -1402,99 +1468,183 @@ def init_db():
                     {'id':'qualite', 'nom':'Qualité', 'couleur':'#F44336', 'responsable':'Elodie PHILIBERT', 'email_responsable':'ephilibert@anecoop-france.com'},
                     {'id':'rh', 'nom':'RH', 'couleur':'#FF9800', 'responsable':'Elisabeth GOMEZ', 'email_responsable':'egomez@anecoop-france.com'}
                 ]
-                for data in services_data: db.session.add(Service(**data))
-                db.session.commit(); app.logger.info(f"{len(services_data)} services ajoutés.")
-            else: app.logger.info("Services déjà présents.")
-            # --- Initialize Salles ---
-            if Salle.query.count() == 0:
-                app.logger.info("Initialisation des salles...")
-                salle_tramontane = Salle(nom='Salle Tramontane', capacite=15, lieu='Bâtiment A, RDC', description='Salle de formation polyvalente')
-                db.session.add(salle_tramontane); db.session.commit(); app.logger.info("Salle 'Salle Tramontane' ajoutée.")
+                for data in services_data:
+                    db.session.add(Service(**data))
+                db.session.commit()
+                app.logger.info(f"{len(services_data)} services ajoutés (seed).")
             else:
-                 tramontane = Salle.query.filter_by(nom='Salle Tramontane').first()
-                 if tramontane:
-                     if tramontane.capacite != 15 or tramontane.lieu != 'Bâtiment A, RDC':
-                         tramontane.capacite = 15; tramontane.lieu = 'Bâtiment A, RDC'; tramontane.description = 'Salle de formation polyvalente'; db.session.commit(); app.logger.info("Salle Tramontane mise à jour.")
-                 else:
-                      salle_tramontane = Salle(nom='Salle Tramontane', capacite=15, lieu='Bâtiment A, RDC', description='Salle de formation polyvalente'); db.session.add(salle_tramontane); db.session.commit(); app.logger.info("Salle 'Salle Tramontane' ajoutée (car manquante).")
-                 app.logger.info("Salles déjà présentes (vérification Tramontane effectuée).")
-            # --- Initialize Themes ---
+                app.logger.info("Services déjà présents (seeding ignoré).")
+
+            # --- Initialize Salles (Seeding Logic) ---
+            if Salle.query.count() == 0:
+                app.logger.info("Initialisation des salles (seeding)...")
+                salle_tramontane = Salle(nom='Salle Tramontane', capacite=15, lieu='Bâtiment A, RDC', description='Salle de formation polyvalente')
+                db.session.add(salle_tramontane)
+                db.session.commit()
+                app.logger.info("Salle 'Salle Tramontane' ajoutée (seed).")
+            else:
+                # Ensure 'Salle Tramontane' exists and is correct, even if seeding is skipped
+                tramontane = Salle.query.filter_by(nom='Salle Tramontane').first()
+                if tramontane:
+                    if tramontane.capacite != 15 or tramontane.lieu != 'Bâtiment A, RDC':
+                        tramontane.capacite = 15
+                        tramontane.lieu = 'Bâtiment A, RDC'
+                        tramontane.description = 'Salle de formation polyvalente'
+                        db.session.commit()
+                        app.logger.info("Salle Tramontane mise à jour (vérification post-seed).")
+                else:
+                     salle_tramontane = Salle(nom='Salle Tramontane', capacite=15, lieu='Bâtiment A, RDC', description='Salle de formation polyvalente')
+                     db.session.add(salle_tramontane)
+                     db.session.commit()
+                     app.logger.info("Salle 'Salle Tramontane' ajoutée (car manquante post-seed).")
+                app.logger.info("Salles déjà présentes (seeding ignoré, vérification Tramontane effectuée).")
+
+            # --- Initialize Themes (Seeding Logic) ---
             if Theme.query.count() == 0:
-                app.logger.info("Initialisation des thèmes...")
+                app.logger.info("Initialisation des thèmes (seeding)...")
                 themes_data = [
                     {'nom':'Communiquer avec Teams', 'description':'Apprenez à utiliser Microsoft Teams pour communiquer efficacement.'},
                     {'nom':'Gérer les tâches (Planner)', 'description':'Maîtrisez la gestion des tâches d\'équipe avec Planner et To Do.'},
                     {'nom':'Gérer mes fichiers (OneDrive/SharePoint)', 'description':'Organisez et partagez vos fichiers avec OneDrive et SharePoint.'},
                     {'nom':'Collaborer avec Teams', 'description':'Découvrez comment collaborer sur des documents via Microsoft Teams.'}
                 ]
-                for data in themes_data: db.session.add(Theme(**data))
-                db.session.commit(); app.logger.info(f"{len(themes_data)} thèmes ajoutés.")
-            else: app.logger.info("Thèmes déjà présents."); update_theme_names()
-            # --- Initialize Sessions ---
-            if Session.query.count() == 0:
-                app.logger.info("Initialisation des sessions...")
+                for data in themes_data:
+                    db.session.add(Theme(**data))
+                db.session.commit()
+                app.logger.info(f"{len(themes_data)} thèmes ajoutés (seed).")
+                # No need to call update_theme_names here as they are freshly created
+            else:
+                app.logger.info("Thèmes déjà présents (seeding ignoré).")
+                # Standardize names if themes already exist
                 try:
-                    theme_comm_id = Theme.query.filter_by(nom='Communiquer avec Teams').first().id
-                    theme_tasks_id = Theme.query.filter_by(nom='Gérer les tâches (Planner)').first().id
-                    theme_files_id = Theme.query.filter_by(nom='Gérer mes fichiers (OneDrive/SharePoint)').first().id
-                    theme_collab_id = Theme.query.filter_by(nom='Collaborer avec Teams').first().id
-                    salle_id = Salle.query.filter_by(nom='Salle Tramontane').first().id
+                    update_theme_names()
+                except Exception as update_err:
+                    app.logger.warning(f"Note: Erreur lors de la standardisation des thèmes dans init_db (post-seed): {update_err}")
+
+            # --- Initialize Sessions (Seeding Logic) ---
+            if Session.query.count() == 0:
+                app.logger.info("Initialisation des sessions (seeding)...")
+                try:
+                    # Ensure themes and salle exist before creating sessions
+                    theme_comm = Theme.query.filter(Theme.nom.like('%Communiquer%')).first()
+                    theme_tasks = Theme.query.filter(Theme.nom.like('%Gérer les tâches%')).first()
+                    theme_files = Theme.query.filter(Theme.nom.like('%Gérer mes fichiers%')).first()
+                    theme_collab = Theme.query.filter(Theme.nom.like('%Collaborer%')).first()
+                    salle_tram = Salle.query.filter_by(nom='Salle Tramontane').first()
+
+                    if not all([theme_comm, theme_tasks, theme_files, theme_collab, salle_tram]):
+                         app.logger.error("Impossible d'initialiser les sessions: Thèmes ou Salle Tramontane manquants.")
+                         raise ValueError("Missing required Theme or Salle for session seeding.")
+
                     sessions_to_add = []
                     session_dates_themes = [
-                        ('2025-05-13', [(time_obj(9, 0), time_obj(10, 30), theme_comm_id), (time_obj(10, 45), time_obj(12, 15), theme_comm_id), (time_obj(14, 0), time_obj(15, 30), theme_tasks_id), (time_obj(15, 45), time_obj(17, 15), theme_tasks_id)]),
-                        ('2025-06-03', [(time_obj(9, 0), time_obj(10, 30), theme_tasks_id), (time_obj(10, 45), time_obj(12, 15), theme_tasks_id), (time_obj(14, 0), time_obj(15, 30), theme_files_id), (time_obj(15, 45), time_obj(17, 15), theme_files_id)]),
-                        ('2025-06-20', [(time_obj(9, 0), time_obj(10, 30), theme_files_id), (time_obj(10, 45), time_obj(12, 15), theme_files_id), (time_obj(14, 0), time_obj(15, 30), theme_collab_id), (time_obj(15, 45), time_obj(17, 15), theme_collab_id)]),
-                        ('2025-07-01', [(time_obj(9, 0), time_obj(10, 30), theme_collab_id), (time_obj(10, 45), time_obj(12, 15), theme_collab_id), (time_obj(14, 0), time_obj(15, 30), theme_comm_id), (time_obj(15, 45), time_obj(17, 15), theme_comm_id)])
+                        ('2025-05-13', [(time_obj(9, 0), time_obj(10, 30), theme_comm.id), (time_obj(10, 45), time_obj(12, 15), theme_comm.id), (time_obj(14, 0), time_obj(15, 30), theme_tasks.id), (time_obj(15, 45), time_obj(17, 15), theme_tasks.id)]),
+                        ('2025-06-03', [(time_obj(9, 0), time_obj(10, 30), theme_tasks.id), (time_obj(10, 45), time_obj(12, 15), theme_tasks.id), (time_obj(14, 0), time_obj(15, 30), theme_files.id), (time_obj(15, 45), time_obj(17, 15), theme_files.id)]),
+                        ('2025-06-20', [(time_obj(9, 0), time_obj(10, 30), theme_files.id), (time_obj(10, 45), time_obj(12, 15), theme_files.id), (time_obj(14, 0), time_obj(15, 30), theme_collab.id), (time_obj(15, 45), time_obj(17, 15), theme_collab.id)]),
+                        ('2025-07-01', [(time_obj(9, 0), time_obj(10, 30), theme_collab.id), (time_obj(10, 45), time_obj(12, 15), theme_collab.id), (time_obj(14, 0), time_obj(15, 30), theme_comm.id), (time_obj(15, 45), time_obj(17, 15), theme_comm.id)])
                     ]
                     for date_str, timeslots in session_dates_themes:
                         date_obj = date.fromisoformat(date_str)
-                        for start, end, theme_id in timeslots: sessions_to_add.append(Session(date=date_obj, heure_debut=start, heure_fin=end, theme_id=theme_id, max_participants=15, salle_id=salle_id))
-                    db.session.bulk_save_objects(sessions_to_add); db.session.commit(); app.logger.info(f"{len(sessions_to_add)} sessions ajoutées.")
-                except Exception as sess_init_err: db.session.rollback(); app.logger.error(f"Erreur lors de l'initialisation des sessions: {sess_init_err}", exc_info=True)
+                        for start, end, theme_id in timeslots:
+                            sessions_to_add.append(Session(date=date_obj, heure_debut=start, heure_fin=end, theme_id=theme_id, max_participants=15, salle_id=salle_tram.id))
+
+                    db.session.bulk_save_objects(sessions_to_add)
+                    db.session.commit()
+                    app.logger.info(f"{len(sessions_to_add)} sessions ajoutées (seed).")
+                except Exception as sess_init_err:
+                    db.session.rollback()
+                    app.logger.error(f"Erreur lors de l'initialisation des sessions (seed): {sess_init_err}", exc_info=True)
             else:
-                 salle_tramontane_id = Salle.query.filter_by(nom='Salle Tramontane').first().id
-                 updated_count = Session.query.filter(Session.salle_id != salle_tramontane_id).update({'salle_id': salle_tramontane_id})
-                 if updated_count > 0: db.session.commit(); app.logger.info(f"{updated_count} sessions réassignées à Salle Tramontane.")
-                 app.logger.info("Sessions déjà présentes (vérification salle effectuée).")
-            # --- Initialize Users ---
+                # Ensure sessions are assigned to Salle Tramontane if it exists
+                salle_tramontane = Salle.query.filter_by(nom='Salle Tramontane').first()
+                if salle_tramontane:
+                    updated_count = Session.query.filter(Session.salle_id != salle_tramontane.id).update({'salle_id': salle_tramontane.id})
+                    if updated_count > 0:
+                        db.session.commit()
+                        app.logger.info(f"{updated_count} sessions réassignées à Salle Tramontane (vérification post-seed).")
+                app.logger.info("Sessions déjà présentes (seeding ignoré, vérification salle effectuée).")
+
+            # --- Initialize Users (Seeding Logic) ---
             if User.query.count() == 0:
-                app.logger.info("Initialisation des utilisateurs...")
-                admin_user = User(username='admin', email='admin@anecoop-france.com', role='admin'); admin_user.set_password('Anecoop2025'); db.session.add(admin_user); users_added_count = 1
+                app.logger.info("Initialisation des utilisateurs (seeding)...")
+                admin_user = User(username='admin', email='admin@anecoop-france.com', role='admin')
+                admin_user.set_password('Anecoop2025') # Consider using environment variables for passwords
+                db.session.add(admin_user)
+                users_added_count = 1
                 services = Service.query.all()
                 for service in services:
-                    base_username = "".join(filter(str.isalnum, service.responsable.split()[0])).lower()[:15]; username = base_username; counter = 1
-                    while User.query.filter_by(username=username).first(): username = f"{base_username}{counter}"; counter += 1
-                    responsable_user = User(username=username, email=service.email_responsable, role='responsable', service_id=service.id); responsable_user.set_password('Anecoop2025'); db.session.add(responsable_user); users_added_count += 1
-                db.session.commit(); app.logger.info(f"{users_added_count} utilisateurs ajoutés.")
-            else: app.logger.info("Utilisateurs déjà présents.")
-            # --- Initialize Participants (Qualité service) ---
-            qualite_service_id = 'qualite'
-            qualite_participants = [
-                {'nom': 'PHILIBERT', 'prenom': 'Elodie', 'email': 'ephilibert@anecoop-france.com'},
-                {'nom': 'SARRAZIN', 'prenom': 'Enora', 'email': 'esarrazin@anecoop-france.com'},
-                {'nom': 'CASTAN', 'prenom': 'Sophie', 'email': 'scastan@anecoop-france.com'},
-                {'nom': 'BERNAL', 'prenom': 'Paola', 'email': 'pbernal@anecoop-france.com'}
-            ]
-            participants_added = 0
-            for p_data in qualite_participants:
-                 if not Participant.query.filter(func.lower(Participant.email) == p_data['email'].lower()).first():
-                     participant = Participant(nom=p_data['nom'], prenom=p_data['prenom'], email=p_data['email'], service_id=qualite_service_id); db.session.add(participant); participants_added += 1
-            if participants_added > 0: db.session.commit(); cache.delete_memoized(get_all_participants_with_service); cache.delete_memoized(get_all_services_with_participants); cache.delete(f'service_participant_count_{qualite_service_id}'); app.logger.info(f"{participants_added} participants du service Qualité ajoutés.")
-            else: app.logger.info("Participants Qualité déjà présents.")
-            # --- Initial Activity Log ---
+                    # Generate a unique username for the responsable
+                    base_username = "".join(filter(str.isalnum, service.responsable.split()[0])).lower()[:15]
+                    username = base_username
+                    counter = 1
+                    while User.query.filter_by(username=username).first():
+                        username = f"{base_username}{counter}"
+                        counter += 1
+                    responsable_user = User(username=username, email=service.email_responsable, role='responsable', service_id=service.id)
+                    responsable_user.set_password('Anecoop2025') # Consider using environment variables
+                    db.session.add(responsable_user)
+                    users_added_count += 1
+                db.session.commit()
+                app.logger.info(f"{users_added_count} utilisateurs ajoutés (seed).")
+            else:
+                app.logger.info("Utilisateurs déjà présents (seeding ignoré).")
+
+            # --- Initialize Participants (Qualité service - Seeding Logic) ---
+            qualite_service = Service.query.filter_by(id='qualite').first()
+            if qualite_service:
+                qualite_participants_data = [
+                    {'nom': 'PHILIBERT', 'prenom': 'Elodie', 'email': 'ephilibert@anecoop-france.com'},
+                    {'nom': 'SARRAZIN', 'prenom': 'Enora', 'email': 'esarrazin@anecoop-france.com'},
+                    {'nom': 'CASTAN', 'prenom': 'Sophie', 'email': 'scastan@anecoop-france.com'},
+                    {'nom': 'BERNAL', 'prenom': 'Paola', 'email': 'pbernal@anecoop-france.com'}
+                ]
+                participants_added = 0
+                for p_data in qualite_participants_data:
+                    # Check if participant with this email already exists before adding
+                    if not Participant.query.filter(func.lower(Participant.email) == p_data['email'].lower()).first():
+                        participant = Participant(nom=p_data['nom'], prenom=p_data['prenom'], email=p_data['email'], service_id=qualite_service.id)
+                        db.session.add(participant)
+                        participants_added += 1
+
+                if participants_added > 0:
+                    db.session.commit()
+                    # Invalidate relevant caches
+                    cache.delete_memoized(get_all_participants_with_service)
+                    cache.delete_memoized(get_all_services_with_participants)
+                    cache.delete(f'service_participant_count_{qualite_service.id}') # Example specific cache
+                    app.logger.info(f"{participants_added} participants du service Qualité ajoutés (seed).")
+                else:
+                    app.logger.info("Participants Qualité déjà présents ou emails existants (seeding ignoré).")
+            else:
+                app.logger.warning("Service 'qualite' non trouvé, impossible d'ajouter les participants Qualité (seed).")
+
+
+            # --- Initial Activity Log (Seeding Logic) ---
             if Activite.query.count() == 0:
-                app.logger.info("Ajout activités initiales...")
+                app.logger.info("Ajout activités initiales (seeding)...")
                 admin_user = User.query.filter_by(role='admin').first()
                 activites_data = [
                     {'type': 'systeme', 'description': 'Initialisation de l\'application', 'details': 'Base de données et données initiales créées'},
                     {'type': 'systeme', 'description': 'Création des comptes utilisateurs initiaux', 'details': 'Admin et responsables créés', 'utilisateur_id': admin_user.id if admin_user else None}
                 ]
-                for data in activites_data: db.session.add(Activite(**data))
-                db.session.commit(); app.logger.info("Activités initiales ajoutées.")
-            app.logger.info("Initialisation DB terminée avec succès.")
+                for data in activites_data:
+                    db.session.add(Activite(**data))
+                db.session.commit()
+                app.logger.info("Activités initiales ajoutées (seed).")
+
+            app.logger.info("Initialisation des données (seeding) terminée avec succès.")
             return True
-        except SQLAlchemyError as e: db.session.rollback(); app.logger.exception(f"ÉCHEC INIT DB (SQLAlchemyError): {e}"); print(f"ERREUR INIT DB: {e}"); return False
-        except Exception as e: db.session.rollback(); app.logger.exception(f"ERREUR INATTENDUE INITIALISATION: {e}"); print(f"ERREUR INIT: {e}"); return False
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            app.logger.exception(f"ÉCHEC INIT DB (SQLAlchemyError lors du seeding): {e}")
+            print(f"ERREUR INIT DB (SEEDING): {e}")
+            return False
+        except Exception as e:
+            db.session.rollback()
+            app.logger.exception(f"ERREUR INATTENDUE INITIALISATION (SEEDING): {e}")
+            print(f"ERREUR INIT (SEEDING): {e}")
+            return False
 
 # ==============================================================================
 # === Main Execution ===
@@ -1505,20 +1655,38 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000)); debug_mode = not is_production; app.debug = debug_mode
     with app.app_context():
         try:
-            connection_ok = check_db_connection()
-            if connection_ok:
-                print("Connexion DB OK.")
-                if not db.engine.dialect.has_table(db.engine.connect(), 'service'):
-                    print("Tables manquantes, lancement init_db()...")
-                    if not init_db(): print("⚠️ Échec de l'initialisation de la DB.")
+             connection_ok = check_db_connection()
+        if connection_ok:
+            print("Connexion DB OK.")
+            # --- Ensure ALL tables exist ---
+            print("Vérification/Création des tables DB...")
+            try:
+                # db.reflect() # Optional: Reflect existing tables if needed, but create_all is usually sufficient
+                db.create_all() # This is safe to run even if tables exist
+                print("Vérification/Création des tables terminée.")
+            except Exception as create_err:
+                print(f"⚠️ Erreur lors de db.create_all(): {create_err}")
+                db.session.rollback() # Rollback in case of error during create_all
+
+            # --- Run initial data seeding if needed ---
+            # Check if a key table (like 'service' or 'user') is empty to decide if seeding is needed
+            # This prevents re-seeding data on every restart if tables already exist and have data.
+            needs_seeding = not db.session.query(Service).count() > 0 # Example check
+            if needs_seeding:
+                print("Base de données vide ou table clé manquante, lancement init_db() pour le seeding...")
+                if not init_db(): # init_db now focuses more on seeding data
+                    print("⚠️ Échec de l'initialisation des données initiales (seeding).")
                 else:
-                    print("DB déjà initialisée (table 'service' existe).")
-                    try: update_theme_names()
-                    except Exception as update_err: print(f"Note: Erreur lors de la standardisation des thèmes: {update_err}")
-            else: print("⚠️ ERREUR CONNEXION DB au démarrage"); print("Impossible de vérifier/initialiser la DB.")
-        except OperationalError as oe: print(f"⚠️ ERREUR CONNEXION DB au démarrage: {oe}"); print("Impossible de vérifier/initialiser la DB.")
-        except Exception as e:
-            print(f"⚠️ Erreur lors de la vérification/initialisation de la DB: {e}")
+                    print("Données initiales (seed) ajoutées.")
+            else:
+                print("DB déjà initialisée et contient des données (seeding ignoré).")
+                # Run updates that should happen on every start if needed
+                try:
+                    update_theme_names()
+                except Exception as update_err:
+                    print(f"Note: Erreur lors de la standardisation des thèmes au démarrage: {update_err}")
+
+        else: print("⚠️ ERREUR CONNEXION DB au démarrage"); print("Impossible de vérifier/initialiser la DB.")
             try:
                 db.session.rollback()
             except Exception as rb_e:
