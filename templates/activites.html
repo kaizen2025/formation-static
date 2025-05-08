@@ -22,24 +22,24 @@
                     <i class="fas fa-filter me-1"></i>Filtrer par Type
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item {% if not request.args.get('type') %}active{% endif %}" href="{{ url_for('activites_page') }}">Tous</a></li>
+                    <li><a class="dropdown-item {% if not request.args.get('type') %}active{% endif %}" href="{{ url_for('activites_journal') }}">Tous</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Inscriptions</h6></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'inscription' %}active{% endif %}" href="{{ url_for('activites_page', type='inscription') }}">Inscriptions</a></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'validation' %}active{% endif %}" href="{{ url_for('activites_page', type='validation') }}">Validations</a></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'refus' %}active{% endif %}" href="{{ url_for('activites_page', type='refus') }}">Refus</a></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'annulation' %}active{% endif %}" href="{{ url_for('activites_page', type='annulation') }}">Annulations</a></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'liste_attente' %}active{% endif %}" href="{{ url_for('activites_page', type='liste_attente') }}">Liste d'attente</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'inscription' %}active{% endif %}" href="{{ url_for('activites_journal', type='inscription') }}">Inscriptions</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'validation' %}active{% endif %}" href="{{ url_for('activites_journal', type='validation') }}">Validations</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'refus' %}active{% endif %}" href="{{ url_for('activites_journal', type='refus') }}">Refus</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'annulation' %}active{% endif %}" href="{{ url_for('activites_journal', type='annulation') }}">Annulations</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'liste_attente' %}active{% endif %}" href="{{ url_for('activites_journal', type='liste_attente') }}">Liste d'attente</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Utilisateurs</h6></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'connexion' %}active{% endif %}" href="{{ url_for('activites_page', type='connexion') }}">Connexions</a></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'deconnexion' %}active{% endif %}" href="{{ url_for('activites_page', type='deconnexion') }}">Déconnexions</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'connexion' %}active{% endif %}" href="{{ url_for('activites_journal', type='connexion') }}">Connexions</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'deconnexion' %}active{% endif %}" href="{{ url_for('activites_journal', type='deconnexion') }}">Déconnexions</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Documents</h6></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'ajout_document' %}active{% endif %}" href="{{ url_for('activites_page', type='ajout_document') }}">Ajout Document</a></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'suppression_document' %}active{% endif %}" href="{{ url_for('activites_page', type='suppression_document') }}">Suppression Document</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'ajout_document' %}active{% endif %}" href="{{ url_for('activites_journal', type='ajout_document') }}">Ajout Document</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'suppression_document' %}active{% endif %}" href="{{ url_for('activites_journal', type='suppression_document') }}">Suppression Document</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item {% if request.args.get('type') == 'systeme' %}active{% endif %}" href="{{ url_for('activites_page', type='systeme') }}">Système</a></li>
+                    <li><a class="dropdown-item {% if request.args.get('type') == 'systeme' %}active{% endif %}" href="{{ url_for('activites_journal', type='systeme') }}">Système</a></li>
                 </ul>
             </div>
         </div>
@@ -111,7 +111,7 @@
             <ul class="pagination justify-content-center mb-0">
                 {# Lien Page Précédente #}
                 <li class="page-item {% if not activites.has_prev %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('activites_page', page=activites.prev_num, type=request.args.get('type', '')) if activites.has_prev else '#' }}" aria-label="Précédent">
+                    <a class="page-link" href="{{ url_for('activites_journal', page=activites.prev_num, type=request.args.get('type', '')) if activites.has_prev else '#' }}" aria-label="Précédent">
                         <span aria-hidden="true">«</span>
                         <span class="visually-hidden">Précédent</span>
                     </a>
@@ -121,7 +121,7 @@
                 {% for page_num in activites.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                     {% if page_num %}
                         <li class="page-item {% if page_num == activites.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('activites_page', page=page_num, type=request.args.get('type', '')) }}">{{ page_num }}</a>
+                            <a class="page-link" href="{{ url_for('activites_journal', page=page_num, type=request.args.get('type', '')) }}">{{ page_num }}</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -130,7 +130,7 @@
 
                 {# Lien Page Suivante #}
                 <li class="page-item {% if not activites.has_next %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('activites_page', page=activites.next_num, type=request.args.get('type', '')) if activites.has_next else '#' }}" aria-label="Suivant">
+                    <a class="page-link" href="{{ url_for('activites_journal', page=activites.next_num, type=request.args.get('type', '')) if activites.has_next else '#' }}" aria-label="Suivant">
                         <span aria-hidden="true">»</span>
                         <span class="visually-hidden">Suivant</span>
                     </a>
