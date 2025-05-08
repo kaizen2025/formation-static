@@ -1,54 +1,40 @@
 /**
  * dashboard-core.js - Fichier JavaScript optimisé pour le tableau de bord
  * Remplace: polling-updates.js, ui-fixers.js, charts-enhanced.js, static-charts.js
- * Version: 1.3.2 - Compatible avec dashboard-init.js, évite les conflits et valeurs undefined
+ * Version: 1.4.0 - Intégration des correctifs de chargement et robustesse API
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard Core: Initializing (v1.3.2)');
+    console.log('Dashboard Core: Initializing (v1.4.0)');
     
-    // Vérifier si le module est déjà initialisé par un autre script
     if (window.dashboardCoreInitialized) {
-        console.log('Dashboard Core: Already initialized by another script. Skipping initialization.');
+        console.log('Dashboard Core: Already initialized. Skipping.');
         return;
     }
-    
-    // Marquer comme initialisé pour éviter les doubles initialisations
     window.dashboardCoreInitialized = true;
 
-    // Adaptation de la configuration pour être compatible avec dashboard-init.js
-    // Si dashboard-init.js est utilisé, nous utilisons son format de configuration
+    const globalLoadingOverlay = document.getElementById('loading-overlay'); // Référence au spinner global
+
     const dashInitConfig = window.dashboardConfig || {};
     
-    // Configuration centralisée avec valeurs par défaut garanties et compatibilité avec dashboard-init.js
-    // Remplacez la configuration de polling actuelle
-const config = {
-    // Paramètres standard utilisés par dashboard-core.js
-    debugMode: dashInitConfig.debugMode || false,
-    // Si dashboard-init.js est présent, utilise autoRefreshInterval, sinon utilise refreshInterval ou valeur par défaut
-    refreshInterval: dashInitConfig.autoRefreshInterval || 
-                    (window.dashboardConfig && window.dashboardConfig.refreshInterval) || 
-                    300000, // Augmenter à 5 minutes par défaut (était trop bas)
-    minRefreshDelay: (window.dashboardConfig && window.dashboardConfig.minRefreshDelay) || 60000, // Augmenter à 60 secondes
-    debounceDelay: (window.dashboardConfig && window.dashboardConfig.debounceDelay) || 1500, // Augmenter à 1.5 secondes
-    baseApiUrl: (window.dashboardConfig && window.dashboardConfig.baseApiUrl) || '/api',
-    chartRendering: (window.dashboardConfig && window.dashboardConfig.chartRendering) || 'auto',
+    const config = {
+        debugMode: dashInitConfig.debugMode || false,
+        refreshInterval: dashInitConfig.autoRefreshInterval || 
+                        (window.dashboardConfig && window.dashboardConfig.refreshInterval) || 
+                        300000, 
+        minRefreshDelay: (window.dashboardConfig && window.dashboardConfig.minRefreshDelay) || 60000,
+        debounceDelay: (window.dashboardConfig && window.dashboardConfig.debounceDelay) || 1500,
+        baseApiUrl: (window.dashboardConfig && window.dashboardConfig.baseApiUrl) || '/api',
+        chartRendering: (window.dashboardConfig && window.dashboardConfig.chartRendering) || 'auto',
+        usingDashboardInit: !!dashInitConfig.autoRefreshInterval || !!dashInitConfig.preferredMode,
+        socketEnabled: dashInitConfig.socketEnabled !== undefined ? dashInitConfig.socketEnabled : true,
+        pollingEnabled: dashInitConfig.pollingEnabled !== undefined ? dashInitConfig.pollingEnabled : true,
+        preferredMode: dashInitConfig.preferredMode || 'polling',
+        errorThrottleMode: false
+    };
     
-    // Indicateur pour déterminer si dashboard-init.js est utilisé
-    usingDashboardInit: !!dashInitConfig.autoRefreshInterval || !!dashInitConfig.preferredMode,
-    
-    // Support pour les paramètres de dashboard-init.js
-    socketEnabled: dashInitConfig.socketEnabled !== undefined ? dashInitConfig.socketEnabled : true,
-    pollingEnabled: dashInitConfig.pollingEnabled !== undefined ? dashInitConfig.pollingEnabled : true,
-    preferredMode: dashInitConfig.preferredMode || 'polling',
-    
-    // Nouvelle option pour limiter les requêtes en cas d'erreur
-    errorThrottleMode: false
-};
-    
-    console.log(`Dashboard Core: Configured with refreshInterval=${config.refreshInterval}ms, debounceDelay=${config.debounceDelay}ms, usingDashboardInit=${config.usingDashboardInit}`);
+    if (config.debugMode) console.log(`Dashboard Core: Configured with refreshInterval=${config.refreshInterval}ms, debounceDelay=${config.debounceDelay}ms, usingDashboardInit=${config.usingDashboardInit}`);
 
-    // État global du tableau de bord
     let dashboardState = {
         lastRefresh: 0,
         updating: false,
@@ -56,101 +42,93 @@ const config = {
         errorCount: 0,
         maxErrors: 5,
         pollingActive: true,
-        pollingInterval: null,
-        pollingTimeout: null,
+        pollingInterval: null, // Sera géré par scheduleNextPoll
+        pollingTimeout: null,  // Timeout pour scheduleNextPoll
         themeChart: null,
         serviceChart: null,
-        fetchTimeoutId: null // Pour debounce
+        fetchTimeoutId: null 
     };
 
-    // Référence au gestionnaire d'erreurs API
     const errorHandler = window.apiErrorHandler || { 
         handleApiError: (endpoint, errorData, statusCode) => { 
             console.error(`Fallback Error Handler: Erreur ${statusCode} sur ${endpoint}`, errorData); 
-            showToast(`Erreur ${statusCode} lors du chargement de ${endpoint}`, 'danger'); 
+            if (typeof showToast === 'function') showToast(`Erreur ${statusCode} lors du chargement de ${endpoint}`, 'danger'); 
             return false; 
         },
         checkAndFixBrokenElements: () => { 
-            console.log("Dashboard Core: Fixing UI elements with fallback handler"); 
+            if (config.debugMode) console.log("Dashboard Core: Fixing UI elements with fallback handler"); 
             fixDataIssues(); 
             enhanceBadgesAndLabels(); 
         }
     };
 
     // ====== INITIALISATION ET CYCLE DE VIE ======
-
     function initializeDashboard() {
         enhanceUI();
         
-        // Ne pas initialiser d'écouteurs ou démarrer le polling si dashboard-init.js le fait déjà
         if (!config.usingDashboardInit) {
             setupEventListeners();
             initializeCharts();
-            // Démarrer le fetch initial
-            debouncedFetchDashboardData(true);
+            debouncedFetchDashboardData(true); // Fetch initial forcé
             startPolling();
         } else {
-            // Si dashboard-init gère déjà le polling, nous fournissons juste les fonctions
-            // pour qu'ils puissent les appeler
             window.forcePollingUpdate = (forceRefresh) => debouncedFetchDashboardData(forceRefresh);
             window.updateStatsCounters = updateStatisticsCounters;
             window.refreshRecentActivity = () => updateActivityFeed(null);
             window.chartModule = { initialize: () => initializeCharts() };
-            
-            // Fetch initial quand même pour avoir des données de base
-            debouncedFetchDashboardData(true);
+            debouncedFetchDashboardData(true); // Fetch initial même si dashboard-init est utilisé
         }
         
-        console.log('Dashboard Core: Initialization complete.');
+        if (config.debugMode) console.log('Dashboard Core: Initialization complete.');
     }
 
     function startPolling() {
-        // Ne pas démarrer le polling si dashboard-init.js le gère
-        if (config.usingDashboardInit) {
-            console.log("Dashboard Core: Skipping polling start because dashboard-init.js is managing it");
+        if (config.usingDashboardInit && config.preferredMode !== 'polling') { // Respecter la config de dashboard-init
+            if (config.debugMode) console.log("Dashboard Core: Polling not started by dashboard-core as dashboard-init is managing it or preferredMode is not polling.");
             return;
         }
         
-        // Clear any existing intervals and timeouts
-        if (dashboardState.pollingInterval) clearInterval(dashboardState.pollingInterval);
         if (dashboardState.pollingTimeout) clearTimeout(dashboardState.pollingTimeout);
         
-        // Use a recursive timeout pattern instead of setInterval to ensure
-        // that each polling cycle completes before the next one starts
         function scheduleNextPoll() {
-            dashboardState.pollingTimeout = setTimeout(() => {
+            // Si un timeout est déjà programmé, ne rien faire
+            if (dashboardState.pollingTimeoutScheduled) return;
+            dashboardState.pollingTimeoutScheduled = true;
+
+            dashboardState.pollingTimeout = setTimeout(async () => {
+                dashboardState.pollingTimeoutScheduled = false; // Réinitialiser pour la prochaine planification
                 if (dashboardState.pollingActive && document.visibilityState === 'visible' && !dashboardState.updating) {
-                    // Only start a new fetch if we're not already updating
-                    debouncedFetchDashboardData().finally(() => {
-                        // Schedule the next poll after this one completes
-                        if (dashboardState.pollingActive) {
+                    try {
+                        await debouncedFetchDashboardData(false, true); // Non forcé, mode léger pour le polling
+                    } catch (err) {
+                        console.error("Dashboard Core: Error during scheduled poll:", err);
+                    } finally {
+                        if (dashboardState.pollingActive) { // Re-planifier seulement si toujours actif
                             scheduleNextPoll();
                         }
-                    });
+                    }
                 } else {
-                    // If we can't poll now, just schedule the next attempt
-                    scheduleNextPoll();
+                    if (dashboardState.pollingActive) { // Re-planifier même si conditions non remplies pour le moment
+                         scheduleNextPoll();
+                    }
                 }
             }, config.refreshInterval);
         }
         
-        // Start the first polling cycle
         scheduleNextPoll();
-        console.log(`Dashboard Core: Polling started (interval: ${config.refreshInterval}ms)`);
+        if (config.debugMode) console.log(`Dashboard Core: Polling started (interval: ${config.refreshInterval}ms)`);
     }
 
     function setupEventListeners() {
-        // Ne pas configurer d'écouteurs si dashboard-init.js le fait déjà
         if (config.usingDashboardInit) {
-            console.log("Dashboard Core: Skipping event listener setup because dashboard-init.js is managing it");
+            if (config.debugMode) console.log("Dashboard Core: Skipping event listener setup (dashboard-init manages it).");
             return;
         }
         
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && dashboardState.pollingActive) {
-                console.log('Dashboard Core: Tab visible, triggering refresh');
-                // Trigger fetch via debounced function
-                debouncedFetchDashboardData();
+                if (config.debugMode) console.log('Dashboard Core: Tab visible, triggering refresh');
+                debouncedFetchDashboardData(false, true); // Non forcé, mode léger
             }
         });
 
@@ -159,15 +137,14 @@ const config = {
             refreshButton.addEventListener('click', function() {
                 this.disabled = true;
                 this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
-                const overlay = document.getElementById('loading-overlay');
-                if (overlay) overlay.style.display = 'flex';
+                if (globalLoadingOverlay) globalLoadingOverlay.style.display = 'flex';
 
-                // Trigger fetch via debounced function, forcing it
-                debouncedFetchDashboardData(true)
+                debouncedFetchDashboardData(true) // Forcer l'actualisation
                     .then((updated) => {
-                        if (updated) showToast('Données actualisées avec succès', 'success');
-                        else showToast('Aucune nouvelle donnée détectée ou erreur.', 'info'); // Message ajusté
-                        // Réactiver le polling s'il était en pause
+                        if (typeof showToast === 'function') {
+                            if (updated) showToast('Données actualisées avec succès', 'success');
+                            else showToast('Aucune nouvelle donnée détectée ou erreur lors de l\'actualisation.', 'info');
+                        }
                         if (!dashboardState.pollingActive) {
                             dashboardState.pollingActive = true;
                             dashboardState.errorCount = 0;
@@ -175,14 +152,14 @@ const config = {
                             startPolling();
                         }
                     })
-                    .catch(err => { // Catch potentiel si debouncedFetch rejette (ne devrait pas)
+                    .catch(err => { 
                         console.error('Dashboard Core: Error during manual refresh:', err);
-                        showToast('Erreur lors de l\'actualisation manuelle', 'danger');
+                        if (typeof showToast === 'function') showToast('Erreur lors de l\'actualisation manuelle', 'danger');
                     })
                     .finally(() => {
                         this.disabled = false;
                         this.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualiser';
-                        if (overlay) overlay.style.display = 'none';
+                        if (globalLoadingOverlay && !dashboardState.updating) globalLoadingOverlay.style.display = 'none';
                     });
             });
         }
@@ -224,164 +201,176 @@ const config = {
     }
 
     // ====== COMMUNICATION AVEC L'API ======
-
-    /**
-     * Fonction fetch réelle (appelée par la version debounced)
-     */
-    // Modifiez la fonction _fetchDashboardData dans dashboard-core.js
-async function _fetchDashboardData(forceRefresh = false, lightMode = false) {
-    // Check if already updating to avoid concurrent fetches
-    if (dashboardState.updating) {
-        console.log('Dashboard Core: Skipping fetch (update in progress)');
-        return Promise.resolve(false);
-    }
-
-    // Check if we're in error throttle mode
-    if (config.errorThrottleMode && !forceRefresh) {
-        console.log('Dashboard Core: Skipping fetch (error throttle mode active)');
-        return Promise.resolve(false);
-    }
-
-    const now = Date.now();
-    
-    // Respect minimum delay between fetches
-    if (!forceRefresh && now - dashboardState.lastRefresh < config.minRefreshDelay) {
-        console.log(`Dashboard Core: Skipping fetch (too soon)`);
-        return Promise.resolve(false);
-    }
-
-    // Set the updating flag and record the fetch time
-    dashboardState.updating = true;
-    dashboardState.lastRefresh = now;
-    let updateSucceeded = false;
-
-    try {
-        // Modifier l'URL pour utiliser le mode allégé si demandé
-        const url = lightMode ? 
-            `${config.baseApiUrl}/dashboard_essential?light=1&_=${Date.now()}` : 
-            `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
-            
-        console.log(`Dashboard Core: Fetching data from ${url}${lightMode ? ' (light mode)' : ''}`);
-        
-        // Création d'un contrôleur d'abort pour le timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // Réduire à 15 secondes de timeout
-        
-        const response = await fetch(url, { 
-            method: 'GET', 
-            headers: { 
-                'Accept': 'application/json', 
-                'X-Requested-With': 'XMLHttpRequest',
-                'Cache-Control': 'no-cache' // S'assurer que la requête n'est pas mise en cache
-            },
-            signal: controller.signal
-        });
-        
-        // Nettoyage du timeout
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            let errorData = null;
-            try { 
-                errorData = await response.clone().json(); 
-            } catch (e) { 
-                // Ignorer les erreurs de parsing
-            }
-            
-            // Activer le mode throttle en cas d'erreur 500
-            if (response.status >= 500) {
-                config.errorThrottleMode = true;
-                setTimeout(() => {
-                    config.errorThrottleMode = false;
-                    console.log('Dashboard Core: Error throttle mode deactivated');
-                }, 60000); // Désactiver après 1 minute
-            }
-            
-            errorHandler.handleApiError(url, errorData, response.status);
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const hasChanged = processData(data, forceRefresh);
-        dashboardState.errorCount = 0;
-        showErrorWarning(false);
-        updateSucceeded = true;
-
-        if (hasChanged) {
-            console.log('Dashboard Core: Data updated, triggering dashboardDataRefreshed event');
-            document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: data } }));
-        } else {
-            console.log('Dashboard Core: No significant data changes detected');
-        }
-        
-        return hasChanged;
-
-    } catch (error) {
-        console.error('Dashboard Core: Error fetching dashboard data:', error);
-        dashboardState.errorCount++;
-        
-        // Activer le mode throttle après plusieurs erreurs
-        if (dashboardState.errorCount >= 3) {
-            config.errorThrottleMode = true;
-            setTimeout(() => {
-                config.errorThrottleMode = false;
-                console.log('Dashboard Core: Error throttle mode deactivated');
-            }, 120000); // Désactiver après 2 minutes
-        }
-        
-        if (dashboardState.errorCount >= dashboardState.maxErrors && dashboardState.pollingActive) {
-            console.warn(`Dashboard Core: Too many errors (${dashboardState.errorCount}), pausing polling`);
-            dashboardState.pollingActive = false;
-            clearInterval(dashboardState.pollingInterval);
-            clearTimeout(dashboardState.pollingTimeout);
-            showErrorWarning(true);
-        }
-        return false;
-    } finally {
-        // Reset updating flag immediately
-        dashboardState.updating = false;
-        console.log('Dashboard Core: Fetch cycle finished.');
-    }
-}
-    /**
-     * Fonction debounced pour appeler _fetchDashboardData
-     * @param {boolean} forceRefresh Force une actualisation complète
-     * @returns {Promise} Une promesse qui se résout avec le résultat de _fetchDashboardData ou false si debounced
-     */
-    function debouncedFetchDashboardData(forceRefresh = false) {
-        // If forced, cancel any timeout and execute immediately
-        if (forceRefresh) {
-            clearTimeout(dashboardState.fetchTimeoutId);
-            dashboardState.fetchTimeoutId = null;
-            console.log("Dashboard Core: Debounced fetch triggered (forced)");
-            return _fetchDashboardData(true);
-        }
-
-        // If a timeout is already scheduled, don't do anything
-        if (dashboardState.fetchTimeoutId) {
-            console.log("Dashboard Core: Debounced fetch skipped (timeout active)");
+    async function _fetchDashboardData(forceRefresh = false, lightMode = false) {
+        if (dashboardState.updating && !forceRefresh) { // Permettre le forçage même si updating est true
+            if (config.debugMode) console.log('Dashboard Core: Skipping fetch (update in progress, not forced)');
             return Promise.resolve(false);
         }
-
-        // Schedule execution after the delay
-        console.log(`Dashboard Core: Debounced fetch scheduled (delay: ${config.debounceDelay}ms)`);
+    
+        if (config.errorThrottleMode && !forceRefresh) {
+            if (config.debugMode) console.log('Dashboard Core: Skipping fetch (error throttle mode active)');
+            return Promise.resolve(false);
+        }
+    
+        const now = Date.now();
+        if (!forceRefresh && now - dashboardState.lastRefresh < config.minRefreshDelay) {
+            if (config.debugMode) console.log(`Dashboard Core: Skipping fetch (too soon, ${config.minRefreshDelay - (now - dashboardState.lastRefresh)}ms remaining)`);
+            return Promise.resolve(false);
+        }
+    
+        dashboardState.updating = true;
+        // Ne mettez à jour lastRefresh que si le fetch est réellement effectué (pas seulement pour forcer)
+        if (!forceRefresh || (forceRefresh && now - dashboardState.lastRefresh >= config.minRefreshDelay)) {
+             dashboardState.lastRefresh = now;
+        }
+        
+        let updateSucceeded = false;
+        let currentUrl = ''; 
+    
+        if (globalLoadingOverlay && (forceRefresh || !lightMode)) {
+            globalLoadingOverlay.style.display = 'flex';
+        }
+    
+        try {
+            currentUrl = lightMode ? 
+                `${config.baseApiUrl}/dashboard_essential?light=1&_=${Date.now()}` : 
+                `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
+                
+            if (config.debugMode) console.log(`Dashboard Core: Fetching data from ${currentUrl}${lightMode ? ' (light mode)' : ''}`);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+                if (config.debugMode) console.warn(`Dashboard Core: Fetch to ${currentUrl} timed out after 15s.`);
+            }, 15000); 
+            
+            const response = await fetch(currentUrl, { 
+                method: 'GET', 
+                headers: { 
+                    'Accept': 'application/json', 
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                },
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+    
+            if (!response.ok) {
+                let errorData = { message: `HTTP error ${response.status}`, status: response.status };
+                try { 
+                    const clonedResponse = response.clone();
+                    errorData = await clonedResponse.json(); 
+                } catch (e) { 
+                    if (config.debugMode) console.warn('Dashboard Core: Failed to parse error response as JSON.', e);
+                }
+                
+                if (response.status >= 500 && !config.errorThrottleMode) {
+                    config.errorThrottleMode = true;
+                    if (config.debugMode) console.warn('Dashboard Core: Error throttle mode activated due to server error.');
+                    setTimeout(() => {
+                        config.errorThrottleMode = false;
+                        if (config.debugMode) console.log('Dashboard Core: Error throttle mode deactivated');
+                    }, 60000);
+                }
+                
+                errorHandler.handleApiError(currentUrl, errorData, response.status);
+                return false; 
+            }
+    
+            const data = await response.json();
+            if (!data || typeof data !== 'object') {
+                console.error('Dashboard Core: Invalid data received from API', data);
+                errorHandler.handleApiError(currentUrl, { message: "Invalid data format from API" }, response.status);
+                return false;
+            }
+    
+            const hasChanged = processData(data, forceRefresh);
+            dashboardState.errorCount = 0;
+            showErrorWarning(false);
+            updateSucceeded = true;
+    
+            if (hasChanged) {
+                if (config.debugMode) console.log('Dashboard Core: Data updated, triggering dashboardDataRefreshed event');
+                document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: data } }));
+            } else {
+                if (config.debugMode) console.log('Dashboard Core: No significant data changes detected');
+            }
+            
+            return hasChanged;
+    
+        } catch (error) {
+            console.error(`Dashboard Core: Error fetching dashboard data from ${currentUrl}:`, error.name, error.message);
+            errorHandler.handleApiError(currentUrl, { message: error.message, name: error.name }, 0); 
+    
+            dashboardState.errorCount++;
+            if (dashboardState.errorCount >= 3 && !config.errorThrottleMode) {
+                config.errorThrottleMode = true;
+                console.warn('Dashboard Core: Error throttle mode activated due to multiple errors.');
+                setTimeout(() => {
+                    config.errorThrottleMode = false;
+                    if (config.debugMode) console.log('Dashboard Core: Error throttle mode deactivated');
+                }, 120000); 
+            }
+            
+            if (dashboardState.errorCount >= dashboardState.maxErrors && dashboardState.pollingActive) {
+                console.warn(`Dashboard Core: Too many errors (${dashboardState.errorCount}), pausing polling`);
+                dashboardState.pollingActive = false;
+                if (dashboardState.pollingTimeout) clearTimeout(dashboardState.pollingTimeout);
+                dashboardState.pollingTimeoutScheduled = false; // S'assurer que le polling ne se relance pas
+                showErrorWarning(true);
+            }
+            return false; 
+        } finally {
+            dashboardState.updating = false;
+            if (globalLoadingOverlay && (forceRefresh || !lightMode)) {
+                // Masquer le spinner seulement si aucune autre mise à jour n'est en cours
+                // et si le spinner était pour ce fetch spécifique.
+                setTimeout(() => {
+                    if (!dashboardState.updating) { // Vérifier à nouveau avant de masquer
+                         globalLoadingOverlay.style.display = 'none';
+                    }
+                }, 200); // Augmenter légèrement le délai pour la robustesse
+            }
+            if (config.debugMode) console.log('Dashboard Core: Fetch cycle finished.');
+        }
+    }
+    
+    function debouncedFetchDashboardData(forceRefresh = false, lightModeForDebounce = false) {
+        if (forceRefresh) {
+            if (dashboardState.fetchTimeoutId) {
+                clearTimeout(dashboardState.fetchTimeoutId);
+                dashboardState.fetchTimeoutId = null;
+            }
+            if (config.debugMode) console.log("Dashboard Core: Debounced fetch triggered (forced)");
+            return _fetchDashboardData(true, false); // Forcer et non light mode
+        }
+    
+        if (dashboardState.fetchTimeoutId) {
+            if (config.debugMode) console.log("Dashboard Core: Debounced fetch skipped (timeout active)");
+            return Promise.resolve(false);
+        }
+        
+        if (config.debugMode) console.log(`Dashboard Core: Debounced fetch scheduled (delay: ${config.debounceDelay}ms)`);
+        
         return new Promise((resolve) => {
             dashboardState.fetchTimeoutId = setTimeout(async () => {
-                dashboardState.fetchTimeoutId = null;
+                dashboardState.fetchTimeoutId = null; 
                 try {
-                    const result = await _fetchDashboardData(false);
+                    // Utiliser lightModeForDebounce pour les appels debounced non forcés
+                    const result = await _fetchDashboardData(false, lightModeForDebounce); 
                     resolve(result);
                 } catch (error) {
-                    console.error("Dashboard Core: Error in debounced fetch:", error);
-                    resolve(false);
+                    console.error("Dashboard Core: Error in debounced fetch execution:", error);
+                    resolve(false); 
                 }
             }, config.debounceDelay);
         });
     }
 
-
     function processData(data, forceRefresh = false) {
-        // Process data and update UI components
         if (!data) return false; 
         let hasChanged = forceRefresh;
         
@@ -459,706 +448,7 @@ async function _fetchDashboardData(forceRefresh = false, lightMode = false) {
     }
     
     function updateStatisticsCounters(sessions) {
-        if (!sessions || !Array.isArray(sessions)) return; 
-        
-        let totalInscriptions = 0, 
-            totalEnAttente = 0, 
-            totalSessionsCompletes = 0; 
-        const totalSessions = sessions.length; 
-        
-        sessions.forEach(session => { 
-            totalInscriptions += (session.inscrits || 0); 
-            totalEnAttente += (session.liste_attente || 0); 
-            if (session.places_restantes <= 0) 
-                totalSessionsCompletes++; 
-        }); 
-        
-        updateCounter('total-inscriptions', totalInscriptions); 
-        updateCounter('total-en-attente', totalEnAttente); 
-        updateCounter('total-sessions', totalSessions); 
-        updateCounter('total-sessions-completes', totalSessionsCompletes);
-        
-        // Retourner les statistiques pour compatibilité avec dashboard-init.js
-        return {
-            totalInscriptions,
-            totalEnAttente,
-            totalSessions,
-            totalSessionsCompletes
-        };
-    }
-    
-    function updateCounter(elementId, newValue) {
-        const element = document.getElementById(elementId); 
-        if (!element) return; 
-        
-        const currentValue = parseInt(element.textContent.replace(/[^\d]/g, '')) || 0; 
-        if (currentValue !== newValue) { 
-            element.textContent = newValue.toLocaleString(); 
-            element.classList.add('updated'); 
-            setTimeout(() => element.classList.remove('updated'), 500); 
-        }
-    }
-    
-    function updateActivityFeed(activities) {
-        // Si activities est null, essayer de récupérer les dernières activités depuis l'API
-        if (activities === null) {
-            fetch(`${config.baseApiUrl}/activites?limit=5`)
-                .then(response => {
-                    if (!response.ok) throw new Error(`API Error: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    updateActivityFeed(data); // Mettre à jour avec les données récupérées
-                })
-                .catch(error => {
-                    console.error("Error fetching activities:", error);
-                });
-            return;
-        }
-        
-        if (!activities || !Array.isArray(activities)) return; 
-        
-        const container = document.getElementById('recent-activity'); 
-        if (!container) return; 
-        
-        const spinner = container.querySelector('.loading-spinner'); 
-        if (spinner) spinner.remove(); 
-        
-        if (activities.length === 0) { 
-            container.innerHTML = '<div class="text-center p-3 text-muted">Aucune activité récente</div>'; 
-            return; 
-        } 
-        
-        let html = ''; 
-        activities.forEach(activity => { 
-            const icon = getActivityIcon(activity.type); 
-            const userInfo = activity.user ? `<span class="text-primary">${activity.user}</span>` : ''; 
-            html += `<div class="activity-item fade-in" data-activity-id="${activity.id}">
-                        <div class="activity-icon"><i class="${icon}"></i></div>
-                        <div class="activity-content">
-                            <div class="activity-title">${activity.description} ${userInfo}</div>
-                            <div class="activity-subtitle">
-                                ${activity.details ? `<small>${activity.details}</small><br>` : ''}
-                                <small class="text-muted">${activity.date_relative || ''}</small>
-                            </div>
-                        </div>
-                    </div>`; 
-        }); 
-        
-        container.innerHTML = html;
-        
-        // Compatibilité avec dashboard-init.js - retourner une promesse résolue
-        return Promise.resolve(true);
-    }
-    
-    function getActivityIcon(type) {
-        const iconMap = { 
-            'connexion': 'fas fa-sign-in-alt text-success', 
-            'deconnexion': 'fas fa-sign-out-alt text-warning', 
-            'inscription': 'fas fa-user-plus text-primary', 
-            'validation': 'fas fa-check-circle text-success', 
-            'refus': 'fas fa-times-circle text-danger', 
-            'annulation': 'fas fa-ban text-danger', 
-            'ajout_participant': 'fas fa-user-plus text-primary', 
-            'suppression_participant': 'fas fa-user-minus text-danger', 
-            'modification_participant': 'fas fa-user-edit text-warning', 
-            'reinscription': 'fas fa-redo text-info', 
-            'liste_attente': 'fas fa-clock text-warning', 
-            'ajout_theme': 'fas fa-folder-plus text-primary', 
-            'ajout_service': 'fas fa-building text-primary', 
-            'ajout_salle': 'fas fa-door-open text-primary', 
-            'attribution_salle': 'fas fa-map-marker-alt text-info', 
-            'systeme': 'fas fa-cog text-secondary', 
-            'notification': 'fas fa-bell text-warning', 
-            'default': 'fas fa-info-circle text-secondary' 
+        if (!sessions || !Array.isArray(sessions)) return {
+            totalInscriptions: 0, totalEnAttente: 0, totalSessions: 0, totalSessionsCompletes: 0
         }; 
         
-        return iconMap[type] || iconMap.default;
-    }
-
-    // ====== AMÉLIORATION ET CORRECTION UI ======
-    function enhanceUI() { 
-        initTooltips(); 
-        enhanceBadgesAndLabels(); 
-        fixDataIssues(); 
-        enhanceAccessibility(); 
-    }
-    
-    function initTooltips() { 
-        if (typeof bootstrap === 'undefined' || typeof bootstrap.Tooltip !== 'function') return; 
-        
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not(iframe):not(script):not(style)'); 
-        tooltipTriggerList.forEach(el => { 
-            if (!bootstrap.Tooltip.getInstance(el)) { 
-                try { 
-                    new bootstrap.Tooltip(el, { container: 'body', boundary: document.body }); 
-                } catch (e) { 
-                    if (config.debugMode) console.warn('Dashboard Core: Error creating tooltip', e); 
-                } 
-            } 
-        }); 
-    }
-    
-    function enhanceBadgesAndLabels() { 
-        if (typeof window.enhanceThemeBadgesGlobally === 'function') { 
-            window.enhanceThemeBadgesGlobally(); 
-        } else { 
-            document.querySelectorAll('.theme-badge').forEach(badge => { 
-                if (badge.dataset.enhanced === 'true') return; 
-                
-                const themeName = badge.textContent.trim(); 
-                if (themeName.includes('Teams') && themeName.includes('Communiquer')) 
-                    badge.classList.add('theme-comm'); 
-                else if (themeName.includes('Planner')) 
-                    badge.classList.add('theme-planner'); 
-                else if (themeName.includes('OneDrive') || themeName.includes('fichiers')) 
-                    badge.classList.add('theme-onedrive'); 
-                else if (themeName.includes('Collaborer')) 
-                    badge.classList.add('theme-sharepoint'); 
-                
-                badge.dataset.enhanced = 'true'; 
-            }); 
-        } 
-        
-        document.querySelectorAll('.js-salle-cell').forEach(cell => { 
-            const textContent = cell.textContent.trim(); 
-            if (!cell.querySelector('.salle-badge') && textContent) { 
-                if (textContent === 'Non définie' || textContent === 'N/A') 
-                    cell.innerHTML = '<span class="badge bg-secondary salle-badge">Non définie</span>'; 
-                else 
-                    cell.innerHTML = `<span class="badge bg-info salle-badge">${textContent}</span>`; 
-            } 
-        }); 
-    }
-    
-    function fixDataIssues() { 
-    // Correction des éléments places-dispo
-    document.querySelectorAll('.places-dispo').forEach(el => { 
-        const text = el.textContent.trim(); 
-        if (text.includes('/')) { 
-            const parts = text.split('/'); 
-            const available = parseInt(parts[0].trim()); 
-            const total = parseInt(parts[1].trim()); 
-            
-            if (isNaN(available) || isNaN(total)) { 
-                // Si l'un des nombres n'est pas valide
-                el.classList.remove('text-success', 'text-warning', 'text-danger'); 
-                el.classList.add('text-secondary'); 
-                el.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?'; 
-                el.title = 'Données temporairement indisponibles';
-                return;
-            }
-            
-            let icon, colorClass; 
-            if (available <= 0) { 
-                icon = 'fa-times-circle'; 
-                colorClass = 'text-danger'; 
-            } else if (available <= 0.2 * total) { 
-                icon = 'fa-exclamation-circle'; 
-                colorClass = 'text-danger'; 
-            } else if (available <= 0.4 * total) { 
-                icon = 'fa-exclamation-triangle'; 
-                colorClass = 'text-warning'; 
-            } else { 
-                icon = 'fa-check-circle'; 
-                colorClass = 'text-success'; 
-            } 
-            
-            if (!el.querySelector('.fas') || !el.classList.contains(colorClass)) { 
-                el.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary'); 
-                el.classList.add(colorClass); 
-                el.innerHTML = `<i class="fas ${icon} me-1"></i> ${available} / ${total}`; 
-            } 
-        } else if (text === 'NaN / NaN' || text.includes('undefined') || text === '/ ' || text === ' / ' || text.includes('null')) { 
-            el.classList.remove('text-success', 'text-warning', 'text-danger'); 
-            el.classList.add('text-secondary'); 
-            el.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?'; 
-            el.title = 'Données temporairement indisponibles'; 
-        } 
-    }); 
-    
-    // Correction des compteurs vides ou invalides
-    document.querySelectorAll('.counter-value, .badge-count').forEach(counter => { 
-        const text = counter.textContent.trim(); 
-        if (text === '' || text === 'undefined' || text === 'null' || text === 'NaN') {
-            counter.textContent = '—'; 
-            counter.classList.add('text-muted'); 
-            counter.title = 'Valeur temporairement indisponible'; 
-        }
-    }); 
-    
-    // Correction des tableaux vides
-    document.querySelectorAll('table tbody').forEach(tbody => { 
-        if (!tbody.querySelector('tr') || tbody.querySelector('tr').cells.length === 0) { 
-            const cols = tbody.closest('table').querySelectorAll('thead th').length || 3;
-            const emptyMessage = '<tr><td colspan="' + cols + '" class="text-center p-3 text-muted">' +
-                '<i class="fas fa-info-circle me-2"></i>Aucune donnée disponible' +
-                '<button class="btn btn-sm btn-outline-secondary ms-3" onclick="if(typeof window.forcePollingUpdate === \'function\') window.forcePollingUpdate(true);">' +
-                '<i class="fas fa-sync me-1"></i>Actualiser</button></td></tr>';
-            tbody.innerHTML = emptyMessage;
-        } 
-    });
-    
-    // Vérifier et corriger les modales qui pourraient être bloquées
-    checkAndFixHangingModals();
-}
-
-// Nouvelle fonction pour vérifier et corriger les modales bloquées
-function checkAndFixHangingModals() {
-    // Vérifier si un backdrop est présent sans modale visible
-    const backdrop = document.querySelector('.modal-backdrop');
-    const visibleModal = document.querySelector('.modal.show');
-    
-    if (backdrop && !visibleModal) {
-        // Nettoyer le backdrop orphelin
-        backdrop.remove();
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    }
-    
-    // S'assurer que les modales visibles ont un backdrop
-    const visibleModals = document.querySelectorAll('.modal.show');
-    visibleModals.forEach(modal => {
-        if (!document.querySelector('.modal-backdrop')) {
-            // Créer un nouveau backdrop si nécessaire
-            const newBackdrop = document.createElement('div');
-            newBackdrop.className = 'modal-backdrop fade show';
-            document.body.appendChild(newBackdrop);
-            document.body.classList.add('modal-open');
-        }
-    });
-}
-    
-    function enhanceAccessibility() { 
-        document.querySelectorAll('img:not([alt])').forEach(img => { 
-            const filename = img.src.split('/').pop().split('?')[0]; 
-            const name = filename.split('.')[0].replace(/[_-]/g, ' '); 
-            img.setAttribute('alt', name || 'Image'); 
-        }); 
-        
-        document.querySelectorAll('button:not([type])').forEach(button => { 
-            button.setAttribute('type', button.closest('form') ? 'submit' : 'button'); 
-        }); 
-    }
-    
-    function showErrorWarning(show) { 
-        let errorDiv = document.getElementById('backend-error-warning'); 
-        
-        if (show && !errorDiv) { 
-            errorDiv = document.createElement('div'); 
-            errorDiv.id = 'backend-error-warning'; 
-            errorDiv.className = 'alert alert-warning alert-dismissible fade show small p-2 mt-2 mx-4'; 
-            errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> Problème de communication avec le serveur. Certaines informations peuvent être temporairement indisponibles. <button type="button" class="btn-close p-2" data-bs-dismiss="alert" aria-label="Close"></button>`; 
-            
-            const content = document.getElementById('dashboard-content'); 
-            if (content) content.prepend(errorDiv); 
-        } else if (!show && errorDiv) { 
-            errorDiv.remove(); 
-        } 
-    }
-    
-    function setupValidationListeners() { 
-        document.querySelectorAll('.validation-ajax').forEach(button => { 
-            button.addEventListener('click', function() { 
-                const inscriptionId = this.getAttribute('data-inscription-id'); 
-                const action = this.getAttribute('data-action'); 
-                
-                if (!inscriptionId || !action) return; 
-                
-                this.disabled = true; 
-                
-                fetch('/validation_inscription_ajax', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ inscription_id: inscriptionId, action: action }) 
-                })
-                .then(response => response.json())
-                .then(data => { 
-                    if (data.success) { 
-                        showToast(data.message, 'success'); 
-                        debouncedFetchDashboardData(true); 
-                        
-                        setTimeout(() => { 
-                            const modal = this.closest('.modal'); 
-                            if (modal && typeof bootstrap !== 'undefined') { 
-                                const modalInstance = bootstrap.Modal.getInstance(modal); 
-                                if (modalInstance) modalInstance.hide(); 
-                            } 
-                        }, 1000); 
-                    } else { 
-                        showToast(data.message || 'Erreur lors de la validation', 'danger'); 
-                        this.disabled = false; 
-                    } 
-                })
-                .catch(error => { 
-                    console.error('Error:', error); 
-                    showToast('Erreur de communication avec le serveur', 'danger'); 
-                    this.disabled = false; 
-                }); 
-            }); 
-        }); 
-    }
-
-    // ====== GESTION DES GRAPHIQUES ======
-    function initializeCharts() { 
-        const hasChartJs = typeof Chart !== 'undefined'; 
-        const chartMode = config.chartRendering === 'auto' ? (hasChartJs ? 'chartjs' : 'static') : config.chartRendering; 
-        
-        if (chartMode === 'chartjs') { 
-            document.querySelectorAll('.static-chart-donut, .static-chart-bars').forEach(el => el.style.display = 'none'); 
-        } else { 
-            document.querySelectorAll('#themeChartCanvas, #serviceChartCanvas').forEach(el => el.style.display = 'none'); 
-            document.querySelectorAll('.static-chart-donut, .static-chart-bars').forEach(el => el.style.display = 'block'); 
-        } 
-        
-        if (config.debugMode) console.log(`Dashboard Core: Chart rendering mode: ${chartMode}`);
-        
-        // Pour dashboard-init.js, retourner une promesse
-        return Promise.resolve(true);
-    }
-    
-    function updateCharts(sessions, participants) { 
-        const hasChartJs = typeof Chart !== 'undefined'; 
-        const chartMode = config.chartRendering === 'auto' ? (hasChartJs ? 'chartjs' : 'static') : config.chartRendering; 
-        
-        if (chartMode === 'chartjs' && hasChartJs) 
-            updateChartJsCharts(sessions, participants); 
-        else 
-            updateStaticCharts(sessions, participants); 
-    }
-    
-    function updateChartJsCharts(sessions, participants) { 
-        updateThemeChart(sessions); 
-        updateServiceChart(participants); 
-    }
-    
-    function updateThemeChart(sessions) { 
-        const canvas = document.getElementById('themeChartCanvas'); 
-        if (!canvas) return; 
-        
-        const themeCounts = {}; 
-        sessions.forEach(session => { 
-            if (session.theme && typeof session.inscrits === 'number') { 
-                const themeName = typeof session.theme === 'string' ? session.theme : (session.theme.nom || 'Inconnu'); 
-                themeCounts[themeName] = (themeCounts[themeName] || 0) + session.inscrits; 
-            } 
-        }); 
-        
-        const labels = Object.keys(themeCounts); 
-        const data = labels.map(label => themeCounts[label]); 
-        const backgroundColor = labels.map(label => window.themesDataForChart && window.themesDataForChart[label] ? window.themesDataForChart[label].color : getRandomColor(label)); 
-        const total = data.reduce((a, b) => a + b, 0); 
-        
-        updateDonutTotal(total); 
-        
-        if (dashboardState.themeChart) { 
-            dashboardState.themeChart.data.labels = labels; 
-            dashboardState.themeChart.data.datasets[0].data = data; 
-            dashboardState.themeChart.data.datasets[0].backgroundColor = backgroundColor; 
-            dashboardState.themeChart.update(); 
-        } else { 
-            const ctx = canvas.getContext('2d'); 
-            if (ctx) { 
-                dashboardState.themeChart = new Chart(ctx, { 
-                    type: 'doughnut', 
-                    data: { 
-                        labels: labels, 
-                        datasets: [{ 
-                            data: data, 
-                            backgroundColor: backgroundColor, 
-                            borderWidth: 2, 
-                            borderColor: '#fff' 
-                        }] 
-                    }, 
-                    options: { 
-                        responsive: true, 
-                        maintainAspectRatio: false, 
-                        cutout: '65%', 
-                        plugins: { 
-                            legend: { 
-                                position: 'bottom', 
-                                labels: { 
-                                    padding: 15, 
-                                    boxWidth: 12, 
-                                    font: { size: 11 } 
-                                } 
-                            } 
-                        } 
-                    } 
-                }); 
-            } 
-        } 
-    }
-    
-    function updateServiceChart(participants) { 
-        const canvas = document.getElementById('serviceChartCanvas'); 
-        if (!canvas) return; 
-        
-        const serviceCounts = {}; 
-        participants.forEach(participant => { 
-            let serviceName = 'N/A'; 
-            if (typeof participant.service === 'string') 
-                serviceName = participant.service; 
-            else if (participant.service && participant.service.nom) 
-                serviceName = participant.service.nom; 
-            
-            serviceCounts[serviceName] = (serviceCounts[serviceName] || 0) + 1; 
-        }); 
-        
-        const sortedServices = Object.entries(serviceCounts)
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, count]) => ({ name, count })); 
-        
-        const labels = sortedServices.map(s => s.name); 
-        const data = sortedServices.map(s => s.count); 
-        const backgroundColor = labels.map(label => window.servicesDataForChart && window.servicesDataForChart[label] ? window.servicesDataForChart[label].color : getRandomColor(label)); 
-        
-        if (dashboardState.serviceChart) { 
-            dashboardState.serviceChart.data.labels = labels; 
-            dashboardState.serviceChart.data.datasets[0].data = data; 
-            dashboardState.serviceChart.data.datasets[0].backgroundColor = backgroundColor; 
-            dashboardState.serviceChart.update(); 
-        } else { 
-            const ctx = canvas.getContext('2d'); 
-            if (ctx) { 
-                dashboardState.serviceChart = new Chart(ctx, { 
-                    type: 'bar', 
-                    data: { 
-                        labels: labels, 
-                        datasets: [{ 
-                            data: data, 
-                            backgroundColor: backgroundColor, 
-                            borderColor: backgroundColor, 
-                            borderWidth: 1, 
-                            borderRadius: 4 
-                        }] 
-                    }, 
-                    options: { 
-                        responsive: true, 
-                        maintainAspectRatio: false, 
-                        indexAxis: 'y', 
-                        plugins: { 
-                            legend: { display: false } 
-                        }, 
-                        scales: { 
-                            x: { 
-                                beginAtZero: true, 
-                                ticks: { precision: 0 } 
-                            } 
-                        } 
-                    } 
-                }); 
-            } 
-        } 
-    }
-    
-    function updateStaticCharts(sessions, participants) { 
-        updateStaticThemeChart(sessions); 
-        updateStaticServiceChart(participants); 
-    }
-    
-    function updateStaticThemeChart(sessions) { 
-        const container = document.querySelector('.static-chart-donut'); 
-        if (!container) return; 
-        
-        const themeCounts = {}; 
-        sessions.forEach(session => { 
-            if (session.theme && typeof session.inscrits === 'number') { 
-                const themeName = typeof session.theme === 'string' ? session.theme : (session.theme.nom || 'Inconnu'); 
-                themeCounts[themeName] = (themeCounts[themeName] || 0) + session.inscrits; 
-            } 
-        }); 
-        
-        const total = Object.values(themeCounts).reduce((a, b) => a + b, 0); 
-        updateDonutTotal(total); 
-        
-        container.innerHTML = ''; 
-        if (Object.keys(themeCounts).length === 0) { 
-            container.innerHTML = '<div class="donut-center"><div class="donut-total">0</div><div class="donut-label">INSCRITS</div></div>'; 
-            return; 
-        } 
-        
-        let startAngle = 0; 
-        Object.entries(themeCounts).forEach(([theme, count], index) => { 
-            const percentage = (count / total) * 100; 
-            const angle = (percentage / 100) * 360; 
-            const color = window.themesDataForChart && window.themesDataForChart[theme] ? window.themesDataForChart[theme].color : getRandomColor(theme); 
-            
-            const segment = document.createElement('div'); 
-            segment.className = 'donut-segment'; 
-            segment.style.setProperty('--fill', color); 
-            segment.style.setProperty('--rotation', startAngle); 
-            segment.style.setProperty('--percentage', percentage); 
-            segment.style.setProperty('--index', index); 
-            segment.style.backgroundColor = color; 
-            
-            container.appendChild(segment); 
-            startAngle += angle; 
-        }); 
-        
-        const center = document.createElement('div'); 
-        center.className = 'donut-center'; 
-        center.innerHTML = `<div class="donut-total">${total}</div><div class="donut-label">INSCRITS</div>`; 
-        
-        container.appendChild(center); 
-        container.classList.add('animate'); 
-    }
-    
-    function updateStaticServiceChart(participants) { 
-        const container = document.querySelector('.static-chart-bars'); 
-        if (!container) return; 
-        
-        const serviceCounts = {}; 
-        participants.forEach(participant => { 
-            let serviceName = 'N/A'; 
-            if (typeof participant.service === 'string') 
-                serviceName = participant.service; 
-            else if (participant.service && participant.service.nom) 
-                serviceName = participant.service.nom; 
-            
-            serviceCounts[serviceName] = (serviceCounts[serviceName] || 0) + 1; 
-        }); 
-        
-        const sortedServices = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1]); 
-        
-        container.innerHTML = ''; 
-        if (sortedServices.length === 0) { 
-            container.innerHTML = '<div class="text-center text-muted">Aucun participant</div>'; 
-            return; 
-        } 
-        
-        const maxCount = Math.max(...sortedServices.map(([_, count]) => count)); 
-        
-        sortedServices.forEach(([service, count], index) => { 
-            const percentage = (count / maxCount) * 100; 
-            const color = window.servicesDataForChart && window.servicesDataForChart[service] ? window.servicesDataForChart[service].color : getRandomColor(service); 
-            
-            const barItem = document.createElement('div'); 
-            barItem.className = 'bar-item'; 
-            barItem.innerHTML = `
-                <div class="bar-header">
-                    <div class="bar-label"><i class="fas fa-users fa-sm me-1"></i> ${service}</div>
-                    <div class="bar-total">${count}</div>
-                </div>
-                <div class="bar-container">
-                    <div class="bar-value" style="width: ${percentage}%; background-color: ${color};" data-value="${count}" data-index="${index}"></div>
-                </div>`; 
-            
-            container.appendChild(barItem); 
-        }); 
-        
-        container.classList.add('animate'); 
-    }
-    
-    function updateDonutTotal(total = null) { 
-        const element = document.getElementById('chart-theme-total'); 
-        if (element) { 
-            if (total === null) { 
-                if (dashboardState.themeChart && dashboardState.themeChart.data.datasets[0].data) 
-                    total = dashboardState.themeChart.data.datasets[0].data.reduce((a, b) => a + b, 0); 
-                else { 
-                    const staticChart = document.querySelector('.static-chart-donut'); 
-                    if (staticChart) { 
-                        const segments = staticChart.querySelectorAll('.donut-segment'); 
-                        const values = Array.from(segments).map(s => parseInt(s.getAttribute('data-value') || '0')); 
-                        total = values.reduce((a, b) => a + b, 0); 
-                    } 
-                } 
-            } 
-            
-            if (total !== null) 
-                element.textContent = total.toString(); 
-        } 
-    }
-
-    // ====== UTILITAIRES ======
-    function simpleHash(data) { 
-        try { 
-            const str = JSON.stringify(data); 
-            let hash = 0; 
-            
-            for (let i = 0; i < str.length; i++) { 
-                const char = str.charCodeAt(i); 
-                hash = ((hash << 5) - hash) + char; 
-                hash |= 0; 
-            } 
-            
-            return hash.toString(); 
-        } catch (e) { 
-            console.error("Hashing error:", e); 
-            return Date.now().toString(); 
-        } 
-    }
-    
-    function getRandomColor(str) { 
-        let hash = 0; 
-        
-        for (let i = 0; i < str.length; i++) 
-            hash = str.charCodeAt(i) + ((hash << 5) - hash); 
-        
-        let color = '#'; 
-        for (let i = 0; i < 3; i++) { 
-            const value = (hash >> (i * 8)) & 0xFF; 
-            const adjustedValue = Math.min(200, Math.max(50, value)); 
-            color += ('00' + adjustedValue.toString(16)).substr(-2); 
-        } 
-        
-        return color; 
-    }
-    
-    function createToastContainer() { 
-        let container = document.createElement('div'); 
-        container.id = 'toast-container'; 
-        container.className = 'toast-container position-fixed top-0 end-0 p-3'; 
-        container.style.zIndex = '1100'; 
-        document.body.appendChild(container); 
-        return container; 
-    }
-    
-    function showToast(message, type = 'info') { 
-        const toastContainer = document.getElementById('toast-container') || createToastContainer(); 
-        const toastId = 'toast-' + Date.now(); 
-        
-        const toastEl = document.createElement('div'); 
-        toastEl.id = toastId; 
-        toastEl.className = `toast align-items-center text-white bg-${type} border-0 fade`; 
-        toastEl.setAttribute('role', 'alert'); 
-        toastEl.setAttribute('aria-live', 'assertive'); 
-        toastEl.setAttribute('aria-atomic', 'true'); 
-        toastEl.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>`; 
-        
-        toastContainer.appendChild(toastEl); 
-        
-        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Toast === 'function') { 
-            const toast = new bootstrap.Toast(toastEl, { delay: 5000 }); 
-            toast.show(); 
-            toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove()); 
-        } else { 
-            toastEl.classList.add('show'); 
-            setTimeout(() => { 
-                toastEl.classList.remove('show'); 
-                setTimeout(() => toastEl.remove(), 150); 
-            }, 5000); 
-        } 
-    }
-    
-    // Make global functions available for other scripts
-    // Rendre showToast disponible globalement
-    if (typeof window.showToast === 'undefined') 
-        window.showToast = showToast;
-    
-    // Exposer les fonctions pour dashboard-init.js
-    window.forcePollingUpdate = (forceRefresh) => debouncedFetchDashboardData(forceRefresh);
-    window.updateStatsCounters = updateStatisticsCounters;
-    window.refreshRecentActivity = () => updateActivityFeed(null);
-    window.chartModule = { initialize: () => initializeCharts() };
-
-    // Démarrer le tableau de bord
-    initializeDashboard();
-
-}); // Fin de DOMContentLoaded
