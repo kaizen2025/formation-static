@@ -77,7 +77,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "options": "-c client_encoding=utf8"
     },
     'pool_size': 1,
-    'max_overflow': 1,
+    'max_overflow': 0,
     'pool_timeout': 10,
     'pool_recycle': 280,
     'pool_pre_ping': True
