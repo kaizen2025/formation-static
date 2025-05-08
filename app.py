@@ -1,6 +1,41 @@
+Je suis vraiment désolé pour cette nouvelle erreur de syntaxe. Il semble qu'une correction similaire à celle de la route `/sessions` ait été manquée dans la route `/api/dashboard_essential`. L'erreur `SyntaxError: invalid syntax` à la ligne 971 confirme qu'un bloc `try` est incorrectement placé sur la même ligne qu'un `if`.
+
+**Action :**
+
+Corrigeons cette ligne spécifique dans la fonction `api_dashboard_essential`.
+
+**Fichier à modifier :** `app.py`
+
+**Trouvez cette section dans `api_dashboard_essential` (autour de la ligne 971) :**
+
+```python
+                max_participants = 10
+                if s.max_participants is not None: try: max_participants = int(s.max_participants); except (ValueError, TypeError): pass # ERREUR ICI
+
+                places_rest = max(0, max_participants - inscrits_count)
+```
+
+**Remplacez-la par la version corrigée avec l'indentation correcte pour le `try...except` :**
+
+```python
+                max_participants = 10
+                if s.max_participants is not None:
+                    try: # <- Déplacé sur une nouvelle ligne et indenté
+                        max_participants = int(s.max_participants)
+                    except (ValueError, TypeError):
+                        pass # <- Indenté correctement
+
+                places_rest = max(0, max_participants - inscrits_count)
+```
+
+Je vais maintenant vous régénérer le fichier `app.py` **complet** avec cette correction spécifique appliquée. Cette fois, j'ai doublement vérifié qu'il n'y a plus de commentaires d'omission et que cette erreur de syntaxe est corrigée.
+
+**Voici le fichier `app.py` complet et corrigé :**
+
+```python
 # ==============================================================================
 # app.py - Application Flask pour la Gestion des Formations Microsoft 365
-# Version: 1.1.1 - Correction SyntaxError + Intégration Documents Complète
+# Version: 1.1.2 - Correction SyntaxError api_dashboard_essential + Intégration Documents Complète
 # ==============================================================================
 
 # --- Imports ---
@@ -698,7 +733,6 @@ def sessions():
     try:
         query = Session.query.options(selectinload(Session.theme), selectinload(Session.salle), selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service), selectinload(Session.liste_attente).selectinload(ListeAttente.participant).selectinload(Participant.service)).order_by(Session.date, Session.heure_debut)
         theme_id_filter = request.args.get('theme'); date_str_filter = request.args.get('date'); places_filter = request.args.get('places')
-        # --- CORRECTION SYNTAX ERROR ---
         if theme_id_filter:
             try:
                 query = query.filter(Session.theme_id == int(theme_id_filter))
@@ -710,7 +744,6 @@ def sessions():
                 query = query.filter(Session.date >= date_obj)
             except ValueError:
                 flash('Format de date invalide (AAAA-MM-JJ).', 'warning')
-        # --- FIN CORRECTION ---
         all_sessions_from_db = query.all(); app.logger.info(f"Fetched {len(all_sessions_from_db)} sessions from DB after base filters.")
         sessions_final_data = []
         for s_obj in all_sessions_from_db:
@@ -967,8 +1000,14 @@ def api_dashboard_essential():
                 inscrits_count = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == s.id, Inscription.statut == 'confirmé').scalar() or 0
                 attente_count = db.session.query(func.count(ListeAttente.id)).filter(ListeAttente.session_id == s.id).scalar() or 0
                 pending_count = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == s.id, Inscription.statut == 'en attente').scalar() or 0
-                max_participants = 10;
-                if s.max_participants is not None: try: max_participants = int(s.max_participants); except (ValueError, TypeError): pass
+                max_participants = 10
+                if s.max_participants is not None:
+                    # --- CORRECTION SYNTAXE ---
+                    try:
+                        max_participants = int(s.max_participants)
+                    except (ValueError, TypeError):
+                        pass
+                    # --- FIN CORRECTION ---
                 places_rest = max(0, max_participants - inscrits_count)
                 sessions_data.append({'id': s.id, 'date': s.formatage_date, 'horaire': s.formatage_horaire, 'theme': s.theme.nom if s.theme else 'N/A', 'theme_id': s.theme_id, 'places_restantes': places_rest, 'inscrits': inscrits_count, 'max_participants': max_participants, 'liste_attente': attente_count, 'pending_count': pending_count, 'salle': s.salle.nom if s.salle else None, 'salle_id': s.salle_id})
             except Exception as session_error: app.logger.error(f"Error processing session {s.id} in dashboard_essential: {session_error}"); continue
