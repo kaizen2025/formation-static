@@ -1,6 +1,6 @@
 /**
  * api-error-handler.js - Gestionnaire d'erreurs API spécialisé
- * v1.0.0 - Conçu pour gérer correctement les erreurs spécifiques dont places_restantes
+ * v1.1.0 - Amélioré pour mieux gérer l'erreur places_restantes et s'intégrer avec polling-updates.js
  */
 
 class ApiErrorHandler {
@@ -42,6 +42,9 @@ class ApiErrorHandler {
             byEndpoint: {},
             byErrorType: {}
         };
+
+        // État de correction
+        this.hasAppliedPlacesRestantesFix = false;
     }
     
     /**
@@ -61,8 +64,9 @@ class ApiErrorHandler {
         }
         
         // Vérifier si c'est une erreur connue
-        if (errorData && errorData.message) {
-            const errorKey = this.identifyKnownError(errorData.message);
+        if (errorData && (errorData.message || errorData.error)) {
+            const errorMessage = errorData.message || errorData.error || JSON.stringify(errorData);
+            const errorKey = this.identifyKnownError(errorMessage);
             if (errorKey) {
                 const errorInfo = this.knownErrors[errorKey];
                 
@@ -102,12 +106,17 @@ class ApiErrorHandler {
      * @returns {string|null} - Clé de l'erreur identifiée ou null
      */
     identifyKnownError(errorMessage) {
+        if (!errorMessage) return null;
+        
+        // Convertir en string si ce n'est pas déjà le cas
+        const message = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
+        
         // Éliminer les guillemets et espaces du message
-        const cleanMessage = errorMessage.replace(/['"]/g, '').trim();
+        const cleanMessage = message.replace(/['"]/g, '').trim();
         
         // Vérifier d'abord les correspondances exactes
         const exactMatch = Object.keys(this.knownErrors).find(key => 
-            cleanMessage === key);
+            cleanMessage === key || cleanMessage.includes(key));
         
         if (exactMatch) return exactMatch;
         
@@ -133,6 +142,11 @@ class ApiErrorHandler {
      */
     handlePlacesRestantesError() {
         console.log("ApiErrorHandler: Récupération de l'erreur places_restantes");
+        
+        // Indiquer au système de polling d'utiliser les endpoints individuels
+        if (typeof window.dashboardConfig !== 'undefined') {
+            window.dashboardConfig.useFallbackEndpoints = true;
+        }
         
         // Récupérer tous les éléments concernés par places_restantes
         const placesElements = document.querySelectorAll('.places-count, .places-dispo');
@@ -163,10 +177,20 @@ class ApiErrorHandler {
                 }
             }
         });
+
+        // Marquer que la correction a été appliquée
+        this.hasAppliedPlacesRestantesFix = true;
+        
+        // Essayer de récupérer les données via des endpoints individuels
+        if (typeof window.forcePollingUpdate === 'function') {
+            setTimeout(() => {
+                window.forcePollingUpdate(true);
+            }, 1000);
+        }
         
         // Alerter l'utilisateur
         this.showUserNotification('dashboard_essential', 500, 
-            'Impossible de charger les données de places disponibles. Affichage temporairement désactivé.');
+            'Impossible de charger certaines données. Utilisation d\'une source de données alternative...');
         
         return true;
     }
@@ -261,8 +285,12 @@ class ApiErrorHandler {
         console.log(`ApiErrorHandler: Gestion de l'erreur serveur 500 pour ${endpoint}`);
         
         // Vérifier si l'erreur contient un message spécifique connu
-        if (errorData && errorData.message) {
-            const errorMessage = typeof errorData.message === 'string' ? errorData.message : JSON.stringify(errorData.message);
+        if (errorData) {
+            const errorMessage = typeof errorData.message === 'string' 
+                ? errorData.message 
+                : (typeof errorData === 'string' 
+                    ? errorData 
+                    : JSON.stringify(errorData));
             
             // Erreurs spécifiques aux données de session
             if (errorMessage.includes('places_restantes') || errorMessage.includes('max_participants')) {
@@ -375,7 +403,7 @@ class ApiErrorHandler {
         // Personnaliser le message selon l'endpoint et le code de statut
         if (!customMessage) {
             if (endpoint.includes('dashboard_essential')) {
-                message = 'Impossible de charger certaines informations du tableau de bord. Les valeurs affichées peuvent être incomplètes.';
+                message = 'Impossible de charger certaines informations du tableau de bord. Utilisation d\'une source alternative de données...';
             } else if (endpoint.includes('activites')) {
                 message = 'Impossible de charger les activités récentes.';
             }
@@ -395,7 +423,7 @@ class ApiErrorHandler {
         if (typeof window.showToast === 'function') {
             window.showToast(message, theme);
         } 
-        // Sinon essayer la lib createNotification (comme mentionné dans les logs)
+        // Sinon essayer la lib createNotification 
         else if (window.createNotification) {
             window.createNotification({
                 theme: theme,
@@ -436,11 +464,6 @@ class ApiErrorHandler {
             this.errorMetrics.byErrorType[errorType] = 0;
         }
         this.errorMetrics.byErrorType[errorType]++;
-        
-        // Si beaucoup d'erreurs s'accumulent, envoyer un rapport
-        if (this.errorMetrics.totalErrors % 10 === 0) {
-            this.sendErrorMetricsReport();
-        }
     }
     
     /**
@@ -475,44 +498,59 @@ class ApiErrorHandler {
     }
     
     /**
-     * Envoie un rapport de métriques d'erreurs au serveur
+     * Vérifie si certains éléments ont besoin de réparation et les répare
+     * @returns {boolean} - True si des réparations ont été effectuées
      */
-    sendErrorMetricsReport() {
-        // Éviter d'envoyer si c'est désactivé
-        if (!this.options.collectMetrics) return;
+    checkAndFixBrokenElements() {
+        let repairsNeeded = false;
         
-        const reportData = {
-            metrics: this.errorMetrics,
-            timestamp: new Date().toISOString(),
-            sessionId: this.getSessionId()
-        };
+        // Vérifier les éléments places-dispo
+        document.querySelectorAll('.places-dispo').forEach(el => {
+            const text = el.textContent.trim();
+            if (text === 'NaN / NaN' || 
+                text === 'undefined / undefined' || 
+                text.includes('null') ||
+                text === '/ ' ||
+                text === ' / ' ||
+                text === 'NaN') {
+                
+                // Cet élément a besoin d'être réparé
+                if (!el.dataset.originalText) {
+                    el.dataset.originalText = text;
+                }
+                
+                if (!el.classList.contains('data-error')) {
+                    el.classList.add('data-error');
+                    el.textContent = '? / ?';
+                    el.title = 'Données temporairement indisponibles';
+                    
+                    // Bootstrap tooltip
+                    if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                        const tooltip = bootstrap.Tooltip.getInstance(el);
+                        if (tooltip) tooltip.dispose();
+                        new bootstrap.Tooltip(el, {
+                            title: 'Données temporairement indisponibles',
+                            placement: 'top'
+                        });
+                    }
+                    
+                    repairsNeeded = true;
+                }
+            }
+        });
         
-        // Utiliser fetch avec keepalive
-        fetch('/api/error_metrics', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(reportData),
-            keepalive: true
-        }).catch(e => console.error('Échec de l\'envoi des métriques d\'erreur', e));
-    }
-    
-    /**
-     * Récupère l'ID de session depuis le localStorage ou un cookie
-     * @returns {string} ID de session ou anonymous
-     */
-    getSessionId() {
-        // Essayer localStorage d'abord
-        const localStorageId = localStorage.getItem('session_id');
-        if (localStorageId) return localStorageId;
+        // Vérifier les badge-dispo qui ont besoin de réparation
+        document.querySelectorAll('.badge-dispo, .counter-value').forEach(el => {
+            const text = el.textContent.trim();
+            if (text === 'NaN' || text === 'undefined' || text === '' || text === 'null') {
+                el.textContent = '—';
+                el.classList.add('text-muted');
+                el.title = 'Valeur temporairement indisponible';
+                repairsNeeded = true;
+            }
+        });
         
-        // Essayer de lire depuis les cookies
-        const cookies = document.cookie.split(';');
-        for (const cookie of cookies) {
-            const [name, value] = cookie.trim().split('=');
-            if (name === 'session_id') return decodeURIComponent(value);
-        }
-        
-        return 'anonymous';
+        return repairsNeeded;
     }
 }
 
@@ -532,19 +570,7 @@ if (typeof window.uiFixers !== 'undefined') {
         
         // Vérifier et corriger les problèmes de données après les corrections UI
         try {
-            // Rechercher des indicateurs d'erreurs de données
-            const placesElements = document.querySelectorAll('.places-dispo');
-            placesElements.forEach(element => {
-                const text = element.textContent.trim();
-                if (text === 'NaN / NaN' || 
-                    text === 'undefined / undefined' || 
-                    text.includes('null') ||
-                    text === '/ ') {
-                    // Appeler la correction des erreurs places_restantes
-                    window.apiErrorHandler.handlePlacesRestantesError();
-                    return false; // Une fois suffit
-                }
-            });
+            window.apiErrorHandler.checkAndFixBrokenElements();
         } catch (e) {
             console.error('Error in enhanced applyAllFixes:', e);
         }
