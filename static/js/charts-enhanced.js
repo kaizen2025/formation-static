@@ -1,6 +1,6 @@
 /**
  * charts-enhanced.js - Graphiques améliorés pour le tableau de bord
- * Version: 2.2.0 - Solution aux problèmes de chargement des graphiques
+ * Version: 2.3.0 - Solution robuste pour les problèmes de chargement des graphiques
  */
 
 console.log("--- charts-enhanced.js EXECUTING ---");
@@ -15,11 +15,19 @@ document.addEventListener('DOMContentLoaded', function() {
         baseApiUrl: '/api'
     };
     
-    if (DASH_CONFIG.debugMode) console.log('Enhanced Charts (v2.2.0): Initializing...');
+    if (DASH_CONFIG.debugMode) console.log('Enhanced Charts (v2.3.0): Initializing...');
     
-    // Vérifier si Chart.js est chargé
-    if (typeof Chart === 'undefined') {
-        console.error('Enhanced Charts: Chart.js library is not loaded. Falling back to static charts.');
+    // État des graphiques
+    let chartsInitialized = false;
+    let chartCreationAttempts = {
+        theme: 0,
+        service: 0
+    };
+    
+    // Vérifier si Chart.js est chargé correctement
+    const isChartJsAvailable = typeof Chart !== 'undefined';
+    if (!isChartJsAvailable) {
+        console.warn('Enhanced Charts: Chart.js library is not loaded. Falling back to static charts.');
         // Basculer vers le rendu statique des graphiques
         useStaticCharts();
     }
@@ -55,6 +63,44 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         return colorNameOrVar || defaultColor;
+    }
+    
+    // Fonction utilitaire pour récupérer les données de session valides
+    function validateAndProcessSessions(sessionsArray) {
+        if (!sessionsArray || !Array.isArray(sessionsArray)) {
+            console.warn('Enhanced Charts: Sessions data is invalid or missing');
+            return [];
+        }
+
+        // Filtrer les sessions avec données invalides et calculer places_restantes si nécessaire
+        return sessionsArray.filter(session => {
+            return session && 
+                   typeof session === 'object' && 
+                   (typeof session.theme === 'string' || 
+                    (typeof session.theme === 'object' && session.theme && typeof session.theme.nom === 'string'));
+        }).map(session => {
+            // Clone pour éviter de modifier l'original
+            const processedSession = {...session};
+            
+            // Correction du thème si nécessaire
+            if (typeof processedSession.theme === 'object' && processedSession.theme) {
+                processedSession.theme = processedSession.theme.nom;
+            }
+            
+            // Assurer que inscrits est un nombre
+            if (typeof processedSession.inscrits !== 'number' || isNaN(processedSession.inscrits)) {
+                processedSession.inscrits = 0;
+            }
+            
+            // Correction de places_restantes si nécessaire
+            if ((typeof processedSession.places_restantes !== 'number' || isNaN(processedSession.places_restantes)) &&
+                typeof processedSession.max_participants === 'number' && typeof processedSession.inscrits === 'number') {
+                
+                processedSession.places_restantes = Math.max(0, processedSession.max_participants - processedSession.inscrits);
+            }
+            
+            return processedSession;
+        });
     }
     
     // Options communes pour les graphiques
@@ -96,33 +142,34 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Fonction principale pour créer ou mettre à jour le graphique des thèmes
     function createOrUpdateThemeChart(sessionsArray) {
-        console.log("Enhanced Charts: Données reçues pour Graphique Thèmes:", JSON.stringify(sessionsArray));
+        const processedSessions = validateAndProcessSessions(sessionsArray);
+        console.log("Enhanced Charts: Données reçues pour Graphique Thèmes:", processedSessions);
         console.log("Enhanced Charts: Attempting to create/update THEME chart.");
         
         const canvasElement = document.getElementById('themeChartCanvas');
         if (!canvasElement) {
             if (DASH_CONFIG.debugMode) console.warn('Enhanced Charts: Canvas #themeChartCanvas not found.');
             // Si Canvas non trouvé, essayer de rendre en HTML statique
-            updateStaticThemeChart(sessionsArray);
+            updateStaticThemeChart(processedSessions);
             return;
         }
         
         const ctx = canvasElement.getContext('2d');
-        if (!ctx) {
-            console.error('Enhanced Charts: Failed to get 2D context for #themeChartCanvas.');
-            updateStaticThemeChart(sessionsArray);
+        if (!ctx || !isChartJsAvailable) {
+            console.error('Enhanced Charts: Failed to get 2D context for #themeChartCanvas or Chart.js unavailable.');
+            updateStaticThemeChart(processedSessions);
             return;
         }
         
         const themeCounts = {};
-        if (sessionsArray && Array.isArray(sessionsArray)) {
-            sessionsArray.forEach(session => {
+        if (processedSessions && Array.isArray(processedSessions) && processedSessions.length > 0) {
+            processedSessions.forEach(session => {
                 if (session.theme && typeof session.inscrits === 'number') {
                     themeCounts[session.theme] = (themeCounts[session.theme] || 0) + session.inscrits;
                 }
             });
         } else {
-            if (DASH_CONFIG.debugMode) console.log('Enhanced Charts: No session data for theme chart.');
+            if (DASH_CONFIG.debugMode) console.log('Enhanced Charts: No valid session data for theme chart.');
         }
         
         const chartData = Object.entries(themeCounts).map(([label, value]) => ({
@@ -140,13 +187,28 @@ document.addEventListener('DOMContentLoaded', function() {
         if (donutTotalEl) donutTotalEl.textContent = totalInscrits.toLocaleString();
         
         if (themeChartInstance) {
-            themeChartInstance.data.labels = labels;
-            themeChartInstance.data.datasets[0].data = values;
-            themeChartInstance.data.datasets[0].backgroundColor = backgroundColors;
-            themeChartInstance.update();
-            if (DASH_CONFIG.debugMode) console.log('Enhanced Charts: Theme chart updated.');
-        } else {
             try {
+                themeChartInstance.data.labels = labels;
+                themeChartInstance.data.datasets[0].data = values;
+                themeChartInstance.data.datasets[0].backgroundColor = backgroundColors;
+                themeChartInstance.update();
+                if (DASH_CONFIG.debugMode) console.log('Enhanced Charts: Theme chart updated.');
+            } catch (e) {
+                console.error('Enhanced Charts: Error updating theme chart, destroying and recreating:', e);
+                try {
+                    themeChartInstance.destroy();
+                    themeChartInstance = null;
+                } catch (destroyError) {
+                    console.error('Enhanced Charts: Error destroying theme chart:', destroyError);
+                }
+                updateStaticThemeChart(processedSessions);
+            }
+        } else {
+            chartCreationAttempts.theme++;
+            try {
+                // Nettoyer le contexte avant de créer un nouveau graphique
+                ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                
                 themeChartInstance = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
@@ -173,14 +235,20 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (e) {
                 console.error('Enhanced Charts: Error creating theme chart:', e);
                 // En cas d'erreur, utiliser le rendu statique
-                updateStaticThemeChart(sessionsArray);
+                updateStaticThemeChart(processedSessions);
+                
+                // Si plusieurs tentatives échouent, basculer définitivement vers les graphiques statiques
+                if (chartCreationAttempts.theme >= 2) {
+                    console.warn('Enhanced Charts: Multiple failures creating theme chart. Switching permanently to static charts.');
+                    useStaticCharts();
+                }
             }
         }
     }
     
     // Fonction principale pour créer ou mettre à jour le graphique des services
     function createOrUpdateServiceChart(participantsArray) {
-        console.log("Enhanced Charts: Données reçues pour Graphique Services:", JSON.stringify(participantsArray));
+        console.log("Enhanced Charts: Données reçues pour Graphique Services:", participantsArray);
         console.log("Enhanced Charts: Attempting to create/update SERVICE chart.");
         
         const canvasElement = document.getElementById('serviceChartCanvas');
@@ -192,8 +260,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const ctx = canvasElement.getContext('2d');
-        if (!ctx) {
-            console.error('Enhanced Charts: Failed to get 2D context for #serviceChartCanvas.');
+        if (!ctx || !isChartJsAvailable) {
+            console.error('Enhanced Charts: Failed to get 2D context for #serviceChartCanvas or Chart.js unavailable.');
             updateStaticServiceChart(participantsArray);
             return;
         }
@@ -201,8 +269,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const serviceCounts = {};
         if (participantsArray && Array.isArray(participantsArray)) {
             participantsArray.forEach(participant => {
-                if (participant.service) {
-                    serviceCounts[participant.service] = (serviceCounts[participant.service] || 0) + 1;
+                let service = null;
+                if (typeof participant.service === 'string') {
+                    service = participant.service;
+                } else if (participant.service && typeof participant.service === 'object' && participant.service.nom) {
+                    service = participant.service.nom;
+                }
+                
+                if (service) {
+                    serviceCounts[service] = (serviceCounts[service] || 0) + 1;
                 }
             });
         } else {
@@ -222,14 +297,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const backgroundColors = chartData.map(item => item.color);
         
         if (serviceChartInstance) {
-            serviceChartInstance.data.labels = labels;
-            serviceChartInstance.data.datasets[0].data = values;
-            serviceChartInstance.data.datasets[0].backgroundColor = backgroundColors;
-            serviceChartInstance.data.datasets[0].borderColor = backgroundColors;
-            serviceChartInstance.update();
-            if (DASH_CONFIG.debugMode) console.log('Enhanced Charts: Service chart updated.');
-        } else {
             try {
+                serviceChartInstance.data.labels = labels;
+                serviceChartInstance.data.datasets[0].data = values;
+                serviceChartInstance.data.datasets[0].backgroundColor = backgroundColors;
+                serviceChartInstance.data.datasets[0].borderColor = backgroundColors;
+                serviceChartInstance.update();
+                if (DASH_CONFIG.debugMode) console.log('Enhanced Charts: Service chart updated.');
+            } catch (e) {
+                console.error('Enhanced Charts: Error updating service chart, destroying and recreating:', e);
+                try {
+                    serviceChartInstance.destroy();
+                    serviceChartInstance = null;
+                } catch (destroyError) {
+                    console.error('Enhanced Charts: Error destroying service chart:', destroyError);
+                }
+                updateStaticServiceChart(participantsArray);
+            }
+        } else {
+            chartCreationAttempts.service++;
+            try {
+                // Nettoyer le contexte avant de créer un nouveau graphique
+                ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                
                 serviceChartInstance = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -272,6 +362,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Enhanced Charts: Error creating service chart:', e);
                 // En cas d'erreur, utiliser le rendu statique
                 updateStaticServiceChart(participantsArray);
+                
+                // Si plusieurs tentatives échouent, basculer définitivement vers les graphiques statiques
+                if (chartCreationAttempts.service >= 2) {
+                    console.warn('Enhanced Charts: Multiple failures creating service chart. Switching permanently to static charts.');
+                    useStaticCharts();
+                }
             }
         }
     }
@@ -302,6 +398,9 @@ document.addEventListener('DOMContentLoaded', function() {
             window.enhanceThemeBadgesGlobally();
         }
         
+        // Marquer les graphiques comme initialisés
+        chartsInitialized = true;
+        
         return Promise.resolve({ success: true, message: "Charts initialized/updated." });
     }
     
@@ -320,6 +419,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 return Promise.resolve({ success: true, message: "Static chart module initialized." });
             }
         };
+        
+        // Cacher les canvas et montrer les conteneurs statiques
+        document.querySelectorAll('canvas#themeChartCanvas, canvas#serviceChartCanvas').forEach(canvas => {
+            canvas.style.display = 'none';
+        });
+        
+        document.querySelectorAll('.static-chart-donut, .static-chart-bars').forEach(container => {
+            container.style.display = 'block';
+        });
     }
     
     // Fonction pour charger les données du tableau de bord via l'API
@@ -350,7 +458,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error("Error fetching dashboard data:", error);
                 // Afficher un message d'erreur
                 showLoadingError();
+                
+                // Fallback: essayer de charger les données individuellement
+                tryIndividualDataFetches();
             });
+    }
+    
+    // Tente de récupérer les données par endpoints individuels si l'endpoint combiné échoue
+    function tryIndividualDataFetches() {
+        console.log("Enhanced Charts: Trying individual data fetches as fallback");
+        
+        // Récupérer les sessions
+        fetch('/api/sessions')
+            .then(response => response.ok ? response.json() : null)
+            .then(data => {
+                if (data) {
+                    const sessions = Array.isArray(data) ? data : (data.items || []);
+                    updateStaticThemeChart(sessions);
+                }
+            })
+            .catch(e => console.error("Error fetching sessions:", e));
+            
+        // Récupérer les participants
+        fetch('/api/participants')
+            .then(response => response.ok ? response.json() : null)
+            .then(data => {
+                if (data) {
+                    const participants = Array.isArray(data) ? data : (data.items || []);
+                    updateStaticServiceChart(participants);
+                }
+            })
+            .catch(e => console.error("Error fetching participants:", e));
+            
+        // Récupérer les activités
+        fetch('/api/activites')
+            .then(response => response.ok ? response.json() : null)
+            .then(data => {
+                if (data && Array.isArray(data)) {
+                    updateActivityFeed(data);
+                }
+            })
+            .catch(e => console.error("Error fetching activities:", e));
     }
     
     // Implémentation statique du graphique des thèmes
@@ -362,21 +510,26 @@ document.addEventListener('DOMContentLoaded', function() {
         const legendContainer = document.querySelector('#theme-chart-legend');
         const totalElement = document.getElementById('chart-theme-total');
         
-        if (!donutContainer || !legendContainer) {
-            console.error("Theme chart containers not found");
+        if (!donutContainer) {
+            console.error("Theme chart container not found");
             return;
         }
         
+        // S'assurer que le conteneur est visible
+        donutContainer.style.display = 'block';
+        
         // Effacer le contenu existant
         donutContainer.innerHTML = '';
-        legendContainer.innerHTML = '';
+        if (legendContainer) legendContainer.innerHTML = '';
         
         // Traiter les données
         const themeCounts = {};
         let totalInscriptions = 0;
         
-        if (sessions && sessions.length > 0) {
-            sessions.forEach(session => {
+        const processedSessions = validateAndProcessSessions(sessions);
+        
+        if (processedSessions && processedSessions.length > 0) {
+            processedSessions.forEach(session => {
                 if (session.theme && session.inscrits) {
                     themeCounts[session.theme] = (themeCounts[session.theme] || 0) + session.inscrits;
                     totalInscriptions += session.inscrits;
@@ -425,14 +578,16 @@ document.addEventListener('DOMContentLoaded', function() {
             donutContainer.appendChild(segment);
             
             // Ajouter à la légende
-            const legendItem = document.createElement('div');
-            legendItem.classList.add('legend-item');
-            legendItem.innerHTML = `
-                <div class="legend-color" style="background-color: ${color};"></div>
-                <div class="legend-label">${theme}</div>
-                <div class="legend-value">${count}</div>
-            `;
-            legendContainer.appendChild(legendItem);
+            if (legendContainer) {
+                const legendItem = document.createElement('div');
+                legendItem.classList.add('legend-item');
+                legendItem.innerHTML = `
+                    <div class="legend-color" style="background-color: ${color};"></div>
+                    <div class="legend-label">${theme}</div>
+                    <div class="legend-value">${count}</div>
+                `;
+                legendContainer.appendChild(legendItem);
+            }
             
             startAngle += angle;
         });
@@ -462,16 +617,26 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // S'assurer que le conteneur est visible
+        barsContainer.style.display = 'block';
+        
         // Effacer le contenu existant
         barsContainer.innerHTML = '';
         
         // Traiter les données
         const serviceCounts = {};
         
-        if (participants && participants.length > 0) {
+        if (participants && Array.isArray(participants) && participants.length > 0) {
             participants.forEach(participant => {
-                if (participant.service) {
-                    serviceCounts[participant.service] = (serviceCounts[participant.service] || 0) + 1;
+                let service = null;
+                if (typeof participant.service === 'string') {
+                    service = participant.service;
+                } else if (participant.service && typeof participant.service === 'object' && participant.service.nom) {
+                    service = participant.service.nom;
+                }
+                
+                if (service) {
+                    serviceCounts[service] = (serviceCounts[service] || 0) + 1;
                 }
             });
         }
@@ -541,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const activityContainer = document.getElementById('recent-activity');
         
         if (!activityContainer) {
-            console.error("Activity container not found");
+            console.warn("Activity container not found");
             return;
         }
         
@@ -555,7 +720,7 @@ document.addEventListener('DOMContentLoaded', function() {
         activityContainer.innerHTML = '';
         
         // Si pas d'activités, afficher un état vide
-        if (!activities || activities.length === 0) {
+        if (!activities || !Array.isArray(activities) || activities.length === 0) {
             activityContainer.innerHTML = '<div class="text-center p-3 text-muted">Aucune activité récente</div>';
             return;
         }
@@ -679,5 +844,5 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    if (DASH_CONFIG.debugMode) console.log("Enhanced Charts (v2.2.0): Setup complete.");
+    if (DASH_CONFIG.debugMode) console.log("Enhanced Charts (v2.3.0): Setup complete.");
 });
