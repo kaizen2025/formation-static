@@ -1,42 +1,3 @@
-Ah, mille excuses ! Cette erreur `ImportError` est de ma faute.
-
-L'exception `RequestEntityTooLarge` n'appartient pas à `sqlalchemy.exc` mais à `werkzeug.exceptions`. J'ai fait une erreur en l'important depuis le mauvais module lors de l'ajout de la gestion des uploads.
-
-**Action :**
-
-1.  Ouvrez votre fichier `app.py`.
-2.  **Modifiez la ligne d'import de `sqlalchemy.exc`** (autour de la ligne 33) pour **retirer** `RequestEntityTooLarge` :
-    ```python
-    # Ligne originale (incorrecte) :
-    # from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError, RequestEntityTooLarge
-
-    # Ligne corrigée :
-    from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError
-    ```
-3.  **Modifiez la ligne d'import de `werkzeug.exceptions`** (autour de la ligne 38) pour **ajouter** `RequestEntityTooLarge` :
-    ```python
-    # Ligne originale :
-    # from werkzeug.exceptions import ServiceUnavailable
-
-    # Ligne corrigée :
-    from werkzeug.exceptions import ServiceUnavailable, RequestEntityTooLarge
-    ```
-4.  **Modifiez le bloc `except` dans la fonction `upload_document`** (autour de la ligne 1098) pour utiliser le bon nom d'exception :
-    ```python
-    # Ligne originale (incorrecte) :
-    # except RequestEntityTooLarge:
-
-    # Ligne corrigée :
-    except RequestEntityTooLarge:
-         flash('Le fichier est trop volumineux (limite: 16MB).', 'danger')
-    ```
-    *(Note : Comme `RequestEntityTooLarge` est maintenant importé directement, vous n'avez pas besoin de préfixer avec `werkzeug.exceptions.` ici)*
-
-Je vous fournis à nouveau le fichier `app.py` **complet** avec ces corrections spécifiques. J'ai vérifié ces points précis.
-
-**Voici le fichier `app.py` complet et re-corrigé :**
-
-```python
 # ==============================================================================
 # app.py - Application Flask pour la Gestion des Formations Microsoft 365
 # Version: 1.1.6 - Correction ImportError RequestEntityTooLarge
@@ -1268,16 +1229,12 @@ if __name__ == '__main__':
         except OperationalError as oe: print(f"⚠️ ERREUR CONNEXION DB au démarrage: {oe}"); print("Impossible de vérifier/initialiser la DB.")
         except Exception as e:
             print(f"⚠️ Erreur lors de la vérification/initialisation de la DB: {e}")
-            # --- CORRECTION SYNTAXE ---
             try:
                 db.session.rollback()
             except Exception as rb_e:
                 print(f"Erreur supplémentaire pendant le rollback: {rb_e}")
-            # --- FIN CORRECTION ---
     try:
         host = '0.0.0.0'; print(f"Démarrage serveur en MODE {'PRODUCTION' if is_production else 'DÉVELOPPEMENT'} avec {ASYNC_MODE} sur http://{host}:{port} (Debug: {debug_mode})")
         if debug_mode: socketio.run(app, host=host, port=port, use_reloader=True, debug=debug_mode, log_output=False, allow_unsafe_werkzeug=True)
         else: print("NOTE: Using Flask's built-in server for production is not recommended. Use Gunicorn or Waitress."); socketio.run(app, host=host, port=port, debug=False, use_reloader=False)
     except Exception as e: print(f"⚠️ ERREUR CRITIQUE au démarrage du serveur: {e}"); import traceback; traceback.print_exc()
-
-# --- END OF COMPLETE app.py ---
