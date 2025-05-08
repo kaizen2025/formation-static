@@ -1,6 +1,6 @@
 # ==============================================================================
 # app.py - Application Flask pour la Gestion des Formations Microsoft 365
-# Version: 1.1.6 - Correction ImportError RequestEntityTooLarge
+# Version: 1.1.7 - Rétablissement endpoint explicite 'participants_page'
 # ==============================================================================
 
 # --- Imports ---
@@ -30,13 +30,11 @@ from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# CORRECTION: Retrait de RequestEntityTooLarge de cet import
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, TimeoutError
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, text, select
 
-# CORRECTION: Ajout de RequestEntityTooLarge à cet import
-from werkzeug.exceptions import ServiceUnavailable, RequestEntityTooLarge
+from werkzeug.exceptions import ServiceUnavailable, RequestEntityTooLarge # Correction Import
 from werkzeug.routing import BuildError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -1039,7 +1037,6 @@ def api_single_session(session_id):
     except SQLAlchemyError as e: app.logger.error(f"API Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
     except Exception as e: app.logger.error(f"API Unexpected Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
 
-# --- Route API /api/participants ---
 @app.route('/api/participants')
 @limiter.limit("30 per minute")
 @db_operation_with_retry(max_retries=2)
@@ -1239,3 +1236,5 @@ if __name__ == '__main__':
         if debug_mode: socketio.run(app, host=host, port=port, use_reloader=True, debug=debug_mode, log_output=False, allow_unsafe_werkzeug=True)
         else: print("NOTE: Using Flask's built-in server for production is not recommended. Use Gunicorn or Waitress."); socketio.run(app, host=host, port=port, debug=False, use_reloader=False)
     except Exception as e: print(f"⚠️ ERREUR CRITIQUE au démarrage du serveur: {e}"); import traceback; traceback.print_exc()
+
+# --- END OF COMPLETE app.py ---
