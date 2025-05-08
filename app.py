@@ -1039,6 +1039,7 @@ def api_single_session(session_id):
     except SQLAlchemyError as e: app.logger.error(f"API Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
     except Exception as e: app.logger.error(f"API Unexpected Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
 
+# --- Route API /api/participants ---
 @app.route('/api/participants')
 @limiter.limit("30 per minute")
 @db_operation_with_retry(max_retries=2)
@@ -1060,6 +1061,35 @@ def api_participants():
     except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"API Error fetching participants: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
     except Exception as e: db.session.rollback(); app.logger.error(f"API Unexpected Error fetching participants: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
     finally: db.session.close()
+
+# --- Route /participants (Page web) ---
+@app.route('/participants', endpoint='participants_page')
+@db_operation_with_retry(max_retries=3)
+def participants_view():  # Renommé pour éviter toute confusion
+    try:
+        participants_list = get_all_participants_with_service()
+        services_list_for_dropdown = Service.query.order_by(Service.nom).all()
+        participant_ids = [p.id for p in participants_list]
+        inscriptions_by_participant = {}; waitlist_by_participant = {}
+        if participant_ids:
+            all_inscriptions_q = Inscription.query.options(joinedload(Inscription.session).options(joinedload(Session.theme), joinedload(Session.salle))).filter(Inscription.participant_id.in_(participant_ids)).all()
+            for insc in all_inscriptions_q:
+                if insc.participant_id not in inscriptions_by_participant: inscriptions_by_participant[insc.participant_id] = []
+                inscriptions_by_participant[insc.participant_id].append(insc)
+            all_waitlist_q = ListeAttente.query.options(joinedload(ListeAttente.session).options(joinedload(Session.theme), joinedload(Session.salle)), joinedload(ListeAttente.participant)).filter(ListeAttente.participant_id.in_(participant_ids)).all()
+            for wl_entry in all_waitlist_q:
+                 if wl_entry.participant_id not in waitlist_by_participant: waitlist_by_participant[wl_entry.participant_id] = []
+                 waitlist_by_participant[wl_entry.participant_id].append(wl_entry)
+        participants_data_for_template = []
+        for p_obj in participants_list:
+            all_p_inscriptions = inscriptions_by_participant.get(p_obj.id, [])
+            p_confirmed_inscriptions = sorted([i for i in all_p_inscriptions if i.statut == 'confirmé'], key=lambda i: i.session.date if i.session and i.session.date else date.min)
+            p_pending_inscriptions = sorted([i for i in all_p_inscriptions if i.statut == 'en attente'], key=lambda i: i.date_inscription, reverse=True)
+            p_waitlist_entries = sorted(waitlist_by_participant.get(p_obj.id, []), key=lambda w: w.position)
+            participants_data_for_template.append({'obj': p_obj, 'inscriptions_count': len(p_confirmed_inscriptions), 'attente_count': len(p_waitlist_entries), 'pending_count': len(p_pending_inscriptions), 'loaded_confirmed_inscriptions': p_confirmed_inscriptions, 'loaded_pending_inscriptions': p_pending_inscriptions, 'loaded_waitlist': p_waitlist_entries})
+        return render_template('participants.html', participants_data=participants_data_for_template, services=services_list_for_dropdown, ListeAttente=ListeAttente, Inscription=Inscription)
+    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading participants page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement des participants.", "danger"); return redirect(url_for('dashboard'))
+    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading participants page: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return redirect(url_for('dashboard'))
 
 @app.route('/api/salles')
 @db_operation_with_retry(max_retries=2)
