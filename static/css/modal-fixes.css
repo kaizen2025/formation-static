@@ -1,188 +1,229 @@
-/* modal-styles-fix.css */
+/* static/css/modal-fixes.css */
+/* Contenu fusionné et optimisé de modal-fixes.css et modern-modal-fixes.css */
 
-/* Assurer que la modale est visible et correctement positionnée */
+/* Forcer le bon positionnement et l'affichage des modales */
 .modal {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  z-index: 1055 !important;
-  display: none;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  outline: 0 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 1055 !important; /* Au-dessus de .modal-backdrop (1050) */
+    width: 100% !important;
+    height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important; /* Permet le scroll dans la modale si contenu long */
+    outline: 0 !important;
+    display: none; /* Caché par défaut */
+    -webkit-overflow-scrolling: touch !important; /* Scroll fluide sur iOS */
 }
 
 .modal.show {
-  display: block !important;
-  opacity: 1 !important;
+    display: block !important; /* Afficher quand la classe .show est ajoutée */
+    opacity: 1 !important;
 }
 
-/* Assurer que l'arrière-plan fonctionne correctement */
+/* Animation d'affichage/masquage */
+.modal.fade {
+    transition: opacity 0.15s linear !important;
+}
+
+.modal.fade .modal-dialog {
+    transition: transform 0.15s ease-out !important;
+    transform: translate(0, -50px) !important; /* Position initiale pour l'animation "slide down" */
+}
+
+.modal.show .modal-dialog {
+    transform: none !important; /* Position finale */
+}
+
+/* Arrière-plan des modales */
 .modal-backdrop {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  background-color: rgba(0, 0, 0, 0.5) !important;
-  z-index: 1050 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 1050 !important; /* Inférieur à .modal mais au-dessus du reste */
+    width: 100vw !important;
+    height: 100vh !important;
+    background-color: #000 !important; /* Fond noir */
 }
 
-.modal-backdrop.show {
-  opacity: 0.5 !important;
+.modal-backdrop.show { /* Bootstrap ajoute .show au lieu de modifier .fade directement */
+    opacity: 0.5 !important; /* Opacité standard */
+}
+.modal-backdrop.fade { /* S'assurer que le fade-in/out du backdrop fonctionne */
+    opacity: 0;
 }
 
-/* Améliorer l'apparence et la disposition de la boîte de dialogue */
+
+/* Verrouillage du scroll du body */
+body.modal-open {
+    overflow: hidden !important;
+    padding-right: 0 !important; /* Éviter le décalage du contenu dû à la scrollbar */
+}
+/* Spécifique iOS pour éviter le scroll du fond */
+@supports (-webkit-overflow-scrolling: touch) {
+    body.modal-open {
+        position: fixed !important; /* Peut causer des sauts en haut de page, à tester */
+        width: 100% !important;
+    }
+}
+
+
+/* Contenu de la modale */
 .modal-dialog {
-  position: relative !important;
-  width: auto !important;
-  margin: 1.5rem auto !important;
-  max-width: 500px !important;
-  z-index: 1056 !important;
-  pointer-events: auto !important;
+    position: relative !important;
+    width: auto !important;
+    margin: 1.5rem auto !important; /* Marges standard, auto pour centrer */
+    max-width: 500px !important; /* Largeur par défaut, peut être surchargée par .modal-lg, etc. */
+    pointer-events: none !important; /* Laisser les événements passer au .modal-content */
 }
+.modal.show .modal-dialog {
+    pointer-events: auto !important; /* Activer les événements pour le contenu quand visible */
+}
+
 
 .modal-content {
-  position: relative !important;
-  display: flex !important;
-  flex-direction: column !important;
-  width: 100% !important;
-  background-color: #fff !important;
-  border-radius: 0.5rem !important;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5) !important;
-  outline: 0 !important;
-  border: none !important;
-  z-index: 1057 !important;
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    color: var(--bs-modal-color);
+    pointer-events: auto !important;
+    background-color: var(--bs-modal-bg, #fff) !important;
+    background-clip: padding-box !important;
+    border: var(--bs-modal-border-width, 1px) solid var(--bs-modal-border-color, rgba(0,0,0,0.2)) !important;
+    border-radius: var(--bs-modal-border-radius, 0.5rem) !important;
+    box-shadow: var(--bs-modal-box-shadow, 0 0.5rem 1rem rgba(0,0,0,0.5)) !important;
+    outline: 0 !important;
 }
 
-/* Styles pour l'en-tête de la modale */
+
+/* En-tête, corps, pied de page */
 .modal-header {
-  display: flex !important;
-  flex-shrink: 0 !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  padding: 1rem 1rem !important;
-  border-bottom: 1px solid #dee2e6 !important;
-  border-top-left-radius: 0.5rem !important;
-  border-top-right-radius: 0.5rem !important;
-  z-index: 1058 !important;
+    display: flex !important;
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: var(--bs-modal-header-padding, 1rem 1rem) !important;
+    border-bottom: var(--bs-modal-header-border-width, 1px) solid var(--bs-modal-header-border-color, #dee2e6) !important;
+    border-top-left-radius: var(--bs-modal-inner-border-radius, calc(0.5rem - 1px)) !important;
+    border-top-right-radius: var(--bs-modal-inner-border-radius, calc(0.5rem - 1px)) !important;
 }
 
-.modal-title {
-  margin-bottom: 0 !important;
-  line-height: 1.5 !important;
-}
-
-.btn-close {
-  box-sizing: content-box !important;
-  padding: 0.5rem 0.5rem !important;
-  margin: -0.5rem -0.5rem -0.5rem auto !important;
-  z-index: 1059 !important;
-}
-
-/* Styles pour le corps de la modale */
 .modal-body {
-  position: relative !important;
-  flex: 1 1 auto !important;
-  padding: 1rem !important;
-  z-index: 1058 !important;
+    position: relative !important;
+    flex: 1 1 auto !important; /* Permet au corps de grandir */
+    padding: var(--bs-modal-padding, 1rem) !important;
 }
 
-/* Styles pour le pied de la modale */
 .modal-footer {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  flex-shrink: 0 !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  padding: 0.75rem !important;
-  border-top: 1px solid #dee2e6 !important;
-  border-bottom-right-radius: 0.5rem !important;
-  border-bottom-left-radius: 0.5rem !important;
-  z-index: 1058 !important;
+    display: flex !important;
+    flex-shrink: 0 !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important; /* Aligner les boutons à droite */
+    padding: var(--bs-modal-footer-padding, 0.75rem) !important;
+    border-top: var(--bs-modal-footer-border-width, 1px) solid var(--bs-modal-footer-border-color, #dee2e6) !important;
+    border-bottom-right-radius: var(--bs-modal-inner-border-radius, calc(0.5rem - 1px)) !important;
+    border-bottom-left-radius: var(--bs-modal-inner-border-radius, calc(0.5rem - 1px)) !important;
+}
+.modal-footer > * { /* Espacement entre les éléments du footer */
+    margin: 0.25rem;
 }
 
-/* Assurer que les contrôles de formulaire sont utilisables */
-.modal select, 
-.modal .form-select {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  z-index: 2000 !important; 
-  position: relative !important;
-  pointer-events: auto !important;
-  -webkit-appearance: listbox !important;
-  appearance: listbox !important;
+/* Boutons et formulaires dans les modales */
+.modal button,
+.modal .btn { /* Assurer que les boutons sont cliquables */
+    position: relative !important; /* Pour éviter les problèmes de z-index avec le contenu */
+    z-index: 1057 !important; /* Au-dessus du contenu de la modale mais en dessous du header/footer si nécessaire */
 }
 
+.modal select,
+.modal .form-select,
 .modal input,
 .modal textarea,
 .modal .form-control {
-  display: block !important;
-  width: 100% !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  z-index: 1999 !important;
-  position: relative !important;
-  pointer-events: auto !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 1056 !important; /* Au-dessus du contenu de base de la modale */
+    position: relative !important; /* Nécessaire pour que z-index fonctionne */
+    width: 100% !important; /* S'assurer que les inputs prennent toute la largeur */
+}
+/* Spécifique pour les selects sur iOS et pour assurer l'apparence native */
+.modal select.form-select, .modal select {
+    -webkit-appearance: listbox !important;
+    appearance: listbox !important;
+    background-image: none !important; /* Retirer la flèche custom de Bootstrap si elle cause problème */
+}
+/* Empêcher le zoom sur les inputs sur iOS */
+.modal input, .modal select, .modal textarea {
+    font-size: 16px !important;
 }
 
-.modal button,
-.modal .btn {
-  position: relative !important;
-  z-index: 2001 !important;
-  pointer-events: auto !important;
-}
 
-/* Styles pour les onglets dans les modales */
+/* Onglets dans les modales */
 .modal .nav-tabs {
-  border-bottom: 1px solid #dee2e6 !important;
-  margin-bottom: 1rem !important;
-  z-index: 1058 !important;
+    border-bottom: 1px solid #dee2e6 !important;
+    margin-bottom: 1rem !important;
 }
-
 .modal .nav-tabs .nav-link {
-  border: 1px solid transparent !important;
-  border-top-left-radius: 0.25rem !important;
-  border-top-right-radius: 0.25rem !important;
-  cursor: pointer !important;
-  z-index: 1059 !important;
+    border: 1px solid transparent !important;
+    border-top-left-radius: 0.25rem !important;
+    border-top-right-radius: 0.25rem !important;
+    cursor: pointer !important;
 }
-
 .modal .nav-tabs .nav-link.active {
-  color: #0d6efd !important;
-  background-color: #fff !important;
-  border-color: #dee2e6 #dee2e6 #fff !important;
-  z-index: 1060 !important;
+    color: var(--bs-nav-tabs-link-active-color, #0d6efd) !important;
+    background-color: var(--bs-nav-tabs-link-active-bg, #fff) !important;
+    border-color: var(--bs-nav-tabs-link-active-border-color, #dee2e6 #dee2e6 #fff) !important;
 }
-
 .modal .tab-content {
-  z-index: 1058 !important;
-  position: relative !important;
+    position: relative !important; /* Pour contexte de z-index si nécessaire */
 }
 
-/* Correction pour les dispositifs mobiles */
+/* Spécifique pour certaines modales si elles ont des problèmes de z-index persistants */
+#inscriptionModal, [id^="inscriptionModal_"],
+#participantsModal, [id^="participantsModal_"], /* Si vous avez des modales de participants avec ID dynamique */
+#nouveauParticipantModal,
+#editSalleModal, [id^="editSalleModal_"],
+#attribuerSalleModal {
+    z-index: 1060 !important; /* Un peu plus haut si elles s'ouvrent par-dessus d'autres modales */
+}
+/* Si une modale ouvre une autre modale, la nouvelle modale aura besoin d'un z-index plus élevé */
+/* Exemple: si #nouveauParticipantModal est ouverte depuis #inscriptionModal */
+.modal-stack-top { /* Classe à ajouter dynamiquement à la modale la plus haute */
+    z-index: 1070 !important;
+}
+.modal-backdrop-stack-top { /* Backdrop pour la modale la plus haute */
+    z-index: 1065 !important;
+}
+
+
+/* Dropdowns dans les modales */
+.modal .dropdown-menu {
+    z-index: 1070 !important; /* S'assurer que les dropdowns sont au-dessus du contenu de la modale */
+}
+
+/* Alertes dans les modales */
+.modal .alert {
+    position: relative !important; /* Pour s'assurer qu'elles sont dans le flux et respectent le z-index */
+    z-index: 1058 !important;
+}
+
+
+/* Adaptations pour petits écrans */
 @media (max-width: 576px) {
-  .modal-dialog {
-    margin: 0.5rem !important;
-    max-width: calc(100% - 1rem) !important;
-  }
-  
-  .modal-body input,
-  .modal-body select,
-  .modal-body textarea {
-    font-size: 16px !important; /* Empêche le zoom automatique sur iOS */
-  }
+    .modal-dialog {
+        margin: 0.5rem !important; /* Moins de marge sur mobile */
+        max-width: calc(100% - 1rem) !important; /* Utiliser presque toute la largeur */
+    }
+    .modal-content { /* Permettre le scroll interne si la modale est trop haute pour l'écran */
+        max-height: calc(100vh - 1rem) !important;
+        overflow-y: auto !important;
+    }
 }
 
-/* Optimisation spéciale pour la modale d'inscription */
-#inscriptionModal, 
-[id^="inscriptionModal_"] {
-  z-index: 1060 !important;
-}
-
-#nouveauParticipantModal {
-  z-index: 1065 !important;
+/* Éviter les problèmes de superposition avec plusieurs backdrops (si Bootstrap en crée plusieurs par erreur) */
+.modal-backdrop + .modal-backdrop {
+    display: none !important;
 }
