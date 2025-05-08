@@ -1,21 +1,48 @@
 /**
  * dashboard-core.js - Fichier JavaScript optimisé pour le tableau de bord
  * Remplace: polling-updates.js, ui-fixers.js, charts-enhanced.js, static-charts.js
- * Version: 1.3.0 - Fix updating flag issues, optimize polling
+ * Version: 1.3.2 - Compatible avec dashboard-init.js, évite les conflits et valeurs undefined
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard Core: Initializing (v1.3.0)');
+    console.log('Dashboard Core: Initializing (v1.3.2)');
+    
+    // Vérifier si le module est déjà initialisé par un autre script
+    if (window.dashboardCoreInitialized) {
+        console.log('Dashboard Core: Already initialized by another script. Skipping initialization.');
+        return;
+    }
+    
+    // Marquer comme initialisé pour éviter les doubles initialisations
+    window.dashboardCoreInitialized = true;
 
-    // Configuration centralisée
-    const config = window.dashboardConfig || {
-        debugMode: false,
-        refreshInterval: 300000, // 5 minutes
-        minRefreshDelay: 30000, // Minimum 30 secondes entre les requêtes auto
-        debounceDelay: 1000,     // Increased from 500ms to 1000ms to reduce race conditions
-        baseApiUrl: '/api',
-        chartRendering: 'auto'
+    // Adaptation de la configuration pour être compatible avec dashboard-init.js
+    // Si dashboard-init.js est utilisé, nous utilisons son format de configuration
+    const dashInitConfig = window.dashboardConfig || {};
+    
+    // Configuration centralisée avec valeurs par défaut garanties et compatibilité avec dashboard-init.js
+    const config = {
+        // Paramètres standard utilisés par dashboard-core.js
+        debugMode: dashInitConfig.debugMode || false,
+        // Si dashboard-init.js est présent, utilise autoRefreshInterval, sinon utilise refreshInterval ou valeur par défaut
+        refreshInterval: dashInitConfig.autoRefreshInterval || 
+                        (window.dashboardConfig && window.dashboardConfig.refreshInterval) || 
+                        300000, // 5 minutes par défaut
+        minRefreshDelay: (window.dashboardConfig && window.dashboardConfig.minRefreshDelay) || 30000, // 30 secondes
+        debounceDelay: (window.dashboardConfig && window.dashboardConfig.debounceDelay) || 1000, // 1 seconde
+        baseApiUrl: (window.dashboardConfig && window.dashboardConfig.baseApiUrl) || '/api',
+        chartRendering: (window.dashboardConfig && window.dashboardConfig.chartRendering) || 'auto',
+        
+        // Indicateur pour déterminer si dashboard-init.js est utilisé
+        usingDashboardInit: !!dashInitConfig.autoRefreshInterval || !!dashInitConfig.preferredMode,
+        
+        // Support pour les paramètres de dashboard-init.js
+        socketEnabled: dashInitConfig.socketEnabled !== undefined ? dashInitConfig.socketEnabled : true,
+        pollingEnabled: dashInitConfig.pollingEnabled !== undefined ? dashInitConfig.pollingEnabled : true,
+        preferredMode: dashInitConfig.preferredMode || 'polling'
     };
+    
+    console.log(`Dashboard Core: Configured with refreshInterval=${config.refreshInterval}ms, debounceDelay=${config.debounceDelay}ms, usingDashboardInit=${config.usingDashboardInit}`);
 
     // État global du tableau de bord
     let dashboardState = {
@@ -34,23 +61,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Référence au gestionnaire d'erreurs API
     const errorHandler = window.apiErrorHandler || { 
-        handleApiError: (endpoint, errorData, statusCode) => { console.error(`Fallback Error Handler: Erreur ${statusCode} sur ${endpoint}`, errorData); showToast(`Erreur ${statusCode} lors du chargement de ${endpoint}`, 'danger'); return false; },
-        checkAndFixBrokenElements: () => { console.warn("Fallback checkAndFixBrokenElements called"); }
+        handleApiError: (endpoint, errorData, statusCode) => { 
+            console.error(`Fallback Error Handler: Erreur ${statusCode} sur ${endpoint}`, errorData); 
+            showToast(`Erreur ${statusCode} lors du chargement de ${endpoint}`, 'danger'); 
+            return false; 
+        },
+        checkAndFixBrokenElements: () => { 
+            console.log("Dashboard Core: Fixing UI elements with fallback handler"); 
+            fixDataIssues(); 
+            enhanceBadgesAndLabels(); 
+        }
     };
 
     // ====== INITIALISATION ET CYCLE DE VIE ======
 
     function initializeDashboard() {
         enhanceUI();
-        setupEventListeners();
-        initializeCharts();
-        // Trigger initial fetch via debounced function
-        debouncedFetchDashboardData(true);
-        startPolling();
+        
+        // Ne pas initialiser d'écouteurs ou démarrer le polling si dashboard-init.js le fait déjà
+        if (!config.usingDashboardInit) {
+            setupEventListeners();
+            initializeCharts();
+            // Démarrer le fetch initial
+            debouncedFetchDashboardData(true);
+            startPolling();
+        } else {
+            // Si dashboard-init gère déjà le polling, nous fournissons juste les fonctions
+            // pour qu'ils puissent les appeler
+            window.forcePollingUpdate = (forceRefresh) => debouncedFetchDashboardData(forceRefresh);
+            window.updateStatsCounters = updateStatisticsCounters;
+            window.refreshRecentActivity = () => updateActivityFeed(null);
+            window.chartModule = { initialize: () => initializeCharts() };
+            
+            // Fetch initial quand même pour avoir des données de base
+            debouncedFetchDashboardData(true);
+        }
+        
         console.log('Dashboard Core: Initialization complete.');
     }
 
     function startPolling() {
+        // Ne pas démarrer le polling si dashboard-init.js le gère
+        if (config.usingDashboardInit) {
+            console.log("Dashboard Core: Skipping polling start because dashboard-init.js is managing it");
+            return;
+        }
+        
         // Clear any existing intervals and timeouts
         if (dashboardState.pollingInterval) clearInterval(dashboardState.pollingInterval);
         if (dashboardState.pollingTimeout) clearTimeout(dashboardState.pollingTimeout);
@@ -80,6 +136,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setupEventListeners() {
+        // Ne pas configurer d'écouteurs si dashboard-init.js le fait déjà
+        if (config.usingDashboardInit) {
+            console.log("Dashboard Core: Skipping event listener setup because dashboard-init.js is managing it");
+            return;
+        }
+        
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && dashboardState.pollingActive) {
                 console.log('Dashboard Core: Tab visible, triggering refresh');
@@ -132,7 +194,12 @@ document.addEventListener('DOMContentLoaded', function() {
             for (const mutation of mutations) { 
                 if (mutation.type === 'childList' && mutation.addedNodes.length > 0) { 
                     for (const node of mutation.addedNodes) { 
-                        if (node.nodeType === 1 && node.classList && (node.classList.contains('places-dispo') || node.classList.contains('theme-badge') || node.classList.contains('counter-value') || node.querySelector('.places-dispo, .theme-badge, .counter-value'))) { 
+                        if (node.nodeType === 1 && node.classList && (
+                            node.classList.contains('places-dispo') || 
+                            node.classList.contains('theme-badge') || 
+                            node.classList.contains('counter-value') || 
+                            node.querySelector('.places-dispo, .theme-badge, .counter-value')
+                        )) { 
                             important = true; 
                             break; 
                         } 
@@ -180,19 +247,30 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const url = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
             console.log(`Dashboard Core: Fetching data from ${url}`);
+            
+            // Création d'un contrôleur d'abort pour le timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes de timeout
+            
             const response = await fetch(url, { 
                 method: 'GET', 
                 headers: { 
                     'Accept': 'application/json', 
                     'X-Requested-With': 'XMLHttpRequest' 
                 },
-                // Add a reasonable timeout to prevent hanging requests
-                signal: AbortSignal.timeout(30000) // 30 second timeout
+                signal: controller.signal
             });
+            
+            // Nettoyage du timeout
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 let errorData = null;
-                try { errorData = await response.clone().json(); } catch (e) { /* ignore */ }
+                try { 
+                    errorData = await response.clone().json(); 
+                } catch (e) { 
+                    // Ignorer les erreurs de parsing
+                }
                 errorHandler.handleApiError(url, errorData, response.status);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -364,6 +442,14 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCounter('total-en-attente', totalEnAttente); 
         updateCounter('total-sessions', totalSessions); 
         updateCounter('total-sessions-completes', totalSessionsCompletes);
+        
+        // Retourner les statistiques pour compatibilité avec dashboard-init.js
+        return {
+            totalInscriptions,
+            totalEnAttente,
+            totalSessions,
+            totalSessionsCompletes
+        };
     }
     
     function updateCounter(elementId, newValue) {
@@ -379,6 +465,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateActivityFeed(activities) {
+        // Si activities est null, essayer de récupérer les dernières activités depuis l'API
+        if (activities === null) {
+            fetch(`${config.baseApiUrl}/activites?limit=5`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    updateActivityFeed(data); // Mettre à jour avec les données récupérées
+                })
+                .catch(error => {
+                    console.error("Error fetching activities:", error);
+                });
+            return;
+        }
+        
         if (!activities || !Array.isArray(activities)) return; 
         
         const container = document.getElementById('recent-activity'); 
@@ -409,6 +511,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }); 
         
         container.innerHTML = html;
+        
+        // Compatibilité avec dashboard-init.js - retourner une promesse résolue
+        return Promise.resolve(true);
     }
     
     function getActivityIcon(type) {
@@ -541,6 +646,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 tbody.innerHTML = `<tr><td colspan="${cols}" class="text-center p-3 text-muted">Aucune donnée disponible</td></tr>`; 
             } 
         }); 
+        
+        // Exposer cette fonction pour dashboard-init.js
+        if (!window.uiFixers) {
+            window.uiFixers = {
+                applyAllFixes: function() {
+                    fixDataIssues();
+                    enhanceBadgesAndLabels();
+                    initTooltips();
+                },
+                enhancePlacesRestantes: function() {
+                    fixDataIssues();
+                }
+            };
+        }
     }
     
     function enhanceAccessibility() { 
@@ -625,7 +744,10 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.static-chart-donut, .static-chart-bars').forEach(el => el.style.display = 'block'); 
         } 
         
-        if (config.debugMode) console.log(`Dashboard Core: Chart rendering mode: ${chartMode}`); 
+        if (config.debugMode) console.log(`Dashboard Core: Chart rendering mode: ${chartMode}`);
+        
+        // Pour dashboard-init.js, retourner une promesse
+        return Promise.resolve(true);
     }
     
     function updateCharts(sessions, participants) { 
@@ -957,9 +1079,16 @@ document.addEventListener('DOMContentLoaded', function() {
         } 
     }
     
-    // Make showToast available globally
+    // Make global functions available for other scripts
+    // Rendre showToast disponible globalement
     if (typeof window.showToast === 'undefined') 
         window.showToast = showToast;
+    
+    // Exposer les fonctions pour dashboard-init.js
+    window.forcePollingUpdate = (forceRefresh) => debouncedFetchDashboardData(forceRefresh);
+    window.updateStatsCounters = updateStatisticsCounters;
+    window.refreshRecentActivity = () => updateActivityFeed(null);
+    window.chartModule = { initialize: () => initializeCharts() };
 
     // Démarrer le tableau de bord
     initializeDashboard();
