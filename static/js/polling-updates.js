@@ -1,6 +1,6 @@
 /**
  * polling-updates.js - Optimized polling for dashboard updates.
- * v3.1.0 - Corrections pour la gestion des erreurs 500 et données manquantes
+ * v3.2.0 - Correction robuste pour les erreurs 500 et l'absence de places_restantes
  */
 document.addEventListener('DOMContentLoaded', function() {
     console.log("--- polling-updates.js EXECUTING ---");
@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const DASH_CONFIG = window.dashboardConfig || { 
         debugMode: false, 
         autoRefreshInterval: 30000, 
-        baseApiUrl: '/api'
+        baseApiUrl: '/api',
+        useFallbackEndpoints: false // Nouveau flag pour forcer les endpoints individuels
     };
     
     // Configuration
@@ -22,7 +23,8 @@ document.addEventListener('DOMContentLoaded', function() {
         visibilityPause: true, // Mettre en pause si l'onglet est inactif
         combinedEndpointRetries: 2, // Nombre de tentatives pour l'endpoint dashboard_essential
         baseApiUrl: DASH_CONFIG.baseApiUrl || '/api',
-        debugMode: DASH_CONFIG.debugMode || false
+        debugMode: DASH_CONFIG.debugMode || false,
+        useFallbackEndpoints: DASH_CONFIG.useFallbackEndpoints || false // Utiliser toujours les endpoints individuels?
     };
     
     // État global
@@ -33,6 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastFetchTimestamps = { sessions: 0, participants: 0, salles: 0, activites: 0 };
     let isBackendErrorActive = false;
     let dashboardEssentialFailed = false; // Flag pour suivre si dashboard_essential a échoué
+    let fallbackMode = config.useFallbackEndpoints;
 
     // Fonction de hachage simple pour détecter les changements de données
     function simpleHash(obj) {
@@ -54,11 +57,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (show && !errorDiv) {
             errorDiv = document.createElement('div');
             errorDiv.id = 'backend-error-warning';
-            errorDiv.className = 'alert alert-danger alert-dismissible fade show small p-2 mt-2 mx-4';
+            errorDiv.className = 'alert alert-warning alert-dismissible fade show small p-2 mt-2 mx-4';
             errorDiv.setAttribute('role', 'alert');
             errorDiv.innerHTML = `
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                Impossible de récupérer certaines données du serveur. Les tentatives continues en arrière-plan.
+                Chargement des données en cours via une source alternative. Certaines informations peuvent être temporairement indisponibles.
                 <button type="button" class="btn-close p-2" data-bs-dismiss="alert" aria-label="Close"></button>
             `;
             
@@ -176,9 +179,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error(`PollingUpdates: Erreur HTTP ${response.status} pour ${url}. Réponse:`, errorJson || errorText.substring(0, 200));
                 
                 // Traitement spécial pour l'erreur 'places_restantes'
-                if (errorJson && errorJson.message === "'places_restantes'" && url.includes('/api/dashboard_essential')) {
+                if ((errorJson && errorJson.message && errorJson.message.includes('places_restantes')) || 
+                    (errorText && errorText.includes('places_restantes'))) {
                     console.log("PollingUpdates: Erreur spécifique 'places_restantes' détectée. Abandon des tentatives pour cet endpoint.");
                     dashboardEssentialFailed = true;
+                    fallbackMode = true;
                     throw new Error("Erreur places_restantes détectée, passage aux endpoints individuels");
                 }
                 
@@ -200,7 +205,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 
             } catch (error) {
                 // Si c'est l'erreur spécifique places_restantes, ne pas réessayer
-                if (error.message.includes('places_restantes')) {
+                if (error.message && error.message.includes('places_restantes')) {
+                    fallbackMode = true; // Activer le mode fallback
                     throw error;
                 }
                 
@@ -239,6 +245,48 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
+     * Corrige les données de session pour garantir la présence et validité des places_restantes
+     * @param {Array} sessions - Liste des sessions à corriger
+     * @returns {Array} - Sessions corrigées
+     */
+    function ensureValidSessionData(sessions) {
+        if (!sessions || !Array.isArray(sessions)) return [];
+        
+        return sessions.map(session => {
+            // Créer une copie pour éviter de modifier l'original
+            const sessionCopy = { ...session };
+            
+            // Vérifier et corriger places_restantes si nécessaire
+            if (typeof sessionCopy.places_restantes !== 'number' || isNaN(sessionCopy.places_restantes)) {
+                // Calculer manuellement places_restantes si possible
+                if (typeof sessionCopy.max_participants === 'number' && typeof sessionCopy.inscrits === 'number') {
+                    sessionCopy.places_restantes = Math.max(0, sessionCopy.max_participants - sessionCopy.inscrits);
+                } else {
+                    // Valeur par défaut sécuritaire
+                    sessionCopy.places_restantes = 0;
+                }
+            }
+            
+            // S'assurer que max_participants est un nombre
+            if (typeof sessionCopy.max_participants !== 'number' || isNaN(sessionCopy.max_participants)) {
+                sessionCopy.max_participants = 10; // Valeur par défaut
+            }
+            
+            // S'assurer que inscrits est un nombre
+            if (typeof sessionCopy.inscrits !== 'number' || isNaN(sessionCopy.inscrits)) {
+                sessionCopy.inscrits = 0;
+            }
+            
+            // S'assurer que liste_attente est un nombre
+            if (typeof sessionCopy.liste_attente !== 'number' || isNaN(sessionCopy.liste_attente)) {
+                sessionCopy.liste_attente = 0;
+            }
+            
+            return sessionCopy;
+        });
+    }
+
+    /**
      * Refresh all dashboard components
      * Improved to handle combined endpoint failure
      */
@@ -253,10 +301,11 @@ document.addEventListener('DOMContentLoaded', function() {
         let dashboardDataPayload = { sessions: null, participants: null, salles: null, activites: null };
         let dataUpdatedOverall = false;
         
-        // Si l'endpoint combiné a déjà échoué avec l'erreur places_restantes, utiliser directement les endpoints individuels
-        if (dashboardEssentialFailed) {
+        // Vérifier si on doit utiliser les endpoints individuels (fallback mode)
+        if (fallbackMode || dashboardEssentialFailed || DASH_CONFIG.useFallbackEndpoints) {
             console.log('PollingUpdates: Utilisation des endpoints individuels comme fallback...');
-            await refreshUsingIndividualEndpoints(dashboardDataPayload);
+            const updatedData = await refreshUsingIndividualEndpoints(dashboardDataPayload);
+            dataUpdatedOverall = updatedData;
         } else {
             // Essayer d'abord l'endpoint combiné
             try {
@@ -265,11 +314,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 if (combinedData) {
-                    // Transformation et vérification des données reçues
+                    // Transformation et vérification des sessions reçues
                     if (combinedData.sessions && Array.isArray(combinedData.sessions)) {
-                        const sessionsHash = simpleHash(combinedData.sessions);
+                        // Correction des données de session
+                        const validatedSessions = ensureValidSessionData(combinedData.sessions);
+                        
+                        const sessionsHash = simpleHash(validatedSessions);
                         if (lastDataHashes.sessions !== sessionsHash) {
-                            dashboardDataPayload.sessions = combinedData.sessions;
+                            dashboardDataPayload.sessions = validatedSessions;
                             lastDataHashes.sessions = sessionsHash;
                             lastFetchTimestamps.sessions = Date.now();
                             dataUpdatedOverall = true;
@@ -277,6 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                     
+                    // Traitement des activités
                     if (combinedData.activites && Array.isArray(combinedData.activites)) {
                         const activitesHash = simpleHash(combinedData.activites);
                         if (lastDataHashes.activites !== activitesHash) {
@@ -288,20 +341,32 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                     
-                    // Note: combinedData peut ne pas contenir participants/salles, ce qui est OK
+                    // Traitement des participants
+                    if (combinedData.participants && Array.isArray(combinedData.participants)) {
+                        const participantsHash = simpleHash(combinedData.participants);
+                        if (lastDataHashes.participants !== participantsHash) {
+                            dashboardDataPayload.participants = combinedData.participants;
+                            lastDataHashes.participants = participantsHash;
+                            lastFetchTimestamps.participants = Date.now();
+                            dataUpdatedOverall = true;
+                            console.log('PollingUpdates: participants data has changed.');
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('PollingUpdates: Échec de l\'endpoint combiné:', error.message);
                 
                 // Si l'erreur contient places_restantes, on flaggue pour toujours utiliser les endpoints individuels
-                if (error.message.includes('places_restantes')) {
+                if (error.message && error.message.includes('places_restantes')) {
                     dashboardEssentialFailed = true;
+                    fallbackMode = true;
                     console.warn('PollingUpdates: Passage permanent aux endpoints individuels en raison de l\'erreur places_restantes');
                 }
                 
                 // Fallback vers les endpoints individuels
                 console.log('PollingUpdates: Utilisation des endpoints individuels comme fallback...');
-                await refreshUsingIndividualEndpoints(dashboardDataPayload);
+                const updatedData = await refreshUsingIndividualEndpoints(dashboardDataPayload);
+                dataUpdatedOverall = updatedData;
             }
         }
         
@@ -364,9 +429,23 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (result.status === 'fulfilled' && result.value) {
                 const data = result.value;
-                const dataArray = Array.isArray(data) ? data : (data.items || null);
+                let dataArray = null;
+                
+                if (Array.isArray(data)) {
+                    dataArray = data;
+                } else if (data.items && Array.isArray(data.items)) {
+                    dataArray = data.items;
+                } else if (endpoint.name === 'sessions' && typeof data === 'object') {
+                    // Essayer d'extraire les sessions d'une autre structure possible
+                    dataArray = data.sessions || [];
+                }
                 
                 if (dataArray) {
+                    // Pour les sessions, s'assurer que les données sont valides
+                    if (endpoint.name === 'sessions') {
+                        dataArray = ensureValidSessionData(dataArray);
+                    }
+                    
                     const dataHash = simpleHash(dataArray);
                     if (lastDataHashes[endpoint.name] !== dataHash) {
                         dashboardDataPayload[endpoint.name] = dataArray;
@@ -390,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {Object} payload - Data for updating UI
      */
     function updateStatsAndUI(payload) {
-        console.log("PollingUpdates: Données reçues pour stats/UI:", JSON.stringify(payload));
+        console.log("PollingUpdates: Données reçues pour stats/UI:", payload);
         
         // Mettre à jour les statistiques globales et compteurs
         if (payload.sessions && Array.isArray(payload.sessions)) {
@@ -479,14 +558,27 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {Array} activitesArray - Recent activities data
      */
     function updateActivityFeed(activitesArray) {
-        console.log("PollingUpdates: Données reçues pour Activité Récente:", JSON.stringify(activitesArray));
+        if (!activitesArray || !Array.isArray(activitesArray)) return;
+        
+        console.log("PollingUpdates: Données reçues pour Activité Récente:", activitesArray);
         
         const activityContainer = document.getElementById('recent-activity');
-        if (!activityContainer || !activitesArray || !Array.isArray(activitesArray)) return;
+        if (!activityContainer) return;
         
         try {
-            // Vider le conteneur ou stocker l'état actuel pour comparaison
+            // Vider le conteneur de son spinner de chargement si présent
+            const loadingEl = activityContainer.querySelector('.loading-spinner');
+            if (loadingEl) {
+                loadingEl.remove();
+            }
+            
+            // Stocker l'état actuel pour comparaison
             const currentFirstActivityId = activityContainer.querySelector('.activity-item')?.dataset?.activityId;
+            
+            if (activitesArray.length === 0) {
+                activityContainer.innerHTML = '<div class="text-center p-3 text-muted">Aucune activité récente</div>';
+                return;
+            }
             
             // Construction du HTML pour les activités
             let activitiesHTML = '';
@@ -543,16 +635,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const element = document.getElementById(elementId);
         if (!element) return;
         
+        // Vérifier que la valeur est un nombre
+        const numValue = !isNaN(value) ? Number(value) : 0;
+        
         // Extraire la valeur actuelle
-        const currentValue = parseInt(element.textContent.replace(/[^\d]/g, ''), 10) || 0;
+        const currentText = element.textContent.replace(/[^\d]/g, '');
+        const currentValue = parseInt(currentText, 10) || 0;
         
         // Ne mettre à jour que si la valeur a changé
-        if (currentValue !== value) {
+        if (currentValue !== numValue) {
             if (typeof window.animateCounter === 'function') {
-                window.animateCounter(element, currentValue, value);
+                window.animateCounter(element, currentValue, numValue);
             } else {
                 // Fallback si la fonction d'animation n'est pas disponible
-                element.textContent = value.toLocaleString();
+                element.textContent = numValue.toLocaleString();
             }
         }
     }
@@ -603,6 +699,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(e => console.error("PollingUpdates: Error refreshing activities:", e));
         }
+        
+        return Promise.resolve(true); // Retourner une promesse résolue pour compatibilité
     };
 
     /**
@@ -616,12 +714,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(data => {
                     if (data) {
                         const sessions = Array.isArray(data) ? data : (data.items || []);
-                        updateSessionStats(sessions);
+                        const validatedSessions = ensureValidSessionData(sessions);
+                        updateSessionStats(validatedSessions);
                         lastFetchTimestamps.sessions = Date.now();
                     }
                 })
                 .catch(e => console.error("PollingUpdates: Error refreshing stats:", e));
         }
+        
+        return Promise.resolve(true); // Retourner une promesse résolue pour compatibilité
     };
 
     /**
@@ -647,7 +748,11 @@ document.addEventListener('DOMContentLoaded', function() {
             Object.keys(lastDataHashes).forEach(key => lastDataHashes[key] = '');
             
             // Réinitialiser le flag d'échec de l'endpoint combiné pour le retester
-            dashboardEssentialFailed = false;
+            // sauf si le flag global useFallbackEndpoints est actif
+            if (!DASH_CONFIG.useFallbackEndpoints) {
+                dashboardEssentialFailed = false;
+                fallbackMode = false;
+            }
         }
         
         // Suspendre l'intervalle pendant l'actualisation manuelle
@@ -658,6 +763,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             await refreshDashboardComponents();
+            
+            // Si UI fixers est disponible, appliquer les corrections
+            if (typeof window.uiFixers !== 'undefined' && typeof window.uiFixers.applyAllFixes === 'function') {
+                setTimeout(window.uiFixers.applyAllFixes, 200);
+            }
+            
             return { success: true };
         } catch (e) {
             console.error("PollingUpdates: Erreur pendant forcePollingUpdate", e);
@@ -699,6 +810,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Initialisation ---
+    // Définir fallbackMode d'après la configuration
+    fallbackMode = DASH_CONFIG.useFallbackEndpoints || fallbackMode;
+    
+    // Vérifier si l'élément du favicon existe et le créer sinon
+    if (!document.querySelector('link[rel="shortcut icon"]')) {
+        const link = document.createElement('link');
+        link.rel = 'shortcut icon';
+        link.type = 'image/x-icon';
+        link.href = '/static/favicon.ico';
+        document.head.appendChild(link);
+    }
+    
     // Démarrer le polling si le mode est 'polling' ou 'auto' (car WebSocket n'est pas utilisé ici)
     if (DASH_CONFIG.activeMode === 'polling' || !DASH_CONFIG.activeMode) {
         startPolling();
@@ -725,5 +848,5 @@ document.addEventListener('DOMContentLoaded', function() {
         if (config.debugMode) console.log("PollingUpdates: Polling non démarré (mode actif non 'polling').");
     }
     
-    console.log('PollingUpdates: Setup complete (v3.1.0).');
+    console.log('PollingUpdates: Setup complete (v3.2.0).');
 });
