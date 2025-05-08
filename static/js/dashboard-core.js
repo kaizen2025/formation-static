@@ -1,10 +1,10 @@
 /**
  * dashboard-core.js - Fichier JavaScript optimisé pour le tableau de bord
- * Version: 1.6.0 - Correction calculs graphiques + gestion états vides/chargement
+ * Version: 1.6.1 - Suppression commentaire Jinja dans le rendu JS
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard Core: Initializing (v1.6.0)');
+    console.log('Dashboard Core: Initializing (v1.6.1)');
 
     if (window.dashboardCoreInitialized) {
         console.log('Dashboard Core: Already initialized. Skipping.');
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
         lastRefresh: 0,
         updating: false,
         dataHashes: { sessions: null, participants: null, activites: null },
-        rawData: { sessions: [], participants: [], activites: [] }, // Stocker les données brutes
+        rawData: { sessions: [], participants: [], activites: [] },
         errorCount: 0,
         maxErrors: 5,
         pollingActive: true,
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ====== INITIALISATION ET CYCLE DE VIE ======
     function initializeDashboard() {
         enhanceUI();
-        initializeCharts(); // Afficher les placeholders de chargement
+        initializeCharts();
 
         if (!config.usingDashboardInit) {
             setupEventListeners();
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
             window.chartModule = { initialize: initializeCharts, update: updateCharts };
         }
 
-        debouncedFetchDashboardData(true); // Premier chargement forcé
+        debouncedFetchDashboardData(true);
 
         if (config.debugMode) console.log('Dashboard Core: Initialization sequence complete.');
     }
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ====== COMMUNICATION AVEC L'API ======
     async function _fetchDashboardData(forceRefresh = false, lightMode = false) {
-        // ... (code identique à la version précédente, incluant la gestion du loader) ...
+        // ... (code identique à la version précédente) ...
         if (dashboardState.updating && !forceRefresh) {
             if (config.debugMode) console.log('Dashboard Core: Skipping fetch (update in progress, not forced)');
             return Promise.resolve(false);
@@ -244,8 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            // Toujours utiliser le fetch complet pour avoir les données participants
-            currentUrl = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
+            currentUrl = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`; // Toujours fetch complet
 
             if (config.debugMode) console.log(`Dashboard Core: Fetching data from ${currentUrl}`);
 
@@ -288,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 errorHandler.handleApiError(currentUrl, errorData, response.status);
-                return false; // Indiquer l'échec
+                return false;
             }
 
             const data = await response.json();
@@ -298,8 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
 
-            // Stocker les données brutes
-            dashboardState.rawData = data;
+            dashboardState.rawData = data; // Stocker les données brutes
 
             const hasChanged = processData(data, forceRefresh);
             dashboardState.errorCount = 0;
@@ -352,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function debouncedFetchDashboardData(forceRefresh = false, lightModeForDebounce = false) {
-        // ... (code identique) ...
+        // ... (code identique, mais appelle _fetchDashboardData avec lightMode=false) ...
          if (forceRefresh) {
             if (dashboardState.fetchTimeoutId) {
                 clearTimeout(dashboardState.fetchTimeoutId);
@@ -374,9 +372,8 @@ document.addEventListener('DOMContentLoaded', function() {
             dashboardState.fetchTimeoutId = setTimeout(async () => {
                 dashboardState.fetchTimeoutId = null;
                 try {
-                    // Utiliser lightModeForDebounce pour les appels debounced non forcés
-                    // MAIS on a besoin des participants, donc on force le mode non-light
-                    const result = await _fetchDashboardData(false, false); // Toujours fetch complet
+                    // Toujours fetch complet pour avoir les participants pour les graphiques
+                    const result = await _fetchDashboardData(false, false);
                     resolve(result);
                 } catch (error) {
                     console.error("Dashboard Core: Error in debounced fetch execution:", error);
@@ -392,9 +389,8 @@ document.addEventListener('DOMContentLoaded', function() {
              console.error("ProcessData: Invalid data received", data);
              return false;
         }
-        let hasChanged = forceRefresh; // Considérer comme changé si forcé
+        let hasChanged = forceRefresh;
 
-        // Traiter les sessions
         if (data.sessions && Array.isArray(data.sessions)) {
             const validatedSessions = data.sessions.map(s => {
                 s.places_restantes = s.places_restantes ?? Math.max(0, (s.max_participants || 0) - (s.inscrits || 0));
@@ -403,37 +399,32 @@ document.addEventListener('DOMContentLoaded', function() {
             const sessionsHash = simpleHash(validatedSessions);
             if (sessionsHash !== dashboardState.dataHashes.sessions) {
                 updateSessionTable(validatedSessions);
-                updateStatisticsCounters(validatedSessions); // Mettre à jour les stats basées sur les sessions
+                updateStatisticsCounters(validatedSessions);
                 dashboardState.dataHashes.sessions = sessionsHash;
                 hasChanged = true;
             }
-        } else if (dashboardState.dataHashes.sessions !== null) { // Si les sessions étaient présentes avant mais plus maintenant
-             updateSessionTable([]); // Vider la table
+        } else if (dashboardState.dataHashes.sessions !== null) {
+             updateSessionTable([]);
              updateStatisticsCounters([]);
              dashboardState.dataHashes.sessions = null;
              hasChanged = true;
         }
 
-        // Traiter les participants (pour le graphique service)
         if (data.participants && Array.isArray(data.participants)) {
              const participantsHash = simpleHash(data.participants);
              if (participantsHash !== dashboardState.dataHashes.participants) {
                  dashboardState.dataHashes.participants = participantsHash;
-                 // Mettre à jour le graphique si les données sessions sont aussi là
                  if (dashboardState.dataHashes.sessions !== null) {
                      updateCharts(data.sessions, data.participants);
                  }
-                 // Marquer comme changé si les participants changent (pour le graphique)
                  hasChanged = true;
              }
         } else if (dashboardState.dataHashes.participants !== null) {
              dashboardState.dataHashes.participants = null;
-             // Mettre à jour le graphique service pour montrer l'absence de données
              updateCharts(data.sessions, []);
              hasChanged = true;
         }
 
-        // Traiter les activités
         if (data.activites && Array.isArray(data.activites)) {
             const activitiesHash = simpleHash(data.activites);
             if (activitiesHash !== dashboardState.dataHashes.activites) {
@@ -447,14 +438,13 @@ document.addEventListener('DOMContentLoaded', function() {
              hasChanged = true;
         }
 
-        // Appliquer les corrections UI après traitement des données si changement
         if (hasChanged) {
             setTimeout(() => {
                 fixDataIssues();
                 enhanceBadgesAndLabels();
-                initTooltips(); // Réinitialiser les tooltips au cas où des éléments auraient changé
+                initTooltips();
                 errorHandler.checkAndFixBrokenElements();
-            }, 100); // Léger délai pour laisser le DOM se mettre à jour
+            }, 100);
         }
 
         return hasChanged;
@@ -463,9 +453,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ====== MISE À JOUR DES COMPOSANTS UI ======
     // ... (updateSessionTable, updateStatisticsCounters, updateCounter, updateActivityFeed, getActivityIcon identiques) ...
-    function updateSessionTable(sessions) {
-        // ... (code identique) ...
-         if (!sessions || !Array.isArray(sessions)) return;
+     function updateSessionTable(sessions) {
+        if (!sessions || !Array.isArray(sessions)) return;
         const sessionTableBody = document.querySelector('.session-table tbody, #sessions-table tbody');
         if (!sessionTableBody) return;
 
@@ -528,7 +517,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateStatisticsCounters(sessions) {
-        // ... (code identique) ...
          let stats = { totalInscriptions: 0, totalEnAttente: 0, totalSessions: 0, totalSessionsCompletes: 0 };
         if (!sessions || !Array.isArray(sessions)) {
             updateCounter('total-inscriptions', stats.totalInscriptions);
@@ -554,21 +542,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateCounter(elementId, newValue) {
-        // ... (code identique) ...
          const element = document.getElementById(elementId);
         if (!element) return;
 
         const currentValue = parseInt(element.textContent.replace(/[^\d]/g, '')) || 0;
-        if (currentValue !== newValue || element.textContent === '—') { // Mettre à jour si la valeur est '—'
+        if (currentValue !== newValue || element.textContent === '—') {
             element.textContent = newValue.toLocaleString();
-            element.classList.remove('text-muted'); // Retirer la classe muted si elle était là
+            element.classList.remove('text-muted');
             element.classList.add('updated');
             setTimeout(() => element.classList.remove('updated'), 500);
         }
     }
 
     function updateActivityFeed(activities) {
-        // ... (code identique) ...
          if (activities === null) {
             fetch(`${config.baseApiUrl}/activites?limit=5`)
                 .then(response => {
@@ -583,7 +569,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const container = document.getElementById('recent-activity');
                     if (container) container.innerHTML = '<div class="list-group-item text-center p-3 text-danger"><i class="fas fa-exclamation-triangle me-1"></i> Erreur de chargement des activités.</div>';
                 });
-            return Promise.reject("Fetching activities"); // Indiquer qu'on fetch
+            return Promise.reject("Fetching activities");
         }
 
         if (!activities || !Array.isArray(activities)) return Promise.resolve(false);
@@ -602,8 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = '';
         activities.forEach(activity => {
             const icon = getActivityIcon(activity.type);
-            const userInfo = activity.user ? `<span class="text-primary fw-bold">${activity.user}</span>` : ''; // User en gras
-            // Utiliser list-group-item pour un meilleur style
+            const userInfo = activity.user ? `<span class="text-primary fw-bold">${activity.user}</span>` : '';
             html += `<a href="#" class="list-group-item list-group-item-action activity-item type-${activity.type || 'default'}" data-activity-id="${activity.id}">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1 activity-title"><i class="${icon} me-2"></i>${activity.description || 'Activité'} ${userInfo}</h6>
@@ -618,7 +603,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getActivityIcon(type) {
-        // ... (code identique) ...
          const iconMap = {
             'connexion': 'fas fa-sign-in-alt text-success',
             'deconnexion': 'fas fa-sign-out-alt text-warning',
@@ -637,7 +621,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'attribution_salle': 'fas fa-map-marker-alt text-info',
             'systeme': 'fas fa-cog text-secondary',
             'notification': 'fas fa-bell text-warning',
-            'telecharger_invitation': 'fas fa-file-download text-info', // Ajouté
+            'telecharger_invitation': 'fas fa-file-download text-info',
             'default': 'fas fa-info-circle text-secondary'
         };
         return iconMap[type] || iconMap.default;
@@ -878,7 +862,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ====== GRAPHIQUES ======
     function initializeCharts() {
         if (config.chartRendering === 'none') return;
-        // Afficher les placeholders de chargement pour les graphiques statiques
+        // Afficher les placeholders de chargement
         renderStaticCharts(null, null);
     }
 
@@ -915,16 +899,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('themeChartStatic');
         if (!container) return;
 
-        // Calculer les inscriptions confirmées par thème
         const themeInscriptionCounts = sessionsData.reduce((acc, session) => {
             const themeName = session.theme || 'Non défini';
-            // *** CORRECTION ICI: Sommer les inscrits ***
-            acc[themeName] = (acc[themeName] || 0) + (session.inscrits || 0);
+            acc[themeName] = (acc[themeName] || 0) + (session.inscrits || 0); // *** SOMME DES INSCRITS ***
             return acc;
         }, {});
 
-        // *** CORRECTION ICI: Utiliser la somme des inscriptions pour le total ***
-        const totalInscriptions = Object.values(themeInscriptionCounts).reduce((sum, count) => sum + count, 0);
+        const totalInscriptions = Object.values(themeInscriptionCounts).reduce((sum, count) => sum + count, 0); // *** TOTAL INSCRIPTIONS ***
 
         if (totalInscriptions === 0) {
             container.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucune inscription confirmée pour afficher la répartition par thème.</div>';
@@ -935,9 +916,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const themeColors = window.themesDataForChart || {};
         const sortedThemes = Object.entries(themeInscriptionCounts).sort(([, countA], [, countB]) => countB - countA);
 
-        // Générer la légende
         sortedThemes.forEach(([theme, count], index) => {
-            if (count === 0) return; // Ne pas afficher les thèmes sans inscription
+            if (count === 0) return;
             const themeInfo = themeColors[theme] || {};
             const color = themeInfo.color || getRandomColor(index);
 
@@ -949,14 +929,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>`;
         });
 
-        // Affichage simplifié: Total au centre et légende
         container.innerHTML = `
             <div class="static-chart-title">Inscriptions par Thème</div>
             <div class="static-chart-donut">
                  <div class="donut-center">
-                    <div class="donut-total">${totalInscriptions}</div>
+                    <div class="donut-total">${totalInscriptions}</div> {# *** AFFICHE TOTAL INSCRIPTIONS *** #}
                     <div class="donut-label">Inscrits</div>
                 </div>
+                {# Le visuel donut reste simplifié #}
             </div>
             <div class="static-chart-legend">${legendHtml}</div>`;
     }
@@ -966,7 +946,6 @@ document.addEventListener('DOMContentLoaded', function() {
          const container = document.getElementById('serviceChartStatic');
         if (!container) return;
 
-        // Vérifier si les données sont valides
         if (!participantsData || !Array.isArray(participantsData)) {
              container.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-exclamation-triangle me-2"></i>Données participants invalides reçues.</div>';
              console.error("RenderServiceChart: Invalid participantsData received", participantsData);
@@ -975,7 +954,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const serviceCounts = participantsData.reduce((acc, participant) => {
             const serviceName = participant.service || 'Non défini';
-            // Utiliser la couleur fournie par l'API ou une couleur par défaut
             const serviceColor = participant.service_color || (window.servicesDataForChart?.[serviceName]?.color) || '#6c757d';
             if (!acc[serviceName]) {
                 acc[serviceName] = { count: 0, color: serviceColor };
@@ -996,7 +974,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const maxCount = Math.max(1, ...sortedServices.map(([, data]) => data.count));
 
         sortedServices.forEach(([service, data], index) => {
-            if (data.count === 0) return; // Ne pas afficher les services sans participant
+            if (data.count === 0) return;
             const percentage = (data.count / maxCount) * 100;
             const serviceClass = service.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'non-defini';
 
