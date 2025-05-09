@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+
+{% block title %}Mon Profil - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .profile-card {
+        max-width: 700px;
+        margin: 2rem auto;
+    }
+    .profile-card .card-header {
+        background-color: var(--primary);
+        color: white;
+        font-size: 1.25rem;
+    }
+    .profile-details dt {
+        font-weight: 600;
+        color: var(--secondary);
+    }
+    .profile-details dd {
+        margin-bottom: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="profile-card card shadow-sm">
+        <div class="card-header text-center">
+            <i class="fas fa-user-circle fa-2x me-2"></i> Mon Profil
+        </div>
+        <div class="card-body p-4">
+            {% if user_profile %}
+            <dl class="row profile-details">
+                <dt class="col-sm-4">Nom d'utilisateur :</dt>
+                <dd class="col-sm-8">{{ user_profile.username }}</dd>
+
+                <dt class="col-sm-4">Email :</dt>
+                <dd class="col-sm-8">{{ user_profile.email }}</dd>
+
+                <dt class="col-sm-4">Rôle :</dt>
+                <dd class="col-sm-8 text-capitalize">{{ user_profile.role }}</dd>
+
+                {% if user_profile.service %}
+                <dt class="col-sm-4">Service :</dt>
+                <dd class="col-sm-8">
+                    <span class="badge" style="background-color: {{ user_profile.service.couleur or '#6c757d' }}; color: white; padding: 0.4em 0.7em;">
+                        {{ user_profile.service.nom }}
+                    </span>
+                </dd>
+                {% endif %}
+            </dl>
+            <hr>
+            <div class="text-center">
+                {# Vous pouvez ajouter des liens pour modifier le profil/mot de passe ici si vous implémentez ces fonctionnalités #}
+                {# <a href="#" class="btn btn-outline-primary me-2"><i class="fas fa-edit me-1"></i> Modifier le profil</a> #}
+                {# <a href="#" class="btn btn-outline-secondary"><i class="fas fa-key me-1"></i> Changer le mot de passe</a> #}
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1"></i> Retour au Tableau de bord</a>
+            </div>
+            {% else %}
+            <div class="alert alert-warning">Informations de profil non disponibles.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
