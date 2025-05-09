@@ -47,6 +47,7 @@
                     <label for="document_file_docs_page" class="form-label">Fichier*</label>
                     <input class="form-control" type="file" id="document_file_docs_page" name="document_file" required>
                     <div class="invalid-feedback">Veuillez sélectionner un fichier.</div>
+                    {# Utiliser la variable passée par la route #}
                     <small class="form-text text-muted">Types autorisés: {{ ALLOWED_EXTENSIONS|join(', ') }}. Max 16MB.</small>
                 </div>
                 <div class="col-md-6 mb-3">
