@@ -93,7 +93,7 @@
                     <!-- Formulaire d'Upload -->
                     <div class="col-md-5 mb-4 mb-md-0">
                         <h5 class="mb-3">Ajouter un nouveau document</h5>
-                        {# CORRECTION MAJEURE : Ajout de enctype="multipart/form-data" #}
+                        {# enctype est essentiel pour l'upload de fichiers #}
                         <form action="{{ url_for('upload_document') }}" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
                             <div class="mb-3">
                                 <label for="document_file" class="form-label">Fichier*</label>
@@ -266,7 +266,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // Activer la validation Bootstrap pour le formulaire d'upload
-    const uploadForm = document.querySelector('form[action="{{ url_for(\'upload_document\') }}"]');
+    // CORRECTION: Retirer les backslashes dans url_for()
+    const uploadForm = document.querySelector('form[action="{{ url_for('upload_document') }}"]');
     if (uploadForm) {
         uploadForm.addEventListener('submit', event => {
             if (!uploadForm.checkValidity()) {
