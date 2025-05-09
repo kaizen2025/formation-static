@@ -143,10 +143,16 @@
     <script>
         window.dashboardConfig = { // Renommé pour clarté, utilisé par dashboard-core.js
             debugMode: {{ debug_mode | default(false) | tojson }},
-            baseApiUrl: "{{ url_for('index')[:-1] }}{{ config.APPLICATION_ROOT or '' }}/api", // Ex: /api ou /myapp/api
-            // Couleurs pour les graphiques (peuvent être surchargées par des données de service/thème spécifiques)
-            defaultThemeColors: {{ get_all_themes()|map(attribute='couleur')|list|tojson if get_all_themes else [] }}, // Exemple
-            defaultServiceColors: {{ get_all_services_with_participants()|map(attribute='couleur')|list|tojson if get_all_services_with_participants else [] }} // Exemple
+            // Ajout d'une baseAppUrl claire et distincte
+            baseAppUrl: "{{ config.get('APPLICATION_ROOT') or '' }}",
+            // Simplification de la construction de baseApiUrl en utilisant baseAppUrl
+            baseApiUrl: "{{ config.get('APPLICATION_ROOT') or '' }}/api",
+            // Ajout des informations sur les permissions utilisateur
+            isAdmin: {{ current_user.is_authenticated and current_user.role == 'admin' | tojson }},
+            isResponsable: {{ current_user.is_authenticated and current_user.role in ['responsable', 'admin'] | tojson }},
+            // Conserver les couleurs des graphiques
+            defaultThemeColors: {{ get_all_themes()|map(attribute='couleur')|list|tojson if get_all_themes else [] }},
+            defaultServiceColors: {{ get_all_services_with_participants()|map(attribute='couleur')|list|tojson if get_all_services_with_participants else [] }}
         };
 
         // Fonction Toast Globale
@@ -192,7 +198,7 @@
     {% block scripts_page_specific %}
         {# Inclure dashboard-core.js seulement sur les pages qui en ont besoin (ex: dashboard) #}
         {% if request.endpoint == 'dashboard' %}
-            <script src="{{ url_for('static', filename='js/dashboard-core.js') }}?v=2.2.0" defer></script>
+            <script src="{{ url_for('static', filename='js/dashboard-core.js') }}?v=2.2.3" defer></script>
         {% endif %}
     {% endblock %}
 
