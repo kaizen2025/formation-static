@@ -901,29 +901,37 @@ def validation_inscription_ajax():
     except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"Validation AJAX: Erreur DB - {e}", exc_info=True); return jsonify({'success': False, 'message': 'Erreur de base de données.'}), 500
     except Exception as e: db.session.rollback(); app.logger.error(f"Validation AJAX: Erreur inattendue - {e}", exc_info=True); return jsonify({'success': False, 'message': 'Erreur interne du serveur.'}), 500
 
-# --- Document Routes ---
 @app.route('/documents')
+@login_required # Ajouter login_required si l'accès général doit être restreint
 @db_operation_with_retry(max_retries=3)
 def documents():
     try:
-        themes_with_docs = Theme.query.options(selectinload(Theme.documents).joinedload(Document.uploader)).order_by(Theme.nom).all()
-        return render_template('documents.html', themes_with_docs=themes_with_docs)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading documents page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement des documents.", "danger"); return redirect(url_for('dashboard'))
-    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading documents page: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return redirect(url_for('dashboard'))
+        # Charger les thèmes AVEC les documents et l'uploader
+        themes_with_docs = Theme.query.options(
+            selectinload(Theme.documents).joinedload(Document.uploader)
+        ).order_by(Theme.nom).all()
 
-@app.route('/download_document/<path:filename>')
-@db_operation_with_retry(max_retries=2)
-def download_document(filename):
-    try:
-        safe_filename = secure_filename(filename)
-        if safe_filename != filename: app.logger.warning(f"Tentative de téléchargement avec nom de fichier potentiellement dangereux: {filename}"); flash("Nom de fichier invalide.", "danger"); return redirect(url_for('documents'))
-        doc = Document.query.filter_by(filename=safe_filename).first()
-        if not doc: app.logger.warning(f"Tentative de téléchargement d'un document inexistant: {safe_filename}"); flash("Document non trouvé.", "danger"); return redirect(url_for('documents'))
-        app.logger.info(f"Téléchargement du document '{doc.original_filename}' (fichier: {safe_filename}) demandé.")
-        return send_from_directory(app.config['UPLOAD_FOLDER'], safe_filename, as_attachment=True, download_name=doc.original_filename)
-    except FileNotFoundError: app.logger.error(f"Fichier non trouvé sur le disque pour le document: {safe_filename}", exc_info=True); flash("Erreur : le fichier demandé n'existe plus sur le serveur.", "danger"); return redirect(url_for('documents'))
-    except Exception as e: app.logger.error(f"Erreur lors du téléchargement du document {safe_filename}: {e}", exc_info=True); flash("Erreur lors du téléchargement du document.", "danger"); return redirect(url_for('documents'))
+        # Récupérer aussi la liste des thèmes pour le formulaire d'upload (si admin)
+        themes_for_upload = []
+        if current_user.is_authenticated and current_user.role == 'admin':
+            themes_for_upload = get_all_themes() # Utilise la fonction cachée
 
+        return render_template('documents.html',
+                               themes_with_docs=themes_with_docs,
+                               themes=themes_for_upload, # Passer les thèmes pour le select
+                               ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS) # Passer les extensions
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"DB error loading documents page: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement des documents.", "danger")
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Unexpected error loading documents page: {e}", exc_info=True)
+        flash("Une erreur interne est survenue.", "danger")
+        return redirect(url_for('dashboard'))
+        
 @app.route('/salle/add', methods=['POST'])
 @login_required
 @db_operation_with_retry(max_retries=2)
@@ -1638,30 +1646,26 @@ def api_single_session(session_id):
 # === Routes participants et activités ===
 # ==============================================================================
 
-# --- Modifier la route participants_page ---
 @app.route('/participants')
-# @login_required # Retiré précédemment si accès public souhaité
+@login_required # REMETTRE CETTE LIGNE !
 @db_operation_with_retry(max_retries=3)
 def participants_page():
     """Affiche la page principale de la liste des participants."""
-    app.logger.info(f"Utilisateur '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accède à la page /participants.")
+    # ... (le reste de la fonction reste comme dans la réponse précédente) ...
+    # (Elle charge les participants et les comptes, pas les détails)
+    app.logger.info(f"Utilisateur '{current_user.username}' accède à la page /participants.")
     try:
-        # Récupérer les participants avec leurs services (chargement eager)
         participants_list = Participant.query.options(
             joinedload(Participant.service)
         ).order_by(Participant.nom, Participant.prenom).all()
+        services_for_modal = Service.query.order_by(Service.nom).all() # Pour modale ajout/modif
 
-        # Récupérer tous les services pour le menu déroulant du modal "Ajouter Participant"
-        services_for_modal = Service.query.order_by(Service.nom).all()
-
-        # --- Calcul efficace des COMPTES pour chaque participant ---
         participant_ids = [p.id for p in participants_list]
         confirmed_counts = {}
         waitlist_counts = {}
         pending_counts = {}
 
         if participant_ids:
-            # Compter les inscriptions confirmées
             confirmed_q = db.session.query(
                 Inscription.participant_id, func.count(Inscription.id)
             ).filter(
@@ -1670,7 +1674,6 @@ def participants_page():
             ).group_by(Inscription.participant_id).all()
             confirmed_counts = dict(confirmed_q)
 
-            # Compter les entrées en liste d'attente
             waitlist_q = db.session.query(
                 ListeAttente.participant_id, func.count(ListeAttente.id)
             ).filter(
@@ -1678,7 +1681,6 @@ def participants_page():
             ).group_by(ListeAttente.participant_id).all()
             waitlist_counts = dict(waitlist_q)
 
-            # Compter les inscriptions en attente
             pending_q = db.session.query(
                 Inscription.participant_id, func.count(Inscription.id)
             ).filter(
@@ -1687,7 +1689,6 @@ def participants_page():
             ).group_by(Inscription.participant_id).all()
             pending_counts = dict(pending_q)
 
-        # Préparer la structure de données pour le template (SEULEMENT LES COMPTES)
         participants_data_for_template = []
         for p in participants_list:
             participants_data_for_template.append({
@@ -1695,12 +1696,11 @@ def participants_page():
                 'inscriptions_count': confirmed_counts.get(p.id, 0),
                 'attente_count': waitlist_counts.get(p.id, 0),
                 'pending_count': pending_counts.get(p.id, 0),
-                # PAS BESOIN de 'loaded_...' ici
             })
 
         return render_template('participants.html',
                               participants_data=participants_data_for_template,
-                              services=services_for_modal) # Passer les services pour les modales d'ajout/modif
+                              services=services_for_modal) # Passer services pour modales
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -1712,7 +1712,6 @@ def participants_page():
         app.logger.error(f"Erreur inattendue chargement page participants: {e}", exc_info=True)
         flash("Une erreur interne est survenue lors du chargement des participants.", "danger")
         return redirect(url_for('dashboard'))
-
 
 # --- NOUVELLE ROUTE API pour les détails d'un participant ---
 @app.route('/api/participant/<int:participant_id>/details')
