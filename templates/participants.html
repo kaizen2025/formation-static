@@ -1,674 +1,421 @@
+<!-- templates/participants.html -->
 {% extends "layout.html" %}
 
-{% block title %}Participants - {{ app_name }}{% endblock %}
+{% block title %}Gestion des Participants - {{ app_name }}{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}?v=2.0.1">
 <style>
-    /* Style pour le spinner dans la modale */
-    #viewParticipantModal .modal-loading-spinner {
-        display: none; /* Caché par défaut */
-        text-align: center;
-        padding: 3rem 1rem;
-        color: var(--secondary);
+    #participants-table th, #participants-table td { vertical-align: middle; font-size: 0.85rem; }
+    #participants-table .service-badge-color { /* Utiliser la classe pour les badges de service */
+        font-size: 0.75rem; /* Cohérence avec les autres badges */
     }
-    #viewParticipantModal .modal-loading-spinner .spinner-border {
-        width: 2rem; height: 2rem; margin-bottom: 1rem;
-    }
-    #viewParticipantModal .modal-tabs-content.is-loading .tab-pane {
-        display: none; /* Cacher le contenu pendant le chargement */
-    }
-     #viewParticipantModal .modal-tabs-content.is-loading ~ .modal-loading-spinner { /* Correction sélecteur */
-        display: flex; /* Afficher le spinner (utiliser flex pour centrer) */
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
-    /* Style pour les tables dans la modale */
-    #viewParticipantModal .table thead th { font-size: 0.75rem; }
-    #viewParticipantModal .table tbody td { font-size: 0.8rem; }
-    #participants-table th, #participants-table td { vertical-align: middle; }
+    .modal-xl .table-sm th, .modal-xl .table-sm td { font-size: 0.8rem; }
+    .modal-loading-spinner { display: none; text-align: center; padding: 2rem; }
+    .modal-tabs-content.is-loading ~ .modal-loading-spinner { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .modal-tabs-content.is-loading .tab-pane { display: none !important; } /* Cacher pendant le chargement */
 </style>
 {% endblock %}
 
-
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="mb-0"><i class="fas fa-users me-2"></i>Gestion des Participants</h1>
-    {# Bouton Ajouter Participant Global (utilise la modale globale) #}
+<div class="container-fluid page-transition">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-users-cog me-2"></i>Gestion des Participants</h1>
+        {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal_ParticipantsPage">
+            <i class="fas fa-user-plus me-2"></i>Ajouter un Participant
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Modale Globale Ajouter Participant (Spécifique à cette page pour éviter conflits d'ID) -->
     {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">
-        <i class="fas fa-user-plus me-2"></i>Ajouter un Participant
-    </button>
-    {% endif %}
-</div>
-
-
-<!-- Add Participant Modal (Global) -->
-{% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-<div class="modal fade" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addParticipantModalGlobalLabel">Ajouter un Nouveau Participant</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                 <form action="{{ url_for('add_participant') }}" method="post">
-                    <input type="hidden" name="from_page" value="participants_page"> {# Utiliser le nom de la fonction route #}
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label for="add_nom_global" class="form-label">Nom*</label>
-                            <input type="text" class="form-control" id="add_nom_global" name="nom" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="add_prenom_global" class="form-label">Prénom*</label>
-                            <input type="text" class="form-control" id="add_prenom_global" name="prenom" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="add_email_global" class="form-label">Email*</label>
-                            <input type="email" class="form-control" id="add_email_global" name="email" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="add_service_id_global" class="form-label">Service*</label>
-                            <select class="form-select" id="add_service_id_global" name="service_id" required>
-                                <option value="" disabled selected>-- Choisir --</option>
-                                {# services est passé depuis la route participants_page #}
-                                {% for service in services|sort(attribute='nom') %}
-                                <option value="{{ service.id }}">{{ service.nom }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Ajouter Participant
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-
-<!-- Tableau des participants -->
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-center">
-        <h6 class="m-0 font-weight-bold text-primary mb-2 mb-md-0">
-            <i class="fas fa-list me-2"></i>Liste des {{ participants_data|length }} participants
-        </h6>
-        <div class="input-group w-100 w-md-50">
-            <span class="input-group-text"><i class="fas fa-search"></i></span>
-            <input type="text" class="form-control" placeholder="Rechercher (Nom, Prénom, Email, Service)..." id="searchParticipant" aria-label="Rechercher participant">
-        </div>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" id="participants-table">
-                <thead class="table-light">
-                    <tr>
-                        <th scope="col">Nom Prénom</th>
-                        <th scope="col">Service</th>
-                        <th scope="col">Email</th>
-                        <th scope="col" class="text-center">Inscriptions Confirmées</th>
-                        <th scope="col" class="text-center">En Liste d'attente</th>
-                        <th scope="col" class="text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p_data in participants_data|sort(attribute='obj.nom') %}
-                    {% set participant = p_data.obj %}
-                    <tr data-participant-id="{{ participant.id }}" class="participant-row">
-                        <td>
-                            <div class="fw-bold">{{ participant.nom }} {{ participant.prenom }}</div>
-                        </td>
-                        <td class="js-service-cell">
-                            <span class="badge" style="background-color: {{ participant.service.couleur or '#6c757d' }}; color: white; padding: 0.3em 0.5em;">
-                                {{ participant.service.nom }}
-                            </span>
-                        </td>
-                        <td><a href="mailto:{{ participant.email }}" class="participant-email">{{ participant.email }}</a></td>
-                        <td class="text-center">
-                            <span class="badge bg-success rounded-pill">{{ p_data.inscriptions_count }}</span>
-                        </td>
-                        <td class="text-center">
-                             <span class="badge bg-warning text-dark rounded-pill">{{ p_data.attente_count }}</span>
-                        </td>
-                        <td class="text-center">
-                            <div class="btn-group btn-group-sm" role="group" aria-label="Actions participant">
-                                {# Bouton Voir - Utilise la modale unique #}
-                                <button type="button" class="btn btn-outline-primary btn-view-participant"
-                                        data-bs-toggle="modal" data-bs-target="#viewParticipantModal"
-                                        data-participant-id="{{ participant.id }}"
-                                        data-participant-nom="{{ participant.nom }}"
-                                        data-participant-prenom="{{ participant.prenom }}"
-                                        data-participant-email="{{ participant.email }}"
-                                        data-service-nom="{{ participant.service.nom }}"
-                                        data-service-couleur="{{ participant.service.couleur or '#6c757d' }}"
-                                        data-responsable-nom="{{ participant.service.responsable }}"
-                                        data-responsable-email="{{ participant.service.email_responsable }}"
-                                        data-count-confirmed="{{ p_data.inscriptions_count }}"
-                                        data-count-pending="{{ p_data.pending_count }}"
-                                        data-count-waitlist="{{ p_data.attente_count }}"
-                                        title="Voir détails">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                {# Bouton Modifier - Utilise la modale unique #}
-                                {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
-                                <button type="button" class="btn btn-outline-secondary btn-edit-participant"
-                                        data-bs-toggle="modal" data-bs-target="#editParticipantModal"
-                                        data-participant-id="{{ participant.id }}"
-                                        data-participant-nom="{{ participant.nom }}"
-                                        data-participant-prenom="{{ participant.prenom }}"
-                                        data-participant-email="{{ participant.email }}"
-                                        data-service-id="{{ participant.service_id }}"
-                                        title="Modifier">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                {% endif %}
-                                {# Bouton Supprimer - Utilise la modale unique #}
-                                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                 <button type="button" class="btn btn-outline-danger btn-delete-participant"
-                                         data-bs-toggle="modal" data-bs-target="#deleteParticipantModal"
-                                         data-participant-id="{{ participant.id }}"
-                                         data-participant-nom="{{ participant.nom }}"
-                                         data-participant-prenom="{{ participant.prenom }}"
-                                         title="Supprimer">
-                                     <i class="fas fa-trash"></i>
-                                 </button>
-                                 {% endif %}
+    <div class="modal fade" id="addParticipantModalGlobal_ParticipantsPage" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel_PP" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addParticipantModalGlobalLabel_PP"><i class="fas fa-user-plus me-2"></i>Ajouter un Nouveau Participant</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                     <form action="{{ url_for('add_participant') }}" method="post" id="addParticipantForm_ParticipantsPage" class="needs-validation" novalidate>
+                        <input type="hidden" name="from_page" value="participants_page">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6"><label for="add_nom_global_pp" class="form-label">Nom*</label><input type="text" class="form-control" id="add_nom_global_pp" name="nom" required></div>
+                            <div class="col-md-6"><label for="add_prenom_global_pp" class="form-label">Prénom*</label><input type="text" class="form-control" id="add_prenom_global_pp" name="prenom" required></div>
+                            <div class="col-md-6"><label for="add_email_global_pp" class="form-label">Email*</label><input type="email" class="form-control" id="add_email_global_pp" name="email" required></div>
+                            <div class="col-md-6">
+                                <label for="add_service_id_global_pp" class="form-label">Service*</label>
+                                <select class="form-select" id="add_service_id_global_pp" name="service_id" required>
+                                    <option value="" disabled selected>-- Choisir --</option>
+                                    {% for service_item in services|sort(attribute='nom') %} {# 'services' doit être passé par la route #}
+                                    <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                            {# Les modales Modifier/Supprimer sont maintenant définies une seule fois en dehors de la boucle #}
-                        </td>
-                    </tr>
-                     {% else %}
-                      <tr>
-                          <td colspan="6" class="text-center text-muted p-4">
-                              Aucun participant trouvé.
-                              {% if current_user.is_authenticated and current_user.role in ['admin', 'responsable'] %}
-                              <a href="#" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">Ajouter un participant</a>.
-                              {% endif %}
-                          </td>
-                      </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                        <div class="d-grid"><button type="submit" class="btn btn-primary">Ajouter Participant</button></div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
-     <div class="card-footer bg-light text-muted small">
-         Total: {{ participants_data|length }} participant(s)
-     </div>
-</div>
+    {% endif %}
 
+    <!-- Tableau des participants -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary mb-2 mb-md-0">
+                <i class="fas fa-list-ul me-2"></i>Liste des {{ participants_data|length }} participants
+            </h6>
+            <div class="input-group w-auto" style="max-width: 400px;">
+                <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-primary"></i></span>
+                <input type="text" class="form-control border-start-0" placeholder="Rechercher..." id="searchParticipantInput" aria-label="Rechercher participant">
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="participants-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Nom Prénom</th>
+                            <th scope="col">Service</th>
+                            <th scope="col">Email</th>
+                            <th scope="col" class="text-center">Inscr. Confirmées</th>
+                            <th scope="col" class="text-center">Listes d'attente</th>
+                            <th scope="col" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if participants_data %}
+                            {% for p_data in participants_data|sort(attribute='obj.nom')|sort(attribute='obj.prenom') %}
+                            {% set participant = p_data.obj %}
+                            <tr data-participant-id="{{ participant.id }}" class="participant-row">
+                                <td>
+                                    <div class="fw-bold">{{ participant.nom }} {{ participant.prenom }}</div>
+                                </td>
+                                <td class="js-service-cell">
+                                    <span class="service-badge-color" style="background-color: {{ participant.service.couleur or 'var(--service-default-bg)' }};">
+                                        {{ participant.service.nom }}
+                                    </span>
+                                </td>
+                                <td><a href="mailto:{{ participant.email }}" class="participant-email text-decoration-none">{{ participant.email }}</a></td>
+                                <td class="text-center">
+                                    <span class="badge bg-success rounded-pill">{{ p_data.inscriptions_count }}</span>
+                                </td>
+                                <td class="text-center">
+                                     <span class="badge bg-warning text-dark rounded-pill">{{ p_data.attente_count }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary btn-view-participant"
+                                                data-bs-toggle="modal" data-bs-target="#viewParticipantModal_ParticipantsPage"
+                                                data-participant-id="{{ participant.id }}"
+                                                title="Voir détails de {{ participant.prenom }} {{ participant.nom }}">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
+                                        <button type="button" class="btn btn-outline-secondary btn-edit-participant"
+                                                data-bs-toggle="modal" data-bs-target="#editParticipantModal_ParticipantsPage"
+                                                data-participant-id="{{ participant.id }}"
+                                                title="Modifier {{ participant.prenom }} {{ participant.nom }}">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% endif %}
+                                         {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                         <button type="button" class="btn btn-outline-danger btn-delete-participant"
+                                                 data-bs-toggle="modal" data-bs-target="#deleteParticipantModal_ParticipantsPage"
+                                                 data-participant-id="{{ participant.id }}"
+                                                 data-participant-nom-complet="{{ participant.prenom }} {{ participant.nom }}"
+                                                 title="Supprimer {{ participant.prenom }} {{ participant.nom }}">
+                                             <i class="fas fa-trash"></i>
+                                         </button>
+                                         {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                             {% endfor %}
+                        {% else %}
+                              <tr><td colspan="6" class="text-center text-muted p-4">Aucun participant trouvé.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+         <div class="card-footer bg-light text-muted small">
+             Total: <span id="participant-count-footer">{{ participants_data|length }}</span> participant(s) affiché(s).
+         </div>
+    </div>
+</div> <!-- Fin container-fluid -->
 
 <!-- ====================================================== -->
-<!-- == MODALE UNIQUE POUR VOIR LES DÉTAILS PARTICIPANT == -->
+<!-- == MODALES UNIQUES POUR CETTE PAGE PARTICIPANTS     == -->
 <!-- ====================================================== -->
-<div class="modal fade" id="viewParticipantModal" tabindex="-1" aria-labelledby="viewParticipantModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable"> {# XL pour plus d'espace #}
+<!-- Modale Voir Détails Participant (Unique pour cette page) -->
+<div class="modal fade" id="viewParticipantModal_ParticipantsPage" tabindex="-1" aria-labelledby="viewPModalLabel_PP" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="viewParticipantModalLabel">
-                     <i class="fas fa-user-circle me-2"></i> <span id="modalParticipantName">Nom Participant</span>
-                    <small class="text-muted d-block fw-normal" id="modalParticipantEmail">email@participant.com</small>
-                </h5>
+                <h5 class="modal-title" id="viewPModalLabel_PP"><i class="fas fa-user-tag me-2"></i>Détails du Participant</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                {# Informations Participant et Service #}
-                <div class="row mb-4">
+                <div class="row mb-3">
                     <div class="col-md-6">
-                        <h6><i class="fas fa-sitemap me-2"></i>Service</h6>
-                        <p><span class="badge" id="modalServiceBadge" style="color: white; padding: 0.3em 0.5em;">Nom Service</span></p>
+                        <h4 id="modalView_ParticipantName" class="text-primary"></h4>
+                        <p class="mb-1"><i class="fas fa-envelope fa-fw text-muted me-1"></i> <span id="modalView_ParticipantEmail"></span></p>
+                        <p><i class="fas fa-sitemap fa-fw text-muted me-1"></i> Service: <span id="modalView_ParticipantService" class="fw-semibold"></span></p>
                     </div>
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-user-tie me-2"></i>Responsable Service</h6>
-                        <p><span id="modalResponsableName">Nom Resp</span> (<a href="#" id="modalResponsableEmail">email@resp.com</a>)</p>
+                    <div class="col-md-6 border-start">
+                        <h6>Responsable du Service</h6>
+                        <p class="mb-1"><i class="fas fa-user-tie fa-fw text-muted me-1"></i> <span id="modalView_ServiceResponsable"></span></p>
+                        <p><i class="fas fa-at fa-fw text-muted me-1"></i> <a href="#" id="modalView_ServiceResponsableEmail"></a></p>
                     </div>
                 </div>
-
-                {# Onglets pour les détails #}
-                <ul class="nav nav-tabs mb-3" id="participantDetailsTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="view-inscriptions-tab" data-bs-toggle="tab" data-bs-target="#view-inscriptions-content" type="button" role="tab">
-                            Inscriptions Confirmées <span class="badge bg-success ms-1" id="modalCountConfirmed">0</span>
-                        </button>
-                    </li>
-                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="view-pending-tab" data-bs-toggle="tab" data-bs-target="#view-pending-content" type="button" role="tab">
-                            En Attente Validation <span class="badge bg-secondary ms-1" id="modalCountPending">0</span>
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="view-attente-tab" data-bs-toggle="tab" data-bs-target="#view-attente-content" type="button" role="tab">
-                            Liste d'attente <span class="badge bg-warning text-dark ms-1" id="modalCountWaitlist">0</span>
-                        </button>
-                    </li>
+                <hr>
+                <ul class="nav nav-tabs mb-3" id="participantDetailsTabs_PP" role="tablist">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="view-conf-tab-pp" data-bs-toggle="tab" data-bs-target="#view-conf-content-pp">Confirmées <span class="badge bg-success ms-1" id="modalView_CountConfirmed">0</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="view-pend-tab-pp" data-bs-toggle="tab" data-bs-target="#view-pend-content-pp">En Att. Valid. <span class="badge bg-warning text-dark ms-1" id="modalView_CountPending">0</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="view-wait-tab-pp" data-bs-toggle="tab" data-bs-target="#view-wait-content-pp">Liste Attente <span class="badge bg-info ms-1" id="modalView_CountWaitlist">0</span></button></li>
                 </ul>
-
-                {# Conteneur pour le contenu des onglets et le spinner #}
-                <div class="modal-tabs-content" id="participantDetailsContent">
-                    <!-- Onglet inscriptions confirmées -->
-                    <div class="tab-pane fade show active" id="view-inscriptions-content" role="tabpanel">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-striped">
-                                <thead><tr><th>Session</th><th>Date</th><th>Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
-                                <tbody id="modalConfirmedInscriptionsTableBody">
-                                    <!-- Contenu chargé par JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div id="noConfirmedMsg" class="alert alert-light text-center border py-3" style="display: none;">Aucune inscription confirmée.</div>
-                    </div>
-                     <!-- Onglet inscriptions en attente -->
-                    <div class="tab-pane fade" id="view-pending-content" role="tabpanel">
-                          <div class="table-responsive">
-                            <table class="table table-sm table-striped">
-                                 <thead><tr><th>Session</th><th>Date</th><th>Demandé le</th><th>Actions</th></tr></thead>
-                                <tbody id="modalPendingInscriptionsTableBody">
-                                    <!-- Contenu chargé par JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div id="noPendingMsg" class="alert alert-light text-center border py-3" style="display: none;">Aucune inscription en attente de validation.</div>
-                    </div>
-                    <!-- Onglet liste d'attente -->
-                    <div class="tab-pane fade" id="view-attente-content" role="tabpanel">
-                        <div class="table-responsive">
-                             <table class="table table-sm table-striped">
-                                <thead><tr><th>Session</th><th>Date</th><th>Position</th><th>Inscrit le</th><th>Statut</th></tr></thead>
-                                <tbody id="modalWaitlistTableBody">
-                                    <!-- Contenu chargé par JS -->
-                                </tbody>
-                             </table>
-                        </div>
-                        <div id="noWaitlistMsg" class="alert alert-light text-center border py-3" style="display: none;">Aucune inscription en liste d'attente.</div>
-                    </div>
+                <div class="modal-tabs-content" id="participantDetailsContent_PP">
+                    <div class="tab-pane fade show active" id="view-conf-content-pp"><div class="table-responsive" id="modalView_ConfirmedTable"></div><p id="modalView_NoConfirmed" class="alert alert-light text-center" style="display:none;">Aucune.</p></div>
+                    <div class="tab-pane fade" id="view-pend-content-pp"><div class="table-responsive" id="modalView_PendingTable"></div><p id="modalView_NoPending" class="alert alert-light text-center" style="display:none;">Aucune.</p></div>
+                    <div class="tab-pane fade" id="view-wait-content-pp"><div class="table-responsive" id="modalView_WaitlistTable"></div><p id="modalView_NoWaitlist" class="alert alert-light text-center" style="display:none;">Aucune.</p></div>
                 </div>
-                {# Spinner de chargement pour les détails AJAX #}
-                <div class="modal-loading-spinner" id="modalDetailsSpinner">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Chargement...</span>
-                    </div>
-                    <p>Chargement des détails...</p>
-                </div>
-
+                <div class="modal-loading-spinner" id="modalView_DetailsSpinner_PP"><div class="spinner-border text-primary"></div><p>Chargement...</p></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button></div>
         </div>
     </div>
 </div>
-<!-- ====================================================== -->
-<!-- == FIN MODALE UNIQUE VOIR LES DÉTAILS PARTICIPANT == -->
-<!-- ====================================================== -->
 
-
-<!-- ====================================================== -->
-<!-- == MODALES UNIQUES MODIFIER/SUPPRIMER PARTICIPANT   == -->
-<!-- ====================================================== -->
-{% if current_user.is_authenticated %} {# Condition générale pour les modales d'action #}
-<!-- Modal Modifier Participant (Unique) -->
-<div class="modal fade" id="editParticipantModal" tabindex="-1" aria-labelledby="editParticipantModalLabel" aria-hidden="true">
+{% if current_user.is_authenticated %}
+<!-- Modal Modifier Participant (Unique pour cette page) -->
+<div class="modal fade" id="editParticipantModal_ParticipantsPage" tabindex="-1" aria-labelledby="editPModalLabel_PP" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editParticipantModalLabel">Modifier Participant</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
+            <div class="modal-header"><h5 class="modal-title" id="editPModalLabel_PP"><i class="fas fa-user-edit me-2"></i>Modifier Participant</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
-                <form action="" method="post" id="editParticipantForm"> {# Action définie par JS #}
+                <form method="post" id="editParticipantForm_ParticipantsPage" class="needs-validation" novalidate>
                      <div class="row g-3 mb-3">
+                        <div class="col-md-6"><label for="edit_nom_pp" class="form-label">Nom*</label><input type="text" class="form-control" id="edit_nom_pp" name="nom" required></div>
+                        <div class="col-md-6"><label for="edit_prenom_pp" class="form-label">Prénom*</label><input type="text" class="form-control" id="edit_prenom_pp" name="prenom" required></div>
+                        <div class="col-md-6"><label for="edit_email_pp" class="form-label">Email*</label><input type="email" class="form-control" id="edit_email_pp" name="email" required></div>
                         <div class="col-md-6">
-                            <label for="edit_nom" class="form-label">Nom*</label>
-                            <input type="text" class="form-control" id="edit_nom" name="nom" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="edit_prenom" class="form-label">Prénom*</label>
-                            <input type="text" class="form-control" id="edit_prenom" name="prenom" required>
-                        </div>
-                         <div class="col-md-6">
-                            <label for="edit_email" class="form-label">Email*</label>
-                            <input type="email" class="form-control" id="edit_email" name="email" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="edit_service_id" class="form-label">Service*</label>
-                            <select class="form-select" id="edit_service_id" name="service_id" required>
-                                {# Options chargées statiquement car la liste des services change peu #}
+                            <label for="edit_service_id_pp" class="form-label">Service*</label>
+                            <select class="form-select" id="edit_service_id_pp" name="service_id" required>
                                 <option value="" disabled>-- Choisir --</option>
-                                {% for service_item in services|sort(attribute='nom') %}
-                                <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
+                                {% for service_item_edit in services|sort(attribute='nom') %} {# 'services' doit être passé par la route #}
+                                <option value="{{ service_item_edit.id }}">{{ service_item_edit.nom }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                      </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Enregistrer</button>
-                    </div>
+                    <div class="d-grid"><button type="submit" class="btn btn-primary">Enregistrer</button></div>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal Supprimer Participant (Unique) -->
-<div class="modal fade" id="deleteParticipantModal" tabindex="-1" aria-labelledby="deleteParticipantModalLabel" aria-hidden="true">
+<!-- Modal Supprimer Participant (Unique pour cette page) -->
+<div class="modal fade" id="deleteParticipantModal_ParticipantsPage" tabindex="-1" aria-labelledby="deletePModalLabel_PP" aria-hidden="true">
      <div class="modal-dialog">
          <div class="modal-content">
-             <div class="modal-header">
-                 <h5 class="modal-title" id="deleteParticipantModalLabel">Confirmer Suppression</h5>
-                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-             </div>
-             <div class="modal-body">
-                 {# Le texte sera mis à jour par JS #}
-                 <span id="deleteParticipantText">Êtes-vous sûr de vouloir supprimer ce participant ? Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées. Cette action est irréversible.</span>
-             </div>
+             <div class="modal-header bg-danger text-white"><h5 class="modal-title" id="deletePModalLabel_PP"><i class="fas fa-exclamation-triangle me-2"></i>Confirmer Suppression</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+             <div class="modal-body"><p id="deleteParticipantText_PP">Êtes-vous sûr ?</p></div>
              <div class="modal-footer">
                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                 <form action="" method="post" id="deleteParticipantForm" class="d-inline"> {# Action définie par JS #}
-                     <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
-                 </form>
+                 <form method="post" id="deleteParticipantForm_ParticipantsPage" class="d-inline"><button type="submit" class="btn btn-danger">Supprimer</button></form>
              </div>
          </div>
      </div>
  </div>
 {% endif %}
-<!-- ====================================================== -->
-<!-- == FIN MODALES UNIQUES MODIFIER/SUPPRIMER PARTICIPANT == -->
-<!-- ====================================================== -->
-
-
 {% endblock %}
 
 {% block scripts_extra %}
 <script>
-    // Variable globale indiquant si l'utilisateur est connecté
-    const isUserLoggedIn = {{ current_user.is_authenticated | tojson }};
-
-    document.addEventListener('DOMContentLoaded', function() {
-        if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-            console.log('Participants JS loaded (v_public_list_refactored)');
-        }
-
-        const searchInput = document.getElementById('searchParticipant');
-        const participantsTableBody = document.getElementById('participants-table')?.querySelector('tbody');
-        const viewParticipantModalElement = document.getElementById('viewParticipantModal');
-        const viewParticipantModal = viewParticipantModalElement ? new bootstrap.Modal(viewParticipantModalElement) : null;
-        const editParticipantModalElement = document.getElementById('editParticipantModal');
-        const editParticipantModal = editParticipantModalElement ? new bootstrap.Modal(editParticipantModalElement) : null;
-        const deleteParticipantModalElement = document.getElementById('deleteParticipantModal');
-        const deleteParticipantModal = deleteParticipantModalElement ? new bootstrap.Modal(deleteParticipantModalElement) : null;
+document.addEventListener('DOMContentLoaded', function() {
+    const isUserLoggedInParticipants = {{ current_user.is_authenticated | tojson }};
+    const isAdminParticipants = {{ current_user.is_authenticated and current_user.role == 'admin' | tojson }};
+    const isResponsableParticipants = {{ current_user.is_authenticated and current_user.role == 'responsable' | tojson }};
+    const currentUserServicesIdParticipants = "{{ current_user.service_id if current_user.is_authenticated else '' }}";
+    const baseAppUrlParticipants = "{{ url_for('index')[:-1] }}{{ config.APPLICATION_ROOT or '' }}";
 
 
-        // --- Filtre de recherche ---
-        function filterParticipants() {
-             if (!searchInput || !participantsTableBody) return;
-            const searchValue = searchInput.value.toLowerCase().trim();
-            const rows = participantsTableBody.querySelectorAll('tr.participant-row');
-            rows.forEach(row => {
-                const nameCell = row.querySelector('td:nth-child(1)');
-                const serviceCell = row.querySelector('td:nth-child(2) span.badge');
-                const emailCell = row.querySelector('td:nth-child(3) a');
-                const nameText = nameCell ? nameCell.textContent.toLowerCase() : '';
-                const serviceText = serviceCell ? serviceCell.textContent.toLowerCase() : '';
-                const emailText = emailCell ? emailCell.textContent.toLowerCase() : '';
-                const isVisible = nameText.includes(searchValue) || serviceText.includes(searchValue) || emailText.includes(searchValue);
-                row.style.display = isVisible ? '' : 'none';
-            });
-        }
-        if (searchInput) {
-            searchInput.addEventListener('input', filterParticipants);
-        }
+    // Validation pour la modale d'ajout globale sur cette page
+    const addParticipantFormPP = document.getElementById('addParticipantForm_ParticipantsPage');
+    if(addParticipantFormPP) {
+        addParticipantFormPP.addEventListener('submit', event => {
+            if (!addParticipantFormPP.checkValidity()) { event.preventDefault(); event.stopPropagation(); }
+            addParticipantFormPP.classList.add('was-validated');
+        }, false);
+    }
+    
+    const searchInput = document.getElementById('searchParticipantInput');
+    const participantsTableBody = document.getElementById('participants-table')?.querySelector('tbody');
+    const participantCountFooter = document.getElementById('participant-count-footer');
 
-        // --- Gestion Modale Unique "Voir Participant" ---
-        const modalTitle = document.getElementById('viewParticipantModalLabel');
-        const modalName = document.getElementById('modalParticipantName');
-        const modalEmail = document.getElementById('modalParticipantEmail');
-        const modalServiceBadge = document.getElementById('modalServiceBadge');
-        const modalResponsableName = document.getElementById('modalResponsableName');
-        const modalResponsableEmail = document.getElementById('modalResponsableEmail');
-        const modalCountConfirmed = document.getElementById('modalCountConfirmed');
-        const modalCountPending = document.getElementById('modalCountPending');
-        const modalCountWaitlist = document.getElementById('modalCountWaitlist');
-        const modalDetailsContent = document.getElementById('participantDetailsContent');
-        const modalSpinner = document.getElementById('modalDetailsSpinner');
-        const confirmedTbody = document.getElementById('modalConfirmedInscriptionsTableBody');
-        const pendingTbody = document.getElementById('modalPendingInscriptionsTableBody');
-        const waitlistTbody = document.getElementById('modalWaitlistTableBody');
-        const noConfirmedMsg = document.getElementById('noConfirmedMsg');
-        const noPendingMsg = document.getElementById('noPendingMsg');
-        const noWaitlistMsg = document.getElementById('noWaitlistMsg');
-
-        // --- Gestion Modales Uniques Modifier/Supprimer Participant ---
-        const editParticipantForm = document.getElementById('editParticipantForm');
-        const editParticipantTitle = document.getElementById('editParticipantModalLabel');
-        const editNomInput = document.getElementById('edit_nom');
-        const editPrenomInput = document.getElementById('edit_prenom');
-        const editEmailInput = document.getElementById('edit_email');
-        const editServiceSelect = document.getElementById('edit_service_id');
-
-        const deleteParticipantForm = document.getElementById('deleteParticipantForm');
-        const deleteParticipantTitle = document.getElementById('deleteParticipantModalLabel');
-        const deleteParticipantTextSpan = document.getElementById('deleteParticipantText');
-
-
-        // Écouteur d'événements unifié sur la table
-        document.getElementById('participants-table')?.addEventListener('click', function(event) {
-            const viewButton = event.target.closest('.btn-view-participant');
-            const editButton = event.target.closest('.btn-edit-participant');
-            const deleteButton = event.target.closest('.btn-delete-participant');
-
-            // --- Logique pour le bouton "Voir" ---
-            if (viewButton && viewParticipantModal) {
-                handleViewParticipantClick(viewButton);
-            }
-            // --- Logique pour le bouton "Modifier" ---
-            else if (editButton && editParticipantModal) {
-                handleEditParticipantClick(editButton);
-            }
-            // --- Logique pour le bouton "Supprimer" ---
-            else if (deleteButton && deleteParticipantModal) {
-                handleDeleteParticipantClick(deleteButton);
-            }
+    function filterParticipantsTable() {
+        if (!searchInput || !participantsTableBody || !participantCountFooter) return;
+        const searchValue = searchInput.value.toLowerCase().trim();
+        let visibleCount = 0;
+        participantsTableBody.querySelectorAll('tr.participant-row').forEach(row => {
+            const nameText = row.cells[0]?.textContent.toLowerCase() || '';
+            const serviceText = row.cells[1]?.textContent.toLowerCase() || '';
+            const emailText = row.cells[2]?.textContent.toLowerCase() || '';
+            const isVisible = !searchValue || nameText.includes(searchValue) || serviceText.includes(searchValue) || emailText.includes(searchValue);
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
         });
+        participantCountFooter.textContent = `${visibleCount} participant(s) affiché(s).`;
+    }
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(filterParticipantsTable, 300));
+    }
 
-        // --- Fonction pour gérer le clic sur "Voir" ---
-        function handleViewParticipantClick(viewButton) {
-            // --- Récupération des données depuis data-* ---
+    // --- Gestion des Modales Uniques pour CETTE PAGE ---
+    const viewModalEl = document.getElementById('viewParticipantModal_ParticipantsPage');
+    const viewModal = viewModalEl ? new bootstrap.Modal(viewModalEl) : null;
+    const editModalEl = document.getElementById('editParticipantModal_ParticipantsPage');
+    const editModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
+    const deleteModalEl = document.getElementById('deleteParticipantModal_ParticipantsPage');
+    const deleteModal = deleteModalEl ? new bootstrap.Modal(deleteModalEl) : null;
+
+    document.getElementById('participants-table')?.addEventListener('click', function(event) {
+        const viewButton = event.target.closest('.btn-view-participant');
+        const editButton = event.target.closest('.btn-edit-participant');
+        const deleteButton = event.target.closest('.btn-delete-participant');
+
+        if (viewButton && viewModal) {
             const participantId = viewButton.dataset.participantId;
-            const prenom = viewButton.dataset.participantPrenom;
-            const nom = viewButton.dataset.participantNom;
-            const email = viewButton.dataset.participantEmail;
-            const serviceNom = viewButton.dataset.serviceNom;
-            const serviceCouleur = viewButton.dataset.serviceCouleur;
-            const respNom = viewButton.dataset.responsableNom;
-            const respEmail = viewButton.dataset.responsableEmail;
-            const countConfirmed = viewButton.dataset.countConfirmed;
-            const countPending = viewButton.dataset.countPending;
-            const countWaitlist = viewButton.dataset.countWaitlist;
+            // Récupérer les données de la ligne du tableau (ou refaire un appel API si plus de détails sont nécessaires)
+            const row = viewButton.closest('tr');
+            const nomComplet = row.cells[0].textContent.trim();
+            const email = row.cells[2].textContent.trim();
+            const serviceNom = row.cells[1].querySelector('.service-badge-color').textContent.trim();
+            
+            viewModalEl.querySelector('#modalView_ParticipantName').textContent = nomComplet;
+            viewModalEl.querySelector('#modalView_ParticipantEmail').textContent = email;
+            viewModalEl.querySelector('#modalView_ParticipantService').textContent = serviceNom;
+            // Pour responsable, il faudrait passer ces données via data-* ou un appel API
+            // viewModalEl.querySelector('#modalView_ServiceResponsable').textContent = "À récupérer";
+            // viewModalEl.querySelector('#modalView_ServiceResponsableEmail').href = "#";
+            
+            // Vider les tables et afficher le spinner
+            ['modalView_ConfirmedTable', 'modalView_PendingTable', 'modalView_WaitlistTable'].forEach(id => {
+                const el = document.getElementById(id); if(el) el.innerHTML = '';
+            });
+            ['modalView_NoConfirmed', 'modalView_NoPending', 'modalView_NoWaitlist'].forEach(id => {
+                const el = document.getElementById(id); if(el) el.style.display = 'none';
+            });
+            document.getElementById('modalView_DetailsSpinner_PP').style.display = 'flex';
+            document.getElementById('participantDetailsContent_PP').classList.add('is-loading');
 
-            // --- Mise à jour des infos statiques ---
-            if(modalName) modalName.textContent = `${prenom} ${nom}`;
-            if(modalEmail) modalEmail.textContent = email;
-            if(modalServiceBadge) {
-                modalServiceBadge.textContent = serviceNom;
-                modalServiceBadge.style.backgroundColor = serviceCouleur;
-            }
-            if(modalResponsableName) modalResponsableName.textContent = respNom;
-            if(modalResponsableEmail) {
-                modalResponsableEmail.textContent = respEmail;
-                modalResponsableEmail.href = `mailto:${respEmail}`;
-            }
-            if(modalCountConfirmed) modalCountConfirmed.textContent = countConfirmed;
-            if(modalCountPending) modalCountPending.textContent = countPending;
-            if(modalCountWaitlist) modalCountWaitlist.textContent = countWaitlist;
-
-            // --- Vider le contenu précédent et préparer l'affichage ---
-            if(confirmedTbody) confirmedTbody.innerHTML = '';
-            if(pendingTbody) pendingTbody.innerHTML = '';
-            if(waitlistTbody) waitlistTbody.innerHTML = '';
-            if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
-            if(noPendingMsg) noPendingMsg.style.display = 'none';
-            if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
-            if(modalDetailsContent) modalDetailsContent.classList.remove('is-loading');
-
-            // --- VÉRIFIER SI L'UTILISATEUR EST CONNECTÉ ---
-            if (isUserLoggedIn) {
-                // Afficher le spinner et faire l'appel API
-                if(modalDetailsContent) modalDetailsContent.classList.add('is-loading');
-
-                fetch(`/api/participant/${participantId}/details`)
-                    .then(response => {
-                        if (!response.ok) {
-                            if (response.status === 401 || response.status === 403) { throw new Error(`Accès non autorisé (${response.status}). Veuillez vous reconnecter.`); }
-                            throw new Error(`Erreur serveur (${response.status}) lors de la récupération des détails.`);
-                        }
-                        const contentType = response.headers.get("content-type");
-                        if (!contentType || !contentType.includes("application/json")) { throw new TypeError("Réponse inattendue du serveur (pas JSON). Session expirée?"); }
-                        return response.json();
-                    })
+            if (isUserLoggedInParticipants) { // Seulement si connecté
+                fetch(`${baseAppUrlParticipants}/api/participant/${participantId}/details`)
+                    .then(response => response.ok ? response.json() : Promise.reject(response))
                     .then(data => {
-                        if (data.error) { throw new Error(data.error); }
-                        populateModalTable(confirmedTbody, data.confirmed, 'confirmed', noConfirmedMsg);
-                        populateModalTable(pendingTbody, data.pending, 'pending', noPendingMsg);
-                        populateModalTable(waitlistTbody, data.waitlist, 'waitlist', noWaitlistMsg);
+                        document.getElementById('modalView_CountConfirmed').textContent = data.confirmed?.length || 0;
+                        document.getElementById('modalView_CountPending').textContent = data.pending?.length || 0;
+                        document.getElementById('modalView_CountWaitlist').textContent = data.waitlist?.length || 0;
+                        
+                        populateParticipantDetailsTable(document.getElementById('modalView_ConfirmedTable'), data.confirmed, 'confirmed', document.getElementById('modalView_NoConfirmed'));
+                        populateParticipantDetailsTable(document.getElementById('modalView_PendingTable'), data.pending, 'pending', document.getElementById('modalView_NoPending'));
+                        populateParticipantDetailsTable(document.getElementById('modalView_WaitlistTable'), data.waitlist, 'waitlist', document.getElementById('modalView_NoWaitlist'));
                     })
-                    .catch(error => {
-                        console.error("Erreur lors du chargement des détails du participant:", error);
-                        const errorHtml = `<tr><td colspan="5" class="text-center text-danger p-3"><i class="fas fa-exclamation-triangle me-2"></i> ${error.message || 'Erreur de chargement.'}</td></tr>`;
-                        if(confirmedTbody) confirmedTbody.innerHTML = errorHtml;
-                        if(pendingTbody) pendingTbody.innerHTML = errorHtml.replace('colspan="5"', 'colspan="4"');
-                        if(waitlistTbody) waitlistTbody.innerHTML = errorHtml;
-                        if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
-                        if(noPendingMsg) noPendingMsg.style.display = 'none';
-                        if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
-                        if (typeof showToast === 'function') showToast(error.message || 'Impossible de charger les détails.', 'danger');
+                    .catch(err => {
+                        console.error("Erreur chargement détails participant:", err);
+                        showToast("Erreur de chargement des détails.", "danger");
+                        ['modalView_ConfirmedTable', 'modalView_PendingTable', 'modalView_WaitlistTable'].forEach(id => {
+                             const el = document.getElementById(id); if(el) el.innerHTML = `<tr><td colspan="5" class="text-danger text-center p-3">Erreur de chargement.</td></tr>`;
+                        });
                     })
                     .finally(() => {
-                        if(modalDetailsContent) modalDetailsContent.classList.remove('is-loading');
+                        document.getElementById('modalView_DetailsSpinner_PP').style.display = 'none';
+                        document.getElementById('participantDetailsContent_PP').classList.remove('is-loading');
                     });
             } else {
-                // Utilisateur non connecté : Afficher message
-                if(confirmedTbody) {
-                     confirmedTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-4"><i class="fas fa-lock me-2"></i>Veuillez vous <a href="/login?next=/participants">connecter</a> pour voir les détails des inscriptions.</td></tr>`;
-                     confirmedTbody.closest('.table-responsive').style.display = 'block';
-                }
-                 if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
-                 if(pendingTbody) pendingTbody.closest('.table-responsive').style.display = 'none';
-                 if(waitlistTbody) waitlistTbody.closest('.table-responsive').style.display = 'none';
-                 if(noPendingMsg) noPendingMsg.style.display = 'none';
-                 if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
+                document.getElementById('modalView_DetailsSpinner_PP').style.display = 'none';
+                document.getElementById('participantDetailsContent_PP').classList.remove('is-loading');
+                document.getElementById('modalView_ConfirmedTable').innerHTML = `<tr><td colspan="5" class="text-muted text-center p-3">Veuillez vous connecter pour voir ces détails.</td></tr>`;
             }
         }
 
-        // --- Fonction pour gérer le clic sur "Modifier" ---
-        function handleEditParticipantClick(editButton) {
+        if (editButton && editModal) {
             const participantId = editButton.dataset.participantId;
-            const nom = editButton.dataset.participantNom;
-            const prenom = editButton.dataset.participantPrenom;
-            const email = editButton.dataset.participantEmail;
-            const serviceId = editButton.dataset.serviceId;
+            // Récupérer les données depuis la ligne ou data-* du bouton
+            const row = editButton.closest('tr');
+            const [nom, prenom] = (row.cells[0].textContent.trim()).split(' ').reverse(); // Suppose "Prénom Nom"
+            const email = row.cells[2].textContent.trim();
+            const serviceBadge = row.cells[1].querySelector('.service-badge-color');
+            // Pour serviceId, il faudrait le stocker dans un data-attribute sur la ligne ou le badge
+            // Pour l'exemple, je vais supposer qu'il est dans data-service-id du badge (à ajouter dans le Jinja)
+            const serviceId = serviceBadge ? serviceBadge.dataset.serviceId : '';
 
-            if(editParticipantForm) editParticipantForm.action = `/participant/update/${participantId}`;
-            if(editParticipantTitle) editParticipantTitle.textContent = `Modifier - ${prenom} ${nom}`;
-            if(editNomInput) editNomInput.value = nom;
-            if(editPrenomInput) editPrenomInput.value = prenom;
-            if(editEmailInput) editEmailInput.value = email;
-            if(editServiceSelect) editServiceSelect.value = serviceId; // Sélectionne le bon service
+
+            const form = editModalEl.querySelector('#editParticipantForm_ParticipantsPage');
+            form.action = `${baseAppUrlParticipants}/participant/update/${participantId}`;
+            editModalEl.querySelector('#editPModalLabel_PP').innerHTML = `<i class="fas fa-user-edit me-2"></i>Modifier - ${prenom} ${nom}`;
+            editModalEl.querySelector('#edit_nom_pp').value = nom;
+            editModalEl.querySelector('#edit_prenom_pp').value = prenom;
+            editModalEl.querySelector('#edit_email_pp').value = email;
+            editModalEl.querySelector('#edit_service_id_pp').value = serviceId; // Assurez-vous que serviceId est correct
+            form.classList.remove('was-validated');
         }
 
-        // --- Fonction pour gérer le clic sur "Supprimer" ---
-        function handleDeleteParticipantClick(deleteButton) {
+        if (deleteButton && deleteModal) {
             const participantId = deleteButton.dataset.participantId;
-            const nom = deleteButton.dataset.participantNom;
-            const prenom = deleteButton.dataset.participantPrenom;
-
-            if(deleteParticipantForm) deleteParticipantForm.action = `/participant/delete/${participantId}`;
-            if(deleteParticipantTitle) deleteParticipantTitle.textContent = `Confirmer Suppression`;
-            if(deleteParticipantTextSpan) deleteParticipantTextSpan.innerHTML = `Êtes-vous sûr de vouloir supprimer <strong>${prenom} ${nom}</strong> ? Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées. Cette action est irréversible.`;
+            const nomComplet = deleteButton.dataset.participantNomComplet;
+            deleteModalEl.querySelector('#deleteParticipantForm_ParticipantsPage').action = `${baseAppUrlParticipants}/participant/delete/${participantId}`;
+            deleteModalEl.querySelector('#deleteParticipantText_PP').innerHTML = `Êtes-vous sûr de vouloir supprimer <strong>${nomComplet}</strong> ? Ses inscriptions et présences en liste d'attente seront également supprimées. Cette action est irréversible.`;
         }
-
-
-        // --- Fonction populateModalTable (inchangée) ---
-        function populateModalTable(tbody, items, type, noDataElement) {
-           // ... (code de la fonction populateModalTable reste identique) ...
-             if (!tbody || !noDataElement) return;
-            tbody.innerHTML = ''; // Vider d'abord
-
-            if (!items || items.length === 0) {
-                noDataElement.style.display = 'block';
-                tbody.closest('.table-responsive').style.display = 'none'; // Cacher la table vide
-                return;
-            }
-
-            noDataElement.style.display = 'none';
-            tbody.closest('.table-responsive').style.display = 'block'; // Afficher la table
-
-            items.forEach(item => {
-                let rowHtml = '<tr>';
-                if (type === 'confirmed') {
-                    rowHtml += `<td><span class="theme-badge" data-theme="${item.theme}">${item.theme}</span></td>`;
-                    rowHtml += `<td>${item.date}</td>`;
-                    rowHtml += `<td>${item.horaire}</td>`;
-                    rowHtml += `<td><span class="badge bg-light text-dark border">${item.salle}</span></td>`;
-                    rowHtml += `<td class="text-center">
-                                    <a href="/generer_invitation/${item.id}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation Outlook"><i class="far fa-calendar-plus"></i></a>
-                                    ${canAdminCancel() ? `
-                                    <form action="/validation_inscription/${item.id}" method="post" class="d-inline ms-1">
-                                        <input type="hidden" name="action" value="annuler">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Annuler" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');"><i class="fas fa-ban"></i></button>
-                                    </form>` : ''}
-                               </td>`;
-                } else if (type === 'pending') {
-                    rowHtml += `<td><span class="theme-badge" data-theme="${item.theme}">${item.theme}</span></td>`;
-                    rowHtml += `<td>${item.date}</td>`;
-                    rowHtml += `<td><small>${item.date_inscription}</small></td>`;
-                    rowHtml += `<td class="text-center">
-                                    ${canAdminValidate() ? `
-                                    <div class="btn-group btn-group-sm">
-                                        <form action="/validation_inscription/${item.id}" method="post" class="d-inline">
-                                            <input type="hidden" name="action" value="valider">
-                                            <button type="submit" class="btn btn-outline-success" title="Valider"><i class="fas fa-check"></i></button>
-                                        </form>
-                                        <form action="/validation_inscription/${item.id}" method="post" class="d-inline ms-1">
-                                            <input type="hidden" name="action" value="refuser">
-                                            <button type="submit" class="btn btn-outline-danger" title="Refuser" onclick="return confirm('Êtes-vous sûr de vouloir refuser cette inscription ?');"><i class="fas fa-times"></i></button>
-                                        </form>
-                                    </div>` : '<span class="badge bg-secondary">Validation requise</span>'}
-                               </td>`;
-                } else if (type === 'waitlist') {
-                    rowHtml += `<td><span class="theme-badge" data-theme="${item.theme}">${item.theme}</span></td>`;
-                    rowHtml += `<td>${item.date}</td>`;
-                    rowHtml += `<td class="text-center"><span class="badge bg-secondary">${item.position}</span></td>`;
-                    rowHtml += `<td><small>${item.date_inscription}</small></td>`;
-                    rowHtml += `<td>${item.notification_envoyee ? '<span class="badge bg-info">Notifié</span>' : '<span class="badge bg-light text-dark border">En attente</span>'}</td>`;
-                }
-                rowHtml += '</tr>';
-                tbody.insertAdjacentHTML('beforeend', rowHtml);
-            });
-            // Améliorer les badges thème DANS la modale après ajout
-            if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-                 window.enhanceThemeBadgesGlobally();
-            }
-        }
-
-        // --- Fonctions canAdminValidate/canAdminCancel (inchangées) ---
-        function canAdminValidate() {
-             // Vérifie si l'utilisateur connecté (via la variable JS) est admin ou responsable
-             return isUserLoggedIn && {{ (current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable')) | tojson }};
-        }
-        function canAdminCancel() {
-             // Vérifie si l'utilisateur connecté est admin
-             return isUserLoggedIn && {{ (current_user.is_authenticated and current_user.role == 'admin') | tojson }};
-        }
-
-        // --- Initialisation des badges (inchangée) ---
-        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-            window.enhanceThemeBadgesGlobally();
-        }
-
     });
+
+    function populateParticipantDetailsTable(tableContainer, items, type, noDataElement) {
+        if (!tableContainer || !noDataElement) return;
+        tableContainer.innerHTML = '';
+        noDataElement.style.display = 'none';
+        if (!items || items.length === 0) { noDataElement.style.display = 'block'; return; }
+
+        const table = document.createElement('table');
+        table.className = 'table table-sm table-striped table-borderless'; // table-borderless pour un look plus épuré dans la modale
+        let headers = '';
+        if (type === 'confirmed') headers = '<tr><th>Session</th><th>Date</th><th>Salle</th><th class="text-center">Invitation</th></tr>';
+        else if (type === 'pending') headers = '<tr><th>Session</th><th>Date</th><th>Demandé le</th></tr>';
+        else if (type === 'waitlist') headers = '<tr><th class="text-center">Pos.</th><th>Session</th><th>Date</th><th>Inscrit le</th></tr>';
+        table.innerHTML = `<thead class="visually-hidden">${headers}</thead><tbody></tbody>`; // En-têtes cachés pour plus de simplicité visuelle
+        const tbody = table.querySelector('tbody');
+
+        items.forEach(item => {
+            let rowHtml = '<tr>';
+            if (type === 'confirmed') {
+                rowHtml += `<td><span class="theme-badge js-theme-cell" data-theme="${item.theme}">${item.theme}</span></td><td>${item.date} <small class="text-muted">(${item.horaire})</small></td><td><span class="badge bg-light text-dark border">${item.salle}</span></td><td class="text-center"><a href="${baseAppUrlParticipants}/generer_invitation/${item.id}" class="btn btn-sm btn-outline-primary" title="Invitation .ics"><i class="far fa-calendar-plus"></i></a></td>`;
+            } else if (type === 'pending') {
+                rowHtml += `<td><span class="theme-badge js-theme-cell" data-theme="${item.theme}">${item.theme}</span></td><td>${item.date} <small class="text-muted">(${item.horaire})</small></td><td><small>${item.date_inscription}</small></td>`;
+            } else if (type === 'waitlist') {
+                rowHtml += `<td class="text-center"><span class="badge bg-info">${item.position}</span></td><td><span class="theme-badge js-theme-cell" data-theme="${item.theme}">${item.theme}</span></td><td>${item.date} <small class="text-muted">(${item.horaire})</small></td><td><small>${item.date_inscription}</small></td>`;
+            }
+            rowHtml += '</tr>';
+            tbody.insertAdjacentHTML('beforeend', rowHtml);
+        });
+        tableContainer.appendChild(table);
+        // Ré-appliquer les styles de badge thème DANS la modale
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            window.enhanceThemeBadgesGlobally(tableContainer);
+        }
+    }
+    
+    // Validation pour la modale d'édition
+    const editParticipantFormPP = document.getElementById('editParticipantForm_ParticipantsPage');
+    if(editParticipantFormPP) {
+        editParticipantFormPP.addEventListener('submit', event => {
+            if (!editParticipantFormPP.checkValidity()) { event.preventDefault(); event.stopPropagation(); }
+            editParticipantFormPP.classList.add('was-validated');
+        }, false);
+    }
+});
 </script>
 {% endblock %}
