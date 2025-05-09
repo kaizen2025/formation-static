@@ -421,8 +421,9 @@ def update_theme_names():
         except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error standardizing theme names: {e}"); print("Erreur DB lors de la standardisation des thèmes.")
         except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error standardizing theme names: {e}"); print("Erreur inattendue lors de la standardisation des thèmes.")
 
-@cache.memoize(timeout=300) @db_operation_with_retry(max_retries=3)
-def get_all_themes(): return Theme.query.options(selectinload(Theme.sessions)).order_by(Theme.nom).all()
+@cache.memoize(timeout=300)
+@db_operation_with_retry(max_retries=3)
+def get_all_themes():
 @cache.memoize(timeout=300) @db_operation_with_retry(max_retries=3)
 def get_all_services_with_participants(): return Service.query.options(selectinload(Service.participants)).order_by(Service.nom).all()
 @cache.memoize(timeout=180) @db_operation_with_retry(max_retries=3)
