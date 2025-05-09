@@ -1,12 +1,12 @@
 /* static/css/custom.css */
-/* Contient les styles personnalisés et ceux des graphiques statiques */
+/* Contient les styles personnalisés et ceux des graphiques */
 
 /* ===== VARIABLES DE COULEUR ===== */
 :root {
     --primary: #0078d4;
     --secondary: #6c757d;
     --success: #198754;
-    --warning: #ffc107;
+    --warning: #ffc107; /* Bootstrap warning */
     --danger: #dc3545;
     --info: #0dcaf0;
     --light: #f8f9fa;
@@ -24,126 +24,66 @@
     --service-informatique: #607D8B;
     --service-marketing: #9C27B0;
     --service-qualite: #F44336;
-    --service-rh: #FF9800;
+    --service-rh: #FF9800; /* Orange */
 
-    /* Couleurs des thèmes */
-    --theme-teams: #0078d4;
-    --theme-planner: #7719aa;
-    --theme-onedrive: #0364b8;
-    --theme-sharepoint: #038387;
+    /* Couleurs des thèmes (utilisées par JS et CSS) */
+    --theme-teams: #0078d4; /* Bleu Microsoft */
+    --theme-planner: #7719aa; /* Violet Planner */
+    --theme-onedrive: #0364b8; /* Bleu OneDrive */
+    --theme-sharepoint: #038387; /* Teal SharePoint */
+    --theme-default-bg: #6c757d; /* Gris pour thèmes non mappés */
 }
 
 /* ===== STYLES COMMUNS POUR TOUS LES GRAPHIQUES ===== */
-.static-chart-container {
+.dynamic-chart-container { /* Utilisé pour les canvas Chart.js */
     width: 100%;
-    min-height: 280px; /* Hauteur minimale réduite */
-    padding: 1rem 1.25rem;
-    background-color: var(--white, #ffffff);
-    border-radius: var(--border-radius, 0.375rem);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: 1.5rem;
-    overflow: hidden;
-    transition: all var(--transition-speed) ease;
-    position: relative;
-    display: flex;
-    flex-direction: column;
+    height: 280px; /* Hauteur fixe pour le canvas */
+    position: relative; /* Pour positionner le message "no data" */
+    margin-bottom: 1rem; /* Espace sous le graphique */
 }
-.static-chart-container:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
+.dynamic-chart-container canvas {
+    max-width: 100%;
+    max-height: 100%;
 }
-.static-chart-title {
-    font-size: 0.85rem; /* Taille réduite */
-    font-weight: 600;
-    color: var(--dark, #212529);
-    margin-bottom: 0.8rem; /* Espace réduit */
-    padding-bottom: 0.5rem;
-    text-align: center;
-    position: relative;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid #eee;
-}
-
-/* Animation de chargement */
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.animate { animation: fadeIn 0.5s ease-out forwards; }
-
-/* Spinner et messages dans les graphiques */
-.static-chart-container .loading-spinner,
-.static-chart-container .no-data-message {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 1.5rem 1rem; /* Padding réduit */
-    color: var(--secondary, #6c757d);
-}
-.static-chart-container .loading-spinner .spinner-border {
-    width: 1.5rem; height: 1.5rem; border-width: .2em;
-}
-.static-chart-container .loading-spinner p,
-.static-chart-container .no-data-message {
-    font-size: 0.8rem; /* Taille réduite */
-    margin-top: 0.5rem;
-}
-.static-chart-container .no-data-message i {
-    font-size: 1.1rem; /* Icône réduite */
-    margin-bottom: 0.25rem;
-}
-
-
-/* ===== GRAPHIQUE DONUT (THÈMES) ===== */
-.static-chart-donut {
-    position: relative;
-    width: 130px; /* Taille réduite */
-    height: 130px;
-    border-radius: 50%;
-    margin: 0.5rem auto 0.8rem; /* Marges ajustées */
-    background-color: #f8f9fa;
-    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.05);
-}
-.donut-center {
+.no-data-message-chart { /* Style pour le message si pas de données */
     position: absolute;
-    top: 28%; left: 28%; width: 44%; height: 44%;
-    border-radius: 50%;
-    background-color: white;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
-    z-index: 3;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--secondary);
+    font-size: 0.9rem;
 }
-.donut-total { font-size: 1.2rem; font-weight: 700; color: var(--dark, #212529); line-height: 1; }
-.donut-label { font-size: 0.55rem; color: var(--secondary, #6c757d); margin-top: 0.1rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.no-data-message-chart i {
+    font-size: 1.2rem;
+    margin-bottom: 0.25rem;
+    display: block;
+}
 
-/* Légende du graphique donut */
-.static-chart-legend {
+
+/* Légende personnalisée pour les graphiques Chart.js */
+.static-chart-legend { /* Garder le nom pour réutiliser les styles */
     display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
-    gap: 0.3rem 0.6rem; padding: 0.4rem 0; font-size: 0.7rem; /* Taille réduite */
-    margin-top: auto;
+    gap: 0.3rem 0.6rem; padding: 0.4rem 0; font-size: 0.7rem;
+    margin-top: 0.5rem; /* Réduire l'espace si la légende est sous le graphique */
 }
 .legend-item {
-    display: flex; align-items: center; padding: 0.2rem 0.4rem; /* Padding réduit */
+    display: flex; align-items: center; padding: 0.2rem 0.4rem;
     background-color: #f8f9fa; border-radius: 0.25rem; transition: all var(--transition-speed) ease; cursor: default;
 }
 .legend-item:hover { background-color: #e9ecef; }
-.legend-color { width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1); flex-shrink: 0; }
+.legend-color { width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1); flex-shrink: 0; }
 .legend-label { font-weight: 500; color: var(--dark, #212529); white-space: nowrap; }
-.legend-value { margin-left: 0.3rem; padding: 0.05rem 0.3rem; background-color: #e9ecef; border-radius: 6px; font-size: 0.6rem; font-weight: 600; color: var(--dark, #212529); }
+.legend-value { margin-left: 0.3rem; padding: 0.05rem 0.35rem; background-color: #e9ecef; border-radius: 6px; font-size: 0.65rem; font-weight: 600; color: var(--dark, #212529); }
 
-/* ===== GRAPHIQUE EN BARRES (SERVICES) ===== */
-.static-chart-bars { width: 100%; padding-top: 0.5rem; flex-grow: 1; }
-.bar-item { margin-bottom: 0.7rem; transition: all var(--transition-speed) ease; position: relative; }
-.bar-item:hover { transform: translateX(2px); }
-.bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem; }
-.bar-label { font-size: 0.75rem; font-weight: 500; color: var(--dark, #212529); margin: 0; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
-.service-badge { width: 8px; height: 8px; display: inline-block; border-radius: 50%; margin-right: 5px; flex-shrink: 0; }
-.bar-total { font-size: 0.7rem; font-weight: 600; color: var(--primary, #0d6efd); background-color: rgba(13, 110, 253, 0.1); padding: 0.1rem 0.35rem; border-radius: 8px; min-width: 20px; text-align: center; flex-shrink: 0; }
-.bar-container { height: 5px; background-color: #e9ecef; border-radius: 3px; position: relative; overflow: hidden; box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04); }
-.bar-value { height: 100%; border-radius: 3px; position: relative; width: 0; transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1); }
-@keyframes barGrow { from { width: 0; } to { width: var(--percent, 0%); } }
-.animate .bar-value { animation: barGrow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; animation-delay: calc(var(--index, 0) * 0.08s); }
+@keyframes fadeInLegend {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.legend-item[style*="animation"] { /* Cible les éléments avec animation inline */
+    /* Styles déjà appliqués par JS, mais on peut forcer ici si besoin */
+}
+
 
 /* ===== BADGES DE THÈMES AMÉLIORÉS ===== */
 .theme-badge {
@@ -154,13 +94,12 @@
 .theme-badge.theme-planner { background-color: var(--theme-planner); }
 .theme-badge.theme-onedrive { background-color: var(--theme-onedrive); }
 .theme-badge.theme-sharepoint { background-color: var(--theme-sharepoint); }
+.theme-badge.bg-secondary { background-color: var(--theme-default-bg) !important; } /* Surcharge pour thèmes non mappés */
 .theme-badge i.fas { margin-right: 0.3em; font-size: 0.9em; line-height: 1; }
-.theme-badge .theme-tooltip { visibility: hidden; width: 260px; background-color: rgba(33, 37, 41, 0.95); color: #fff; text-align: left; border-radius: 4px; padding: 8px 10px; position: absolute; z-index: 1081; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: all 0.3s ease; font-weight: normal; font-size: 0.75rem; box-shadow: 0 3px 8px rgba(0,0,0,0.2); pointer-events: none; }
-.theme-badge .theme-tooltip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(33, 37, 41, 0.95) transparent transparent transparent; }
-.theme-badge:hover .theme-tooltip { visibility: visible; opacity: 1; }
+
 
 /* ===== Feed d'activité récentes amélioré ===== */
-.activity-container { max-height: 300px; overflow-y: auto; } /* Hauteur réduite */
+.activity-container { max-height: 300px; overflow-y: auto; }
 .activity-item { padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; border-left-width: 3px; background-color: #fdfdfd; border-radius: 0 0.25rem 0.25rem 0; transition: all var(--transition-speed) ease; display: flex; align-items: flex-start; }
 .activity-item:hover { transform: translateX(2px); background-color: #f8f9fa; }
 .activity-icon { margin-right: 0.6rem; margin-top: 0.1rem; font-size: 0.85rem; width: 1.2em; text-align: center; }
@@ -169,17 +108,31 @@
 .activity-subtitle { font-size: 0.7rem; color: var(--secondary, #6c757d); line-height: 1.3; }
 .activity-subtitle small { font-size: 100%; }
 .activity-time { display: block; margin-top: 0.2rem; }
-/* Couleurs par type (inchangé) */
-.activity-item.type-ajout { border-left-color: var(--success, #198754); }
-.activity-item.type-suppression { border-left-color: var(--danger, #dc3545); }
-.activity-item.type-modification { border-left-color: var(--warning, #ffc107); }
-.activity-item.type-validation { border-left-color: var(--info, #0dcaf0); }
-.activity-item.type-connexion { border-left-color: var(--success); }
-.activity-item.type-deconnexion { border-left-color: var(--secondary); }
-.activity-item.type-systeme { border-left-color: var(--dark); }
+/* Couleurs par type */
+.activity-item.type-ajout_participant,
+.activity-item.type-inscription,
+.activity-item.type-validation,
+.activity-item.type-connexion { border-left-color: var(--success, #198754); }
+
+.activity-item.type-suppression_participant,
+.activity-item.type-refus,
+.activity-item.type-annulation { border-left-color: var(--danger, #dc3545); }
+
+.activity-item.type-modification_participant,
+.activity-item.type-liste_attente,
+.activity-item.type-notification,
+.activity-item.type-deconnexion { border-left-color: var(--warning, #ffc107); }
+
+.activity-item.type-attribution_salle,
+.activity-item.type-ajout_document,
+.activity-item.type-telecharger_invitation { border-left-color: var(--info, #0dcaf0); }
+
+.activity-item.type-systeme,
+.activity-item.type-default { border-left-color: var(--secondary, #6c757d); }
+
 
 /* ===== RESPONSIVITÉ GÉNÉRALE ===== */
-.session-table th, .session-table td { padding: 0.4rem; font-size: 0.8rem; vertical-align: middle; } /* Padding et police réduits */
+.session-table th, .session-table td { padding: 0.4rem; font-size: 0.8rem; vertical-align: middle; }
 .session-table th:nth-child(1), .session-table td:nth-child(1) { width: 120px; }
 .session-table th:nth-child(2), .session-table td:nth-child(2) { min-width: 140px; }
 .session-table th:nth-child(3), .session-table td:nth-child(3) { width: 80px; text-align: center; }
@@ -193,23 +146,18 @@
     .session-table th:nth-child(5), .session-table td:nth-child(5) { width: auto; min-width: 85px; }
 }
 @media (max-width: 992px) {
-    .static-chart-container { min-height: 260px; }
-    .static-chart-donut { width: 120px; height: 120px; }
-    .donut-total { font-size: 1.1rem; }
-    .donut-label { font-size: 0.55rem; }
-    .static-chart-legend { font-size: 0.7rem; }
-    .legend-label { max-width: 80px; }
+    .dynamic-chart-container { min-height: 240px; height: 240px; } /* Ajuster hauteur pour mobile */
+    .static-chart-legend { font-size: 0.65rem; }
+    .legend-label { max-width: 70px; overflow: hidden; text-overflow: ellipsis;}
 }
 @media (max-width: 768px) {
-    .static-chart-donut { width: 110px; height: 110px; }
-    .bar-label { font-size: 0.75rem; max-width: 65%; }
-    .bar-total { font-size: 0.65rem; padding: 0.1rem 0.3rem;}
     .session-table .btn-sm { padding: 0.15rem 0.3rem; font-size: 0.65rem; }
     .session-table .badge { font-size: 0.65rem; }
     .places-dispo { font-size: 0.75rem; }
     .theme-badge { font-size: 0.7rem; padding: 0.25em 0.5em;}
     .activity-title { font-size: 0.75rem; }
     .activity-subtitle { font-size: 0.65rem; }
+    .dynamic-chart-container { min-height: 220px; height: 220px; }
 }
 
 /* Styles pour les éléments mis à jour */
