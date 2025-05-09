@@ -14,13 +14,14 @@ from datetime import datetime, timedelta, UTC, date, time as time_obj
 import logging
 from logging.handlers import RotatingFileHandler
 import json
-from . import app, db, cache, add_activity # Assurez-vous que ces objets sont importés correctement
-from .models import Participant, Service, Inscription, ListeAttente, Session, Theme, Salle # Importez 
-from .decorators import db_operation_with_retry
+# LIGNES SUIVANTES SUPPRIMÉES CAR INCORRECTES POUR UN FICHIER UNIQUE:
+# from . import app, db, cache, add_activity
+# from .models import Participant, Service, Inscription, ListeAttente, Session, Theme, Salle
+# from .decorators import db_operation_with_retry
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    flash, jsonify, make_response, current_app, send_from_directory, make_response
+    flash, jsonify, make_response, current_app, send_from_directory # make_response était dupliqué, supprimé une fois
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
