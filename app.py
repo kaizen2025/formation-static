@@ -1149,39 +1149,42 @@ def validation_inscription_ajax():
 
 # --- Route documents (MODIFIÉE) ---
 @app.route('/documents')
-# @login_required # RETIRER à nouveau pour accès public
+# @login_required # Décommenter si l'accès doit être restreint
 @db_operation_with_retry(max_retries=3)
 def documents():
     try:
         app.logger.info(f"Accès page /documents par '{current_user.username if current_user.is_authenticated else 'Anonymous'}'")
-        # Charger les thèmes AVEC les documents et l'uploader (nécessaire pour l'affichage)
+        
+        # Charger les thèmes AVEC les documents et l'uploader
         themes_with_docs = Theme.query.options(
             selectinload(Theme.documents).joinedload(Document.uploader)
         ).order_by(Theme.nom).all()
 
-        # Récupérer la liste des thèmes pour le formulaire d'upload SEULEMENT SI admin
-        # (même si le formulaire n'est affiché que pour l'admin, on peut passer la variable)
-        themes_for_upload = []
+        # Charger les documents généraux (ceux sans theme_id)
+        general_documents = Document.query.filter(Document.theme_id == None).options( # Ou .is_(None)
+            joinedload(Document.uploader)
+        ).order_by(Document.upload_date.desc()).all()
+
+        themes_for_upload_dropdown = []
         if current_user.is_authenticated and current_user.role == 'admin':
-            # Utilise la fonction cachée qui charge aussi les sessions, mais c'est ok ici.
-            # Si performance critique, créer une fonction get_themes_only()
-            themes_for_upload = get_all_themes()
+            themes_for_upload_dropdown = Theme.query.order_by(Theme.nom).all() # Simplement les noms pour le dropdown
 
         return render_template('documents.html',
                                themes_with_docs=themes_with_docs,
-                               themes=themes_for_upload, # Pour le select dans le formulaire admin
-                               ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS) # Pour l'info dans le formulaire admin
-
+                               general_documents=general_documents, # NOUVEAU
+                               themes=themes_for_upload_dropdown, 
+                               ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS)
+    # ... (gestion des erreurs comme avant) ...
     except SQLAlchemyError as e:
         db.session.rollback()
         app.logger.error(f"DB error loading documents page: {e}", exc_info=True)
         flash("Erreur de base de données lors du chargement des documents.", "danger")
-        return redirect(url_for('dashboard')) # Ou une page d'erreur générique
+        return redirect(url_for('dashboard')) 
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Unexpected error loading documents page: {e}", exc_info=True)
         flash("Une erreur interne est survenue.", "danger")
-        return redirect(url_for('dashboard')) # Ou une page d'erreur générique
+        return redirect(url_for('dashboard'))
 
 # --- Route download_document (VÉRIFIER/MODIFIER) ---
 @app.route('/download_document/<path:filename>')
