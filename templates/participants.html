@@ -1,4 +1,387 @@
-{# templates/participants.html - Remplacer le bloc scripts_extra existant #}
+{% extends "layout.html" %}
+
+{% block title %}Participants - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* Style pour le spinner dans la modale */
+    #viewParticipantModal .modal-loading-spinner {
+        display: none; /* Caché par défaut */
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--secondary);
+    }
+    #viewParticipantModal .modal-loading-spinner .spinner-border {
+        width: 2rem; height: 2rem; margin-bottom: 1rem;
+    }
+    #viewParticipantModal .modal-tabs-content.is-loading .tab-pane {
+        display: none; /* Cacher le contenu pendant le chargement */
+    }
+     #viewParticipantModal .modal-tabs-content.is-loading ~ .modal-loading-spinner { /* Correction sélecteur */
+        display: flex; /* Afficher le spinner (utiliser flex pour centrer) */
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    /* Style pour les tables dans la modale */
+    #viewParticipantModal .table thead th { font-size: 0.75rem; }
+    #viewParticipantModal .table tbody td { font-size: 0.8rem; }
+    #participants-table th, #participants-table td { vertical-align: middle; }
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0"><i class="fas fa-users me-2"></i>Gestion des Participants</h1>
+    {# Bouton Ajouter Participant Global (utilise la modale globale) #}
+    {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">
+        <i class="fas fa-user-plus me-2"></i>Ajouter un Participant
+    </button>
+    {% endif %}
+</div>
+
+
+<!-- Add Participant Modal (Global) -->
+{% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+<div class="modal fade" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addParticipantModalGlobalLabel">Ajouter un Nouveau Participant</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                 <form action="{{ url_for('add_participant') }}" method="post">
+                    <input type="hidden" name="from_page" value="participants_page"> {# Utiliser le nom de la fonction route #}
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="add_nom_global" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="add_nom_global" name="nom" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_prenom_global" class="form-label">Prénom*</label>
+                            <input type="text" class="form-control" id="add_prenom_global" name="prenom" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_email_global" class="form-label">Email*</label>
+                            <input type="email" class="form-control" id="add_email_global" name="email" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_service_id_global" class="form-label">Service*</label>
+                            <select class="form-select" id="add_service_id_global" name="service_id" required>
+                                <option value="" disabled selected>-- Choisir --</option>
+                                {# services est passé depuis la route participants_page #}
+                                {% for service in services|sort(attribute='nom') %}
+                                <option value="{{ service.id }}">{{ service.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Ajouter Participant
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+<!-- Tableau des participants -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary mb-2 mb-md-0">
+            <i class="fas fa-list me-2"></i>Liste des {{ participants_data|length }} participants
+        </h6>
+        <div class="input-group w-100 w-md-50">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" class="form-control" placeholder="Rechercher (Nom, Prénom, Email, Service)..." id="searchParticipant" aria-label="Rechercher participant">
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="participants-table">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Nom Prénom</th>
+                        <th scope="col">Service</th>
+                        <th scope="col">Email</th>
+                        <th scope="col" class="text-center">Inscriptions Confirmées</th>
+                        <th scope="col" class="text-center">En Liste d'attente</th>
+                        <th scope="col" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p_data in participants_data|sort(attribute='obj.nom') %}
+                    {% set participant = p_data.obj %}
+                    <tr data-participant-id="{{ participant.id }}" class="participant-row">
+                        <td>
+                            <div class="fw-bold">{{ participant.nom }} {{ participant.prenom }}</div>
+                        </td>
+                        <td class="js-service-cell">
+                            <span class="badge" style="background-color: {{ participant.service.couleur or '#6c757d' }}; color: white; padding: 0.3em 0.5em;">
+                                {{ participant.service.nom }}
+                            </span>
+                        </td>
+                        <td><a href="mailto:{{ participant.email }}" class="participant-email">{{ participant.email }}</a></td>
+                        <td class="text-center">
+                            <span class="badge bg-success rounded-pill">{{ p_data.inscriptions_count }}</span>
+                        </td>
+                        <td class="text-center">
+                             <span class="badge bg-warning text-dark rounded-pill">{{ p_data.attente_count }}</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Actions participant">
+                                {# Bouton Voir - Utilise la modale unique #}
+                                <button type="button" class="btn btn-outline-primary btn-view-participant"
+                                        data-bs-toggle="modal" data-bs-target="#viewParticipantModal"
+                                        data-participant-id="{{ participant.id }}"
+                                        data-participant-nom="{{ participant.nom }}"
+                                        data-participant-prenom="{{ participant.prenom }}"
+                                        data-participant-email="{{ participant.email }}"
+                                        data-service-nom="{{ participant.service.nom }}"
+                                        data-service-couleur="{{ participant.service.couleur or '#6c757d' }}"
+                                        data-responsable-nom="{{ participant.service.responsable }}"
+                                        data-responsable-email="{{ participant.service.email_responsable }}"
+                                        data-count-confirmed="{{ p_data.inscriptions_count }}"
+                                        data-count-pending="{{ p_data.pending_count }}"
+                                        data-count-waitlist="{{ p_data.attente_count }}"
+                                        title="Voir détails">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                {# Bouton Modifier - Utilise la modale unique #}
+                                {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
+                                <button type="button" class="btn btn-outline-secondary btn-edit-participant"
+                                        data-bs-toggle="modal" data-bs-target="#editParticipantModal"
+                                        data-participant-id="{{ participant.id }}"
+                                        data-participant-nom="{{ participant.nom }}"
+                                        data-participant-prenom="{{ participant.prenom }}"
+                                        data-participant-email="{{ participant.email }}"
+                                        data-service-id="{{ participant.service_id }}"
+                                        title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% endif %}
+                                {# Bouton Supprimer - Utilise la modale unique #}
+                                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                 <button type="button" class="btn btn-outline-danger btn-delete-participant"
+                                         data-bs-toggle="modal" data-bs-target="#deleteParticipantModal"
+                                         data-participant-id="{{ participant.id }}"
+                                         data-participant-nom="{{ participant.nom }}"
+                                         data-participant-prenom="{{ participant.prenom }}"
+                                         title="Supprimer">
+                                     <i class="fas fa-trash"></i>
+                                 </button>
+                                 {% endif %}
+                            </div>
+                            {# Les modales Modifier/Supprimer sont maintenant définies une seule fois en dehors de la boucle #}
+                        </td>
+                    </tr>
+                     {% else %}
+                      <tr>
+                          <td colspan="6" class="text-center text-muted p-4">
+                              Aucun participant trouvé.
+                              {% if current_user.is_authenticated and current_user.role in ['admin', 'responsable'] %}
+                              <a href="#" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">Ajouter un participant</a>.
+                              {% endif %}
+                          </td>
+                      </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+     <div class="card-footer bg-light text-muted small">
+         Total: {{ participants_data|length }} participant(s)
+     </div>
+</div>
+
+
+<!-- ====================================================== -->
+<!-- == MODALE UNIQUE POUR VOIR LES DÉTAILS PARTICIPANT == -->
+<!-- ====================================================== -->
+<div class="modal fade" id="viewParticipantModal" tabindex="-1" aria-labelledby="viewParticipantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable"> {# XL pour plus d'espace #}
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewParticipantModalLabel">
+                     <i class="fas fa-user-circle me-2"></i> <span id="modalParticipantName">Nom Participant</span>
+                    <small class="text-muted d-block fw-normal" id="modalParticipantEmail">email@participant.com</small>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {# Informations Participant et Service #}
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-sitemap me-2"></i>Service</h6>
+                        <p><span class="badge" id="modalServiceBadge" style="color: white; padding: 0.3em 0.5em;">Nom Service</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-user-tie me-2"></i>Responsable Service</h6>
+                        <p><span id="modalResponsableName">Nom Resp</span> (<a href="#" id="modalResponsableEmail">email@resp.com</a>)</p>
+                    </div>
+                </div>
+
+                {# Onglets pour les détails #}
+                <ul class="nav nav-tabs mb-3" id="participantDetailsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="view-inscriptions-tab" data-bs-toggle="tab" data-bs-target="#view-inscriptions-content" type="button" role="tab">
+                            Inscriptions Confirmées <span class="badge bg-success ms-1" id="modalCountConfirmed">0</span>
+                        </button>
+                    </li>
+                     <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="view-pending-tab" data-bs-toggle="tab" data-bs-target="#view-pending-content" type="button" role="tab">
+                            En Attente Validation <span class="badge bg-secondary ms-1" id="modalCountPending">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="view-attente-tab" data-bs-toggle="tab" data-bs-target="#view-attente-content" type="button" role="tab">
+                            Liste d'attente <span class="badge bg-warning text-dark ms-1" id="modalCountWaitlist">0</span>
+                        </button>
+                    </li>
+                </ul>
+
+                {# Conteneur pour le contenu des onglets et le spinner #}
+                <div class="modal-tabs-content" id="participantDetailsContent">
+                    <!-- Onglet inscriptions confirmées -->
+                    <div class="tab-pane fade show active" id="view-inscriptions-content" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead><tr><th>Session</th><th>Date</th><th>Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
+                                <tbody id="modalConfirmedInscriptionsTableBody">
+                                    <!-- Contenu chargé par JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="noConfirmedMsg" class="alert alert-light text-center border py-3" style="display: none;">Aucune inscription confirmée.</div>
+                    </div>
+                     <!-- Onglet inscriptions en attente -->
+                    <div class="tab-pane fade" id="view-pending-content" role="tabpanel">
+                          <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                 <thead><tr><th>Session</th><th>Date</th><th>Demandé le</th><th>Actions</th></tr></thead>
+                                <tbody id="modalPendingInscriptionsTableBody">
+                                    <!-- Contenu chargé par JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="noPendingMsg" class="alert alert-light text-center border py-3" style="display: none;">Aucune inscription en attente de validation.</div>
+                    </div>
+                    <!-- Onglet liste d'attente -->
+                    <div class="tab-pane fade" id="view-attente-content" role="tabpanel">
+                        <div class="table-responsive">
+                             <table class="table table-sm table-striped">
+                                <thead><tr><th>Session</th><th>Date</th><th>Position</th><th>Inscrit le</th><th>Statut</th></tr></thead>
+                                <tbody id="modalWaitlistTableBody">
+                                    <!-- Contenu chargé par JS -->
+                                </tbody>
+                             </table>
+                        </div>
+                        <div id="noWaitlistMsg" class="alert alert-light text-center border py-3" style="display: none;">Aucune inscription en liste d'attente.</div>
+                    </div>
+                </div>
+                {# Spinner de chargement pour les détails AJAX #}
+                <div class="modal-loading-spinner" id="modalDetailsSpinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p>Chargement des détails...</p>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ====================================================== -->
+<!-- == FIN MODALE UNIQUE VOIR LES DÉTAILS PARTICIPANT == -->
+<!-- ====================================================== -->
+
+
+<!-- ====================================================== -->
+<!-- == MODALES UNIQUES MODIFIER/SUPPRIMER PARTICIPANT   == -->
+<!-- ====================================================== -->
+{% if current_user.is_authenticated %} {# Condition générale pour les modales d'action #}
+<!-- Modal Modifier Participant (Unique) -->
+<div class="modal fade" id="editParticipantModal" tabindex="-1" aria-labelledby="editParticipantModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editParticipantModalLabel">Modifier Participant</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="" method="post" id="editParticipantForm"> {# Action définie par JS #}
+                     <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_nom" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="edit_nom" name="nom" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_prenom" class="form-label">Prénom*</label>
+                            <input type="text" class="form-control" id="edit_prenom" name="prenom" required>
+                        </div>
+                         <div class="col-md-6">
+                            <label for="edit_email" class="form-label">Email*</label>
+                            <input type="email" class="form-control" id="edit_email" name="email" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_service_id" class="form-label">Service*</label>
+                            <select class="form-select" id="edit_service_id" name="service_id" required>
+                                {# Options chargées statiquement car la liste des services change peu #}
+                                <option value="" disabled>-- Choisir --</option>
+                                {% for service_item in services|sort(attribute='nom') %}
+                                <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                     </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Supprimer Participant (Unique) -->
+<div class="modal fade" id="deleteParticipantModal" tabindex="-1" aria-labelledby="deleteParticipantModalLabel" aria-hidden="true">
+     <div class="modal-dialog">
+         <div class="modal-content">
+             <div class="modal-header">
+                 <h5 class="modal-title" id="deleteParticipantModalLabel">Confirmer Suppression</h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+             </div>
+             <div class="modal-body">
+                 {# Le texte sera mis à jour par JS #}
+                 <span id="deleteParticipantText">Êtes-vous sûr de vouloir supprimer ce participant ? Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées. Cette action est irréversible.</span>
+             </div>
+             <div class="modal-footer">
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                 <form action="" method="post" id="deleteParticipantForm" class="d-inline"> {# Action définie par JS #}
+                     <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
+                 </form>
+             </div>
+         </div>
+     </div>
+ </div>
+{% endif %}
+<!-- ====================================================== -->
+<!-- == FIN MODALES UNIQUES MODIFIER/SUPPRIMER PARTICIPANT == -->
+<!-- ====================================================== -->
+
+
+{% endblock %}
+
 {% block scripts_extra %}
 <script>
     // Variable globale indiquant si l'utilisateur est connecté
@@ -6,7 +389,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-            console.log('Participants JS loaded (v_public_list)');
+            console.log('Participants JS loaded (v_public_list_refactored)');
         }
 
         const searchInput = document.getElementById('searchParticipant');
@@ -18,7 +401,8 @@
         const deleteParticipantModalElement = document.getElementById('deleteParticipantModal');
         const deleteParticipantModal = deleteParticipantModalElement ? new bootstrap.Modal(deleteParticipantModalElement) : null;
 
-        // --- Filtre de recherche (inchangé) ---
+
+        // --- Filtre de recherche ---
         function filterParticipants() {
              if (!searchInput || !participantsTableBody) return;
             const searchValue = searchInput.value.toLowerCase().trim();
@@ -38,7 +422,7 @@
             searchInput.addEventListener('input', filterParticipants);
         }
 
-        // --- Gestion Modale Unique "Voir Participant" (MODIFIÉE) ---
+        // --- Gestion Modale Unique "Voir Participant" ---
         const modalTitle = document.getElementById('viewParticipantModalLabel');
         const modalName = document.getElementById('modalParticipantName');
         const modalEmail = document.getElementById('modalParticipantEmail');
@@ -57,7 +441,20 @@
         const noPendingMsg = document.getElementById('noPendingMsg');
         const noWaitlistMsg = document.getElementById('noWaitlistMsg');
 
-        // Écouteur sur la table pour tous les boutons
+        // --- Gestion Modales Uniques Modifier/Supprimer Participant ---
+        const editParticipantForm = document.getElementById('editParticipantForm');
+        const editParticipantTitle = document.getElementById('editParticipantModalLabel');
+        const editNomInput = document.getElementById('edit_nom');
+        const editPrenomInput = document.getElementById('edit_prenom');
+        const editEmailInput = document.getElementById('edit_email');
+        const editServiceSelect = document.getElementById('edit_service_id');
+
+        const deleteParticipantForm = document.getElementById('deleteParticipantForm');
+        const deleteParticipantTitle = document.getElementById('deleteParticipantModalLabel');
+        const deleteParticipantTextSpan = document.getElementById('deleteParticipantText');
+
+
+        // Écouteur d'événements unifié sur la table
         document.getElementById('participants-table')?.addEventListener('click', function(event) {
             const viewButton = event.target.closest('.btn-view-participant');
             const editButton = event.target.closest('.btn-edit-participant');
@@ -65,140 +462,134 @@
 
             // --- Logique pour le bouton "Voir" ---
             if (viewButton && viewParticipantModal) {
-                // --- Récupération des données depuis data-* ---
-                const participantId = viewButton.dataset.participantId;
-                const prenom = viewButton.dataset.participantPrenom;
-                const nom = viewButton.dataset.participantNom;
-                const email = viewButton.dataset.participantEmail;
-                const serviceNom = viewButton.dataset.serviceNom;
-                const serviceCouleur = viewButton.dataset.serviceCouleur;
-                const respNom = viewButton.dataset.responsableNom;
-                const respEmail = viewButton.dataset.responsableEmail;
-                const countConfirmed = viewButton.dataset.countConfirmed;
-                const countPending = viewButton.dataset.countPending;
-                const countWaitlist = viewButton.dataset.countWaitlist;
-
-                // --- Mise à jour des infos statiques ---
-                if(modalName) modalName.textContent = `${prenom} ${nom}`;
-                if(modalEmail) modalEmail.textContent = email;
-                if(modalServiceBadge) {
-                    modalServiceBadge.textContent = serviceNom;
-                    modalServiceBadge.style.backgroundColor = serviceCouleur;
-                }
-                if(modalResponsableName) modalResponsableName.textContent = respNom;
-                if(modalResponsableEmail) {
-                    modalResponsableEmail.textContent = respEmail;
-                    modalResponsableEmail.href = `mailto:${respEmail}`;
-                }
-                if(modalCountConfirmed) modalCountConfirmed.textContent = countConfirmed;
-                if(modalCountPending) modalCountPending.textContent = countPending;
-                if(modalCountWaitlist) modalCountWaitlist.textContent = countWaitlist;
-
-                // --- Vider le contenu précédent et préparer l'affichage ---
-                if(confirmedTbody) confirmedTbody.innerHTML = '';
-                if(pendingTbody) pendingTbody.innerHTML = '';
-                if(waitlistTbody) waitlistTbody.innerHTML = '';
-                if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
-                if(noPendingMsg) noPendingMsg.style.display = 'none';
-                if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
-                if(modalDetailsContent) modalDetailsContent.classList.remove('is-loading'); // Assurer qu'il n'est pas en chargement
-
-                // --- VÉRIFIER SI L'UTILISATEUR EST CONNECTÉ ---
-                if (isUserLoggedIn) {
-                    // Afficher le spinner et faire l'appel API
-                    if(modalDetailsContent) modalDetailsContent.classList.add('is-loading');
-
-                    fetch(`/api/participant/${participantId}/details`)
-                        .then(response => {
-                            // ... (gestion de la réponse fetch comme avant : vérifier ok, vérifier json) ...
-                             if (!response.ok) {
-                                if (response.status === 401 || response.status === 403) { throw new Error(`Accès non autorisé (${response.status}). Veuillez vous reconnecter.`); }
-                                throw new Error(`Erreur serveur (${response.status}) lors de la récupération des détails.`);
-                            }
-                            const contentType = response.headers.get("content-type");
-                            if (!contentType || !contentType.includes("application/json")) { throw new TypeError("Réponse inattendue du serveur (pas JSON). Session expirée?"); }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.error) { throw new Error(data.error); }
-                            populateModalTable(confirmedTbody, data.confirmed, 'confirmed', noConfirmedMsg);
-                            populateModalTable(pendingTbody, data.pending, 'pending', noPendingMsg);
-                            populateModalTable(waitlistTbody, data.waitlist, 'waitlist', noWaitlistMsg);
-                        })
-                        .catch(error => {
-                            // ... (gestion de l'erreur fetch comme avant) ...
-                            console.error("Erreur lors du chargement des détails du participant:", error);
-                            const errorHtml = `<tr><td colspan="5" class="text-center text-danger p-3"><i class="fas fa-exclamation-triangle me-2"></i> ${error.message || 'Erreur de chargement.'}</td></tr>`;
-                            if(confirmedTbody) confirmedTbody.innerHTML = errorHtml;
-                            if(pendingTbody) pendingTbody.innerHTML = errorHtml.replace('colspan="5"', 'colspan="4"');
-                            if(waitlistTbody) waitlistTbody.innerHTML = errorHtml;
-                            if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
-                            if(noPendingMsg) noPendingMsg.style.display = 'none';
-                            if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
-                            if (typeof showToast === 'function') showToast(error.message || 'Impossible de charger les détails.', 'danger');
-                        })
-                        .finally(() => {
-                            // Cacher le spinner
-                            if(modalDetailsContent) modalDetailsContent.classList.remove('is-loading');
-                        });
-                } else {
-                    // Utilisateur non connecté : Afficher message dans la modale
-                    if(confirmedTbody) {
-                         confirmedTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-4"><i class="fas fa-lock me-2"></i>Veuillez vous <a href="/login?next=/participants">connecter</a> pour voir les détails des inscriptions.</td></tr>`;
-                         confirmedTbody.closest('.table-responsive').style.display = 'block'; // Assurer que la table est visible
-                    }
-                     if(noConfirmedMsg) noConfirmedMsg.style.display = 'none'; // Cacher le message "no data"
-                     // Cacher les autres sections
-                     if(pendingTbody) pendingTbody.closest('.table-responsive').style.display = 'none';
-                     if(waitlistTbody) waitlistTbody.closest('.table-responsive').style.display = 'none';
-                     if(noPendingMsg) noPendingMsg.style.display = 'none';
-                     if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
-                }
-                 // viewParticipantModal.show(); // Déjà géré par data-bs-toggle
+                handleViewParticipantClick(viewButton);
             }
-
             // --- Logique pour le bouton "Modifier" ---
             else if (editButton && editParticipantModal) {
-                const participantId = editButton.dataset.participantId;
-                const nom = editButton.dataset.participantNom;
-                const prenom = editButton.dataset.participantPrenom;
-                const email = editButton.dataset.participantEmail;
-                const serviceId = editButton.dataset.serviceId;
-
-                const form = editParticipantModalElement.querySelector('#editParticipantForm');
-                const title = editParticipantModalElement.querySelector('#editParticipantModalLabel');
-                const nomInput = editParticipantModalElement.querySelector('#edit_nom');
-                const prenomInput = editParticipantModalElement.querySelector('#edit_prenom');
-                const emailInput = editParticipantModalElement.querySelector('#edit_email');
-                const serviceSelect = editParticipantModalElement.querySelector('#edit_service_id');
-
-                if(form) form.action = `/participant/update/${participantId}`;
-                if(title) title.textContent = `Modifier - ${prenom} ${nom}`;
-                if(nomInput) nomInput.value = nom;
-                if(prenomInput) prenomInput.value = prenom;
-                if(emailInput) emailInput.value = email;
-                if(serviceSelect) serviceSelect.value = serviceId;
-
-                // editParticipantModal.show(); // Déjà géré par data-bs-toggle
+                handleEditParticipantClick(editButton);
             }
-
             // --- Logique pour le bouton "Supprimer" ---
             else if (deleteButton && deleteParticipantModal) {
-                const participantId = deleteButton.dataset.participantId;
-                const nom = deleteButton.dataset.participantNom;
-                const prenom = deleteButton.dataset.participantPrenom;
-
-                const form = deleteParticipantModalElement.querySelector('#deleteParticipantForm');
-                const title = deleteParticipantModalElement.querySelector('#deleteParticipantModalLabel');
-                const bodyTextSpan = deleteParticipantModalElement.querySelector('#deleteParticipantText');
-
-                if(form) form.action = `/participant/delete/${participantId}`;
-                if(title) title.textContent = `Confirmer Suppression`;
-                if(bodyTextSpan) bodyTextSpan.innerHTML = `Êtes-vous sûr de vouloir supprimer <strong>${prenom} ${nom}</strong> ? Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées. Cette action est irréversible.`;
-
-                // deleteParticipantModal.show(); // Déjà géré par data-bs-toggle
+                handleDeleteParticipantClick(deleteButton);
             }
         });
+
+        // --- Fonction pour gérer le clic sur "Voir" ---
+        function handleViewParticipantClick(viewButton) {
+            // --- Récupération des données depuis data-* ---
+            const participantId = viewButton.dataset.participantId;
+            const prenom = viewButton.dataset.participantPrenom;
+            const nom = viewButton.dataset.participantNom;
+            const email = viewButton.dataset.participantEmail;
+            const serviceNom = viewButton.dataset.serviceNom;
+            const serviceCouleur = viewButton.dataset.serviceCouleur;
+            const respNom = viewButton.dataset.responsableNom;
+            const respEmail = viewButton.dataset.responsableEmail;
+            const countConfirmed = viewButton.dataset.countConfirmed;
+            const countPending = viewButton.dataset.countPending;
+            const countWaitlist = viewButton.dataset.countWaitlist;
+
+            // --- Mise à jour des infos statiques ---
+            if(modalName) modalName.textContent = `${prenom} ${nom}`;
+            if(modalEmail) modalEmail.textContent = email;
+            if(modalServiceBadge) {
+                modalServiceBadge.textContent = serviceNom;
+                modalServiceBadge.style.backgroundColor = serviceCouleur;
+            }
+            if(modalResponsableName) modalResponsableName.textContent = respNom;
+            if(modalResponsableEmail) {
+                modalResponsableEmail.textContent = respEmail;
+                modalResponsableEmail.href = `mailto:${respEmail}`;
+            }
+            if(modalCountConfirmed) modalCountConfirmed.textContent = countConfirmed;
+            if(modalCountPending) modalCountPending.textContent = countPending;
+            if(modalCountWaitlist) modalCountWaitlist.textContent = countWaitlist;
+
+            // --- Vider le contenu précédent et préparer l'affichage ---
+            if(confirmedTbody) confirmedTbody.innerHTML = '';
+            if(pendingTbody) pendingTbody.innerHTML = '';
+            if(waitlistTbody) waitlistTbody.innerHTML = '';
+            if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
+            if(noPendingMsg) noPendingMsg.style.display = 'none';
+            if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
+            if(modalDetailsContent) modalDetailsContent.classList.remove('is-loading');
+
+            // --- VÉRIFIER SI L'UTILISATEUR EST CONNECTÉ ---
+            if (isUserLoggedIn) {
+                // Afficher le spinner et faire l'appel API
+                if(modalDetailsContent) modalDetailsContent.classList.add('is-loading');
+
+                fetch(`/api/participant/${participantId}/details`)
+                    .then(response => {
+                        if (!response.ok) {
+                            if (response.status === 401 || response.status === 403) { throw new Error(`Accès non autorisé (${response.status}). Veuillez vous reconnecter.`); }
+                            throw new Error(`Erreur serveur (${response.status}) lors de la récupération des détails.`);
+                        }
+                        const contentType = response.headers.get("content-type");
+                        if (!contentType || !contentType.includes("application/json")) { throw new TypeError("Réponse inattendue du serveur (pas JSON). Session expirée?"); }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.error) { throw new Error(data.error); }
+                        populateModalTable(confirmedTbody, data.confirmed, 'confirmed', noConfirmedMsg);
+                        populateModalTable(pendingTbody, data.pending, 'pending', noPendingMsg);
+                        populateModalTable(waitlistTbody, data.waitlist, 'waitlist', noWaitlistMsg);
+                    })
+                    .catch(error => {
+                        console.error("Erreur lors du chargement des détails du participant:", error);
+                        const errorHtml = `<tr><td colspan="5" class="text-center text-danger p-3"><i class="fas fa-exclamation-triangle me-2"></i> ${error.message || 'Erreur de chargement.'}</td></tr>`;
+                        if(confirmedTbody) confirmedTbody.innerHTML = errorHtml;
+                        if(pendingTbody) pendingTbody.innerHTML = errorHtml.replace('colspan="5"', 'colspan="4"');
+                        if(waitlistTbody) waitlistTbody.innerHTML = errorHtml;
+                        if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
+                        if(noPendingMsg) noPendingMsg.style.display = 'none';
+                        if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
+                        if (typeof showToast === 'function') showToast(error.message || 'Impossible de charger les détails.', 'danger');
+                    })
+                    .finally(() => {
+                        if(modalDetailsContent) modalDetailsContent.classList.remove('is-loading');
+                    });
+            } else {
+                // Utilisateur non connecté : Afficher message
+                if(confirmedTbody) {
+                     confirmedTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-4"><i class="fas fa-lock me-2"></i>Veuillez vous <a href="/login?next=/participants">connecter</a> pour voir les détails des inscriptions.</td></tr>`;
+                     confirmedTbody.closest('.table-responsive').style.display = 'block';
+                }
+                 if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
+                 if(pendingTbody) pendingTbody.closest('.table-responsive').style.display = 'none';
+                 if(waitlistTbody) waitlistTbody.closest('.table-responsive').style.display = 'none';
+                 if(noPendingMsg) noPendingMsg.style.display = 'none';
+                 if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
+            }
+        }
+
+        // --- Fonction pour gérer le clic sur "Modifier" ---
+        function handleEditParticipantClick(editButton) {
+            const participantId = editButton.dataset.participantId;
+            const nom = editButton.dataset.participantNom;
+            const prenom = editButton.dataset.participantPrenom;
+            const email = editButton.dataset.participantEmail;
+            const serviceId = editButton.dataset.serviceId;
+
+            if(editParticipantForm) editParticipantForm.action = `/participant/update/${participantId}`;
+            if(editParticipantTitle) editParticipantTitle.textContent = `Modifier - ${prenom} ${nom}`;
+            if(editNomInput) editNomInput.value = nom;
+            if(editPrenomInput) editPrenomInput.value = prenom;
+            if(editEmailInput) editEmailInput.value = email;
+            if(editServiceSelect) editServiceSelect.value = serviceId; // Sélectionne le bon service
+        }
+
+        // --- Fonction pour gérer le clic sur "Supprimer" ---
+        function handleDeleteParticipantClick(deleteButton) {
+            const participantId = deleteButton.dataset.participantId;
+            const nom = deleteButton.dataset.participantNom;
+            const prenom = deleteButton.dataset.participantPrenom;
+
+            if(deleteParticipantForm) deleteParticipantForm.action = `/participant/delete/${participantId}`;
+            if(deleteParticipantTitle) deleteParticipantTitle.textContent = `Confirmer Suppression`;
+            if(deleteParticipantTextSpan) deleteParticipantTextSpan.innerHTML = `Êtes-vous sûr de vouloir supprimer <strong>${prenom} ${nom}</strong> ? Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées. Cette action est irréversible.`;
+        }
+
 
         // --- Fonction populateModalTable (inchangée) ---
         function populateModalTable(tbody, items, type, noDataElement) {
@@ -265,10 +656,12 @@
 
         // --- Fonctions canAdminValidate/canAdminCancel (inchangées) ---
         function canAdminValidate() {
-             return {{ current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') | tojson }};
+             // Vérifie si l'utilisateur connecté (via la variable JS) est admin ou responsable
+             return isUserLoggedIn && {{ (current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable')) | tojson }};
         }
         function canAdminCancel() {
-             return {{ current_user.is_authenticated and current_user.role == 'admin' | tojson }};
+             // Vérifie si l'utilisateur connecté est admin
+             return isUserLoggedIn && {{ (current_user.is_authenticated and current_user.role == 'admin') | tojson }};
         }
 
         // --- Initialisation des badges (inchangée) ---
