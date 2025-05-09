@@ -308,7 +308,6 @@ class Document(db.Model):
     uploader = db.relationship('User', backref=db.backref('uploaded_documents', lazy='dynamic'))
     # 'theme' est défini par le backref dans Theme
     def __repr__(self): return f'<Document {self.id}: {self.original_filename}>'
-
 class Session(db.Model):
     __tablename__ = 'session'
     id = db.Column(db.Integer, primary_key=True)
@@ -325,7 +324,7 @@ class Session(db.Model):
         try:
             if confirmed_count is None:
                 # Utiliser la relation chargée si possible pour éviter une requête supplémentaire
-                if self.inscriptions: # Vérifie si la relation est chargée
+                if hasattr(self, 'inscriptions') and self.inscriptions is not None: # Check if loaded
                     confirmed_count = sum(1 for insc in self.inscriptions if insc.statut == 'confirmé')
                 else: # Fallback si non chargée (ne devrait pas arriver avec selectinload)
                     confirmed_count = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == self.id, Inscription.statut == 'confirmé').scalar() or 0
@@ -336,7 +335,7 @@ class Session(db.Model):
             app.logger.error(f"Erreur calcul places restantes S:{self.id}: {e}")
             return 0
 
- @property
+    @property
     def formatage_date(self):
         try:
             jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
@@ -362,9 +361,6 @@ class Session(db.Model):
                 now_utc = datetime.now(UTC)
                 return now_utc, now_utc + timedelta(hours=1)
             
-            # Supposer que les heures sont stockées en UTC ou sont naïves et doivent être traitées comme UTC
-            # Si elles sont locales, il faudrait les convertir en UTC ici.
-            # Pour simplifier, on les traite comme si elles étaient déjà prêtes pour UTC.
             start_utc = datetime.combine(self.date, self.heure_debut).replace(tzinfo=UTC)
             end_utc = datetime.combine(self.date, self.heure_fin).replace(tzinfo=UTC)
 
@@ -379,7 +375,8 @@ class Session(db.Model):
 
     def __repr__(self):
         theme_nom = self.theme.nom if self.theme else "N/A"
-        return f'<Session {self.id} - {theme_nom} le {self.date.strftime("%Y-%m-%d") if self.date else "N/A"}>'
+        date_str = self.date.strftime("%Y-%m-%d") if self.date else "N/A"
+        return f'<Session {self.id} - {theme_nom} le {date_str}>'
         
 class Participant(db.Model):
     __tablename__ = 'participant'
