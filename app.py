@@ -846,25 +846,46 @@ def dashboard():
     except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading initial dashboard data: {e}", exc_info=True); flash("Erreur de base de données lors du chargement initial du tableau de bord.", "danger"); return render_template('error.html', error_message="Impossible de charger les données initiales du tableau de bord.")
     except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error in dashboard route (initial data): {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return render_template('error.html', error_message="Erreur interne du serveur lors du chargement du tableau de bord.")
 
-# ROUTE /services (CORRIGÉE)
 @app.route('/services')
 @login_required 
 @db_operation_with_retry(max_retries=3)
 def services(): 
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /services page.")
     try:
-        all_services_db = Service.query.options(selectinload(Service.participants).selectinload(Participant.inscriptions)).order_by(Service.nom).all()
+        all_services_db = Service.query.options(
+            selectinload(Service.participants).selectinload(Participant.inscriptions)
+        ).order_by(Service.nom).all()
+
         services_data_for_template = []
         for service_obj in all_services_db:
             participants_detailed_list = []
             for participant in service_obj.participants:
                 confirmed_count = sum(1 for insc in participant.inscriptions if insc.statut == 'confirmé')
-                participants_detailed_list.append({'obj': participant, 'confirmed_count': confirmed_count})
+                participants_detailed_list.append({
+                    'obj': participant,
+                    'confirmed_count': confirmed_count
+                })
             participants_detailed_list.sort(key=lambda p: (p['obj'].nom.lower(), p['obj'].prenom.lower()))
-            services_data_for_template.append({'obj': service_obj, 'participant_count': len(service_obj.participants), 'participants_detailed': participants_detailed_list})
+            
+            services_data_for_template.append({
+                'obj': service_obj,
+                'participant_count': len(service_obj.participants),
+                'participants_detailed': participants_detailed_list
+                # 'user_count': User.query.filter_by(service_id=service_obj.id).count(), # Optionnel
+            })
+        
         return render_template('services.html', services_data=services_data_for_template)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading services page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement des services.", "danger"); return redirect(url_for('dashboard'))
-    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading services page: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return redirect(url_for('dashboard')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"DB error loading services page: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement des services.", "danger")
+        return redirect(url_for('dashboard'))
+    except Exception as e: # La ligne d'erreur était probablement ici
+        db.session.rollback()
+        app.logger.error(f"Unexpected error loading services page: {e}", exc_info=True)
+        flash("Une erreur interne est survenue lors du chargement des services.", "danger")
+        return redirect(url_for('dashboard')) # Assure-toi que cette ligne a bien sa parenthèse fermante
+        
 @app.route('/sessions')
 @db_operation_with_retry(max_retries=3)
 def sessions():
