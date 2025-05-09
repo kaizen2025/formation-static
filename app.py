@@ -806,31 +806,40 @@ def generer_invitation(inscription_id):
 
 
 @app.route('/services')
-@login_required 
+@login_required
 @db_operation_with_retry(max_retries=3)
-def services(): # <--- RENOMMER LA FONCTION ICI
+def services():
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /services page.")
     try:
-        services_list = db.session.query(
-            Service,
-            func.count(func.distinct(Participant.id)).label('participant_count'),
-            func.count(func.distinct(User.id)).label('user_count')
-        ).outerjoin(Participant, Service.id == Participant.service_id)\
-         .outerjoin(User, Service.id == User.service_id)\
-         .group_by(Service.id)\
-         .order_by(Service.nom)\
-         .all()
+        # Récupérer tous les services
+        # Charger les participants associés à chaque service, et pour chaque participant, charger ses inscriptions
+        all_services = Service.query.options(
+            selectinload(Service.participants).selectinload(Participant.inscriptions)
+        ).order_by(Service.nom).all()
 
         services_data_for_template = []
-        for service_obj, p_count, u_count in services_list: # Renommer 'service' pour éviter conflit avec le nom de la fonction
+        for service_obj in all_services:
+            participants_detailed_list = []
+            for participant in service_obj.participants:
+                # Compter les inscriptions confirmées pour CE participant
+                confirmed_count = sum(1 for insc in participant.inscriptions if insc.statut == 'confirmé')
+                participants_detailed_list.append({
+                    'obj': participant,
+                    'confirmed_count': confirmed_count
+                })
+            
+            # Trier les participants par nom pour un affichage cohérent
+            participants_detailed_list.sort(key=lambda p: (p['obj'].nom, p['obj'].prenom))
+
             services_data_for_template.append({
                 'obj': service_obj,
-                'participant_count': p_count,
-                'user_count': u_count
+                'participant_count': len(service_obj.participants), # Nombre total de participants dans le service
+                'user_count': User.query.filter_by(service_id=service_obj.id).count(), # Si tu as besoin du compte des Users
+                'participants_detailed': participants_detailed_list
             })
         
         return render_template('services.html', services_data=services_data_for_template)
-    # ... (gestion des erreurs comme ci-dessus) ...
+
     except SQLAlchemyError as e:
         db.session.rollback()
         app.logger.error(f"DB error loading services page: {e}", exc_info=True)
@@ -841,7 +850,6 @@ def services(): # <--- RENOMMER LA FONCTION ICI
         app.logger.error(f"Unexpected error loading services page: {e}", exc_info=True)
         flash("Une erreur interne est survenue.", "danger")
         return redirect(url_for('dashboard'))
-# === End of new route ===
 
 # app.py - Route /dashboard - Version 1 (Minimaliste)
 
