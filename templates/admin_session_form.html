@@ -1,0 +1,108 @@
+<!-- templates/admin_session_form.html -->
+{% extends "layout.html" %}
+
+{% block title %}{{ page_title }} - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}?v=2.0.1">
+{# Si tu utilises un datepicker JS, inclus son CSS ici #}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid page-transition">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-calendar-plus me-2"></i>{{ page_title }}
+        </h1>
+        <a href="{{ url_for('admin_sessions_list') }}" class="btn btn-outline-secondary btn-sm shadow-sm">
+            <i class="fas fa-arrow-left me-1"></i> Retour à la liste des sessions
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <form action="{{ form_action }}" method="post" class="needs-validation" novalidate>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="date" class="form-label">Date de la session*</label>
+                        <input type="date" class="form-control" id="date" name="date" 
+                               value="{{ session_obj.date.isoformat() if session_obj and session_obj.date else '' }}" required>
+                        <div class="invalid-feedback">Veuillez sélectionner une date.</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="heure_debut" class="form-label">Heure de début*</label>
+                        <input type="time" class="form-control" id="heure_debut" name="heure_debut" 
+                               value="{{ session_obj.heure_debut.strftime('%H:%M') if session_obj and session_obj.heure_debut else '09:00' }}" required>
+                        <div class="invalid-feedback">Veuillez spécifier une heure de début.</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="heure_fin" class="form-label">Heure de fin*</label>
+                        <input type="time" class="form-control" id="heure_fin" name="heure_fin" 
+                               value="{{ session_obj.heure_fin.strftime('%H:%M') if session_obj and session_obj.heure_fin else '10:30' }}" required>
+                        <div class="invalid-feedback">Veuillez spécifier une heure de fin.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="theme_id" class="form-label">Thème de la formation*</label>
+                        <select class="form-select" id="theme_id" name="theme_id" required>
+                            <option value="" disabled {% if not session_obj %}selected{% endif %}>-- Sélectionner un thème --</option>
+                            {% for theme in themes|sort(attribute='nom') %}
+                            <option value="{{ theme.id }}" {% if session_obj and session_obj.theme_id == theme.id %}selected{% endif %}>
+                                {{ theme.nom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">Veuillez sélectionner un thème.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="salle_id" class="form-label">Salle (Optionnel)</label>
+                        <select class="form-select" id="salle_id" name="salle_id">
+                            <option value="">-- Aucune salle spécifique --</option>
+                            {% for salle in salles|sort(attribute='nom') %}
+                            <option value="{{ salle.id }}" {% if session_obj and session_obj.salle_id == salle.id %}selected{% endif %}>
+                                {{ salle.nom }} (Capacité: {{ salle.capacite }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label for="max_participants" class="form-label">Nombre maximum de participants*</label>
+                        <input type="number" class="form-control" id="max_participants" name="max_participants" 
+                               value="{{ session_obj.max_participants if session_obj else 10 }}" min="1" required>
+                        <div class="invalid-feedback">Veuillez spécifier un nombre valide.</div>
+                    </div>
+                </div>
+                <hr class="my-4">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{{ url_for('admin_sessions_list') }}" class="btn btn-outline-secondary">Annuler</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>
+                        {{ 'Enregistrer les modifications' if session_obj else 'Créer la Session' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+// Activer la validation Bootstrap pour le formulaire
+(function () {
+  'use strict'
+  var forms = document.querySelectorAll('.needs-validation')
+  Array.prototype.slice.call(forms)
+    .forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+        form.classList.add('was-validated')
+      }, false)
+    })
+})()
+</script>
+{% endblock %}
