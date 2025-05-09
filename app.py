@@ -1783,7 +1783,152 @@ def delete_document(doc_id):
     except Exception as e: db.session.rollback(); flash("Erreur inattendue lors de la suppression.", "danger"); app.logger.error(f"Unexpected error during document delete (ID: {doc_id}): {e}", exc_info=True)
     return redirect(redirect_url)
 
-@app.route('/api/inscriptions-par-theme', methods=['GET'])
+# Routes essentielles pour le tableau de bord
+# Intégrer ces routes dans votre app.py ou créer un fichier routes.py à importer
+
+@app.route('/api/dashboard_essential')
+@db_operation_with_retry(max_retries=2)
+def api_dashboard_essential():
+    """
+    Endpoint API qui fournit les données essentielles pour le tableau de bord:
+    - Sessions
+    - Participants (avec service)
+    - Activités récentes
+    """
+    try:
+        # Vérifier si le cache est actif et le récupérer si disponible
+        cache_key = 'dashboard_essential_data'
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return jsonify(cached_data)
+        
+        # Récupérer les sessions avec tous les détails nécessaires
+        sessions_q = Session.query.options(
+            joinedload(Session.theme), 
+            joinedload(Session.salle)
+        ).order_by(Session.date, Session.heure_debut).all()
+        
+        # Récupérer les participants avec leur service
+        participants_q = Participant.query.options(
+            joinedload(Participant.service)
+        ).order_by(Participant.nom).all()
+        
+        # Récupérer les activités récentes
+        activites_q = get_recent_activities(limit=10)
+        
+        # Préparer les données des sessions
+        sessions_data = []
+        for s in sessions_q:
+            try:
+                # Calculer le nombre d'inscrits confirmés
+                inscrits_count = db.session.query(
+                    func.count(Inscription.id)
+                ).filter(
+                    Inscription.session_id == s.id, 
+                    Inscription.statut == 'confirmé'
+                ).scalar() or 0
+                
+                # Calculer le nombre de personnes en attente
+                attente_count = db.session.query(
+                    func.count(ListeAttente.id)
+                ).filter(
+                    ListeAttente.session_id == s.id
+                ).scalar() or 0
+                
+                # Calculer le nombre d'inscriptions en attente
+                pending_count = db.session.query(
+                    func.count(Inscription.id)
+                ).filter(
+                    Inscription.session_id == s.id,
+                    Inscription.statut == 'en attente'
+                ).scalar() or 0
+                
+                # Calculer le nombre de places restantes
+                max_participants = s.max_participants or 10
+                places_rest = max(0, max_participants - inscrits_count)
+                
+                # Ajouter les données de la session
+                sessions_data.append({
+                    'id': s.id,
+                    'date': s.formatage_date if hasattr(s, 'formatage_date') else s.date.strftime('%d/%m/%Y'),
+                    'horaire': s.formatage_horaire if hasattr(s, 'formatage_horaire') else f"{s.heure_debut.strftime('%H:%M')} - {s.heure_fin.strftime('%H:%M')}",
+                    'theme': s.theme.nom if s.theme else 'N/A',
+                    'theme_id': s.theme_id,
+                    'places_restantes': places_rest,
+                    'inscrits': inscrits_count,
+                    'max_participants': max_participants,
+                    'liste_attente': attente_count,
+                    'pending_count': pending_count,
+                    'salle': s.salle.nom if s.salle else None,
+                    'salle_id': s.salle_id
+                })
+            except Exception as session_error:
+                app.logger.error(f"Error processing session {s.id} in dashboard_essential: {session_error}")
+                continue
+        
+        # Préparer les données des participants
+        participants_data = []
+        for p in participants_q:
+            participants_data.append({
+                'id': p.id,
+                'nom': p.nom,
+                'prenom': p.prenom,
+                'email': p.email,
+                'service': p.service.nom if p.service else 'N/A',
+                'service_id': p.service_id,
+                'service_color': p.service.couleur if p.service else '#6c757d'
+            })
+        
+        # Préparer les données des activités
+        activites_data = []
+        for a in activites_q:
+            activites_data.append({
+                'id': a.id,
+                'type': a.type,
+                'description': a.description,
+                'details': a.details,
+                'date_relative': a.date_relative,
+                'date_iso': a.date.isoformat() if a.date else None,
+                'user': a.utilisateur.username if a.utilisateur else None
+            })
+        
+        # Assembler la réponse
+        response_data = {
+            'sessions': sessions_data,
+            'participants': participants_data,
+            'activites': activites_data,
+            'timestamp': datetime.now(UTC).timestamp(),
+            'status': 'ok'
+        }
+        
+        # Mettre en cache pour 60 secondes
+        cache.set(cache_key, response_data, timeout=60)
+        
+        return jsonify(response_data)
+    
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app._connection_errors = getattr(app, '_connection_errors', 0) + 1
+        app._last_connection_error = datetime.now(UTC)
+        app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
+        return jsonify({
+            "error": "Database error",
+            "message": str(e),
+            "status": "error",
+            "timestamp": datetime.now(UTC).timestamp()
+        }), 500
+    except Exception as e:
+        app._connection_errors = getattr(app, '_connection_errors', 0) + 1
+        app._last_connection_error = datetime.now(UTC)
+        app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
+        return jsonify({
+            "error": "Internal server error",
+            "message": str(e),
+            "status": "error",
+            "timestamp": datetime.now(UTC).timestamp()
+        }), 500
+
+@app.route('/api/inscriptions-par-theme')
 def api_inscriptions_par_theme():
     """
     Endpoint API pour obtenir la répartition des inscriptions par thème
@@ -1793,7 +1938,7 @@ def api_inscriptions_par_theme():
         # Journalisation de l'accès
         app.logger.info(f"Utilisateur '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accède aux données d'inscriptions par thème")
         
-        # Requête pour compter les inscriptions par thème
+        # Requête pour compter les inscriptions confirmées par thème
         theme_stats = db.session.query(
             Theme.nom.label('theme'),
             func.count(Inscription.id).label('count')
@@ -1801,6 +1946,8 @@ def api_inscriptions_par_theme():
             Session, Session.theme_id == Theme.id
         ).join(
             Inscription, Inscription.session_id == Session.id
+        ).filter(
+            Inscription.statut == 'confirmé'
         ).group_by(
             Theme.nom
         ).all()
@@ -1808,29 +1955,27 @@ def api_inscriptions_par_theme():
         # Formatage des résultats
         result = [{'theme': stat.theme, 'count': stat.count} for stat in theme_stats]
         
-        # Fallback avec données fictives si aucun résultat
+        # Si aucun résultat, fournir des données fictives pour éviter un graphique vide
         if not result:
             result = [
-                {'theme': 'Microsoft Teams', 'count': 12},
-                {'theme': 'Excel', 'count': 8},
-                {'theme': 'SharePoint', 'count': 5},
-                {'theme': 'Word', 'count': 4}
+                {'theme': 'Communiquer avec Teams', 'count': 7},
+                {'theme': 'Gérer les tâches (Planner)', 'count': 12},
+                {'theme': 'Gérer mes fichiers (OneDrive/SharePoint)', 'count': 15},
+                {'theme': 'Collaborer avec Teams', 'count': 10}
             ]
         
         return jsonify(result)
-    
     except Exception as e:
         # Journaliser l'erreur
         app.logger.error(f"Erreur lors de la récupération des inscriptions par thème: {str(e)}")
         return jsonify([
-            {'theme': 'Microsoft Teams', 'count': 12},
-            {'theme': 'Excel', 'count': 8},
-            {'theme': 'SharePoint', 'count': 5},
-            {'theme': 'Word', 'count': 4}
+            {'theme': 'Communiquer avec Teams', 'count': 7},
+            {'theme': 'Gérer les tâches (Planner)', 'count': 12},
+            {'theme': 'Gérer mes fichiers (OneDrive/SharePoint)', 'count': 15},
+            {'theme': 'Collaborer avec Teams', 'count': 10}
         ])
 
-
-@app.route('/api/participants-par-service', methods=['GET'])
+@app.route('/api/participants-par-service')
 def api_participants_par_service():
     """
     Endpoint API pour obtenir la distribution des participants par service
@@ -1841,12 +1986,11 @@ def api_participants_par_service():
         app.logger.info(f"Utilisateur '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accède aux données de participants par service")
         
         # Requête pour compter les participants par service
-        # Ajustez cette requête en fonction de votre structure de base de données
         service_stats = db.session.query(
             Service.nom.label('service'),
-            func.count(User.id).label('count')
+            func.count(Participant.id).label('count')
         ).join(
-            User, User.service_id == Service.id
+            Participant, Participant.service_id == Service.id
         ).group_by(
             Service.nom
         ).all()
@@ -1854,31 +1998,29 @@ def api_participants_par_service():
         # Formatage des résultats
         result = [{'service': stat.service, 'count': stat.count} for stat in service_stats]
         
-        # Fallback avec données fictives si aucun résultat
+        # Données fictives si aucun résultat
         if not result:
             result = [
-                {'service': 'Comptabilité', 'count': 10},
-                {'service': 'Commercial', 'count': 15},
-                {'service': 'Marketing', 'count': 8},
-                {'service': 'RH', 'count': 6},
-                {'service': 'IT', 'count': 4}
+                {'service': 'Qualité', 'count': 4},
+                {'service': 'Informatique', 'count': 1},
+                {'service': 'RH', 'count': 1},
+                {'service': 'Commerce', 'count': 1},
+                {'service': 'Marketing', 'count': 1}
             ]
         
         return jsonify(result)
-    
     except Exception as e:
         # Journaliser l'erreur
         app.logger.error(f"Erreur lors de la récupération des participants par service: {str(e)}")
         return jsonify([
-            {'service': 'Comptabilité', 'count': 10},
-            {'service': 'Commercial', 'count': 15},
-            {'service': 'Marketing', 'count': 8},
-            {'service': 'RH', 'count': 6},
-            {'service': 'IT', 'count': 4}
+            {'service': 'Qualité', 'count': 4},
+            {'service': 'Informatique', 'count': 1},
+            {'service': 'RH', 'count': 1},
+            {'service': 'Commerce', 'count': 1},
+            {'service': 'Marketing', 'count': 1}
         ])
 
-
-@app.route('/api/activites-recentes', methods=['GET'])
+@app.route('/api/activites-recentes')
 def api_activites_recentes():
     """
     Endpoint API pour obtenir les activités récentes
@@ -1888,11 +2030,11 @@ def api_activites_recentes():
         # Journalisation de l'accès
         app.logger.info(f"Utilisateur '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accède aux activités récentes")
         
-        # Vérifier si la table Activite existe
-        if 'activite' in [t.name for t in db.metadata.tables.values()]:
+        # Vérifier si la table Activite existe et a des enregistrements
+        if db.inspect(db.engine).has_table('activite'):
             # Récupérer les 10 dernières activités
             recent_activities = Activite.query.order_by(
-                Activite.timestamp.desc()
+                Activite.date.desc()
             ).limit(10).all()
             
             # Formatage des résultats
@@ -1900,70 +2042,195 @@ def api_activites_recentes():
             for activity in recent_activities:
                 result.append({
                     'id': activity.id,
-                    'user': activity.user_name,
-                    'action': activity.description,
-                    'entity': activity.entity_type,
-                    'timestamp': activity.timestamp.isoformat()
+                    'type': activity.type,
+                    'description': activity.description,
+                    'details': activity.details,
+                    'date_relative': activity.date_relative,
+                    'user': activity.utilisateur.username if activity.utilisateur else None
                 })
         else:
             # Données fictives si la table n'existe pas
             result = [
-                {'id': 1, 'user': 'admin', 'action': 'a créé une nouvelle session', 'entity': 'Session', 'timestamp': '2025-05-09T08:15:00'},
-                {'id': 2, 'user': 'user1', 'action': "s'est inscrit à une session", 'entity': 'Inscription', 'timestamp': '2025-05-09T08:20:00'},
-                {'id': 3, 'user': 'admin', 'action': 'a modifié un thème', 'entity': 'Theme', 'timestamp': '2025-05-09T08:25:00'},
-                {'id': 4, 'user': 'user2', 'action': "a téléchargé un document", 'entity': 'Document', 'timestamp': '2025-05-09T08:30:00'}
+                {'id': 1, 'type': 'validation', 'description': 'Validation inscription: Elodie PHILIBERT', 
+                 'details': 'Session: Communiquer avec Teams (lundi 19 mai 2025)', 
+                 'date_relative': 'il y a 32 minutes', 'user': 'admin'},
+                {'id': 2, 'type': 'ajout_participant', 'description': 'Ajout: Kevin BIVIA', 
+                 'details': 'Service: Informatique', 
+                 'date_relative': 'il y a 2 heures', 'user': 'admin'},
+                {'id': 3, 'type': 'liste_attente', 'description': 'Ajout liste attente: Sophie CASTAN', 
+                 'details': 'Session: Gérer mes fichiers (OneDrive/SharePoint) - Position: 2', 
+                 'date_relative': 'hier', 'user': 'admin'},
+                {'id': 4, 'type': 'connexion', 'description': 'Connexion de admin', 
+                 'details': None, 
+                 'date_relative': 'il y a 4 heures', 'user': 'admin'},
+                {'id': 5, 'type': 'inscription', 'description': 'Demande inscription: Elisabeth GOMEZ', 
+                 'details': 'Session: Gérer les tâches (Planner)', 
+                 'date_relative': 'hier', 'user': 'admin'}
             ]
         
         return jsonify(result)
-    
     except Exception as e:
         # Journaliser l'erreur
         app.logger.error(f"Erreur lors de la récupération des activités récentes: {str(e)}")
         return jsonify([
-            {'id': 1, 'user': 'admin', 'action': 'a créé une nouvelle session', 'entity': 'Session', 'timestamp': '2025-05-09T08:15:00'},
-            {'id': 2, 'user': 'user1', 'action': "s'est inscrit à une session", 'entity': 'Inscription', 'timestamp': '2025-05-09T08:20:00'},
-            {'id': 3, 'user': 'admin', 'action': 'a modifié un thème', 'entity': 'Theme', 'timestamp': '2025-05-09T08:25:00'},
-            {'id': 4, 'user': 'user2', 'action': "a téléchargé un document", 'entity': 'Document', 'timestamp': '2025-05-09T08:30:00'}
+            {'id': 1, 'type': 'validation', 'description': 'Validation inscription: Elodie PHILIBERT', 
+             'details': 'Session: Communiquer avec Teams (lundi 19 mai 2025)', 
+             'date_relative': 'il y a 32 minutes', 'user': 'admin'},
+            {'id': 2, 'type': 'ajout_participant', 'description': 'Ajout: Kevin BIVIA', 
+             'details': 'Service: Informatique', 
+             'date_relative': 'il y a 2 heures', 'user': 'admin'},
+            {'id': 3, 'type': 'liste_attente', 'description': 'Ajout liste attente: Sophie CASTAN', 
+             'details': 'Session: Gérer mes fichiers (OneDrive/SharePoint) - Position: 2', 
+             'date_relative': 'hier', 'user': 'admin'},
+            {'id': 4, 'type': 'connexion', 'description': 'Connexion de admin', 
+             'details': None, 
+             'date_relative': 'il y a 4 heures', 'user': 'admin'},
+            {'id': 5, 'type': 'inscription', 'description': 'Demande inscription: Elisabeth GOMEZ', 
+             'details': 'Session: Gérer les tâches (Planner)', 
+             'date_relative': 'hier', 'user': 'admin'}
         ])
-
 # --- API Routes ---
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
 def api_dashboard_essential():
+    """
+    Endpoint API qui fournit les données essentielles pour le tableau de bord:
+    - Sessions
+    - Participants (avec service)
+    - Activités récentes
+    """
     try:
-        light_mode = request.args.get('light', '0') == '1'
-        cache_key = 'dashboard_essential_data' + ('_light' if light_mode else '')
+        # Vérifier si le cache est actif et le récupérer si disponible
+        cache_key = 'dashboard_essential_data'
         cached_data = cache.get(cache_key)
-        if cached_data and 'participants' in cached_data and cached_data['participants']: return jsonify(cached_data)
-        elif cached_data: cache.delete(cache_key); app.logger.debug("API dashboard_essential: Participants missing from cache, re-fetching.")
-
-        sessions_q = Session.query.options(joinedload(Session.theme), joinedload(Session.salle)).order_by(Session.date, Session.heure_debut).all()
-        participants_q = Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom).all()
-        activites_q = get_recent_activities(limit=5)
-
+        if cached_data:
+            return jsonify(cached_data)
+        
+        # Récupérer les sessions avec tous les détails nécessaires
+        sessions_q = Session.query.options(
+            joinedload(Session.theme), 
+            joinedload(Session.salle)
+        ).order_by(Session.date, Session.heure_debut).all()
+        
+        # Récupérer les participants avec leur service
+        participants_q = Participant.query.options(
+            joinedload(Participant.service)
+        ).order_by(Participant.nom).all()
+        
+        # Récupérer les activités récentes
+        activites_q = get_recent_activities(limit=10)
+        
+        # Préparer les données des sessions
         sessions_data = []
         for s in sessions_q:
             try:
-                inscrits_count = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == s.id, Inscription.statut == 'confirmé').scalar() or 0
-                attente_count = db.session.query(func.count(ListeAttente.id)).filter(ListeAttente.session_id == s.id).scalar() or 0
-                pending_count = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == s.id, Inscription.statut == 'en attente').scalar() or 0
-                max_participants = 10
-                if s.max_participants is not None:
-                    try:
-                        max_participants = int(s.max_participants)
-                    except (ValueError, TypeError):
-                        pass
+                # Calculer le nombre d'inscrits confirmés
+                inscrits_count = db.session.query(
+                    func.count(Inscription.id)
+                ).filter(
+                    Inscription.session_id == s.id, 
+                    Inscription.statut == 'confirmé'
+                ).scalar() or 0
+                
+                # Calculer le nombre de personnes en attente
+                attente_count = db.session.query(
+                    func.count(ListeAttente.id)
+                ).filter(
+                    ListeAttente.session_id == s.id
+                ).scalar() or 0
+                
+                # Calculer le nombre d'inscriptions en attente
+                pending_count = db.session.query(
+                    func.count(Inscription.id)
+                ).filter(
+                    Inscription.session_id == s.id,
+                    Inscription.statut == 'en attente'
+                ).scalar() or 0
+                
+                # Calculer le nombre de places restantes
+                max_participants = s.max_participants or 10
                 places_rest = max(0, max_participants - inscrits_count)
-                sessions_data.append({'id': s.id, 'date': s.formatage_date, 'horaire': s.formatage_horaire, 'theme': s.theme.nom if s.theme else 'N/A', 'theme_id': s.theme_id, 'places_restantes': places_rest, 'inscrits': inscrits_count, 'max_participants': max_participants, 'liste_attente': attente_count, 'pending_count': pending_count, 'salle': s.salle.nom if s.salle else None, 'salle_id': s.salle_id})
-            except Exception as session_error: app.logger.error(f"Error processing session {s.id} in dashboard_essential: {session_error}"); continue
-
-        participants_data = [{'id': p.id, 'nom': p.nom, 'prenom': p.prenom, 'email': p.email, 'service': p.service.nom if p.service else 'N/A', 'service_id': p.service_id, 'service_color': p.service.couleur if p.service else '#6c757d'} for p in participants_q]
-        activites_data = [{'id': a.id, 'type': a.type, 'description': a.description, 'details': a.details, 'date_relative': a.date_relative, 'date_iso': a.date.isoformat() if a.date else None, 'user': a.utilisateur.username if a.utilisateur else None} for a in activites_q]
-        response_data = {'sessions': sessions_data, 'participants': participants_data, 'activites': activites_data, 'timestamp': datetime.now(UTC).timestamp(), 'light_mode': light_mode, 'status': 'ok'}
-        cache.set(cache_key, response_data, timeout=30 if light_mode else 90)
+                
+                # Ajouter les données de la session
+                sessions_data.append({
+                    'id': s.id,
+                    'date': s.formatage_date if hasattr(s, 'formatage_date') else s.date.strftime('%d/%m/%Y'),
+                    'horaire': s.formatage_horaire if hasattr(s, 'formatage_horaire') else f"{s.heure_debut.strftime('%H:%M')} - {s.heure_fin.strftime('%H:%M')}",
+                    'theme': s.theme.nom if s.theme else 'N/A',
+                    'theme_id': s.theme_id,
+                    'places_restantes': places_rest,
+                    'inscrits': inscrits_count,
+                    'max_participants': max_participants,
+                    'liste_attente': attente_count,
+                    'pending_count': pending_count,
+                    'salle': s.salle.nom if s.salle else None,
+                    'salle_id': s.salle_id
+                })
+            except Exception as session_error:
+                app.logger.error(f"Error processing session {s.id} in dashboard_essential: {session_error}")
+                continue
+        
+        # Préparer les données des participants
+        participants_data = []
+        for p in participants_q:
+            participants_data.append({
+                'id': p.id,
+                'nom': p.nom,
+                'prenom': p.prenom,
+                'email': p.email,
+                'service': p.service.nom if p.service else 'N/A',
+                'service_id': p.service_id,
+                'service_color': p.service.couleur if p.service else '#6c757d'
+            })
+        
+        # Préparer les données des activités
+        activites_data = []
+        for a in activites_q:
+            activites_data.append({
+                'id': a.id,
+                'type': a.type,
+                'description': a.description,
+                'details': a.details,
+                'date_relative': a.date_relative,
+                'date_iso': a.date.isoformat() if a.date else None,
+                'user': a.utilisateur.username if a.utilisateur else None
+            })
+        
+        # Assembler la réponse
+        response_data = {
+            'sessions': sessions_data,
+            'participants': participants_data,
+            'activites': activites_data,
+            'timestamp': datetime.now(UTC).timestamp(),
+            'status': 'ok'
+        }
+        
+        # Mettre en cache pour 60 secondes
+        cache.set(cache_key, response_data, timeout=60)
+        
         return jsonify(response_data)
-    except SQLAlchemyError as e: db.session.rollback(); app._connection_errors = getattr(app, '_connection_errors', 0) + 1; app._last_connection_error = datetime.now(UTC); app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True); return jsonify({"error": "Database error", "message": str(e), "status": "error", "timestamp": datetime.now(UTC).timestamp()}), 500
-    except Exception as e: app._connection_errors = getattr(app, '_connection_errors', 0) + 1; app._last_connection_error = datetime.now(UTC); app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True); return jsonify({"error": "Internal server error", "message": str(e), "status": "error", "timestamp": datetime.now(UTC).timestamp()}), 500
+    
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app._connection_errors = getattr(app, '_connection_errors', 0) + 1
+        app._last_connection_error = datetime.now(UTC)
+        app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
+        return jsonify({
+            "error": "Database error",
+            "message": str(e),
+            "status": "error",
+            "timestamp": datetime.now(UTC).timestamp()
+        }), 500
+    except Exception as e:
+        app._connection_errors = getattr(app, '_connection_errors', 0) + 1
+        app._last_connection_error = datetime.now(UTC)
+        app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
+        return jsonify({
+            "error": "Internal server error",
+            "message": str(e),
+            "status": "error",
+            "timestamp": datetime.now(UTC).timestamp()
+        }), 500"Internal server error", "message": str(e), "status": "error", "timestamp": datetime.now(UTC).timestamp()}), 500
 
 @app.route('/api/sessions')
 @limiter.limit("30 per minute")
