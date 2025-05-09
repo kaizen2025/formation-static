@@ -223,6 +223,196 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Dashboard initialized');
+        
+        // Initialiser les graphiques
+        initializeCharts();
+        
+        // Charger les activités récentes
+        loadRecentActivities();
+        
+        // Gestionnaire pour le bouton d'actualisation
+        const refreshButton = document.querySelector('.btn-actualiser');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', function() {
+                refreshButton.disabled = true;
+                refreshButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualisation...';
+                
+                // Réinitialiser les graphiques
+                initializeCharts();
+                
+                // Recharger les activités
+                loadRecentActivities();
+                
+                // Réactiver le bouton après 1 seconde
+                setTimeout(function() {
+                    refreshButton.disabled = false;
+                    refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i> Actualiser';
+                }, 1000);
+            });
+        }
     });
+
+    /**
+     * Initialise tous les graphiques du dashboard
+     */
+    function initializeCharts() {
+        // Graphique de répartition par thème
+        fetch('/api/inscriptions-par-theme')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('theme-chart-container');
+                if (!container) return;
+                
+                // Créer le canvas pour le graphique s'il n'existe pas
+                if (!document.getElementById('theme-chart')) {
+                    container.innerHTML = '<canvas id="theme-chart" height="300"></canvas>';
+                }
+                
+                // Créer le graphique
+                const ctx = document.getElementById('theme-chart').getContext('2d');
+                
+                // Supprimer le graphique existant s'il y en a un
+                if (window.themeChart) {
+                    window.themeChart.destroy();
+                }
+                
+                // Créer un nouveau graphique
+                window.themeChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: data.map(item => item.theme),
+                        datasets: [{
+                            data: data.map(item => item.count),
+                            backgroundColor: [
+                                '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', 
+                                '#e74a3b', '#6f42c1', '#fd7e14', '#20c9a6'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right'
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des données de thème:', error);
+                document.getElementById('theme-chart-container').innerHTML = 
+                    '<div class="alert alert-danger">Erreur lors du chargement des données</div>';
+            });
+        
+        // Graphique de distribution par service
+        fetch('/api/participants-par-service')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('service-chart-container');
+                if (!container) return;
+                
+                // Créer le canvas pour le graphique s'il n'existe pas
+                if (!document.getElementById('service-chart')) {
+                    container.innerHTML = '<canvas id="service-chart" height="300"></canvas>';
+                }
+                
+                // Créer le graphique
+                const ctx = document.getElementById('service-chart').getContext('2d');
+                
+                // Supprimer le graphique existant s'il y en a un
+                if (window.serviceChart) {
+                    window.serviceChart.destroy();
+                }
+                
+                // Créer un nouveau graphique
+                window.serviceChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(item => item.service),
+                        datasets: [{
+                            label: 'Nombre de participants',
+                            data: data.map(item => item.count),
+                            backgroundColor: '#4e73df',
+                            borderColor: '#3a5ccc',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des données de service:', error);
+                document.getElementById('service-chart-container').innerHTML = 
+                    '<div class="alert alert-danger">Erreur lors du chargement des données</div>';
+            });
+    }
+
+    /**
+     * Charge les activités récentes
+     */
+    function loadRecentActivities() {
+        const container = document.getElementById('activities-container');
+        if (!container) return;
+        
+        // Afficher un indicateur de chargement
+        container.innerHTML = `
+            <div class="text-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+                <p class="mt-2">Chargement des activités...</p>
+            </div>
+        `;
+        
+        // Charger les données
+        fetch('/api/activites-recentes')
+            .then(response => response.json())
+            .then(data => {
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div class="alert alert-info">Aucune activité récente</div>';
+                    return;
+                }
+                
+                // Créer la liste des activités
+                let html = '<div class="list-group">';
+                
+                data.forEach(activity => {
+                    const date = new Date(activity.timestamp);
+                    const formattedDate = `${date.toLocaleDateString('fr-FR')} ${date.toLocaleTimeString('fr-FR')}`;
+                    
+                    html += `
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${activity.user}</strong> ${activity.action}
+                                    <div class="text-muted small">${formattedDate}</div>
+                                </div>
+                                ${activity.entity ? `<span class="badge bg-primary">${activity.entity}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des activités:', error);
+                container.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des activités</div>';
+            });
+    }
 </script>
 {% endblock %}
