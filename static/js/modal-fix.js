@@ -1,136 +1,268 @@
-/*
- * modal-fix.js - Simple, robust fix for Bootstrap modals
- * Replace the complex modal-fix-ultimate.js with this simplified version
- * v1.0.1 - Added debug logging, minor focus adjustment.
+/**
+ * Correctifs JavaScript pour les modales Bootstrap
+ * Résout les problèmes courants avec les modales
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
-    if (DASH_CONFIG.debugMode) console.log('ModalFix: Simplified Modal Fix Initialized (v1.0.1)');
+    console.log('Modal fixes initialized');
+    
+    // Correction pour le padding-right du body
+    fixModalPaddingIssue();
+    
+    // Correction pour les modales imbriquées
+    fixNestedModals();
+    
+    // Correction pour la perte de focus dans les modales
+    fixModalFocusIssue();
+    
+    // Correction pour le défilement des modales sur iOS
+    fixIosModalScrolling();
+    
+    // Gestionnaire pour les modales de confirmation
+    setupConfirmationModals();
+});
 
-    function applyModalFixes(modalElement) {
-        if (!modalElement) return;
-        if (DASH_CONFIG.debugMode) console.log('ModalFix: Applying fixes to modal:', modalElement.id);
-
-        modalElement.style.zIndex = '1055'; // Standard z-index for modals
-
-        modalElement.querySelectorAll('select, .form-select').forEach(select => {
-            select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1056 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
-        });
-
-        modalElement.querySelectorAll('button, .btn, input[type="button"], input[type="submit"]').forEach(button => {
-             // Avoid overly aggressive styling on all buttons, focus on those that might be problematic
-            if (!button.classList.contains('btn-close')) { // Don't mess with btn-close too much here
-                button.style.position = 'relative !important';
-                button.style.zIndex = '1057 !important'; // Ensure interactable elements are above selects
-                button.style.pointerEvents = 'auto !important';
-            }
-        });
-
-        modalElement.querySelectorAll('.btn-close').forEach(closeBtn => {
-            closeBtn.style.position = 'relative !important'; // Keep relative for layout
-            closeBtn.style.zIndex = '1060 !important'; // Ensure close button is on top
-            closeBtn.style.pointerEvents = 'auto !important';
-        });
-
-        // Force reflow/repaint, can sometimes help with rendering glitches
-        // Use with caution as it can be performance intensive if overused.
-        // modalElement.offsetHeight;
+/**
+ * Corrige le problème de padding-right sur le body
+ */
+function fixModalPaddingIssue() {
+    const originalSetPadding = bootstrap.Modal.prototype._setScrollbar;
+    if (originalSetPadding) {
+        bootstrap.Modal.prototype._setScrollbar = function() {
+            // Ne rien faire pour éviter le padding automatique
+        };
     }
-
-    // Apply when a modal is shown
-    document.addEventListener('shown.bs.modal', function(event) {
-        if (DASH_CONFIG.debugMode) console.log('ModalFix: shown.bs.modal triggered for', event.target.id);
-        const modal = event.target;
-        if (modal && modal.classList.contains('modal')) {
-            setTimeout(() => { // Delay slightly to ensure modal is fully in DOM and styles applied
-                // Ensure modal is displayed correctly (Bootstrap sometimes fails to add 'show' or set display)
-                if (!modal.classList.contains('show')) {
-                    modal.classList.add('show');
-                }
-                if (modal.style.display !== 'block' && modal.classList.contains('show')) {
-                     modal.style.display = 'block'; // Force display if 'show' is present but not visible
-                }
-                
-                // Ensure backdrop exists
-                if (modal.classList.contains('show') && !document.querySelector('.modal-backdrop.show')) {
-                    if (DASH_CONFIG.debugMode) console.log('ModalFix: Backdrop missing, attempting to create one for', modal.id);
-                    let backdrop = document.querySelector('.modal-backdrop');
-                    if (!backdrop) {
-                        backdrop = document.createElement('div');
-                        backdrop.className = 'modal-backdrop fade'; // Start with fade
-                        document.body.appendChild(backdrop);
-                        // Force reflow to apply 'fade' class before 'show'
-                        backdrop.offsetHeight;
-                    }
-                    backdrop.classList.add('show');
-                    document.body.classList.add('modal-open'); // Ensure body class is set
-                }
-
-                applyModalFixes(modal);
-
-                // Auto-focus on the first focusable element in the modal
-                // Exclude elements that are part of a toast or another modal nested (though nesting is bad)
-                const firstFocusable = modal.querySelector(
-                    'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
-                );
-                if (firstFocusable && typeof firstFocusable.focus === 'function') {
-                    try {
-                        firstFocusable.focus({ preventScroll: true }); // preventScroll is a good addition
-                         if (DASH_CONFIG.debugMode) console.log('ModalFix: Focused on:', firstFocusable);
-                    } catch (e) {
-                        if (DASH_CONFIG.debugMode) console.warn('ModalFix: Error focusing on element:', e, firstFocusable);
-                    }
-                }
-            }, 50); // Small delay
-        }
+    
+    // Réinitialiser les styles lorsque la modal est fermée
+    document.addEventListener('hidden.bs.modal', function() {
+        document.body.style.paddingRight = '';
+        document.body.style.overflow = '';
     });
+    
+    console.log('Modal padding fix applied');
+}
 
-    // Attempt to fix modals triggered by clicks if Bootstrap's own handlers are problematic
-    document.addEventListener('click', function(e) {
-        const modalToggle = e.target.closest('[data-bs-toggle="modal"]');
-        if (modalToggle) {
-            const targetSelector = modalToggle.getAttribute('data-bs-target') || modalToggle.getAttribute('href');
-            if (targetSelector) {
-                const modalElement = document.querySelector(targetSelector);
-                if (modalElement) {
-                    // This is a bit aggressive and might interfere with Bootstrap's own timing.
-                    // Use primarily if modals are consistently failing to show.
-                    // setTimeout(() => {
-                    //     if (!modalElement.classList.contains('show')) {
-                    //         if (DASH_CONFIG.debugMode) console.log('ModalFix: Click - Force showing modal:', targetSelector);
-                    //         const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
-                    //         modalInstance.show(); // Use Bootstrap's API to show
-                    //     }
-                    //     // applyModalFixes(modalElement); // 'shown.bs.modal' should handle this
-                    // }, 100); // Delay to allow Bootstrap to attempt first
-                }
+/**
+ * Corrige le problème des modales imbriquées
+ */
+function fixNestedModals() {
+    // S'assurer que la modale parente reste visible lorsqu'une modale enfant est fermée
+    document.addEventListener('hidden.bs.modal', function(event) {
+        const zIndex = parseInt(document.querySelector('.modal-backdrop').style.zIndex, 10);
+        
+        if (document.querySelectorAll('.modal.show').length > 0) {
+            document.body.classList.add('modal-open');
+            
+            // Si plusieurs modals sont ouvertes, ajuster les z-index
+            if (zIndex > 1040) {
+                const visibleModals = document.querySelectorAll('.modal.show');
+                const lastModal = visibleModals[visibleModals.length - 1];
+                lastModal.style.zIndex = (zIndex + 10).toString();
             }
         }
     });
+    
+    console.log('Nested modals fix applied');
+}
 
-    // Watch for modals added to the DOM dynamically (e.g., via AJAX)
-    if (window.MutationObserver) {
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
-                    for (let i = 0; i < mutation.addedNodes.length; i++) {
-                        const node = mutation.addedNodes[i];
-                        if (node.nodeType === 1 && node.classList && node.classList.contains('modal')) {
-                            if (DASH_CONFIG.debugMode) console.log('ModalFix: New modal added to DOM, applying fixes:', node.id);
-                            // applyModalFixes(node); // Apply immediately or wait for 'shown.bs.modal'
-                            // It's generally better to let 'shown.bs.modal' handle it for consistency.
-                        }
+/**
+ * Corrige le problème de perte de focus dans les modales
+ */
+function fixModalFocusIssue() {
+    // S'assurer que le focus reste dans la modale
+    document.addEventListener('shown.bs.modal', function(event) {
+        const modal = event.target;
+        const focusableElements = modal.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        
+        if (focusableElements.length > 0) {
+            focusableElements[0].focus();
+            
+            // Piéger le focus dans la modale
+            modal.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    const firstFocusable = focusableElements[0];
+                    const lastFocusable = focusableElements[focusableElements.length - 1];
+                    
+                    // Si Shift+Tab sur le premier élément, aller au dernier
+                    if (e.shiftKey && document.activeElement === firstFocusable) {
+                        e.preventDefault();
+                        lastFocusable.focus();
+                    }
+                    // Si Tab sur le dernier élément, aller au premier
+                    else if (!e.shiftKey && document.activeElement === lastFocusable) {
+                        e.preventDefault();
+                        firstFocusable.focus();
                     }
                 }
             });
-        });
+        }
+    });
+    
+    console.log('Modal focus fix applied');
+}
 
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true // Observe entire body for new modals
+/**
+ * Corrige le problème de défilement des modales sur iOS
+ */
+function fixIosModalScrolling() {
+    // Détecter si le navigateur est sur iOS
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    if (isIos) {
+        // Fixer la position du body lorsqu'une modale est ouverte
+        document.addEventListener('shown.bs.modal', function() {
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
         });
+        
+        // Rétablir le positionnement normal lorsque la modale est fermée
+        document.addEventListener('hidden.bs.modal', function() {
+            document.body.style.position = '';
+            document.body.style.width = '';
+        });
+        
+        console.log('iOS modal scrolling fix applied');
     }
+}
 
-    if (DASH_CONFIG.debugMode) console.log('ModalFix: Initialization complete.');
-});
+/**
+ * Configure les modales de confirmation standard
+ */
+function setupConfirmationModals() {
+    // Créer la modale de confirmation si elle n'existe pas
+    if (!document.getElementById('confirmModal')) {
+        const modalHtml = `
+            <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="confirmModalLabel">Confirmation</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p id="confirmMessage">Êtes-vous sûr de vouloir effectuer cette action ?</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="button" class="btn btn-primary" id="confirmButton">Confirmer</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        console.log('Confirmation modal created');
+    }
+    
+    // Créer la modale de suppression si elle n'existe pas
+    if (!document.getElementById('deleteModal')) {
+        const modalHtml = `
+            <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="deleteModalLabel">Confirmation de suppression</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Êtes-vous sûr de vouloir supprimer <strong id="deleteEntityName">cet élément</strong> ?</p>
+                            <p class="text-danger">Cette action est irréversible.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <form id="deleteForm" method="POST">
+                                <input type="hidden" name="_method" value="DELETE">
+                                <button type="submit" class="btn btn-danger">Supprimer</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        console.log('Delete modal created');
+    }
+}
+
+/**
+ * Affiche une modale de confirmation avec un message personnalisé
+ * @param {string} message - Message à afficher
+ * @param {Function} onConfirm - Fonction à exécuter si l'utilisateur confirme
+ */
+function showConfirmModal(message, onConfirm) {
+    const confirmModal = document.getElementById('confirmModal');
+    
+    if (!confirmModal) {
+        console.error('Confirmation modal not found');
+        return;
+    }
+    
+    // Définir le message
+    const messageElement = document.getElementById('confirmMessage');
+    if (messageElement) {
+        messageElement.textContent = message;
+    }
+    
+    // Configurer le bouton de confirmation
+    const confirmButton = document.getElementById('confirmButton');
+    
+    // Supprimer les gestionnaires existants
+    const newConfirmButton = confirmButton.cloneNode(true);
+    confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+    
+    // Ajouter le nouveau gestionnaire
+    newConfirmButton.addEventListener('click', function() {
+        // Fermer la modale
+        const bsModal = bootstrap.Modal.getInstance(confirmModal);
+        bsModal.hide();
+        
+        // Exécuter la fonction de confirmation
+        if (typeof onConfirm === 'function') {
+            setTimeout(onConfirm, 300); // Délai pour permettre à la modale de se fermer
+        }
+    });
+    
+    // Afficher la modale
+    const modal = new bootstrap.Modal(confirmModal);
+    modal.show();
+}
+
+/**
+ * Affiche une modale de suppression avec des détails personnalisés
+ * @param {string} entityName - Nom de l'entité à supprimer
+ * @param {string} deleteUrl - URL de suppression
+ */
+function showDeleteModal(entityName, deleteUrl) {
+    const deleteModal = document.getElementById('deleteModal');
+    
+    if (!deleteModal) {
+        console.error('Delete modal not found');
+        return;
+    }
+    
+    // Définir le nom de l'entité
+    const entityNameElement = document.getElementById('deleteEntityName');
+    if (entityNameElement) {
+        entityNameElement.textContent = entityName || 'cet élément';
+    }
+    
+    // Configurer le formulaire de suppression
+    const deleteForm = document.getElementById('deleteForm');
+    if (deleteForm) {
+        deleteForm.action = deleteUrl;
+    }
+    
+    // Afficher la modale
+    const modal = new bootstrap.Modal(deleteModal);
+    modal.show();
+}
+
+// Exposer les fonctions utiles globalement
+window.modalUtils = {
+    showConfirmModal,
+    showDeleteModal
+};
