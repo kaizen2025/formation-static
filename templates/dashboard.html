@@ -1,21 +1,15 @@
 <!-- templates/dashboard.html -->
 {% extends "layout.html" %}
 
-{% block title %}
-    Tableau de Bord - Formation Microsoft 365
-{% endblock %}
+{% block title %}Tableau de Bord - {{ app_name }}{% endblock %}
 
 {% block head_extra %}
-    <!-- CSS spécifiques au tableau de bord -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}?v=1.1">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}?v=1.1">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-modal-fixes.css') }}?v=1.1">
+    <!-- CSS spécifiques au dashboard (déjà dans layout, mais peut être surchargé ici) -->
     <style>
-        .dynamic-chart-container { min-height: 280px; /* Hauteur minimale pour éviter l'effondrement avant chargement */ }
-        .activity-container-card { max-height: 450px; overflow-y: auto; }
-        #activity-loading-spinner, .sessions-loading-spinner {
-            display: flex; justify-content: center; align-items: center; min-height: 100px;
-        }
+        /* Styles spécifiques au dashboard si nécessaire, en complément de custom.css */
+        .stat-card .fa-2x { transition: transform 0.2s ease-out; }
+        .stat-card:hover .fa-2x { transform: scale(1.15) rotate(-5deg); }
+        #sessions-a-venir-table .action-btn { min-width: 38px; } /* Pour aligner les boutons */
     </style>
 {% endblock %}
 
@@ -30,7 +24,7 @@
         </button>
     </div>
 
-    <!-- Rangée des Cartes de Statistiques -->
+    <!-- Rangée des Cartes de Statistiques (ID vérifiés pour dashboard-core.js) -->
     <div class="row">
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-primary shadow h-100 py-2 stat-card">
@@ -38,13 +32,9 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sessions Programmées</div>
-                            <div id="total-sessions-programmes" class="h5 mb-0 font-weight-bold text-gray-800">
-                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                            </div>
+                            <div id="total-sessions-programmes" class="h5 mb-0 font-weight-bold text-gray-800"><span class="spinner-border spinner-border-sm" role="status"></span></div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
-                        </div>
+                        <div class="col-auto"><i class="fas fa-calendar-days fa-2x text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
@@ -55,13 +45,9 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Participants Inscrits (Conf.)</div>
-                            <div id="total-inscriptions-confirmees" class="h5 mb-0 font-weight-bold text-gray-800">
-                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                            </div>
+                            <div id="total-inscriptions-confirmees" class="h5 mb-0 font-weight-bold text-gray-800"><span class="spinner-border spinner-border-sm" role="status"></span></div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
-                        </div>
+                        <div class="col-auto"><i class="fas fa-users-line fa-2x text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
@@ -72,13 +58,9 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">En Liste d'Attente (Total)</div>
-                            <div id="total-en-attente" class="h5 mb-0 mr-3 font-weight-bold text-gray-800">
-                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                            </div>
+                            <div id="total-en-attente" class="h5 mb-0 mr-3 font-weight-bold text-gray-800"><span class="spinner-border spinner-border-sm" role="status"></span></div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
-                        </div>
+                        <div class="col-auto"><i class="fas fa-user-clock fa-2x text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
@@ -89,13 +71,9 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Sessions Complètes</div>
-                            <div id="total-sessions-completes" class="h5 mb-0 font-weight-bold text-gray-800">
-                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                            </div>
+                            <div id="total-sessions-completes" class="h5 mb-0 font-weight-bold text-gray-800"><span class="spinner-border spinner-border-sm" role="status"></span></div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
-                        </div>
+                        <div class="col-auto"><i class="fas fa-person-circle-check fa-2x text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
@@ -109,18 +87,16 @@
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-alt me-2"></i>Sessions à venir</h6>
-                    <div>
-                        <input type="text" id="session-filter" class="form-control form-control-sm" placeholder="Filtrer sessions (date, thème)...">
-                    </div>
+                    <input type="text" id="session-filter" class="form-control form-control-sm w-auto" placeholder="Filtrer sessions...">
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0"> {# p-0 pour que la table touche les bords #}
                     <div class="table-responsive">
-                        <table class="table table-hover" id="sessions-a-venir-table">
+                        <table class="table table-hover mb-0" id="sessions-a-venir-table">
                             <thead>
                                 <tr>
                                     <th>Date / Horaire</th>
                                     <th>Thème</th>
-                                    <th>Places</th>
+                                    <th class="text-center">Places</th>
                                     <th>Salle</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
@@ -132,13 +108,9 @@
                                         <p class="mt-2 text-muted">Chargement des sessions...</p>
                                     </td>
                                 </tr>
-                                <!-- Les lignes de session seront injectées ici par JavaScript -->
                             </tbody>
                         </table>
                     </div>
-                     {% if initial_sessions_data is defined and not initial_sessions_data %}
-                        <p class="text-center text-muted mt-3 no-data-initial">Aucune session programmée pour le moment.</p>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -146,27 +118,12 @@
         <!-- Zone des Graphiques -->
         <div class="col-xl-4 col-lg-5">
             <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Répartition par Thème (Inscrits)</h6>
-                </div>
-                <div class="card-body">
-                    <div class="dynamic-chart-container d-flex justify-content-center align-items-center">
-                        <canvas id="themeDistributionChart"></canvas>
-                        <!-- Message "Pas de données" ou spinner sera géré par JS -->
-                    </div>
-                </div>
+                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Répartition par Thème</h6></div>
+                <div class="card-body"><div class="dynamic-chart-container"><canvas id="themeDistributionChart"></canvas></div></div>
             </div>
-
             <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-bar me-2"></i>Participants par Service</h6>
-                </div>
-                <div class="card-body">
-                    <div class="dynamic-chart-container d-flex justify-content-center align-items-center">
-                        <canvas id="serviceDistributionChart"></canvas>
-                        <!-- Message "Pas de données" ou spinner sera géré par JS -->
-                    </div>
-                </div>
+                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-bar me-2"></i>Participants par Service</h6></div>
+                <div class="card-body"><div class="dynamic-chart-container"><canvas id="serviceDistributionChart"></canvas></div></div>
             </div>
         </div>
     </div>
@@ -175,99 +132,181 @@
     <div class="row">
         <div class="col-lg-12 mb-4">
             <div class="card shadow">
-                <div class="card-header py-3">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-2"></i>Activités Récentes</h6>
+                    {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+                    <a href="{{ url_for('activites_journal') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-book me-1"></i> Tout le journal
+                    </a>
+                    {% endif %}
                 </div>
                 <div class="card-body activity-container-card p-0">
                     <ul class="list-group list-group-flush" id="recent-activity-list">
-                         <li class="list-group-item" id="activity-loading-spinner">
+                         <li class="list-group-item text-center p-3" id="activity-loading-spinner">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                             <span class="ms-2 text-muted">Chargement des activités...</span>
                         </li>
-                        <!-- Les activités seront injectées ici par JavaScript -->
                     </ul>
                 </div>
-                {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-                <div class="card-footer text-center">
-                    <a href="{{ url_for('activites_journal') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-book me-1"></i> Voir toutes les activités
-                    </a>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Overlay de chargement global -->
-<div id="loading-overlay" class="hidden">
-    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-        <span class="visually-hidden">Chargement...</span>
-    </div>
-</div>
-
-<!-- Modales pour les sessions (générées par Jinja si initial_sessions_data est fourni) -->
-{% if initial_sessions_data is defined %}
-    {% for session_item_data in initial_sessions_data %}
-        {% set session = session_item_data.obj %} {# Supposant que la structure est {obj: session_object, ...} #}
-        {% if session %}
-            {% include 'modals/_inscription_modal.html' with context %}
-            {% include 'modals/_participants_modal.html' with context %}
-        {% endif %}
-    {% endfor %}
-{% endif %}
-<!-- Ou, si les modales sont génériques et peuplées par JS, vous auriez ici des templates de modales vides -->
-<!-- Exemple de modale générique (si vous n'utilisez pas la boucle ci-dessus) -->
-<!-- 
-<div class="modal fade" id="genericInscriptionModal" tabindex="-1" aria-labelledby="genericInscriptionModalLabel" aria-hidden="true">
-    Contenu de la modale d'inscription générique
-</div>
-<div class="modal fade" id="genericParticipantsModal" tabindex="-1" aria-labelledby="genericParticipantsModalLabel" aria-hidden="true">
-    Contenu de la modale des participants générique
-</div>
--->
-
+<!-- Overlay de chargement global (déjà dans layout.html) -->
+<!-- <div id="loading-overlay" class="hidden"> ... </div> -->
 {% endblock %}
 
-{% block scripts %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-    <!-- Assurez-vous que Bootstrap JS est chargé (généralement dans layout.html) -->
+{% block modals %}
+    {# MODALES GÉNÉRIQUES POUR LE DASHBOARD (PEUPLÉES PAR JS) #}
 
-    <script>
-        window.dashboardConfig = {
-            debugMode: {{ debug_mode|tojson }},
-            baseApiUrl: "{{ url_for('index') }}api", // Assure une base URL correcte (ex: /api)
-            // Vous pouvez surcharger d'autres valeurs de config ici si nécessaire
-            // autoRefreshInterval: 30000, 
-            // pollingEnabled: true,
-            themeColors: {{ config.get('THEME_COLORS_CONFIG', {})|tojson }}, // Exemple pour passer des couleurs
-            serviceColors: {{ config.get('SERVICE_COLORS_CONFIG', {})|tojson }}
-        };
+    <!-- Modale Générique pour Voir les Participants d'une Session -->
+    <div class="modal fade" id="genericParticipantsModal" tabindex="-1" aria-labelledby="genericParticipantsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header bg-info text-white">
+            <h5 class="modal-title" id="genericParticipantsModalLabel"><i class="fas fa-users me-2"></i>Participants: <span id="genericParticipantsModalSessionTheme">Thème</span></h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="alert alert-light border shadow-sm mb-4 p-3">
+              <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <h6 class="mb-1 fw-bold text-info-emphasis me-3">Session du <span id="genericParticipantsModalSessionDate">Date</span> (<span id="genericParticipantsModalSessionHoraire">Horaire</span>)</h6>
+                <span class="badge fs-6" id="genericParticipantsModalPlacesBadge">X / Y places dispo.</span>
+              </div>
+              <hr class="my-2">
+              <p class="mb-0 small text-body-secondary">
+                <i class="fas fa-building fa-fw me-1"></i><strong>Salle:</strong> 
+                <span class="badge bg-light text-dark border" id="genericParticipantsModalSessionSalle">Non définie</span>
+              </p>
+            </div>
+            <ul class="nav nav-tabs nav-fill mb-3" id="genericParticipantsTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="gConfirmes-tab" data-bs-toggle="tab" data-bs-target="#gConfirmes-content" type="button" role="tab"><i class="fas fa-check-circle text-success me-1"></i> Confirmés <span class="badge rounded-pill bg-success ms-1" id="gConfirmesCount">0</span></button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="gEnAttente-tab" data-bs-toggle="tab" data-bs-target="#gEnAttente-content" type="button" role="tab"><i class="fas fa-clock text-warning me-1"></i> En attente <span class="badge rounded-pill bg-warning text-dark ms-1" id="gEnAttenteCount">0</span></button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="gListeAttente-tab" data-bs-toggle="tab" data-bs-target="#gListeAttente-content" type="button" role="tab"><i class="fas fa-hourglass-half text-info me-1"></i> Liste d'attente <span class="badge rounded-pill bg-info text-dark ms-1" id="gListeAttenteCount">0</span></button>
+              </li>
+            </ul>
+            <div class="tab-content pt-3" id="genericParticipantsTabsContent">
+              <div class="tab-pane fade show active" id="gConfirmes-content" role="tabpanel">
+                  <div id="gConfirmesTableContainer" class="table-responsive"></div><div id="gConfirmesNoData" class="alert alert-light text-center py-4 border" style="display:none;">Aucun participant confirmé.</div>
+              </div>
+              <div class="tab-pane fade" id="gEnAttente-content" role="tabpanel">
+                  <div id="gEnAttenteTableContainer" class="table-responsive"></div><div id="gEnAttenteNoData" class="alert alert-light text-center py-4 border" style="display:none;">Aucune inscription en attente.</div>
+              </div>
+              <div class="tab-pane fade" id="gListeAttente-content" role="tabpanel">
+                  <div id="gListeAttenteTableContainer" class="table-responsive"></div><div id="gListeAttenteNoData" class="alert alert-light text-center py-4 border" style="display:none;">Aucun participant en liste d'attente.</div>
+              </div>
+            </div>
+            <div id="genericParticipantsModalSpinner" class="text-center py-5" style="display:none;"><div class="spinner-border text-info" role="status"></div><p class="mt-2">Chargement...</p></div>
+          </div>
+          <div class="modal-footer justify-content-between bg-light border-top">
+            <button type="button" class="btn btn-primary btn-sm btn-inscrire-depuis-participants" data-session-id=""><i class="fas fa-user-plus me-1"></i> Inscrire à cette session</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i> Fermer</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-        // Fonction Toast globale (si elle n'est pas déjà définie dans layout.html ou un script global)
-        // function showToast(message, type = 'info', duration = 3000) {
-        //     console.log(`Toast (${type}): ${message}`);
-        //     // Votre implémentation de Toast (ex: avec Bootstrap Toasts)
-        //     // Exemple simple:
-        //     const toastContainer = document.getElementById('toast-container-global'); // Assurez-vous que cet élément existe
-        //     if (toastContainer) {
-        //         const toastId = 'toast-' + Date.now();
-        //         const toastHtml = `
-        //             <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="${duration}">
-        //                 <div class="d-flex">
-        //                     <div class="toast-body">${message}</div>
-        //                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        //                 </div>
-        //             </div>`;
-        //         toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-        //         var toastEl = document.getElementById(toastId);
-        //         var bsToast = new bootstrap.Toast(toastEl);
-        //         bsToast.show();
-        //         toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
-        //     }
-        // }
-    </script>
+    <!-- Modale Générique pour Inscrire un Participant à une Session -->
+    <div class="modal fade" id="genericInscriptionModal" tabindex="-1" aria-labelledby="genericInscriptionModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="genericInscriptionModalLabel"><i class="fas fa-user-plus me-2"></i>Inscription: <span id="genericInscriptionModalSessionTheme">Thème</span></h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="alert alert-light border mb-4 p-3 shadow-sm">
+              <div class="d-flex align-items-center">
+                 <i class="fas fa-calendar-check fa-2x me-3 text-primary-emphasis"></i>
+                 <div>
+                    <h6 class="mb-1 fw-bold text-primary-emphasis">Session du <span id="genericInscriptionModalSessionDate">Date</span></h6>
+                    <p class="mb-1 small text-body-secondary"><i class="far fa-clock fa-fw me-1"></i>Horaire: <span id="genericInscriptionModalSessionHoraire">Horaire</span></p>
+                    <p class="mb-1 small text-body-secondary"><i class="fas fa-chair fa-fw me-1"></i>Places disponibles: <strong class="badge" id="genericInscriptionModalPlacesBadge">X / Y</strong></p>
+                    <p class="mb-0 small text-body-secondary"><i class="fas fa-building fa-fw me-1"></i>Salle: <span class="badge bg-light text-dark border" id="genericInscriptionModalSessionSalle">Salle</span></p>
+                 </div>
+              </div>
+            </div>
+            <ul class="nav nav-tabs nav-fill mb-3" id="genericInscriptionTabs" role="tablist">
+              <li class="nav-item" role="presentation"><button class="nav-link active" id="gParticipantExistantTab" data-bs-toggle="tab" data-bs-target="#gParticipantExistantContent" type="button"><i class="fas fa-user me-1"></i> Existant</button></li>
+              <li class="nav-item" role="presentation"><button class="nav-link" id="gNouveauParticipantTab" data-bs-toggle="tab" data-bs-target="#gNouveauParticipantContent" type="button"><i class="fas fa-user-plus me-1"></i> Nouveau</button></li>
+            </ul>
+            <div class="tab-content pt-3" id="genericInscriptionTabsContent">
+              <div class="tab-pane fade show active" id="gParticipantExistantContent" role="tabpanel">
+                <form method="post" id="genericInscriptionExistantForm" class="needs-validation" novalidate>
+                  <input type="hidden" name="session_id" id="gInscriptionSessionIdExistant" value="">
+                  <input type="hidden" name="from_page" value="dashboard">
+                  <div class="mb-3">
+                    <label for="gParticipantIdSelect" class="form-label">Sélectionner un participant*</label>
+                    <select class="form-select" id="gParticipantIdSelect" name="participant_id" required></select>
+                    <div class="invalid-feedback">Veuillez sélectionner un participant.</div>
+                  </div>
+                  <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-check-circle me-2"></i>Confirmer l'inscription</button></div>
+                </form>
+              </div>
+              <div class="tab-pane fade" id="gNouveauParticipantContent" role="tabpanel">
+                <p class="small text-muted mb-3">Il sera automatiquement inscrit à cette session (en attente de validation).</p>
+                <form method="post" id="genericInscriptionNouveauForm" class="needs-validation" novalidate>
+                  <input type="hidden" name="from_page" value="dashboard">
+                  <input type="hidden" name="redirect_session_id" id="gInscriptionSessionIdNouveau" value="">
+                  <input type="hidden" name="action_after_add" value="inscription">
+                  <input type="hidden" name="from_modal" value="true">
+                  <div class="row g-3">
+                    <div class="col-md-6"><label for="gNomNouveau" class="form-label">Nom*</label><input type="text" class="form-control" id="gNomNouveau" name="nom" required><div class="invalid-feedback">Nom obligatoire.</div></div>
+                    <div class="col-md-6"><label for="gPrenomNouveau" class="form-label">Prénom*</label><input type="text" class="form-control" id="gPrenomNouveau" name="prenom" required><div class="invalid-feedback">Prénom obligatoire.</div></div>
+                    <div class="col-12"><label for="gEmailNouveau" class="form-label">Email*</label><input type="email" class="form-control" id="gEmailNouveau" name="email" required><div class="invalid-feedback">Email valide obligatoire.</div></div>
+                    <div class="col-12"><label for="gServiceIdNouveau" class="form-label">Service*</label><select class="form-select" id="gServiceIdNouveau" name="service_id" required></select><div class="invalid-feedback">Service obligatoire.</div></div>
+                  </div>
+                  <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-success btn-lg"><i class="fas fa-user-plus me-2"></i>Ajouter et Inscrire</button></div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer bg-light justify-content-between">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i> Annuler</button>
+            <a href="#" class="btn btn-warning btn-sm" id="gListeAttenteLink"><i class="fas fa-clock me-1"></i> S'inscrire en liste d'attente</a>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <script src="{{ url_for('static', filename='js/api-error-handler.js') }}?v=1.1"></script>
-    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}?v=2.1.0"></script> 
+    <!-- Modale Générique pour Attribuer une Salle (si admin) -->
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    <div class="modal fade" id="genericAttribuerSalleModal" tabindex="-1" aria-labelledby="genericAttribuerSalleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="genericAttribuerSalleModalLabel"><i class="fas fa-building me-2"></i>Attribuer Salle: <span id="genericAttribuerSalleModalSessionTheme">Thème</span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border shadow-sm mb-4 p-3">
+                        <h6 class="mb-1 fw-bold text-info-emphasis">Session du <span id="genericAttribuerSalleModalSessionDate">Date</span> (<span id="genericAttribuerSalleModalSessionHoraire">Horaire</span>)</h6>
+                    </div>
+                    <form method="post" id="genericAttribuerSalleForm" class="needs-validation" novalidate>
+                        <input type="hidden" name="session_id" id="gAttribuerSalleSessionId" value="">
+                        <div class="mb-3">
+                            <label for="gSalleIdSelect" class="form-label">Choisir une salle*</label>
+                            <select class="form-select" id="gSalleIdSelect" name="salle_id" required></select> {# Options peuplées par JS #}
+                            <div class="invalid-feedback">Veuillez sélectionner une salle.</div>
+                        </div>
+                        <div id="gAttribuerSalleCurrentInfo" class="alert alert-light border small p-2 mb-3"></div>
+                        <div class="d-grid"><button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-check me-2"></i>Confirmer l'Attribution</button></div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light border-top"><button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}
+
+{% block scripts_page_specific %}
+    {# dashboard-core.js est inclus ici car c'est la page du dashboard #}
+    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}?v=2.2.1" defer></script> {# Version incrémentée #}
 {% endblock %}
