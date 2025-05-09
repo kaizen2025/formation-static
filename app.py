@@ -1639,7 +1639,9 @@ def api_single_session(session_id):
 # === Routes participants et activités ===
 # ==============================================================================
 
+# --- Modifier la route participants_page ---
 @app.route('/participants')
+# @login_required # Retiré précédemment si accès public souhaité
 @db_operation_with_retry(max_retries=3)
 def participants_page():
     """Affiche la page principale de la liste des participants."""
@@ -1653,7 +1655,7 @@ def participants_page():
         # Récupérer tous les services pour le menu déroulant du modal "Ajouter Participant"
         services_for_modal = Service.query.order_by(Service.nom).all()
 
-        # --- Calcul efficace des compteurs pour chaque participant ---
+        # --- Calcul efficace des COMPTES pour chaque participant ---
         participant_ids = [p.id for p in participants_list]
         confirmed_counts = {}
         waitlist_counts = {}
@@ -1686,7 +1688,7 @@ def participants_page():
             ).group_by(Inscription.participant_id).all()
             pending_counts = dict(pending_q)
 
-        # Préparer la structure de données attendue par le template
+        # Préparer la structure de données pour le template (SEULEMENT LES COMPTES)
         participants_data_for_template = []
         for p in participants_list:
             participants_data_for_template.append({
@@ -1694,15 +1696,12 @@ def participants_page():
                 'inscriptions_count': confirmed_counts.get(p.id, 0),
                 'attente_count': waitlist_counts.get(p.id, 0),
                 'pending_count': pending_counts.get(p.id, 0),
-                # Passer des listes vides pour les détails des modales initialement
-                'loaded_confirmed_inscriptions': [],
-                'loaded_pending_inscriptions': [],
-                'loaded_waitlist': []
+                # PAS BESOIN de 'loaded_...' ici
             })
 
         return render_template('participants.html',
                               participants_data=participants_data_for_template,
-                              services=services_for_modal)
+                              services=services_for_modal) # Passer les services pour les modales d'ajout/modif
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -1714,6 +1713,83 @@ def participants_page():
         app.logger.error(f"Erreur inattendue chargement page participants: {e}", exc_info=True)
         flash("Une erreur interne est survenue lors du chargement des participants.", "danger")
         return redirect(url_for('dashboard'))
+
+
+# --- NOUVELLE ROUTE API pour les détails d'un participant ---
+@app.route('/api/participant/<int:participant_id>/details')
+@login_required # Sécuriser l'accès aux détails
+@db_operation_with_retry(max_retries=2)
+def api_participant_details(participant_id):
+    """Retourne les détails (inscriptions, attentes) d'un participant."""
+    try:
+        participant = db.session.get(Participant, participant_id)
+        if not participant:
+            return jsonify({"error": "Participant not found"}), 404
+
+        # Charger les inscriptions confirmées avec détails session/thème/salle
+        confirmed_inscriptions = Inscription.query.options(
+            joinedload(Inscription.session).joinedload(Session.theme),
+            joinedload(Inscription.session).joinedload(Session.salle)
+        ).filter(
+            Inscription.participant_id == participant_id,
+            Inscription.statut == 'confirmé'
+        ).order_by(Inscription.date_inscription.desc()).all()
+
+        # Charger les inscriptions en attente avec détails session/thème/salle
+        pending_inscriptions = Inscription.query.options(
+            joinedload(Inscription.session).joinedload(Session.theme),
+            joinedload(Inscription.session).joinedload(Session.salle)
+        ).filter(
+            Inscription.participant_id == participant_id,
+            Inscription.statut == 'en attente'
+        ).order_by(Inscription.date_inscription.desc()).all()
+
+        # Charger les entrées en liste d'attente avec détails session/thème/salle
+        waitlist_entries = ListeAttente.query.options(
+            joinedload(ListeAttente.session).joinedload(Session.theme),
+            joinedload(ListeAttente.session).joinedload(Session.salle)
+        ).filter(
+            ListeAttente.participant_id == participant_id
+        ).order_by(ListeAttente.position.asc()).all()
+
+        # Formater les données pour JSON
+        data = {
+            'confirmed': [{
+                'id': i.id,
+                'session_id': i.session_id,
+                'theme': i.session.theme.nom if i.session and i.session.theme else 'N/A',
+                'date': i.session.formatage_date if i.session else 'N/A',
+                'horaire': i.session.formatage_horaire if i.session else 'N/A',
+                'salle': i.session.salle.nom if i.session and i.session.salle else 'Non définie',
+                'date_inscription': i.date_inscription.strftime('%d/%m/%Y %H:%M')
+            } for i in confirmed_inscriptions],
+            'pending': [{
+                'id': i.id,
+                'session_id': i.session_id,
+                'theme': i.session.theme.nom if i.session and i.session.theme else 'N/A',
+                'date': i.session.formatage_date if i.session else 'N/A',
+                'horaire': i.session.formatage_horaire if i.session else 'N/A',
+                'date_inscription': i.date_inscription.strftime('%d/%m/%Y %H:%M')
+            } for i in pending_inscriptions],
+            'waitlist': [{
+                'id': l.id,
+                'session_id': l.session_id,
+                'theme': l.session.theme.nom if l.session and l.session.theme else 'N/A',
+                'date': l.session.formatage_date if l.session else 'N/A',
+                'horaire': l.session.formatage_horaire if l.session else 'N/A',
+                'position': l.position,
+                'date_inscription': l.date_inscription.strftime('%d/%m/%Y %H:%M'),
+                'notification_envoyee': l.notification_envoyee
+            } for l in waitlist_entries]
+        }
+        return jsonify(data)
+
+    except SQLAlchemyError as e:
+        app.logger.error(f"API Error participant details {participant_id}: {e}", exc_info=True)
+        return jsonify({"error": "Database error"}), 500
+    except Exception as e:
+        app.logger.error(f"API Unexpected Error participant details {participant_id}: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/participant/add', methods=['POST'])
 @login_required
