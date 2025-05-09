@@ -1,11 +1,12 @@
 /**
  * dashboard-core.js - Module principal et unique pour le tableau de bord
- * Version: 1.8.1 - Fichier complet, robustesse accrue, logs détaillés
+ * Version: 1.8.2 - Correction de l'erreur 'config is not defined'
  */
 
 document.addEventListener('DOMContentLoaded', function() {
     // Empêcher la double initialisation
     if (window.dashboardCoreInitialized) {
+        // Utiliser window.dashboardConfig ici car 'config' n'est pas encore défini dans ce scope
         if (window.dashboardConfig && window.dashboardConfig.debugMode) {
             console.log('Dashboard Core: Already initialized. Skipping.');
         }
@@ -17,8 +18,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     window.dashboardCoreInitialized = true;
 
-    const dashConfigGlobal = window.dashboardConfig || {};
-    const config = {
+    const dashConfigGlobal = window.dashboardConfig || {}; // Utiliser la config globale si elle existe
+    // Configuration par défaut et fusion avec la config globale
+    const config = { // Déclaration de config AVANT son utilisation
         debugMode: dashConfigGlobal.debugMode || false,
         refreshInterval: dashConfigGlobal.autoRefreshInterval || 60000,
         minRefreshDelay: dashConfigGlobal.minRefreshDelay || 15000,
@@ -28,11 +30,12 @@ document.addEventListener('DOMContentLoaded', function() {
         maxErrors: dashConfigGlobal.maxErrors || 5,
         errorThrottleDelay: dashConfigGlobal.errorThrottleDelay || 60000,
         chartRendering: dashConfigGlobal.chartRendering || 'auto',
-        ...dashConfigGlobal
+        ...dashConfigGlobal // Surcharger avec les valeurs de window.dashboardConfig
     };
 
+    // Maintenant, on peut utiliser config.debugMode
     if (config.debugMode) {
-        console.log('Dashboard Core: Initializing (v1.8.1)');
+        console.log('Dashboard Core: Initializing (v1.8.2)');
         console.log('Dashboard Core: Effective Config', config);
     }
 
@@ -49,7 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
         serviceChartInstance: null,
     };
 
-    // S'assurer que apiErrorHandler est disponible
     const errorHandler = window.apiErrorHandler || {
         handleApiError: (endpoint, errorData, statusCode) => {
             console.error(`[FallbackErrorHandler] API Error ${statusCode} on ${endpoint}:`, errorData);
@@ -57,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         checkAndFixBrokenElements: () => {
             if (config.debugMode) console.log("[FallbackErrorHandler] Checking and fixing UI elements.");
-            fixDataIssues(); // Appeler les fonctions de correction de base
+            fixDataIssues();
             enhanceBadgesAndLabels();
         }
     };
@@ -67,14 +69,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (config.debugMode) console.log('Dashboard Core: Starting main initialization sequence.');
         showGlobalLoading(true);
 
-        setupStaticEventListeners(); // Pour les éléments toujours présents comme le bouton refresh
-        setupMutationObserver();   // Pour les éléments dynamiques (optionnel, mais utile)
-        initializeCharts(); // Prépare les canvas pour les graphiques
+        setupStaticEventListeners();
+        setupMutationObserver();
+        initializeCharts();
 
         try {
             if (config.debugMode) console.log('Dashboard Core: Attempting initial data fetch.');
-            const initialDataLoaded = await fetchAndProcessData(true); // Premier fetch forcé
-            if (initialDataLoaded !== undefined) { // undefined signifie une erreur de fetch
+            const initialDataLoaded = await fetchAndProcessData(true);
+            if (initialDataLoaded !== undefined) {
                  if (config.debugMode) console.log('Dashboard Core: Initial data fetch processed. Starting polling if enabled.');
                  startPolling();
             } else {
@@ -84,7 +86,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const errorMsgDiv = document.createElement('div');
                     errorMsgDiv.className = 'alert alert-danger initial-load-error';
                     errorMsgDiv.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Impossible de charger les données initiales du tableau de bord. Certaines sections peuvent être vides. Veuillez vérifier votre connexion ou réessayer plus tard.';
-                    // Insérer au début du conteneur principal du dashboard
                     const firstChild = dashboardContent.firstChild;
                     dashboardContent.insertBefore(errorMsgDiv, firstChild);
                 }
@@ -130,18 +131,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (config.debugMode) console.warn(`Dashboard Core: Fetch to ${apiUrl} timed out after ${config.fetchTimeoutDuration}ms.`);
             }, config.fetchTimeoutDuration);
 
-            const response = await fetch(apiUrl, {
-                signal: controller.signal,
-                cache: "no-store", // Empêcher la mise en cache par le navigateur
-                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-            });
+            const response = await fetch(apiUrl, { signal: controller.signal, cache: "no-store", headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }});
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                const errorText = await response.text(); // Lire le texte pour le log
+                const errorText = await response.text();
                 let errorData;
                 try { errorData = JSON.parse(errorText); }
-                catch (e) { errorData = { message: errorText.substring(0, 200) || `HTTP error ${response.status}` }; } // Utiliser le texte si pas JSON
+                catch (e) { errorData = { message: errorText.substring(0, 200) || `HTTP error ${response.status}` }; }
                 console.error(`Dashboard Core: API Error ${response.status} for ${apiUrl}. Response:`, errorText.substring(0, 500));
                 throw { ...errorData, status: response.status, endpoint: apiUrl };
             }
@@ -168,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Dashboard Core: Data processed, no significant changes detected.');
             }
             return hasChanged;
-
         } catch (error) {
             console.error(`Dashboard Core: Error during fetchAndProcessData from ${error.endpoint || apiUrl}:`, error);
             errorHandler.handleApiError?.(error.endpoint || apiUrl, error, error.status || 0);
@@ -256,19 +252,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (config.debugMode) console.log("Dashboard Core: Polling - fetching light data.");
                 await fetchAndProcessData(false, true);
             }
-            if (config.pollingEnabled && dashboardState.pollingActive) { // Vérifier pollingActive aussi
+            if (config.pollingEnabled && dashboardState.pollingActive) {
                  dashboardState.pollingTimeoutId = setTimeout(poll, config.refreshInterval);
             } else if (config.debugMode) {
                 console.log("Dashboard Core: Polling stopped or disabled during poll cycle.");
             }
         };
-        dashboardState.pollingActive = true; // S'assurer qu'il est actif au démarrage du polling
+        dashboardState.pollingActive = true;
         dashboardState.pollingTimeoutId = setTimeout(poll, config.refreshInterval);
         if (config.debugMode) console.log(`Dashboard Core: Polling started (interval: ${config.refreshInterval}ms).`);
     }
 
     function stopPolling() {
-        dashboardState.pollingActive = false; // Marquer comme inactif
+        dashboardState.pollingActive = false;
         clearTimeout(dashboardState.pollingTimeoutId);
         dashboardState.pollingTimeoutId = null;
         if (config.debugMode) console.log("Dashboard Core: Polling explicitly stopped.");
@@ -389,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (config.debugMode) console.log('Dashboard Core (Render UI): Finished updateActivityFeed.');
     }
 
-    function getActivityIcon(type) { /* ... (Code complet de la fonction) ... */
+    function getActivityIcon(type) {
          const iconMap = {
             'connexion': 'fas fa-sign-in-alt text-success', 'deconnexion': 'fas fa-sign-out-alt text-warning',
             'inscription': 'fas fa-user-plus text-primary', 'validation': 'fas fa-check-circle text-success',
@@ -551,7 +547,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         if (config.debugMode) console.log('Dashboard Core (Charts): Initializing chart structures.');
-        // Préparer les canvas, les messages "pas de données" seront gérés par les fonctions de rendu
         renderThemeDistributionChartJS([]);
         renderServiceDistributionChartJS([]);
     }
@@ -629,7 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const serviceCounts = participantsData.reduce((acc, p) => { acc[p.service] = (acc[p.service] || 0) + 1; return acc; }, {});
         const labels = Object.keys(serviceCounts).filter(k => serviceCounts[k] > 0);
         const dataValues = labels.map(l => serviceCounts[l]);
-        const colors = labels.map((l, i) => (window.dashboardConfig?.servicesDataForChart?.[l]?.color || getRandomColor(i + labels.length))); // Offset index for different color set
+        const colors = labels.map((l, i) => (window.dashboardConfig?.servicesDataForChart?.[l]?.color || getRandomColor(i + labels.length)));
         const chartData = { labels, datasets: [{ label: 'Participants', data: dataValues, backgroundColor: colors, borderColor: colors.map(c => Chart.helpers.color(c).darken(0.2).rgbString()), borderWidth:1, borderRadius:4, barPercentage:0.7, categoryPercentage:0.8}]};
         const chartOptions = { indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true, ticks:{precision:0}, grid:{color:'rgba(0,0,0,0.05)'}}, y:{grid:{display:false}}}, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} participant(s)`}}}, animation:{duration:800}};
 
@@ -678,13 +673,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 refreshButton.disabled = true;
                 const originalText = refreshButton.innerHTML;
                 refreshButton.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
-                fetchAndProcessData(true).finally(() => { // true pour forceRefresh
+                fetchAndProcessData(true).finally(() => {
                     refreshButton.disabled = false;
                     refreshButton.innerHTML = originalText;
                 });
             });
         }
-        setupValidationListeners(); // Attacher les écouteurs pour .validation-ajax
+        setupValidationListeners();
     }
 
     function setupMutationObserver() {
@@ -715,14 +710,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 
-    // --- Exposition des méthodes publiques (si nécessaire pour d'autres scripts) ---
+    // --- Exposition des méthodes publiques ---
     window.dashboardCore = {
         forceRefresh: () => fetchAndProcessData(true),
         startPolling: startPolling,
         stopPolling: stopPolling,
-        // Les fonctions ci-dessous sont exposées mais principalement appelées en interne
         initializeDashboard: initializeDashboard,
-        fetchDataInternal: fetchAndProcessData, // Pour un contrôle plus fin si dashboard-init le reprend
+        fetchDataInternal: fetchAndProcessData,
         updateCharts: updateCharts,
         updateStatisticsCounters: updateStatisticsCounters,
         updateActivityFeed: updateActivityFeed,
@@ -732,11 +726,11 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // --- Démarrage ---
-    initializeDashboard(); // dashboard-core s'auto-initialise
+    initializeDashboard();
 
 }); // Fin du DOMContentLoaded pour dashboard-core.js
 
-// Fonction showToast globale (si non définie ailleurs et nécessaire)
+// Fonction showToast globale
 if (typeof window.showToast !== 'function') {
     window.showToast = function(message, type = 'info', duration = 5000) {
          const toastContainer = document.getElementById('toast-container') || (() => {
