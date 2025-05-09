@@ -901,36 +901,41 @@ def validation_inscription_ajax():
     except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"Validation AJAX: Erreur DB - {e}", exc_info=True); return jsonify({'success': False, 'message': 'Erreur de base de données.'}), 500
     except Exception as e: db.session.rollback(); app.logger.error(f"Validation AJAX: Erreur inattendue - {e}", exc_info=True); return jsonify({'success': False, 'message': 'Erreur interne du serveur.'}), 500
 
+# --- Route documents (MODIFIÉE) ---
 @app.route('/documents')
-@login_required # Ajouter login_required si l'accès général doit être restreint
+# @login_required # RETIRER à nouveau pour accès public
 @db_operation_with_retry(max_retries=3)
 def documents():
     try:
-        # Charger les thèmes AVEC les documents et l'uploader
+        app.logger.info(f"Accès page /documents par '{current_user.username if current_user.is_authenticated else 'Anonymous'}'")
+        # Charger les thèmes AVEC les documents et l'uploader (nécessaire pour l'affichage)
         themes_with_docs = Theme.query.options(
             selectinload(Theme.documents).joinedload(Document.uploader)
         ).order_by(Theme.nom).all()
 
-        # Récupérer aussi la liste des thèmes pour le formulaire d'upload (si admin)
+        # Récupérer la liste des thèmes pour le formulaire d'upload SEULEMENT SI admin
+        # (même si le formulaire n'est affiché que pour l'admin, on peut passer la variable)
         themes_for_upload = []
         if current_user.is_authenticated and current_user.role == 'admin':
-            themes_for_upload = get_all_themes() # Utilise la fonction cachée
+            # Utilise la fonction cachée qui charge aussi les sessions, mais c'est ok ici.
+            # Si performance critique, créer une fonction get_themes_only()
+            themes_for_upload = get_all_themes()
 
         return render_template('documents.html',
                                themes_with_docs=themes_with_docs,
-                               themes=themes_for_upload, # Passer les thèmes pour le select
-                               ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS) # Passer les extensions
+                               themes=themes_for_upload, # Pour le select dans le formulaire admin
+                               ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS) # Pour l'info dans le formulaire admin
 
     except SQLAlchemyError as e:
         db.session.rollback()
         app.logger.error(f"DB error loading documents page: {e}", exc_info=True)
         flash("Erreur de base de données lors du chargement des documents.", "danger")
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard')) # Ou une page d'erreur générique
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Unexpected error loading documents page: {e}", exc_info=True)
         flash("Une erreur interne est survenue.", "danger")
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard')) # Ou une page d'erreur générique
         
 @app.route('/salle/add', methods=['POST'])
 @login_required
