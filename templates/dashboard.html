@@ -1,450 +1,223 @@
-{% extends 'layout.html' %}
+{% extends "base.html" %}
 
-{% block title %}Tableau de bord - {{ app_name }}{% endblock %}
-
-{% block head_extra %}
-<style>
-    /* Styles spécifiques au dashboard pour améliorer la mise en page */
-    .stat-card .card-body { padding: 1rem; }
-    .stat-card .text-xs { font-size: 0.7rem; }
-    .stat-card .h5 { font-size: 1.5rem; }
-    .stat-card .fa-2x { font-size: 1.8rem; color: #e0e0e0; }
-
-    .session-table th, .session-table td { padding: 0.4rem; font-size: 0.8rem; vertical-align: middle; }
-    .session-table th:nth-child(1), .session-table td:nth-child(1) { width: 120px; } /* Date/Horaire */
-    .session-table th:nth-child(2), .session-table td:nth-child(2) { min-width: 140px; } /* Thème */
-    .session-table th:nth-child(3), .session-table td:nth-child(3) { width: 80px; text-align: center; } /* Places */
-    .session-table th:nth-child(4), .session-table td:nth-child(4) { width: 120px; } /* Salle */
-    .session-table th:nth-child(5), .session-table td:nth-child(5) { width: 100px; text-align: center;} /* Actions */
-
-    .activity-container { max-height: 280px; overflow-y: auto; }
-    .activity-item { padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; border-left: 3px solid var(--primary, #0078d4); background-color: #fdfdfd; border-radius: 0 0.25rem 0.25rem 0; display: flex; align-items: flex-start; }
-    .activity-item:hover { transform: translateX(2px); background-color: #f8f9fa; }
-    .activity-icon { margin-right: 0.6rem; margin-top: 0.1rem; font-size: 0.85rem; width: 1.2em; text-align: center; }
-    .activity-content { flex-grow: 1; }
-    .activity-title { font-weight: 500; font-size: 0.8rem; color: var(--dark, #212529); margin-bottom: 0.1rem; line-height: 1.3; }
-    .activity-subtitle { font-size: 0.7rem; color: var(--secondary, #6c757d); line-height: 1.3; }
-    .activity-subtitle small { font-size: 100%; }
-    .activity-time { display: block; margin-top: 0.2rem; }
-
-    /* Styles pour les conteneurs de graphiques dynamiques */
-    .dynamic-chart-container {
-        height: 280px; /* Hauteur fixe pour le canvas */
-        position: relative; /* Pour positionner le message "no data" */
-        margin-bottom: 1rem; /* Espace sous le graphique */
-    }
-    .dynamic-chart-container canvas {
-        max-width: 100%;
-        max-height: 100%;
-    }
-    .no-data-message-chart { /* Style pour le message si pas de données */
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-        color: var(--secondary);
-        font-size: 0.9rem;
-    }
-
-
-    /* Ajustements responsifs */
-    @media (max-width: 1200px) {
-        .session-table th, .session-table td { font-size: 0.75rem; padding: 0.35rem; }
-        .session-table th:nth-child(1), .session-table td:nth-child(1) { width: auto; min-width: 100px; }
-        .session-table th:nth-child(4), .session-table td:nth-child(4) { width: auto; min-width: 90px; }
-        .session-table th:nth-child(5), .session-table td:nth-child(5) { width: auto; min-width: 85px; }
-    }
-    @media (max-width: 992px) {
-        .col-xl-7.col-lg-6, .col-xl-5.col-lg-6 { flex: 0 0 100%; max-width: 100%;} /* Empiler les colonnes */
-        .dynamic-chart-container { min-height: 260px; }
-    }
-    @media (max-width: 768px) {
-        .stat-card .h5 { font-size: 1.3rem; }
-        .session-table .btn-sm { padding: 0.15rem 0.3rem; font-size: 0.65rem; }
-    }
-</style>
-{% endblock %}
+{% block title %}Tableau de bord - Formation Microsoft 365{% endblock %}
 
 {% block content %}
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-tachometer-alt me-2"></i>Tableau de bord</h1>
-    <div>
-        <button id="refresh-dashboard" class="btn btn-sm btn-primary">
-            <i class="fas fa-sync-alt me-1"></i>Actualiser
+<div class="container-fluid px-4">
+    <h1 class="mt-4 mb-4">
+        <i class="fas fa-tachometer-alt me-2"></i> Tableau de bord
+        <button class="btn btn-primary btn-sm btn-actualiser float-end">
+            <i class="fas fa-sync-alt"></i> Actualiser
         </button>
-    </div>
-</div>
+    </h1>
 
-<!-- Statistiques globales -->
-<div class="row mb-4">
-    <!-- Inscriptions confirmées -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow-sm h-100 py-2 stat-card">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col me-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Inscriptions Confirmées</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            <span id="total-inscriptions" class="counter-value">{{ total_inscriptions }}</span>
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <!-- Inscriptions confirmées -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Inscriptions confirmées
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.inscriptions_confirmees }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
                         </div>
                     </div>
-                    <div class="col-auto">
-                        <i class="fas fa-users fa-2x text-primary-light"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- En liste d'attente -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                En liste d'attente
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.en_attente }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions totales -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Sessions totales
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.sessions_totales }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions complètes -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Sessions complètes
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.sessions_completes }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-bookmark fa-2x text-gray-300"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Participants en liste d'attente -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow-sm h-100 py-2 stat-card">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col me-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            En Liste d'Attente</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            <span id="total-en-attente" class="counter-value">{{ total_en_attente }}</span>
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-clock fa-2x text-warning-light"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Nombre total de sessions -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-info shadow-sm h-100 py-2 stat-card">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col me-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Sessions Totales</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            <span id="total-sessions" class="counter-value">{{ sessions_data|length }}</span>
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-calendar-alt fa-2x text-info-light"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sessions complètes -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-danger shadow-sm h-100 py-2 stat-card">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col me-2">
-                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                            Sessions Complètes</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            <span id="total-sessions-completes" class="counter-value">{{ total_sessions_completes }}</span>
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-flag-checkered fa-2x text-danger-light"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Graphiques et statistiques détaillées -->
-<div class="row">
-    <!-- Colonne principale avec le tableau des sessions et validations -->
-    <div class="col-xl-7 col-lg-6 mb-4">
+    <!-- Sessions à venir et Graphiques -->
+    <div class="row">
         <!-- Sessions à venir -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-calendar-day me-2"></i>Sessions à venir
-                </h6>
-                <div class="btn-group btn-group-sm">
-                    <a href="{{ url_for('sessions') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-calendar-alt me-1"></i>Toutes les sessions
+        <div class="col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-calendar me-2"></i> Sessions à venir
+                    </h6>
+                    <a href="{{ url_for('sessions') }}" class="btn btn-sm btn-outline-primary">
+                        Toutes les sessions
                     </a>
                 </div>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover session-table mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Date / Horaire</th>
-                                <th>Thème</th>
-                                <th>Places</th>
-                                <th>Salle</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if sessions_data %}
-                                {% for session_item in sessions_data %} {# Renommé pour éviter conflit avec session Flask #}
-                                {% set session_obj = session_item.obj %}
-                                <tr class="session-row" data-session-id="{{ session_obj.id }}" data-theme="{{ session_obj.theme.nom }}" data-full="{{ '1' if session_item.places_restantes <= 0 else '0' }}">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date / Horaire</th>
+                                    <th>Thème</th>
+                                    <th>Places</th>
+                                    <th>Salle</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in sessions_a_venir %}
+                                <tr>
                                     <td>
-                                        <span class="fw-bold d-block">{{ session_obj.formatage_date }}</span>
-                                        <small class="text-secondary">{{ session_obj.formatage_horaire }}</small>
+                                        <strong>{{ session.date_debut.strftime('%d/%m/%Y') }}</strong><br>
+                                        <small>{{ session.heure_debut.strftime('%H:%M') }}-{{ session.heure_fin.strftime('%H:%M') }}</small>
                                     </td>
-                                    <td class="theme-cell">
-                                        <span class="theme-badge" data-theme="{{ session_obj.theme.nom }}">
-                                            {{ session_obj.theme.nom }}
+                                    <td>
+                                        {% if session.theme.couleur %}
+                                        <span class="badge" style="background-color: {{ session.theme.couleur }};">
+                                            {{ session.theme.nom }}
                                         </span>
-                                    </td>
-                                    <td class="places-dispo text-nowrap {{ 'text-danger' if session_item.places_restantes <= 0 else ('text-warning' if session_item.places_restantes <= 3 else 'text-success') }}">
-                                        <i class="fas {{ 'fa-times-circle' if session_item.places_restantes <= 0 else ('fa-exclamation-triangle' if session_item.places_restantes <= 3 else 'fa-check-circle') }} me-1"></i> {{ session_item.places_restantes }} / {{ session_obj.max_participants }}
-                                    </td>
-                                    <td class="js-salle-cell">
-                                        {% if session_obj.salle %}
-                                            {{ session_obj.salle.nom }}
                                         {% else %}
-                                            <span class="badge bg-secondary">Non définie</span>
+                                        {{ session.theme.nom }}
                                         {% endif %}
                                     </td>
-                                    <td class="text-nowrap text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#participantsModal_{{ session_obj.id }}" title="Voir les participants">
-                                            <i class="fas fa-users"></i> <span class="badge bg-secondary ms-1">{{ session_item.inscrits_confirmes_count }}</span>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal_{{ session_obj.id }}" title="Inscrire un participant">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
+                                    <td>
+                                        <span class="badge {% if session.places_restantes == 0 %}bg-danger{% elif session.places_restantes <= 3 %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ session.places_occupees }} / {{ session.capacite }}
+                                        </span>
+                                    </td>
+                                    <td>{{ session.salle.nom }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('session_detail', id=session.id) }}" class="btn btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if current_user.is_admin %}
+                                            <a href="{{ url_for('session_edit', id=session.id) }}" class="btn btn-outline-secondary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">
+                                        <div class="alert alert-info mb-0">
+                                            Aucune session à venir
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
-                            {% else %}
-                                <tr>
-                                    <td colspan="5" class="text-center p-3 text-muted">
-                                        <i class="fas fa-info-circle me-2"></i>Aucune session n'est disponible.
-                                    </td>
-                                </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Validations en attente -->
-        {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') and pending_validations|length > 0 %}
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-clipboard-check me-2"></i>Validations en attente
-                </h6>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Participant</th>
-                                <th>Session</th>
-                                <th>Date d'inscription</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for inscription in pending_validations %}
-                            <tr>
-                                <td>
-                                    {{ inscription.participant.prenom }} {{ inscription.participant.nom }}
-                                    <span class="badge" style="background-color: {{ inscription.participant.service.couleur }};">{{ inscription.participant.service.nom }}</span>
-                                </td>
-                                <td>
-                                    <span class="theme-badge" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span>
-                                    <small class="d-block text-muted">{{ inscription.session.formatage_date }} à {{ inscription.session.formatage_horaire }}</small>
-                                </td>
-                                <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        {# Utilisation de la route AJAX pour validation/refus #}
-                                        <button type="button" class="btn btn-success validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="valider" {{ 'disabled' if inscription.session.get_places_restantes() <= 0 else '' }}>
-                                            <i class="fas fa-check me-1"></i>Valider
-                                        </button>
-                                        <button type="button" class="btn btn-danger validation-ajax ms-1" data-inscription-id="{{ inscription.id }}" data-action="refuser">
-                                            <i class="fas fa-times me-1"></i>Refuser
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Colonne secondaire avec les graphiques et activités -->
-    <div class="col-xl-5 col-lg-6 mb-4">
-        <!-- Graphique distribution par thème (Dynamique) -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-chart-pie me-2"></i>Répartition des inscriptions par Thème
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="dynamic-chart-container">
-                    <canvas id="themeDistributionChart"></canvas>
-                </div>
-                <div id="themeChartLegend" class="static-chart-legend mt-2">
-                    {# Légende générée par JS #}
-                </div>
-            </div>
-        </div>
-
-        <!-- Graphique distribution par service (Dynamique) -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-chart-bar me-2"></i>Distribution des participants par Service
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="dynamic-chart-container">
-                    <canvas id="serviceDistributionChart"></canvas>
-                </div>
-                 <div id="serviceChartLegend" class="static-chart-legend mt-2">
-                    {# Légende générée par JS si besoin #}
-                </div>
-            </div>
-        </div>
-
-        <!-- Activités récentes -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-history me-2"></i>Activités récentes
-                </h6>
-                <a href="{{ url_for('activites_journal') }}" class="btn btn-sm btn-outline-secondary">Voir toute l'activité</a>
-            </div>
-            <div class="card-body p-0">
-                <div class="activity-container list-group list-group-flush" id="recent-activity">
-                    <div class="loading-spinner py-5 text-center">
-                        <div class="spinner-border text-primary spinner-border-sm" role="status">
-                            <span class="visually-hidden">Chargement...</span>
-                        </div>
-                        <p class="small mt-2">Chargement des activités...</p>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Graphiques -->
+        <div class="col-lg-5">
+            <!-- Répartition par thème -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-pie me-2"></i> Répartition des inscriptions par Thème
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="theme-chart-container">
+                        <!-- Le graphique sera chargé ici par JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distribution par service -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-bar me-2"></i> Distribution des participants par Service
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="service-chart-container">
+                        <!-- Le graphique sera chargé ici par JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activités récentes -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-history me-2"></i> Activités récentes
+            </h6>
+            <a href="{{ url_for('activites') }}" class="btn btn-sm btn-outline-primary">
+                Voir toute l'activité
+            </a>
+        </div>
+        <div class="card-body">
+            <div id="activities-container">
+                <!-- Les activités seront chargées ici par JS -->
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block modals %}
-<!-- Modales pour chaque session (Inscription, Participants, Attribuer Salle) -->
-{% for session_item_dict in sessions_data %} {# Renommé pour éviter conflit #}
-    {% set session_obj_for_modal = session_item_dict.obj %}
-    {% set session_data_for_modal = session_item_dict %}
-
-    {# Passer session_obj_for_modal comme 'session' aux sous-templates #}
-    {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
-        {% include 'modals/_inscription_modal.html' %}
-    {% endwith %}
-
-    {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
-        {% include 'modals/_participants_modal.html' %}
-    {% endwith %}
-
-    {% if current_user.is_authenticated and current_user.role == 'admin' %}
-         {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
-             {% include 'modals/_attribuer_salle_modal.html' %}
-         {% endwith %}
-    {% endif %}
-{% endfor %}
-
-<!-- Modal Ajouter nouveau participant (Globale, appelée depuis modales d'inscription) -->
-<div class="modal fade" id="nouveauParticipantModal" tabindex="-1" aria-labelledby="nouveauParticipantModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="nouveauParticipantModalLabel">
-                    <i class="fas fa-user-plus me-2"></i>Ajouter un nouveau participant
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="new_participant_form_global" action="{{ url_for('add_participant') }}" method="post">
-                    <input type="hidden" name="from_page" value="dashboard"> {# Ou la page actuelle #}
-                    <input type="hidden" name="redirect_session_id" id="redirect_session_id_global" value="">
-                    <input type="hidden" name="action_after_add" value="inscription">
-                    <input type="hidden" name="from_modal" value="true">
-
-                    <div class="mb-3">
-                        <label for="nom_global" class="form-label">Nom<span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="nom_global" name="nom" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="prenom_global" class="form-label">Prénom<span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="prenom_global" name="prenom" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="email_global" class="form-label">Email<span class="text-danger">*</span></label>
-                        <input type="email" class="form-control" id="email_global" name="email" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="service_id_global_select" class="form-label">Service<span class="text-danger">*</span></label>
-                        <select class="form-select" id="service_id_global_select" name="service_id" required>
-                            <option value="">-- Sélectionner un service --</option>
-                            {# 'services' doit être passé au template dashboard par la route Python #}
-                            {% for service_item_loop in services %} {# Renommé pour éviter conflit #}
-                            <option value="{{ service_item_loop.id }}">{{ service_item_loop.nom }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="submit" form="new_participant_form_global" class="btn btn-primary">Ajouter et inscrire</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts_extra %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Gérer la propagation de la session ID au modal de nouveau participant global
-        const nouveauParticipantModalGlobal = document.getElementById('nouveauParticipantModal');
-        if (nouveauParticipantModalGlobal) {
-            nouveauParticipantModalGlobal.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget;
-                // Utiliser un nom d'attribut clair pour éviter les conflits
-                const sessionIdForNewParticipant = button.getAttribute('data-session-id-for-new-participant');
-                const redirectSessionIdInput = document.getElementById('redirect_session_id_global');
-
-                if (redirectSessionIdInput && sessionIdForNewParticipant) {
-                    redirectSessionIdInput.value = sessionIdForNewParticipant;
-                } else if (redirectSessionIdInput) {
-                    redirectSessionIdInput.value = ''; // Vider si pas de session ID
-                }
-            });
-        }
-
-        // Initialiser les badges thème sur cette page
-        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-            window.enhanceThemeBadgesGlobally();
-        }
-        // Initialiser les tooltips
-        if (typeof window.initializeGlobalTooltips === 'function') {
-            window.initializeGlobalTooltips();
-        }
-    });
-</script>
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js" integrity="sha512-ElRFoEQdI5Ht6kZvyzXhyzg6AgOZVOJOFSWOQ8ALkGawisy/uTbGX2nNaIAdmXTvS1CoQekqrB1cSzcG00MFxA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{{ url_for('static', filename='js/dashboard-core.js') }}"></script>
 {% endblock %}
