@@ -17,12 +17,16 @@
     #viewParticipantModal .modal-tabs-content.is-loading .tab-pane {
         display: none; /* Cacher le contenu pendant le chargement */
     }
-     #viewParticipantModal .modal-tabs-content.is-loading + .modal-loading-spinner {
-        display: block; /* Afficher le spinner */
+     #viewParticipantModal .modal-tabs-content.is-loading ~ .modal-loading-spinner { /* Correction sélecteur */
+        display: flex; /* Afficher le spinner (utiliser flex pour centrer) */
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     /* Style pour les tables dans la modale */
     #viewParticipantModal .table thead th { font-size: 0.75rem; }
     #viewParticipantModal .table tbody td { font-size: 0.8rem; }
+    #participants-table th, #participants-table td { vertical-align: middle; }
 </style>
 {% endblock %}
 
@@ -31,13 +35,16 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mb-0"><i class="fas fa-users me-2"></i>Gestion des Participants</h1>
     {# Bouton Ajouter Participant Global (utilise la modale globale) #}
+    {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">
         <i class="fas fa-user-plus me-2"></i>Ajouter un Participant
     </button>
+    {% endif %}
 </div>
 
 
 <!-- Add Participant Modal (Global) -->
+{% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
 <div class="modal fade" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -47,7 +54,7 @@
             </div>
             <div class="modal-body">
                  <form action="{{ url_for('add_participant') }}" method="post">
-                    <input type="hidden" name="from_page" value="participants_page"> {# CORRECTION: Utiliser le nom de la fonction route #}
+                    <input type="hidden" name="from_page" value="participants_page"> {# Utiliser le nom de la fonction route #}
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label for="add_nom_global" class="form-label">Nom*</label>
@@ -82,6 +89,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 
 <!-- Tableau des participants -->
@@ -148,84 +156,30 @@
                                 </button>
                                 {# Bouton Modifier - Utilise sa propre modale (définie ci-dessous) #}
                                 {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
-                                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editParticipantModal{{ participant.id }}" title="Modifier">
+                                <button type="button" class="btn btn-outline-secondary btn-edit-participant" {# Ajout classe pour JS #}
+                                        data-bs-toggle="modal" data-bs-target="#editParticipantModal" {# Cible la modale unique #}
+                                        data-participant-id="{{ participant.id }}"
+                                        data-participant-nom="{{ participant.nom }}"
+                                        data-participant-prenom="{{ participant.prenom }}"
+                                        data-participant-email="{{ participant.email }}"
+                                        data-service-id="{{ participant.service_id }}"
+                                        title="Modifier">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 {% endif %}
                                 {# Bouton Supprimer - Utilise sa propre modale (définie ci-dessous) #}
                                  {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                 <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteParticipantModal{{ participant.id }}" title="Supprimer">
+                                 <button type="button" class="btn btn-outline-danger btn-delete-participant" {# Ajout classe pour JS #}
+                                         data-bs-toggle="modal" data-bs-target="#deleteParticipantModal" {# Cible la modale unique #}
+                                         data-participant-id="{{ participant.id }}"
+                                         data-participant-nom="{{ participant.nom }}"
+                                         data-participant-prenom="{{ participant.prenom }}"
+                                         title="Supprimer">
                                      <i class="fas fa-trash"></i>
                                  </button>
                                  {% endif %}
                             </div>
-
-                            <!-- Modales Modifier et Supprimer (restent spécifiques à chaque participant) -->
-                            <!-- Modal Modifier Participant -->
-                            {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
-                            <div class="modal fade" id="editParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="editParticipantModalLabel{{ participant.id }}" aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" id="editParticipantModalLabel{{ participant.id }}">Modifier - {{ participant.prenom }} {{ participant.nom }}</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <form action="{{ url_for('update_participant', id=participant.id) }}" method="post">
-                                                 <div class="row g-3 mb-3">
-                                                    <div class="col-md-6">
-                                                        <label for="edit_nom_{{ participant.id }}" class="form-label">Nom*</label>
-                                                        <input type="text" class="form-control" id="edit_nom_{{ participant.id }}" name="nom" value="{{ participant.nom }}" required>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label for="edit_prenom_{{ participant.id }}" class="form-label">Prénom*</label>
-                                                        <input type="text" class="form-control" id="edit_prenom_{{ participant.id }}" name="prenom" value="{{ participant.prenom }}" required>
-                                                    </div>
-                                                     <div class="col-md-6">
-                                                        <label for="edit_email_{{ participant.id }}" class="form-label">Email*</label>
-                                                        <input type="email" class="form-control" id="edit_email_{{ participant.id }}" name="email" value="{{ participant.email }}" required>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label for="edit_service_id_{{ participant.id }}" class="form-label">Service*</label>
-                                                        <select class="form-select" id="edit_service_id_{{ participant.id }}" name="service_id" required>
-                                                            {% for service_item in services|sort(attribute='nom') %} {# Utiliser la variable 'services' passée globalement #}
-                                                            <option value="{{ service_item.id }}" {% if service_item.id == participant.service_id %}selected{% endif %}>{{ service_item.nom }}</option>
-                                                            {% endfor %}
-                                                        </select>
-                                                    </div>
-                                                 </div>
-                                                <div class="d-grid">
-                                                    <button type="submit" class="btn btn-primary">Enregistrer</button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                             {% endif %}
-                             <!-- Modal Delete Participant -->
-                             {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                              <div class="modal fade" id="deleteParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="deleteParticipantModalLabel{{ participant.id }}" aria-hidden="true">
-                                 <div class="modal-dialog">
-                                     <div class="modal-content">
-                                         <div class="modal-header">
-                                             <h5 class="modal-title" id="deleteParticipantModalLabel{{ participant.id }}">Confirmer Suppression</h5>
-                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                         </div>
-                                         <div class="modal-body">
-                                             Êtes-vous sûr de vouloir supprimer {{ participant.prenom }} {{ participant.nom }} ? Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées. Cette action est irréversible.
-                                         </div>
-                                         <div class="modal-footer">
-                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                             <form action="{{ url_for('delete_participant', id=participant.id) }}" method="post" class="d-inline">
-                                                 <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
-                                             </form>
-                                         </div>
-                                     </div>
-                                 </div>
-                              </div>
-                             {% endif %}
-
+                            {# Les modales Modifier/Supprimer sont maintenant définies une seule fois en dehors de la boucle #}
                         </td>
                     </tr>
                      {% else %}
@@ -348,26 +302,103 @@
     </div>
 </div>
 <!-- ====================================================== -->
-<!-- == FIN MODALE UNIQUE POUR VOIR LES DÉTAILS PARTICIPANT == -->
+<!-- == FIN MODALE UNIQUE VOIR LES DÉTAILS PARTICIPANT == -->
+<!-- ====================================================== -->
+
+
+<!-- ====================================================== -->
+<!-- == MODALES UNIQUES MODIFIER/SUPPRIMER PARTICIPANT   == -->
+<!-- ====================================================== -->
+{% if current_user.is_authenticated %} {# Condition générale pour les modales d'action #}
+<!-- Modal Modifier Participant (Unique) -->
+<div class="modal fade" id="editParticipantModal" tabindex="-1" aria-labelledby="editParticipantModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editParticipantModalLabel">Modifier Participant</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="" method="post" id="editParticipantForm"> {# Action définie par JS #}
+                     <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_nom" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="edit_nom" name="nom" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_prenom" class="form-label">Prénom*</label>
+                            <input type="text" class="form-control" id="edit_prenom" name="prenom" required>
+                        </div>
+                         <div class="col-md-6">
+                            <label for="edit_email" class="form-label">Email*</label>
+                            <input type="email" class="form-control" id="edit_email" name="email" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_service_id" class="form-label">Service*</label>
+                            <select class="form-select" id="edit_service_id" name="service_id" required>
+                                {# Options chargées par JS ou statiques si liste complète dispo #}
+                                <option value="" disabled>-- Charger Services --</option>
+                                {% for service_item in services|sort(attribute='nom') %}
+                                <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                     </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Supprimer Participant (Unique) -->
+<div class="modal fade" id="deleteParticipantModal" tabindex="-1" aria-labelledby="deleteParticipantModalLabel" aria-hidden="true">
+     <div class="modal-dialog">
+         <div class="modal-content">
+             <div class="modal-header">
+                 <h5 class="modal-title" id="deleteParticipantModalLabel">Confirmer Suppression</h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+             </div>
+             <div class="modal-body">
+                 <span id="deleteParticipantText">Êtes-vous sûr de vouloir supprimer ce participant ? Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées. Cette action est irréversible.</span>
+             </div>
+             <div class="modal-footer">
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                 <form action="" method="post" id="deleteParticipantForm" class="d-inline">
+                     <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
+                 </form>
+             </div>
+         </div>
+     </div>
+ </div>
+{% endif %}
+<!-- ====================================================== -->
+<!-- == FIN MODALES UNIQUES MODIFIER/SUPPRIMER PARTICIPANT == -->
 <!-- ====================================================== -->
 
 
 {% endblock %}
 
 {% block scripts_extra %}
-{# Remplacer le bloc scripts par scripts_extra pour ajouter au lieu de remplacer #}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-            console.log('Participants JS loaded');
+            console.log('Participants JS loaded and refactored');
         }
 
         const searchInput = document.getElementById('searchParticipant');
         const participantsTableBody = document.getElementById('participants-table')?.querySelector('tbody');
         const viewParticipantModalElement = document.getElementById('viewParticipantModal');
         const viewParticipantModal = viewParticipantModalElement ? new bootstrap.Modal(viewParticipantModalElement) : null;
+        const editParticipantModalElement = document.getElementById('editParticipantModal');
+        const editParticipantModal = editParticipantModalElement ? new bootstrap.Modal(editParticipantModalElement) : null;
+        const deleteParticipantModalElement = document.getElementById('deleteParticipantModal');
+        const deleteParticipantModal = deleteParticipantModalElement ? new bootstrap.Modal(deleteParticipantModalElement) : null;
 
-        // --- Filtre de recherche ---
+
+        // --- Filtre de recherche (inchangé) ---
         function filterParticipants() {
              if (!searchInput || !participantsTableBody) return;
             const searchValue = searchInput.value.toLowerCase().trim();
@@ -384,13 +415,12 @@
                 row.style.display = isVisible ? '' : 'none';
                 if (isVisible) visibleCount++;
             });
-            // Afficher message si aucun résultat? (Optionnel)
         }
         if (searchInput) {
             searchInput.addEventListener('input', filterParticipants);
         }
 
-        // --- Gestion Modale Unique "Voir Participant" ---
+        // --- Gestion Modale Unique "Voir Participant" (avec fix fetch) ---
         const modalTitle = document.getElementById('viewParticipantModalLabel');
         const modalName = document.getElementById('modalParticipantName');
         const modalEmail = document.getElementById('modalParticipantEmail');
@@ -413,6 +443,7 @@
             const viewButton = event.target.closest('.btn-view-participant');
             if (!viewButton || !viewParticipantModal) return;
 
+            // --- Récupération des données depuis data-* ---
             const participantId = viewButton.dataset.participantId;
             const prenom = viewButton.dataset.participantPrenom;
             const nom = viewButton.dataset.participantNom;
@@ -425,7 +456,7 @@
             const countPending = viewButton.dataset.countPending;
             const countWaitlist = viewButton.dataset.countWaitlist;
 
-            // 1. Mettre à jour les infos statiques de la modale
+            // --- Mise à jour des infos statiques ---
             if(modalName) modalName.textContent = `${prenom} ${nom}`;
             if(modalEmail) modalEmail.textContent = email;
             if(modalServiceBadge) {
@@ -441,7 +472,7 @@
             if(modalCountPending) modalCountPending.textContent = countPending;
             if(modalCountWaitlist) modalCountWaitlist.textContent = countWaitlist;
 
-            // 2. Afficher le spinner et cacher le contenu
+            // --- Préparation pour l'appel API ---
             if(modalDetailsContent) modalDetailsContent.classList.add('is-loading');
             if(confirmedTbody) confirmedTbody.innerHTML = '';
             if(pendingTbody) pendingTbody.innerHTML = '';
@@ -450,36 +481,49 @@
             if(noPendingMsg) noPendingMsg.style.display = 'none';
             if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
 
-            // 3. Faire l'appel API pour les détails
+            // --- Appel API avec gestion d'erreur améliorée ---
             fetch(`/api/participant/${participantId}/details`)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`Erreur ${response.status} lors de la récupération des détails.`);
+                        if (response.status === 401 || response.status === 403) {
+                             throw new Error(`Accès non autorisé (${response.status}). Veuillez vous reconnecter.`);
+                        }
+                        throw new Error(`Erreur serveur (${response.status}) lors de la récupération des détails.`);
+                    }
+                    const contentType = response.headers.get("content-type");
+                    if (!contentType || !contentType.includes("application/json")) {
+                         throw new TypeError("Réponse inattendue du serveur (pas JSON). Session expirée?");
                     }
                     return response.json();
                 })
                 .then(data => {
-                    // 4. Peupler les tableaux avec les données reçues
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
                     populateModalTable(confirmedTbody, data.confirmed, 'confirmed', noConfirmedMsg);
                     populateModalTable(pendingTbody, data.pending, 'pending', noPendingMsg);
                     populateModalTable(waitlistTbody, data.waitlist, 'waitlist', noWaitlistMsg);
                 })
                 .catch(error => {
                     console.error("Erreur lors du chargement des détails du participant:", error);
-                    if(confirmedTbody) confirmedTbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erreur de chargement des inscriptions.</td></tr>`;
-                    if(pendingTbody) pendingTbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Erreur de chargement.</td></tr>`;
-                    if(waitlistTbody) waitlistTbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erreur de chargement.</td></tr>`;
+                    const errorHtml = `<tr><td colspan="5" class="text-center text-danger p-3"><i class="fas fa-exclamation-triangle me-2"></i> ${error.message || 'Erreur de chargement.'}</td></tr>`;
+                    if(confirmedTbody) confirmedTbody.innerHTML = errorHtml;
+                    if(pendingTbody) pendingTbody.innerHTML = errorHtml.replace('colspan="5"', 'colspan="4"');
+                    if(waitlistTbody) waitlistTbody.innerHTML = errorHtml;
+                    if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
+                    if(noPendingMsg) noPendingMsg.style.display = 'none';
+                    if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
                     if (typeof showToast === 'function') showToast(error.message || 'Impossible de charger les détails.', 'danger');
                 })
                 .finally(() => {
-                    // 5. Cacher le spinner et afficher le contenu
                     if(modalDetailsContent) modalDetailsContent.classList.remove('is-loading');
                 });
         });
 
-        // Fonction pour peupler les tableaux dans la modale
+        // --- Fonction populateModalTable (inchangée) ---
         function populateModalTable(tbody, items, type, noDataElement) {
-            if (!tbody || !noDataElement) return;
+           // ... (code de la fonction populateModalTable reste identique) ...
+             if (!tbody || !noDataElement) return;
             tbody.innerHTML = ''; // Vider d'abord
 
             if (!items || items.length === 0) {
@@ -539,20 +583,72 @@
             }
         }
 
-        // Fonctions helper pour vérifier les permissions (simplifié, adapter si besoin)
+        // --- Fonctions canAdminValidate/canAdminCancel (inchangées) ---
         function canAdminValidate() {
-            // Vérifier si l'utilisateur actuel (via une variable JS globale ou data attribute) a le rôle admin/responsable
-            // Exemple simple:
-            return {{ current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') | tojson }};
+             return {{ current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') | tojson }};
         }
         function canAdminCancel() {
              return {{ current_user.is_authenticated and current_user.role == 'admin' | tojson }};
         }
 
-        // Appliquer les styles de badge thème au chargement initial de la page
+        // --- Initialisation des badges (inchangée) ---
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
             window.enhanceThemeBadgesGlobally();
         }
+
+        // --- Gestion Modales Uniques Modifier/Supprimer Participant ---
+        if (editParticipantModal) {
+            const form = editParticipantModalElement.querySelector('#editParticipantForm');
+            const title = editParticipantModalElement.querySelector('#editParticipantModalLabel');
+            const nomInput = editParticipantModalElement.querySelector('#edit_nom');
+            const prenomInput = editParticipantModalElement.querySelector('#edit_prenom');
+            const emailInput = editParticipantModalElement.querySelector('#edit_email');
+            const serviceSelect = editParticipantModalElement.querySelector('#edit_service_id');
+
+            document.getElementById('participants-table')?.addEventListener('click', function(event) {
+                const editButton = event.target.closest('.btn-edit-participant');
+                if (!editButton) return;
+
+                const participantId = editButton.dataset.participantId;
+                const nom = editButton.dataset.participantNom;
+                const prenom = editButton.dataset.participantPrenom;
+                const email = editButton.dataset.participantEmail;
+                const serviceId = editButton.dataset.serviceId;
+
+                // Mettre à jour le formulaire
+                if(form) form.action = `/participant/update/${participantId}`;
+                if(title) title.textContent = `Modifier - ${prenom} ${nom}`;
+                if(nomInput) nomInput.value = nom;
+                if(prenomInput) prenomInput.value = prenom;
+                if(emailInput) emailInput.value = email;
+                if(serviceSelect) serviceSelect.value = serviceId;
+
+                // editParticipantModal.show(); // Déjà géré par data-bs-toggle
+            });
+        }
+
+        if (deleteParticipantModal) {
+            const form = deleteParticipantModalElement.querySelector('#deleteParticipantForm');
+            const title = deleteParticipantModalElement.querySelector('#deleteParticipantModalLabel');
+            const bodyTextSpan = deleteParticipantModalElement.querySelector('#deleteParticipantText'); // Utiliser le span
+
+             document.getElementById('participants-table')?.addEventListener('click', function(event) {
+                const deleteButton = event.target.closest('.btn-delete-participant');
+                if (!deleteButton) return;
+
+                const participantId = deleteButton.dataset.participantId;
+                const nom = deleteButton.dataset.participantNom;
+                const prenom = deleteButton.dataset.participantPrenom;
+
+                // Mettre à jour le formulaire et le texte
+                if(form) form.action = `/participant/delete/${participantId}`;
+                if(title) title.textContent = `Confirmer Suppression`;
+                if(bodyTextSpan) bodyTextSpan.innerHTML = `Êtes-vous sûr de vouloir supprimer <strong>${prenom} ${nom}</strong> ? Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées. Cette action est irréversible.`;
+
+                // deleteParticipantModal.show(); // Déjà géré par data-bs-toggle
+            });
+        }
+
     });
 </script>
 {% endblock %}
