@@ -1673,6 +1673,85 @@ def delete_document(doc_id):
     except Exception as e: db.session.rollback(); flash("Erreur inattendue lors de la suppression.", "danger"); app.logger.error(f"Unexpected error during document delete (ID: {doc_id}): {e}", exc_info=True)
     return redirect(redirect_url)
 
+@app.route('/api/inscriptions-par-theme', methods=['GET'])
+def api_inscriptions_par_theme():
+    """
+    Endpoint API pour obtenir la répartition des inscriptions par thème
+    Utilisé par le graphique circulaire sur le dashboard
+    """
+    try:
+        # Vérifier si l'utilisateur est connecté
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Authentification requise'}), 401
+        
+        # Journalisation de l'accès
+        app.logger.info(f"Utilisateur '{current_user.username}' accède aux données d'inscriptions par thème")
+        
+        # Requête pour compter les inscriptions par thème
+        # Ajustez cette requête en fonction de votre structure de base de données
+        theme_stats = db.session.query(
+            Theme.nom.label('theme'),
+            func.count(Inscription.id).label('count')
+        ).join(
+            Session, Session.theme_id == Theme.id
+        ).join(
+            Inscription, Inscription.session_id == Session.id
+        ).group_by(
+            Theme.nom
+        ).all()
+        
+        # Formatage des résultats
+        result = [{'theme': stat.theme, 'count': stat.count} for stat in theme_stats]
+        
+        # Journaliser le résultat
+        app.logger.debug(f"Données d'inscriptions par thème: {len(result)} thèmes trouvés")
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        # Journaliser l'erreur
+        app.logger.error(f"Erreur lors de la récupération des inscriptions par thème: {str(e)}")
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+
+
+@app.route('/api/participants-par-service', methods=['GET'])
+def api_participants_par_service():
+    """
+    Endpoint API pour obtenir la distribution des participants par service
+    Utilisé par le graphique à barres sur le dashboard
+    """
+    try:
+        # Vérifier si l'utilisateur est connecté
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Authentification requise'}), 401
+        
+        # Journalisation de l'accès
+        app.logger.info(f"Utilisateur '{current_user.username}' accède aux données de participants par service")
+        
+        # Requête pour compter les participants par service
+        # Ajustez cette requête en fonction de votre structure de base de données
+        service_stats = db.session.query(
+            Service.nom.label('service'),
+            func.count(User.id).label('count')
+        ).join(
+            User, User.service_id == Service.id
+        ).group_by(
+            Service.nom
+        ).all()
+        
+        # Formatage des résultats
+        result = [{'service': stat.service, 'count': stat.count} for stat in service_stats]
+        
+        # Journaliser le résultat
+        app.logger.debug(f"Données de participants par service: {len(result)} services trouvés")
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        # Journaliser l'erreur
+        app.logger.error(f"Erreur lors de la récupération des participants par service: {str(e)}")
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+
 # --- API Routes ---
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
@@ -2307,6 +2386,269 @@ def themes_page():
 # Make sure to add necessary imports if not present (func, selectinload)
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
+
+@app.route('/api/activites-recentes', methods=['GET'])
+def api_activites_recentes():
+    """
+    Endpoint API pour obtenir les activités récentes
+    Utilisé par la section des activités récentes sur le dashboard
+    """
+    try:
+        # Vérifier si l'utilisateur est connecté
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Authentification requise'}), 401
+        
+        # Journalisation de l'accès
+        app.logger.info(f"Utilisateur '{current_user.username}' accède aux activités récentes")
+        
+        # Récupérer les 10 dernières activités
+        # Ajustez cette requête en fonction de votre structure de base de données
+        recent_activities = Activite.query.order_by(
+            Activite.timestamp.desc()
+        ).limit(10).all()
+        
+        # Formatage des résultats
+        result = []
+        for activity in recent_activities:
+            result.append({
+                'id': activity.id,
+                'user': activity.user_name,
+                'action': activity.description,
+                'entity': activity.entity_type,
+                'entity_id': activity.entity_id,
+                'timestamp': activity.timestamp.isoformat()
+            })
+        
+        # Journaliser le résultat
+        app.logger.debug(f"Données d'activités récentes: {len(result)} activités trouvées")
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        # Journaliser l'erreur
+        app.logger.error(f"Erreur lors de la récupération des activités récentes: {str(e)}")
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+
+
+@app.route('/api/sessions-a-venir', methods=['GET'])
+def api_sessions_a_venir():
+    """
+    Endpoint API pour obtenir les sessions à venir
+    Utilisé pour les widgets du dashboard et autres pages
+    """
+    try:
+        # Vérifier si l'utilisateur est connecté
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Authentification requise'}), 401
+        
+        # Journalisation de l'accès
+        app.logger.info(f"Utilisateur '{current_user.username}' accède aux sessions à venir via API")
+        
+        # Date du jour
+        today = datetime.date.today()
+        
+        # Récupérer les sessions à venir
+        upcoming_sessions = Session.query.filter(
+            Session.date_debut >= today
+        ).order_by(
+            Session.date_debut.asc(), 
+            Session.heure_debut.asc()
+        ).limit(5).all()
+        
+        # Formatage des résultats
+        result = []
+        for session in upcoming_sessions:
+            # Calculer les places restantes
+            places_occupees = db.session.query(func.count(Inscription.id)).filter(
+                Inscription.session_id == session.id,
+                Inscription.statut == 'confirmé'
+            ).scalar() or 0
+            
+            # Ajouter les informations de la session
+            result.append({
+                'id': session.id,
+                'theme': session.theme.nom if session.theme else 'Non défini',
+                'theme_couleur': session.theme.couleur if session.theme and session.theme.couleur else '#4e73df',
+                'date_debut': session.date_debut.strftime('%Y-%m-%d'),
+                'heure_debut': session.heure_debut.strftime('%H:%M') if session.heure_debut else '00:00',
+                'heure_fin': session.heure_fin.strftime('%H:%M') if session.heure_fin else '00:00',
+                'salle': session.salle.nom if session.salle else 'Non définie',
+                'capacite': session.capacite,
+                'places_occupees': places_occupees,
+                'places_restantes': session.capacite - places_occupees,
+                'complet': places_occupees >= session.capacite
+            })
+        
+        # Journaliser le résultat
+        app.logger.debug(f"Données de sessions à venir: {len(result)} sessions trouvées")
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        # Journaliser l'erreur
+        app.logger.error(f"Erreur lors de la récupération des sessions à venir: {str(e)}")
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+
+@app.route('/api/dashboard-stats', methods=['GET'])
+def api_dashboard_stats():
+    """
+    Endpoint API pour obtenir les statistiques globales du dashboard
+    Utilisé pour les widgets de statistiques
+    """
+    try:
+        # Vérifier si l'utilisateur est connecté
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Authentification requise'}), 401
+        
+        # Journalisation de l'accès
+        app.logger.info(f"Utilisateur '{current_user.username}' accède aux statistiques du dashboard via API")
+        
+        # Date du jour
+        today = datetime.date.today()
+        
+        # Calcul des statistiques
+        # 1. Inscriptions confirmées
+        inscriptions_confirmees = db.session.query(func.count(Inscription.id)).filter(
+            Inscription.statut == 'confirmé'
+        ).scalar() or 0
+        
+        # 2. En liste d'attente
+        en_attente = db.session.query(func.count(Inscription.id)).filter(
+            Inscription.statut == 'en_attente'
+        ).scalar() or 0
+        
+        # 3. Sessions totales
+        sessions_totales = Session.query.count()
+        
+        # 4. Sessions complètes
+        sessions_completes = 0
+        for session in Session.query.all():
+            inscrits = db.session.query(func.count(Inscription.id)).filter(
+                Inscription.session_id == session.id,
+                Inscription.statut == 'confirmé'
+            ).scalar() or 0
+            
+            if inscrits >= session.capacite:
+                sessions_completes += 1
+        
+        # 5. Participants totaux
+        participants_totaux = User.query.filter(User.role == 'participant').count()
+        
+        # 6. Documents disponibles
+        documents_disponibles = Document.query.count() if hasattr(app, 'Document') else 0
+        
+        # Formatage des résultats
+        result = {
+            'inscriptions_confirmees': inscriptions_confirmees,
+            'en_attente': en_attente,
+            'sessions_totales': sessions_totales,
+            'sessions_completes': sessions_completes,
+            'participants_totaux': participants_totaux,
+            'documents_disponibles': documents_disponibles
+        }
+        
+        # Journaliser le résultat
+        app.logger.debug(f"Statistiques du dashboard récupérées avec succès")
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        # Journaliser l'erreur
+        app.logger.error(f"Erreur lors de la récupération des statistiques du dashboard: {str(e)}")
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+@app.route('/api/admin/stats', methods=['GET'])
+def api_admin_stats():
+    """
+    Endpoint API pour obtenir des statistiques avancées (admin uniquement)
+    """
+    try:
+        # Vérifier si l'utilisateur est connecté et admin
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Authentification requise'}), 401
+        
+        if not current_user.is_admin:
+            return jsonify({'error': 'Accès refusé'}), 403
+        
+        # Journalisation de l'accès
+        app.logger.info(f"Admin '{current_user.username}' accède aux statistiques avancées")
+        
+        # Date du jour
+        today = datetime.date.today()
+        
+        # Statistiques avancées
+        
+        # 1. Taux de remplissage des sessions
+        sessions = Session.query.all()
+        taux_remplissage = []
+        
+        for session in sessions:
+            inscrits = db.session.query(func.count(Inscription.id)).filter(
+                Inscription.session_id == session.id,
+                Inscription.statut == 'confirmé'
+            ).scalar() or 0
+            
+            taux = (inscrits / session.capacite * 100) if session.capacite > 0 else 0
+            
+            taux_remplissage.append({
+                'id': session.id,
+                'theme': session.theme.nom if session.theme else 'Non défini',
+                'date': session.date_debut.strftime('%d/%m/%Y'),
+                'inscrits': inscrits,
+                'capacite': session.capacite,
+                'taux': round(taux, 2)
+            })
+        
+        # 2. Participation par service
+        participation_service = db.session.query(
+            Service.nom.label('service'),
+            func.count(Inscription.id).label('inscriptions')
+        ).join(
+            User, User.service_id == Service.id
+        ).join(
+            Inscription, Inscription.user_id == User.id
+        ).group_by(
+            Service.nom
+        ).all()
+        
+        # 3. Nombre d'utilisateurs actifs (qui se sont connectés récemment)
+        il_y_a_un_mois = datetime.datetime.now() - datetime.timedelta(days=30)
+        utilisateurs_actifs = User.query.filter(
+            User.derniere_connexion >= il_y_a_un_mois
+        ).count()
+        
+        # 4. Sessions par mois
+        sessions_par_mois = db.session.query(
+            func.strftime('%Y-%m', Session.date_debut).label('mois'),
+            func.count(Session.id).label('count')
+        ).group_by(
+            'mois'
+        ).all()
+        
+        # Formatage du résultat
+        result = {
+            'taux_remplissage': taux_remplissage,
+            'participation_service': [
+                {'service': stat.service, 'inscriptions': stat.inscriptions} 
+                for stat in participation_service
+            ],
+            'utilisateurs': {
+                'total': User.query.count(),
+                'actifs': utilisateurs_actifs,
+                'inactifs': User.query.count() - utilisateurs_actifs
+            },
+            'sessions_par_mois': [
+                {'mois': stat.mois, 'count': stat.count} 
+                for stat in sessions_par_mois
+            ]
+        }
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        # Journaliser l'erreur
+        app.logger.error(f"Erreur lors de la récupération des statistiques admin: {str(e)}")
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+
 
 @app.route('/api/activites')
 @db_operation_with_retry(max_retries=2)
