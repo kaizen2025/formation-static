@@ -1839,303 +1839,111 @@ def delete_document(doc_id):
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
 def api_dashboard_essential():
-    cache_key = 'dashboard_essential_data_v3.2' # Nouvelle clé de cache
-    cached_data = cache.get(cache_key)
-    if cached_data and not app.debug:
-        app.logger.debug(f"API dashboard_essential: Using cached data (key: {cache_key})")
-        return jsonify(cached_data)
-
+    cache_key = 'dashboard_essential_data_v3.2'; cached_data = cache.get(cache_key)
+    if cached_data and not app.debug: app.logger.debug(f"API dashboard_essential: Using cached (key: {cache_key})"); return jsonify(cached_data)
     try:
         app.logger.debug("API dashboard_essential: Fetching fresh data from DB.")
-        sessions_q = Session.query.options(
-            selectinload(Session.theme),
-            selectinload(Session.salle),
-            selectinload(Session.inscriptions), 
-            selectinload(Session.liste_attente)
-        ).order_by(Session.date, Session.heure_debut).all()
-
+        sessions_q = Session.query.options(selectinload(Session.theme), selectinload(Session.salle), selectinload(Session.inscriptions), selectinload(Session.liste_attente)).order_by(Session.date, Session.heure_debut).all()
         sessions_data = []
         for s in sessions_q:
-            inscrits_count = sum(1 for insc in s.inscriptions if insc.statut == 'confirmé')
-            attente_count = len(s.liste_attente)
-            pending_validation_count = sum(1 for insc in s.inscriptions if insc.statut == 'en attente')
-            max_p = s.max_participants if s.max_participants is not None else 10
-            
-            sessions_data.append({
-                'id': s.id, 'date': s.formatage_date, 'horaire': s.formatage_horaire,
-                'theme': s.theme.nom if s.theme else 'N/A', 'theme_id': s.theme_id,
-                'places_restantes': max(0, max_p - inscrits_count), 'inscrits': inscrits_count,
-                'max_participants': max_p, 'liste_attente': attente_count,
-                'pending_validation_count': pending_validation_count,
-                'salle': s.salle.nom if s.salle else None, 'salle_id': s.salle_id
-            })
-
+            inscrits_count = sum(1 for insc in s.inscriptions if insc.statut == 'confirmé'); attente_count = len(s.liste_attente); pending_validation_count = sum(1 for insc in s.inscriptions if insc.statut == 'en attente'); max_p = s.max_participants if s.max_participants is not None else 10
+            sessions_data.append({'id': s.id, 'date': s.formatage_date, 'horaire': s.formatage_horaire, 'theme': s.theme.nom if s.theme else 'N/A', 'theme_id': s.theme_id, 'places_restantes': max(0, max_p - inscrits_count), 'inscrits': inscrits_count, 'max_participants': max_p, 'liste_attente': attente_count, 'pending_validation_count': pending_validation_count, 'salle': s.salle.nom if s.salle else None, 'salle_id': s.salle_id})
         participants_q = Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).all()
         participants_data = [{'id': p.id, 'nom': p.nom, 'prenom': p.prenom, 'email': p.email, 'service': p.service.nom if p.service else 'N/A', 'service_id': p.service_id, 'service_color': p.service.couleur if p.service and p.service.couleur else '#6c757d'} for p in participants_q]
-
         activites_q = get_recent_activities(limit=7)
         activites_data = [{'id': a.id, 'type': a.type, 'description': a.description, 'details': a.details, 'date_relative': a.date_relative, 'user': a.utilisateur.username if a.utilisateur else None} for a in activites_q]
-        
-        all_services_q = Service.query.order_by(Service.nom).all()
-        services_list_data = [{'id': srv.id, 'nom': srv.nom} for srv in all_services_q]
-
-        all_salles_q = Salle.query.order_by(Salle.nom).all()
-        salles_list_data = [{'id': sal.id, 'nom': sal.nom, 'capacite': sal.capacite} for sal in all_salles_q]
-        
-        response_data = {
-            'sessions': sessions_data, 'participants': participants_data, 'activites': activites_data,
-            'services': services_list_data, 'salles': salles_list_data,
-            'timestamp': datetime.now(UTC).timestamp(), 'status': 'ok'
-        }
-        
+        all_services_q = Service.query.order_by(Service.nom).all(); services_list_data = [{'id': srv.id, 'nom': srv.nom} for srv in all_services_q]
+        all_salles_q = Salle.query.order_by(Salle.nom).all(); salles_list_data = [{'id': sal.id, 'nom': sal.nom, 'capacite': sal.capacite} for sal in all_salles_q]
+        response_data = {'sessions': sessions_data, 'participants': participants_data, 'activites': activites_data, 'services': services_list_data, 'salles': salles_list_data, 'timestamp': datetime.now(UTC).timestamp(), 'status': 'ok'}
         if not app.debug: cache.set(cache_key, response_data, timeout=45)
         app.logger.debug(f"API dashboard_essential: Data fetched. Cached: {not app.debug} (key: {cache_key})")
         return jsonify(response_data)
+    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True); return jsonify({"error": "Database error", "message": str(e), "status": "error"}), 500
+    except Exception as e: app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True); return jsonify({"error": "Internal server error", "message": str(e), "status": "error"}), 500
 
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
-        return jsonify({"error": "Database error", "message": str(e), "status": "error"}), 500
-    except Exception as e:
-        app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error", "message": str(e), "status": "error"}), 500
-
+# API /api/session/<id>/participants_details (COMPLÈTE ET CORRIGÉE)
 @app.route('/api/session/<int:session_id>/participants_details')
 @login_required
 @db_operation_with_retry(max_retries=2)
 def api_session_participants_details(session_id):
     try:
-        session = db.session.get(Session, session_id)
+        session = db.session.get(Session, session_id);
         if not session: return jsonify({"error": "Session non trouvée"}), 404
-
         confirmes = Inscription.query.options(joinedload(Inscription.participant).joinedload(Participant.service)).filter(Inscription.session_id == session_id, Inscription.statut == 'confirmé').order_by(Participant.nom, Participant.prenom).all()
         confirmes_data = [{'id': insc.id, 'participant_id': insc.participant.id, 'nom_complet': f"{insc.participant.prenom} {insc.participant.nom}", 'service_nom': insc.participant.service.nom if insc.participant.service else 'N/A', 'service_couleur': insc.participant.service.couleur if insc.participant.service else '#6c757d', 'date_inscription': insc.date_inscription.strftime('%d/%m/%Y %H:%M')} for insc in confirmes]
-
         en_attente_validation = Inscription.query.options(joinedload(Inscription.participant).joinedload(Participant.service)).filter(Inscription.session_id == session_id, Inscription.statut == 'en attente').order_by(Inscription.date_inscription.asc()).all()
         en_attente_data = [{'id': insc.id, 'participant_id': insc.participant.id, 'nom_complet': f"{insc.participant.prenom} {insc.participant.nom}", 'service_nom': insc.participant.service.nom if insc.participant.service else 'N/A', 'service_couleur': insc.participant.service.couleur if insc.participant.service else '#6c757d', 'date_demande': insc.date_inscription.strftime('%d/%m/%Y %H:%M')} for insc in en_attente_validation]
-
         liste_attente = ListeAttente.query.options(joinedload(ListeAttente.participant).joinedload(Participant.service)).filter(ListeAttente.session_id == session_id).order_by(ListeAttente.position.asc()).all()
         liste_attente_data = [{'id': la.id, 'participant_id': la.participant.id, 'nom_complet': f"{la.participant.prenom} {la.participant.nom}", 'service_nom': la.participant.service.nom if la.participant.service else 'N/A', 'service_couleur': la.participant.service.couleur if la.participant.service else '#6c757d', 'date_inscription': la.date_inscription.strftime('%d/%m/%Y %H:%M'), 'position': la.position} for la in liste_attente]
-
         return jsonify({'confirmes': confirmes_data, 'en_attente_validation': en_attente_data, 'liste_attente': liste_attente_data, 'status': 'ok'})
-    except SQLAlchemyError as e:
-        db.session.rollback(); app.logger.error(f"API DB Error session details (SessID: {session_id}): {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
-    except Exception as e:
-        app.logger.error(f"API Unexpected Error session details (SessID: {session_id}): {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
+    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"API DB Error session details (SessID: {session_id}): {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
+    except Exception as e: app.logger.error(f"API Unexpected Error session details (SessID: {session_id}): {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
 
-@app.route('/api/sessions')
-@limiter.limit("30 per minute")
-@db_operation_with_retry(max_retries=2)
-def api_sessions():
-    try:
-        page = request.args.get('page', 1, type=int); per_page = request.args.get('per_page', 20, type=int); date_filter = request.args.get('date')
-        cache_key = f'sessions_page_{page}_size_{per_page}_date_{date_filter}'; cached_result = cache.get(cache_key)
-        if cached_result: return jsonify(cached_result)
-        query = Session.query.options(joinedload(Session.theme), joinedload(Session.salle))
-        if date_filter:
-            try:
-                filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
-                query = query.filter(Session.date == filter_date)
-            except ValueError:
-                pass # Ignorer si format de date invalide
-        pagination = query.order_by(Session.date, Session.heure_debut).paginate(page=page, per_page=per_page, error_out=False)
-        session_ids = [s.id for s in pagination.items]; confirmed_counts = {}; waitlist_counts = {}
-        if session_ids:
-            confirmed_counts = dict(db.session.query(Inscription.session_id, func.count(Inscription.id)).filter(Inscription.session_id.in_(session_ids), Inscription.statut == 'confirmé').group_by(Inscription.session_id).all())
-            waitlist_counts = dict(db.session.query(ListeAttente.session_id, func.count(ListeAttente.id)).filter(ListeAttente.session_id.in_(session_ids)).group_by(ListeAttente.session_id).all())
-        result = []
-        for s in pagination.items:
-            inscrits_count = confirmed_counts.get(s.id, 0); attente_count = waitlist_counts.get(s.id, 0); places_rest = max(0, s.max_participants - inscrits_count)
-            session_cache_key = f'session_counts_{s.id}'; session_counts = {'inscrits_confirmes_count': inscrits_count, 'liste_attente_count': attente_count, 'places_restantes': places_rest}; cache.set(session_cache_key, session_counts, timeout=300)
-            result.append({'id': s.id, 'date': s.formatage_date if hasattr(s, 'formatage_date') else s.date.strftime('%d/%m/%Y'), 'iso_date': s.date.isoformat(), 'horaire': s.formatage_horaire if hasattr(s, 'formatage_horaire') else f"{s.heure_debut.strftime('%H:%M')} - {s.heure_fin.strftime('%H:%M')}", 'theme': s.theme.nom if s.theme else 'N/A', 'theme_id': s.theme_id, 'places_restantes': places_rest, 'inscrits': inscrits_count, 'max_participants': s.max_participants, 'liste_attente': attente_count, 'salle': s.salle.nom if s.salle else None, 'salle_id': s.salle_id})
-        response_data = {'items': result, 'total': pagination.total, 'pages': pagination.pages, 'page': pagination.page, 'per_page': pagination.per_page}
-        cache.set(cache_key, response_data, timeout=30)
-        return jsonify(response_data)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"API Error fetching sessions: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
-    except Exception as e: db.session.rollback(); app.logger.error(f"API Unexpected Error fetching sessions: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
-    finally: db.session.close()
-
-@app.route('/api/sessions/<int:session_id>')
-@db_operation_with_retry(max_retries=2)
-def api_single_session(session_id):
-    try:
-        session = db.session.get(Session, session_id)
-        if not session: return jsonify({"error": "Session not found"}), 404
-        cache_key = f'session_counts_{session_id}'; session_counts = cache.get(cache_key)
-        if session_counts is None:
-            inscrits_count = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == session_id, Inscription.statut == 'confirmé').scalar() or 0
-            attente_count = db.session.query(func.count(ListeAttente.id)).filter(ListeAttente.session_id == session_id).scalar() or 0
-            pending_count = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == session_id, Inscription.statut == 'en attente').scalar() or 0
-            places_rest = max(0, session.max_participants - inscrits_count)
-            session_counts = {'inscrits_confirmes_count': inscrits_count, 'liste_attente_count': attente_count, 'pending_count': pending_count, 'places_restantes': places_rest}; cache.set(cache_key, session_counts, timeout=60)
-        else:
-            if 'pending_count' not in session_counts: session_counts['pending_count'] = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == session_id, Inscription.statut == 'en attente').scalar() or 0
-        inscrits_details_q = db.session.query(Inscription.id, Participant.prenom, Participant.nom, Inscription.statut).join(Participant).filter(Inscription.session_id == session_id).all()
-        attente_details_q = db.session.query(ListeAttente.id, Participant.prenom, Participant.nom, ListeAttente.position).join(Participant).filter(ListeAttente.session_id == session_id).order_by(ListeAttente.position).all()
-        result = {'id': session.id, 'date': session.formatage_date, 'iso_date': session.date.isoformat(), 'horaire': session.formatage_horaire, 'theme': session.theme.nom if session.theme else 'N/A', 'theme_id': session.theme_id, 'places_restantes': session_counts['places_restantes'], 'inscrits': session_counts['inscrits_confirmes_count'], 'max_participants': session.max_participants, 'liste_attente': session_counts['liste_attente_count'], 'pending_count': session_counts.get('pending_count', 0), 'salle': session.salle.nom if session.salle else None, 'salle_id': session.salle_id, 'inscriptions_details': [{'id': i.id, 'participant': f"{i.prenom} {i.nom}", 'statut': i.statut} for i in inscrits_details_q], 'liste_attente_details': [{'id': l.id, 'participant': f"{l.prenom} {l.nom}", 'position': l.position} for l in attente_details_q]}
-        return jsonify(result)
-    except SQLAlchemyError as e: app.logger.error(f"API Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
-    except Exception as e: app.logger.error(f"API Unexpected Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
-
+# --- NOUVELLES ROUTES POUR LA GESTION DES SESSIONS PAR L'ADMIN ---
 @app.route('/admin/sessions')
-@login_required
+@login_required 
 @db_operation_with_retry()
 def admin_sessions_list():
-    if current_user.role != 'admin':
-        flash("Accès réservé aux administrateurs.", "danger")
-        return redirect(url_for('dashboard'))
-    
+    if current_user.role != 'admin': flash("Accès réservé.", "danger"); return redirect(url_for('dashboard'))
     page = request.args.get('page', 1, type=int)
-    sessions_pagination = Session.query.options(
-        joinedload(Session.theme),
-        joinedload(Session.salle)
-    ).order_by(Session.date.desc(), Session.heure_debut.desc()).paginate(page=page, per_page=15, error_out=False)
-    
-    return render_template('admin_sessions_list.html', sessions_pagination=sessions_pagination)
+    sessions_pagination = Session.query.options(joinedload(Session.theme), joinedload(Session.salle)).order_by(Session.date.desc(), Session.heure_debut.desc()).paginate(page=page, per_page=10, error_out=False)
+    return render_template('admin_sessions_list.html', sessions_pagination=sessions_pagination, themes=get_all_themes(), salles=get_all_salles())
 
 @app.route('/admin/session/add', methods=['GET', 'POST'])
-@login_required
+@login_required 
 @db_operation_with_retry()
 def admin_add_session():
-    if current_user.role != 'admin':
-        flash("Accès réservé aux administrateurs.", "danger")
-        return redirect(url_for('dashboard'))
-
+    if current_user.role != 'admin': flash("Accès réservé.", "danger"); return redirect(url_for('dashboard'))
     if request.method == 'POST':
         try:
-            date_str = request.form.get('date')
-            heure_debut_str = request.form.get('heure_debut')
-            heure_fin_str = request.form.get('heure_fin')
-            theme_id = request.form.get('theme_id', type=int)
-            max_participants = request.form.get('max_participants', type=int, default=10)
-            salle_id = request.form.get('salle_id', type=int)
-
-            if not all([date_str, heure_debut_str, heure_fin_str, theme_id]):
-                flash("Tous les champs marqués d'un * sont obligatoires.", "warning")
+            date_str = request.form.get('date'); heure_debut_str = request.form.get('heure_debut'); heure_fin_str = request.form.get('heure_fin'); theme_id = request.form.get('theme_id', type=int); max_participants = request.form.get('max_participants', type=int, default=10); salle_id_str = request.form.get('salle_id'); salle_id = int(salle_id_str) if salle_id_str and salle_id_str.isdigit() else None
+            if not all([date_str, heure_debut_str, heure_fin_str, theme_id]): flash("Champs date, heures et thème obligatoires.", "warning")
             else:
-                date_obj = date.fromisoformat(date_str)
-                heure_debut_obj = time_obj.fromisoformat(heure_debut_str)
-                heure_fin_obj = time_obj.fromisoformat(heure_fin_str)
-
-                if heure_fin_obj <= heure_debut_obj:
-                    flash("L'heure de fin doit être après l'heure de début.", "warning")
+                date_obj = date.fromisoformat(date_str); heure_debut_obj = time_obj.fromisoformat(heure_debut_str); heure_fin_obj = time_obj.fromisoformat(heure_fin_str)
+                if heure_fin_obj <= heure_debut_obj: flash("L'heure de fin doit être après l'heure de début.", "warning")
                 else:
-                    new_session = Session(
-                        date=date_obj,
-                        heure_debut=heure_debut_obj,
-                        heure_fin=heure_fin_obj,
-                        theme_id=theme_id,
-                        max_participants=max_participants,
-                        salle_id=salle_id if salle_id else None
-                    )
-                    db.session.add(new_session)
-                    db.session.commit()
+                    new_session = Session(date=date_obj, heure_debut=heure_debut_obj, heure_fin=heure_fin_obj, theme_id=theme_id, max_participants=max_participants, salle_id=salle_id)
+                    db.session.add(new_session); db.session.commit()
                     add_activity('ajout_session', f'Ajout session: {new_session.theme.nom if new_session.theme else "N/A"} le {new_session.formatage_date}', user=current_user)
-                    flash(f"Session '{new_session.theme.nom}' ajoutée avec succès.", "success")
-                    cache.delete('dashboard_essential_data_v3.2') # Invalider cache dashboard
-                    return redirect(url_for('admin_sessions_list'))
-        except ValueError:
-            flash("Format de date ou d'heure invalide.", "danger")
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            app.logger.error(f"Erreur DB ajout session: {e}", exc_info=True)
-            flash("Erreur base de données lors de l'ajout.", "danger")
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Erreur inattendue ajout session: {e}", exc_info=True)
-            flash("Erreur inattendue.", "danger")
-
-    themes = Theme.query.order_by(Theme.nom).all()
-    salles = Salle.query.order_by(Salle.nom).all()
-    return render_template('admin_session_form.html', themes=themes, salles=salles, form_action=url_for('admin_add_session'), session_obj=None, page_title="Ajouter une Session")
+                    flash(f"Session '{new_session.theme.nom if new_session.theme else 'N/A'}' ajoutée.", "success"); cache.delete('dashboard_essential_data_v3.2'); return redirect(url_for('admin_sessions_list'))
+        except ValueError: flash("Format date/heure invalide.", "danger")
+        except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"Erreur DB ajout session: {e}", exc_info=True); flash("Erreur base de données.", "danger")
+        except Exception as e: db.session.rollback(); app.logger.error(f"Erreur inattendue ajout session: {e}", exc_info=True); flash("Erreur inattendue.", "danger")
+    return render_template('admin_session_form.html', themes=get_all_themes(), salles=get_all_salles(), form_action=url_for('admin_add_session'), session_obj=None, page_title="Ajouter Session")
 
 @app.route('/admin/session/<int:session_id>/edit', methods=['GET', 'POST'])
-@login_required
+@login_required 
 @db_operation_with_retry()
 def admin_edit_session(session_id):
-    if current_user.role != 'admin':
-        flash("Accès réservé aux administrateurs.", "danger")
-        return redirect(url_for('dashboard'))
-
-    session_obj = db.session.get(Session, session_id)
-    if not session_obj:
-        flash("Session introuvable.", "danger")
-        return redirect(url_for('admin_sessions_list'))
-
+    if current_user.role != 'admin': flash("Accès réservé.", "danger"); return redirect(url_for('dashboard'))
+    session_obj = db.session.get(Session, session_id);
+    if not session_obj: flash("Session introuvable.", "danger"); return redirect(url_for('admin_sessions_list'))
     if request.method == 'POST':
         try:
-            session_obj.date = date.fromisoformat(request.form.get('date'))
-            session_obj.heure_debut = time_obj.fromisoformat(request.form.get('heure_debut'))
-            session_obj.heure_fin = time_obj.fromisoformat(request.form.get('heure_fin'))
-            session_obj.theme_id = request.form.get('theme_id', type=int)
-            session_obj.max_participants = request.form.get('max_participants', type=int, default=10)
-            salle_id_form = request.form.get('salle_id')
-            session_obj.salle_id = int(salle_id_form) if salle_id_form else None
-
-
-            if session_obj.heure_fin <= session_obj.heure_debut:
-                flash("L'heure de fin doit être après l'heure de début.", "warning")
+            session_obj.date = date.fromisoformat(request.form.get('date')); session_obj.heure_debut = time_obj.fromisoformat(request.form.get('heure_debut')); session_obj.heure_fin = time_obj.fromisoformat(request.form.get('heure_fin')); session_obj.theme_id = request.form.get('theme_id', type=int); session_obj.max_participants = request.form.get('max_participants', type=int, default=10); salle_id_str = request.form.get('salle_id'); session_obj.salle_id = int(salle_id_str) if salle_id_str and salle_id_str.isdigit() else None
+            if session_obj.heure_fin <= session_obj.heure_debut: flash("L'heure de fin doit être après l'heure de début.", "warning")
             else:
-                db.session.commit()
-                add_activity('modif_session', f'Modif session: {session_obj.theme.nom if session_obj.theme else "N/A"} le {session_obj.formatage_date}', user=current_user)
-                flash(f"Session '{session_obj.theme.nom}' mise à jour.", "success")
-                cache.delete('dashboard_essential_data_v3.2')
-                return redirect(url_for('admin_sessions_list'))
-        except ValueError:
-            flash("Format de date ou d'heure invalide.", "danger")
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            app.logger.error(f"Erreur DB modif session {session_id}: {e}", exc_info=True)
-            flash("Erreur base de données.", "danger")
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Erreur inattendue modif session {session_id}: {e}", exc_info=True)
-            flash("Erreur inattendue.", "danger")
-            
-    themes = Theme.query.order_by(Theme.nom).all()
-    salles = Salle.query.order_by(Salle.nom).all()
-    return render_template('admin_session_form.html', themes=themes, salles=salles, form_action=url_for('admin_edit_session', session_id=session_id), session_obj=session_obj, page_title="Modifier la Session")
+                db.session.commit(); add_activity('modif_session', f'Modif session: {session_obj.theme.nom if session_obj.theme else "N/A"} le {session_obj.formatage_date}', user=current_user); flash(f"Session '{session_obj.theme.nom if session_obj.theme else 'N/A'}' mise à jour.", "success"); cache.delete('dashboard_essential_data_v3.2'); return redirect(url_for('admin_sessions_list'))
+        except ValueError: flash("Format date/heure invalide.", "danger")
+        except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"Erreur DB modif session {session_id}: {e}", exc_info=True); flash("Erreur base de données.", "danger")
+        except Exception as e: db.session.rollback(); app.logger.error(f"Erreur inattendue modif session {session_id}: {e}", exc_info=True); flash("Erreur inattendue.", "danger")
+    return render_template('admin_session_form.html', themes=get_all_themes(), salles=get_all_salles(), form_action=url_for('admin_edit_session', session_id=session_id), session_obj=session_obj, page_title="Modifier Session")
 
 @app.route('/admin/session/<int:session_id>/delete', methods=['POST'])
-@login_required
+@login_required 
 @db_operation_with_retry()
 def admin_delete_session(session_id):
-    if current_user.role != 'admin':
-        flash("Accès réservé aux administrateurs.", "danger")
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403 # Mieux pour AJAX
-
-    session_obj = db.session.get(Session, session_id)
-    if not session_obj:
-        flash("Session introuvable.", "danger")
-        return jsonify({'success': False, 'message': 'Session introuvable'}), 404
-
+    if current_user.role != 'admin': flash("Accès réservé.", "danger"); return jsonify({'success': False, 'message': 'Non autorisé'}), 403 if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' else redirect(url_for('dashboard'))
+    session_obj = db.session.get(Session, session_id);
+    if not session_obj: flash("Session introuvable.", "danger"); return jsonify({'success': False, 'message': 'Session introuvable'}), 404 if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' else redirect(url_for('admin_sessions_list'))
     try:
-        # Les inscriptions et liste d'attente sont supprimées par cascade="all, delete-orphan"
-        theme_nom = session_obj.theme.nom if session_obj.theme else "N/A"
-        session_date = session_obj.formatage_date
-        
-        db.session.delete(session_obj)
-        db.session.commit()
-        add_activity('suppr_session', f'Suppression session: {theme_nom} le {session_date}', user=current_user)
-        flash(f"Session '{theme_nom}' du {session_date} supprimée.", "success")
-        cache.delete('dashboard_essential_data_v3.2')
-        if request.is_json: # Si la requête vient d'un appel AJAX
-            return jsonify({'success': True, 'message': 'Session supprimée avec succès.'})
+        theme_nom = session_obj.theme.nom if session_obj.theme else "N/A"; session_date_str = session_obj.formatage_date
+        db.session.delete(session_obj); db.session.commit()
+        add_activity('suppr_session', f'Suppression session: {theme_nom} le {session_date_str}', user=current_user); flash(f"Session '{theme_nom}' du {session_date_str} supprimée.", "success"); cache.delete('dashboard_essential_data_v3.2')
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest': return jsonify({'success': True, 'message': 'Session supprimée.'})
         return redirect(url_for('admin_sessions_list'))
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        app.logger.error(f"Erreur DB suppression session {session_id}: {e}", exc_info=True)
-        flash("Erreur base de données lors de la suppression.", "danger")
-        if request.is_json:
-            return jsonify({'success': False, 'message': 'Erreur base de données.'}), 500
-        return redirect(url_for('admin_sessions_list'))
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Erreur inattendue suppression session {session_id}: {e}", exc_info=True)
-        flash("Erreur inattendue.", "danger")
-        if request.is_json:
-            return jsonify({'success': False, 'message': 'Erreur inattendue.'}), 500
-        return redirect(url_for('admin_sessions_list'))
+    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"Erreur DB suppression session {session_id}: {e}", exc_info=True); flash("Erreur DB.", "danger"); return jsonify({'success': False, 'message': 'Erreur DB.'}), 500 if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' else redirect(url_for('admin_sessions_list'))
+    except Exception as e: db.session.rollback(); app.logger.error(f"Erreur inattendue suppression session {session_id}: {e}", exc_info=True); flash("Erreur inattendue.", "danger"); return jsonify({'success': False, 'message': 'Erreur inattendue.'}), 500 if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' else redirect(url_for('admin_sessions_list'))
 
 # ==============================================================================
 # === Routes participants et activités ===
