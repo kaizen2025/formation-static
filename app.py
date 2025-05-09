@@ -1,6 +1,9 @@
+# Voici le contenu pour input_file_0.py
+# Copie tout ce bloc de code et remplace le contenu de ton fichier app.py
+
 # ==============================================================================
 # app.py - Application Flask pour la Gestion des Formations Microsoft 365
-# Version: 1.1.7 - Rétablissement endpoint explicite 'participants_page'
+# Version: 1.1.8 - Corrections pour dashboard, services, et ajout gestion sessions admin
 # ==============================================================================
 
 # --- Imports ---
@@ -14,14 +17,10 @@ from datetime import datetime, timedelta, UTC, date, time as time_obj
 import logging
 from logging.handlers import RotatingFileHandler
 import json
-# LIGNES SUIVANTES SUPPRIMÉES CAR INCORRECTES POUR UN FICHIER UNIQUE:
-# from . import app, db, cache, add_activity
-# from .models import Participant, Service, Inscription, ListeAttente, Session, Theme, Salle
-# from .decorators import db_operation_with_retry
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    flash, jsonify, make_response, current_app, send_from_directory # make_response était dupliqué, supprimé une fois
+    flash, jsonify, make_response, current_app, send_from_directory
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -38,9 +37,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, Ti
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, text, select, update, delete
 
-from jinja2 import TemplateNotFound 
+from jinja2 import TemplateNotFound # IMPORTANT : Importé ici
 
-from werkzeug.exceptions import ServiceUnavailable, RequestEntityTooLarge # Correction Import
+from werkzeug.exceptions import ServiceUnavailable, RequestEntityTooLarge
 from werkzeug.routing import BuildError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -50,6 +49,7 @@ from ics.alarm import DisplayAlarm
 from whitenoise import WhiteNoise
 
 # --- Async Mode Patching ---
+# ... (inchangé) ...
 try:
     import gevent.monkey
     gevent.monkey.patch_all()
@@ -76,81 +76,55 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'votre_super_cle_secrete_ici_en_production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
     "DATABASE_URL",
-    "postgresql://xvcyuaga:rfodwjclemtvhwvqsrpp@alpha.europe.mkdb.sh:5432/usdtdsgq"
+    "postgresql://xvcyuaga:rfodwjclemtvhwvqsrpp@alpha.europe.mkdb.sh:5432/usdtdsgq" # URL de démo
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ECHO'] = False
+app.config['SQLALCHEMY_ECHO'] = False # Mettre à True pour voir les requêtes SQL en debug
 
-# SQLAlchemy Pool Config (Strict for Render Free Tier)
+# SQLAlchemy Pool Config
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "client_encoding": "UTF8",
     "connect_args": { "options": "-c client_encoding=utf8" },
-    'pool_size': 1,
-    'max_overflow': 0, # Strict: No overflow connections
-    'pool_timeout': 10,
-    'pool_recycle': 280,
-    'pool_pre_ping': True
+    'pool_size': 1, 'max_overflow': 0, 'pool_timeout': 10,
+    'pool_recycle': 280, 'pool_pre_ping': True
 }
 
 # Cache Config
-app.config.from_mapping({
-    "CACHE_TYPE": "SimpleCache",
-    "CACHE_DEFAULT_TIMEOUT": 600
-})
+app.config.from_mapping({ "CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300 }) # Timeout réduit
 
 # Upload Config
 UPLOAD_FOLDER = os.path.join(app.root_path, 'uploads')
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB limit
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# Create Upload Folder if it doesn't exist
 if not os.path.exists(UPLOAD_FOLDER):
-    try:
-        os.makedirs(UPLOAD_FOLDER)
-        print(f"Dossier d'upload créé: {UPLOAD_FOLDER}")
-    except OSError as e:
-        print(f"ERREUR: Impossible de créer le dossier d'upload {UPLOAD_FOLDER}: {e}")
+    try: os.makedirs(UPLOAD_FOLDER); print(f"Dossier d'upload créé: {UPLOAD_FOLDER}")
+    except OSError as e: print(f"ERREUR: Impossible de créer le dossier d'upload {UPLOAD_FOLDER}: {e}")
 
-# --- WhiteNoise Configuration ---
+# WhiteNoise
 static_folder_root = os.path.join(os.path.dirname(__file__), 'static')
 app.wsgi_app = WhiteNoise(app.wsgi_app, root=static_folder_root)
 app.wsgi_app.add_files(static_folder_root, prefix='static/')
 
-# --- Flask Extension Initialization ---
+# Flask Extensions
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager()
 cache = Cache(app)
 limiter = Limiter(key_func=get_remote_address)
-
 login_manager.init_app(app)
 limiter.init_app(app)
 cache.init_app(app)
-
-# --- Flask-Login Configuration ---
 login_manager.login_view = 'login'
 login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
 login_manager.login_message_category = "info"
 
-# --- SocketIO Initialization ---
-socketio = SocketIO(
-    app,
-    cors_allowed_origins="*",
-    async_mode='threading',
-    engineio_logger=False,
-    logger=False,
-    ping_timeout=20000,
-    ping_interval=25000,
-    manage_session=False
-)
+# SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode=ASYNC_MODE, engineio_logger=False, logger=False, ping_timeout=20000, ping_interval=25000, manage_session=False)
 
-# --- Logging Configuration ---
-logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-if not os.path.exists(logs_dir):
-    try: os.makedirs(logs_dir)
-    except OSError as e: print(f"ERREUR: Impossible de créer le dossier de logs {logs_dir}: {e}")
-
+# Logging
+# ... (configure_logging inchangé) ...
 def configure_logging(app_instance):
     log_level = logging.DEBUG if app_instance.debug else logging.INFO
     app_instance.logger.handlers = []
@@ -165,26 +139,23 @@ def configure_logging(app_instance):
     app_instance.logger.setLevel(log_level)
     if not app_instance.debug:
         try:
+            logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+            if not os.path.exists(logs_dir): os.makedirs(logs_dir)
             app_log_file = os.path.join(logs_dir, 'app.log')
             file_handler = RotatingFileHandler(app_log_file, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8')
             file_handler.setFormatter(formatter)
             file_handler.setLevel(logging.INFO)
             app_instance.logger.addHandler(file_handler)
-            db_log_file = os.path.join(logs_dir, 'db.log')
-            db_file_handler = RotatingFileHandler(db_log_file, maxBytes=2*1024*1024, backupCount=3, encoding='utf-8')
-            db_file_handler.setFormatter(formatter)
-            db_logger = logging.getLogger('sqlalchemy.engine')
-            db_logger.addHandler(db_file_handler)
-            db_logger.setLevel(logging.WARNING)
-            db_logger.propagate = False
+            # ... (logging DB si besoin) ...
             app_instance.logger.info('Logging de production initialisé (fichiers).')
         except Exception as e:
-            app_instance.logger.error(f"Erreur lors de la configuration du logging de fichier: {e}")
+            app_instance.logger.error(f"Erreur config logging fichier: {e}")
     else:
-        logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+        logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO) # Plus verbeux en dev
         app_instance.logger.info('Logging de développement initialisé (console).')
 
 configure_logging(app)
+
 
 @app.context_processor
 def inject_global_template_vars():
@@ -192,7 +163,10 @@ def inject_global_template_vars():
         debug_mode=app.debug,
         now=datetime.now(UTC),
         app_name="Formation Microsoft 365 - Anecoop France",
-        ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS # Ajouter cette ligne
+        ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS,
+        # Passer les fonctions helper au contexte si elles sont utilisées directement dans Jinja
+        get_all_themes=get_all_themes, 
+        get_all_services_with_participants=get_all_services_with_participants 
     )
 
 @app.teardown_appcontext
@@ -440,13 +414,13 @@ class Participant(db.Model):
     email = db.Column(db.String(100), nullable=False, unique=True, index=True)
     service_id = db.Column(db.String(20), db.ForeignKey('service.id'), nullable=False, index=True)
     
-    # MODIFICATION CRUCIALE ICI :
     inscriptions = db.relationship('Inscription', backref='participant', 
-                                   lazy='selectin',  # DOIT ÊTRE 'selectin'
+                                   lazy='selectin',  # CORRIGÉ
                                    cascade="all, delete-orphan")
     liste_attente = db.relationship('ListeAttente', backref='participant', 
-                                    lazy='selectin',  # DOIT ÊTRE 'selectin'
+                                    lazy='selectin',  # CORRIGÉ
                                     cascade="all, delete-orphan")
+
     def __repr__(self): return f'<Participant {self.id}: {self.prenom} {self.nom}>'
 
 class Inscription(db.Model):
@@ -846,31 +820,35 @@ def generer_invitation(inscription_id):
 
 
 
+# ROUTE /services CORRIGÉE
 @app.route('/services')
 @login_required 
 @db_operation_with_retry(max_retries=3)
 def services(): 
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /services page.")
     try:
-        all_services = Service.query.options(
-            selectinload(Service.participants).selectinload(Participant.inscriptions) # Ceci devrait maintenant fonctionner
+        all_services_db = Service.query.options(
+            selectinload(Service.participants).selectinload(Participant.inscriptions) # Nécessite lazy='selectin' sur Participant.inscriptions
         ).order_by(Service.nom).all()
 
         services_data_for_template = []
-        for service_obj in all_services:
+        for service_obj in all_services_db:
             participants_detailed_list = []
-            for participant in service_obj.participants: # service_obj.participants est une liste
-                # participant.inscriptions est maintenant aussi une liste
+            # service_obj.participants est une liste grâce à selectinload(Service.participants)
+            for participant in service_obj.participants:
+                # participant.inscriptions est maintenant aussi une liste grâce à selectinload(Participant.inscriptions)
                 confirmed_count = sum(1 for insc in participant.inscriptions if insc.statut == 'confirmé')
                 participants_detailed_list.append({
                     'obj': participant,
                     'confirmed_count': confirmed_count
                 })
             participants_detailed_list.sort(key=lambda p: (p['obj'].nom.lower(), p['obj'].prenom.lower()))
+            
             services_data_for_template.append({
                 'obj': service_obj,
                 'participant_count': len(service_obj.participants),
                 'participants_detailed': participants_detailed_list
+                # 'user_count': User.query.filter_by(service_id=service_obj.id).count(), # Optionnel
             })
         
         return render_template('services.html', services_data=services_data_for_template)
@@ -885,23 +863,19 @@ def services():
         flash("Une erreur interne est survenue lors du chargement des services.", "danger")
         return redirect(url_for('dashboard'))
 
-# app.py - Route /dashboard - Version 1 (Minimaliste)
-
 @app.route('/dashboard')
 @db_operation_with_retry(max_retries=3)
 def dashboard():
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /dashboard (with initial data).")
     
-    template_data_for_view = [] # Renommé pour éviter confusion avec template_data global
+    template_data_for_view = []
     try:
-        # Récupérer les données pour le rendu initial (limité pour la performance)
-        # Le JS prendra le relais pour les mises à jour complètes.
         sessions_from_db = Session.query.options(
             selectinload(Session.theme), 
             selectinload(Session.salle),
-            selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service), # Pour les comptes et détails initiaux
-            selectinload(Session.liste_attente) # Pour le compte de la liste d'attente
-        ).order_by(Session.date, Session.heure_debut).limit(20).all() # Limiter pour le rendu initial
+            selectinload(Session.inscriptions), # Pas besoin de charger participant ici, déjà dans inscriptions
+            selectinload(Session.liste_attente)
+        ).order_by(Session.date, Session.heure_debut).limit(20).all()
 
         for s_obj in sessions_from_db:
             inscrits_confirmes_list = [i for i in s_obj.inscriptions if i.statut == 'confirmé']
@@ -909,7 +883,7 @@ def dashboard():
             
             inscrits_count = len(inscrits_confirmes_list)
             pending_count = len(pending_inscriptions_list)
-            attente_count = len(s_obj.liste_attente) # Supposant que liste_attente est une collection
+            attente_count = len(s_obj.liste_attente)
             
             max_p = s_obj.max_participants if s_obj.max_participants is not None else 10
             
@@ -919,32 +893,27 @@ def dashboard():
                 'inscrits_confirmes_count': inscrits_count,
                 'liste_attente_count': attente_count,
                 'pending_count': pending_count,
-                # Passer les listes chargées pour les modales si nécessaire
-                'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.participant.nom if i.participant else ''),
-                'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.participant.nom if i.participant else ''),
+                # Pour les modales générées par Jinja, on a besoin des listes d'objets
+                'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.participant.nom.lower() if i.participant else ''),
+                'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.participant.nom.lower() if i.participant else ''),
                 'loaded_liste_attente': sorted(s_obj.liste_attente, key=lambda la: la.position)
             })
 
-        # Données nécessaires pour les dropdowns dans les modales d'inscription
-        all_participants_for_modal = get_all_participants_with_service() # Fonction helper existante
-        all_services_for_modal = get_all_services_with_participants() # Fonction helper existante
-        all_salles_for_modal = get_all_salles() # Fonction helper existante
-
+        all_participants_for_modal = get_all_participants_with_service()
+        all_services_for_modal = get_all_services_with_participants() # Pour le dropdown des services
+        all_salles_for_modal = get_all_salles()
 
         template_context = {
             'page_title': 'Tableau de Bord - Formation Microsoft 365',
-            'sessions_data': template_data_for_view, # Pour la boucle Jinja des modales et potentiellement le tableau initial
-            'participants': all_participants_for_modal, # Pour le select dans _inscription_modal.html
-            'services': all_services_for_modal,       # Pour le select dans _inscription_modal.html (nouveau participant)
-            'salles': all_salles_for_modal,           # Pour le select dans _attribuer_salle_modal.html
-            # Passer les classes de modèle si les modales en ont besoin directement
-            'Inscription': Inscription,
-            'ListeAttente': ListeAttente,
+            'sessions_data': template_data_for_view, 
+            'participants': all_participants_for_modal, 
+            'services': all_services_for_modal, # Pour la modale d'inscription -> nouveau participant -> choix service
+            'salles': all_salles_for_modal, # Pour la modale d'attribution de salle
+            'Inscription': Inscription, # Si utilisé dans les modales Jinja
+            'ListeAttente': ListeAttente # Si utilisé dans les modales Jinja
         }
-        # Utilise dashboard.html (celui que tu as fourni avec la structure complète)
         return render_template('dashboard.html', **template_context)
 
-    # ... (gestion des erreurs comme dans la version précédente de la route /dashboard v2) ...
     except TemplateNotFound as e:
         app.logger.error(f"TemplateNotFound error in dashboard route: {e}", exc_info=True)
         return "Erreur critique: Le template du tableau de bord est introuvable.", 500
@@ -958,7 +927,6 @@ def dashboard():
         app.logger.error(f"Unexpected error in dashboard route (initial data): {e}", exc_info=True)
         flash("Une erreur interne est survenue.", "danger")
         return render_template('error.html', error_message="Erreur interne du serveur lors du chargement du tableau de bord.")
-
 
 @app.route('/sessions')
 @db_operation_with_retry(max_retries=3)
@@ -1888,110 +1856,59 @@ def delete_document(doc_id):
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
 def api_dashboard_essential():
+    cache_key = 'dashboard_essential_data_v3.2' # Nouvelle clé de cache
+    cached_data = cache.get(cache_key)
+    if cached_data and not app.debug:
+        app.logger.debug(f"API dashboard_essential: Using cached data (key: {cache_key})")
+        return jsonify(cached_data)
+
     try:
-        # Récupérer depuis le cache si disponible
-        cache_key = 'dashboard_essential_data'
-        cached_data = cache.get(cache_key)
-        if cached_data and not app.debug:
-            app.logger.debug(f"API dashboard_essential: Using cached data")
-            return jsonify(cached_data)
-        
-        app.logger.info("Fetch fresh dashboard essential data from DB")
-        
-        # 1. Sessions avec détails
-        today = datetime.now(UTC).date()
+        app.logger.debug("API dashboard_essential: Fetching fresh data from DB.")
         sessions_q = Session.query.options(
             selectinload(Session.theme),
             selectinload(Session.salle),
-            selectinload(Session.inscriptions),
+            selectinload(Session.inscriptions), 
             selectinload(Session.liste_attente)
         ).order_by(Session.date, Session.heure_debut).all()
-        
+
         sessions_data = []
         for s in sessions_q:
-            inscrits_confirmes_count = sum(1 for insc in s.inscriptions if insc.statut == 'confirmé')
-            liste_attente_count = len(s.liste_attente)
-            pending_count = sum(1 for insc in s.inscriptions if insc.statut == 'en attente')
+            inscrits_count = sum(1 for insc in s.inscriptions if insc.statut == 'confirmé')
+            attente_count = len(s.liste_attente)
+            pending_validation_count = sum(1 for insc in s.inscriptions if insc.statut == 'en attente')
             max_p = s.max_participants if s.max_participants is not None else 10
             
             sessions_data.append({
-                'id': s.id,
-                'date': s.formatage_date if hasattr(s, 'formatage_date') else s.date.strftime('%d/%m/%Y'),
-                'horaire': s.formatage_horaire if hasattr(s, 'formatage_horaire') else f"{s.heure_debut.strftime('%H:%M')} - {s.heure_fin.strftime('%H:%M')}",
-                'theme': s.theme.nom if s.theme else 'N/A',
-                'theme_id': s.theme_id,
-                'places_restantes': max(0, max_p - inscrits_confirmes_count),
-                'inscrits_confirmes_count': inscrits_confirmes_count,
-                'liste_attente_count': liste_attente_count,
-                'pending_count': pending_count,
-                'salle': s.salle.nom if s.salle else None,
-                'salle_id': s.salle_id
+                'id': s.id, 'date': s.formatage_date, 'horaire': s.formatage_horaire,
+                'theme': s.theme.nom if s.theme else 'N/A', 'theme_id': s.theme_id,
+                'places_restantes': max(0, max_p - inscrits_count), 'inscrits': inscrits_count,
+                'max_participants': max_p, 'liste_attente': attente_count,
+                'pending_validation_count': pending_validation_count,
+                'salle': s.salle.nom if s.salle else None, 'salle_id': s.salle_id
             })
-        
-        # 2. Récupérer tous les participants avec leurs services
-        participants_q = Participant.query.options(
-            joinedload(Participant.service)
-        ).order_by(Participant.nom, Participant.prenom).all()
-        
-        participants_data = []
-        for p in participants_q:
-            participants_data.append({
-                'id': p.id,
-                'nom': p.nom,
-                'prenom': p.prenom,
-                'email': p.email,
-                'service': p.service.nom if p.service else 'N/A',
-                'service_id': p.service_id,
-                'service_color': p.service.couleur if p.service and hasattr(p.service, 'couleur') else '#6c757d'
-            })
-        
-        # 3. Récupérer les activités récentes
+
+        participants_q = Participant.query.options(joinedload(Participant.service)).order_by(Participant.nom, Participant.prenom).all()
+        participants_data = [{'id': p.id, 'nom': p.nom, 'prenom': p.prenom, 'email': p.email, 'service': p.service.nom if p.service else 'N/A', 'service_id': p.service_id, 'service_color': p.service.couleur if p.service and p.service.couleur else '#6c757d'} for p in participants_q]
+
         activites_q = get_recent_activities(limit=7)
+        activites_data = [{'id': a.id, 'type': a.type, 'description': a.description, 'details': a.details, 'date_relative': a.date_relative, 'user': a.utilisateur.username if a.utilisateur else None} for a in activites_q]
         
-        activites_data = []
-        for a in activites_q:
-            activites_data.append({
-                'id': a.id,
-                'type': a.type,
-                'description': a.description,
-                'details': a.details,
-                'date_relative': a.date_relative,
-                'date_iso': a.date.isoformat() if hasattr(a, 'date') and a.date else None,
-                'user': a.utilisateur.username if hasattr(a, 'utilisateur') and a.utilisateur else None
-            })
+        all_services_q = Service.query.order_by(Service.nom).all()
+        services_list_data = [{'id': srv.id, 'nom': srv.nom} for srv in all_services_q]
+
+        all_salles_q = Salle.query.order_by(Salle.nom).all()
+        salles_list_data = [{'id': sal.id, 'nom': sal.nom, 'capacite': sal.capacite} for sal in all_salles_q]
         
-        # 4. Récupérer les services
-        services_q = Service.query.order_by(Service.nom).all()
-        services_data = [{
-            'id': srv.id,
-            'nom': srv.nom,
-            'couleur': srv.couleur if hasattr(srv, 'couleur') else '#6c757d'
-        } for srv in services_q]
-        
-        # 5. Récupérer les salles
-        salles_q = Salle.query.order_by(Salle.nom).all()
-        salles_data = [{
-            'id': sal.id,
-            'nom': sal.nom,
-            'capacite': sal.capacite if hasattr(sal, 'capacite') else 10
-        } for sal in salles_q]
-        
-        # 6. Préparer la réponse finale
         response_data = {
-            'sessions': sessions_data,
-            'participants': participants_data,
-            'activites': activites_data,
-            'services': services_data,
-            'salles': salles_data,
-            'timestamp': datetime.now(UTC).timestamp(),
-            'status': 'ok'
+            'sessions': sessions_data, 'participants': participants_data, 'activites': activites_data,
+            'services': services_list_data, 'salles': salles_list_data,
+            'timestamp': datetime.now(UTC).timestamp(), 'status': 'ok'
         }
         
-        # Mettre en cache pour 45 secondes
-        cache.set(cache_key, response_data, timeout=45)
-        
+        if not app.debug: cache.set(cache_key, response_data, timeout=45)
+        app.logger.debug(f"API dashboard_essential: Data fetched. Cached: {not app.debug} (key: {cache_key})")
         return jsonify(response_data)
-        
+
     except SQLAlchemyError as e:
         db.session.rollback()
         app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
@@ -2000,81 +1917,28 @@ def api_dashboard_essential():
         app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
         return jsonify({"error": "Internal server error", "message": str(e), "status": "error"}), 500
 
-# NOUVELLE ROUTE API pour les détails des participants d'une session (pour la modale)
 @app.route('/api/session/<int:session_id>/participants_details')
-@login_required # Assurer que l'utilisateur est connecté pour voir ces détails
+@login_required
 @db_operation_with_retry(max_retries=2)
 def api_session_participants_details(session_id):
     try:
         session = db.session.get(Session, session_id)
-        if not session:
-            return jsonify({"error": "Session non trouvée"}), 404
+        if not session: return jsonify({"error": "Session non trouvée"}), 404
 
-        # Inscriptions confirmées
-        confirmes = Inscription.query.options(
-            joinedload(Inscription.participant).joinedload(Participant.service)
-        ).filter(
-            Inscription.session_id == session_id,
-            Inscription.statut == 'confirmé'
-        ).order_by(Participant.nom, Participant.prenom).all()
-        
-        confirmes_data = [{
-            'id': insc.id, # ID de l'inscription
-            'participant_id': insc.participant.id,
-            'nom_complet': f"{insc.participant.prenom} {insc.participant.nom}",
-            'service_nom': insc.participant.service.nom if insc.participant.service else 'N/A',
-            'service_couleur': insc.participant.service.couleur if insc.participant.service else '#6c757d',
-            'date_inscription': insc.date_inscription.strftime('%d/%m/%Y %H:%M')
-        } for insc in confirmes]
+        confirmes = Inscription.query.options(joinedload(Inscription.participant).joinedload(Participant.service)).filter(Inscription.session_id == session_id, Inscription.statut == 'confirmé').order_by(Participant.nom, Participant.prenom).all()
+        confirmes_data = [{'id': insc.id, 'participant_id': insc.participant.id, 'nom_complet': f"{insc.participant.prenom} {insc.participant.nom}", 'service_nom': insc.participant.service.nom if insc.participant.service else 'N/A', 'service_couleur': insc.participant.service.couleur if insc.participant.service else '#6c757d', 'date_inscription': insc.date_inscription.strftime('%d/%m/%Y %H:%M')} for insc in confirmes]
 
-        # Inscriptions en attente de validation
-        en_attente_validation = Inscription.query.options(
-            joinedload(Inscription.participant).joinedload(Participant.service)
-        ).filter(
-            Inscription.session_id == session_id,
-            Inscription.statut == 'en attente'
-        ).order_by(Inscription.date_inscription.asc()).all()
+        en_attente_validation = Inscription.query.options(joinedload(Inscription.participant).joinedload(Participant.service)).filter(Inscription.session_id == session_id, Inscription.statut == 'en attente').order_by(Inscription.date_inscription.asc()).all()
+        en_attente_data = [{'id': insc.id, 'participant_id': insc.participant.id, 'nom_complet': f"{insc.participant.prenom} {insc.participant.nom}", 'service_nom': insc.participant.service.nom if insc.participant.service else 'N/A', 'service_couleur': insc.participant.service.couleur if insc.participant.service else '#6c757d', 'date_demande': insc.date_inscription.strftime('%d/%m/%Y %H:%M')} for insc in en_attente_validation]
 
-        en_attente_data = [{
-            'id': insc.id, # ID de l'inscription
-            'participant_id': insc.participant.id,
-            'nom_complet': f"{insc.participant.prenom} {insc.participant.nom}",
-            'service_nom': insc.participant.service.nom if insc.participant.service else 'N/A',
-            'service_couleur': insc.participant.service.couleur if insc.participant.service else '#6c757d',
-            'date_demande': insc.date_inscription.strftime('%d/%m/%Y %H:%M')
-        } for insc in en_attente_validation]
+        liste_attente = ListeAttente.query.options(joinedload(ListeAttente.participant).joinedload(Participant.service)).filter(ListeAttente.session_id == session_id).order_by(ListeAttente.position.asc()).all()
+        liste_attente_data = [{'id': la.id, 'participant_id': la.participant.id, 'nom_complet': f"{la.participant.prenom} {la.participant.nom}", 'service_nom': la.participant.service.nom if la.participant.service else 'N/A', 'service_couleur': la.participant.service.couleur if la.participant.service else '#6c757d', 'date_inscription': la.date_inscription.strftime('%d/%m/%Y %H:%M'), 'position': la.position} for la in liste_attente]
 
-        # Liste d'attente
-        liste_attente = ListeAttente.query.options(
-            joinedload(ListeAttente.participant).joinedload(Participant.service)
-        ).filter(
-            ListeAttente.session_id == session_id
-        ).order_by(ListeAttente.position.asc()).all()
-
-        liste_attente_data = [{
-            'id': la.id, # ID de l'entrée en liste d'attente
-            'participant_id': la.participant.id,
-            'nom_complet': f"{la.participant.prenom} {la.participant.nom}",
-            'service_nom': la.participant.service.nom if la.participant.service else 'N/A',
-            'service_couleur': la.participant.service.couleur if la.participant.service else '#6c757d',
-            'date_inscription': la.date_inscription.strftime('%d/%m/%Y %H:%M'),
-            'position': la.position
-        } for la in liste_attente]
-
-        return jsonify({
-            'confirmes': confirmes_data,
-            'en_attente_validation': en_attente_data,
-            'liste_attente': liste_attente_data,
-            'status': 'ok'
-        })
-
+        return jsonify({'confirmes': confirmes_data, 'en_attente_validation': en_attente_data, 'liste_attente': liste_attente_data, 'status': 'ok'})
     except SQLAlchemyError as e:
-        db.session.rollback()
-        app.logger.error(f"API DB Error for session participant details (SessID: {session_id}): {e}", exc_info=True)
-        return jsonify({"error": "Database error", "message": str(e), "status": "error"}), 500
+        db.session.rollback(); app.logger.error(f"API DB Error session details (SessID: {session_id}): {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
     except Exception as e:
-        app.logger.error(f"API Unexpected Error for session participant details (SessID: {session_id}): {e}", exc_info=True)
-        return jsonify({"error": "Internal server error", "message": str(e), "status": "error"}), 500
+        app.logger.error(f"API Unexpected Error session details (SessID: {session_id}): {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/api/sessions')
 @limiter.limit("30 per minute")
@@ -2129,6 +1993,166 @@ def api_single_session(session_id):
         return jsonify(result)
     except SQLAlchemyError as e: app.logger.error(f"API Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Database error"}), 500
     except Exception as e: app.logger.error(f"API Unexpected Error session {session_id}: {e}", exc_info=True); return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/admin/sessions')
+@login_required
+@db_operation_with_retry()
+def admin_sessions_list():
+    if current_user.role != 'admin':
+        flash("Accès réservé aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    page = request.args.get('page', 1, type=int)
+    sessions_pagination = Session.query.options(
+        joinedload(Session.theme),
+        joinedload(Session.salle)
+    ).order_by(Session.date.desc(), Session.heure_debut.desc()).paginate(page=page, per_page=15, error_out=False)
+    
+    return render_template('admin_sessions_list.html', sessions_pagination=sessions_pagination)
+
+@app.route('/admin/session/add', methods=['GET', 'POST'])
+@login_required
+@db_operation_with_retry()
+def admin_add_session():
+    if current_user.role != 'admin':
+        flash("Accès réservé aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        try:
+            date_str = request.form.get('date')
+            heure_debut_str = request.form.get('heure_debut')
+            heure_fin_str = request.form.get('heure_fin')
+            theme_id = request.form.get('theme_id', type=int)
+            max_participants = request.form.get('max_participants', type=int, default=10)
+            salle_id = request.form.get('salle_id', type=int)
+
+            if not all([date_str, heure_debut_str, heure_fin_str, theme_id]):
+                flash("Tous les champs marqués d'un * sont obligatoires.", "warning")
+            else:
+                date_obj = date.fromisoformat(date_str)
+                heure_debut_obj = time_obj.fromisoformat(heure_debut_str)
+                heure_fin_obj = time_obj.fromisoformat(heure_fin_str)
+
+                if heure_fin_obj <= heure_debut_obj:
+                    flash("L'heure de fin doit être après l'heure de début.", "warning")
+                else:
+                    new_session = Session(
+                        date=date_obj,
+                        heure_debut=heure_debut_obj,
+                        heure_fin=heure_fin_obj,
+                        theme_id=theme_id,
+                        max_participants=max_participants,
+                        salle_id=salle_id if salle_id else None
+                    )
+                    db.session.add(new_session)
+                    db.session.commit()
+                    add_activity('ajout_session', f'Ajout session: {new_session.theme.nom if new_session.theme else "N/A"} le {new_session.formatage_date}', user=current_user)
+                    flash(f"Session '{new_session.theme.nom}' ajoutée avec succès.", "success")
+                    cache.delete('dashboard_essential_data_v3.2') # Invalider cache dashboard
+                    return redirect(url_for('admin_sessions_list'))
+        except ValueError:
+            flash("Format de date ou d'heure invalide.", "danger")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            app.logger.error(f"Erreur DB ajout session: {e}", exc_info=True)
+            flash("Erreur base de données lors de l'ajout.", "danger")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Erreur inattendue ajout session: {e}", exc_info=True)
+            flash("Erreur inattendue.", "danger")
+
+    themes = Theme.query.order_by(Theme.nom).all()
+    salles = Salle.query.order_by(Salle.nom).all()
+    return render_template('admin_session_form.html', themes=themes, salles=salles, form_action=url_for('admin_add_session'), session_obj=None, page_title="Ajouter une Session")
+
+@app.route('/admin/session/<int:session_id>/edit', methods=['GET', 'POST'])
+@login_required
+@db_operation_with_retry()
+def admin_edit_session(session_id):
+    if current_user.role != 'admin':
+        flash("Accès réservé aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    session_obj = db.session.get(Session, session_id)
+    if not session_obj:
+        flash("Session introuvable.", "danger")
+        return redirect(url_for('admin_sessions_list'))
+
+    if request.method == 'POST':
+        try:
+            session_obj.date = date.fromisoformat(request.form.get('date'))
+            session_obj.heure_debut = time_obj.fromisoformat(request.form.get('heure_debut'))
+            session_obj.heure_fin = time_obj.fromisoformat(request.form.get('heure_fin'))
+            session_obj.theme_id = request.form.get('theme_id', type=int)
+            session_obj.max_participants = request.form.get('max_participants', type=int, default=10)
+            salle_id_form = request.form.get('salle_id')
+            session_obj.salle_id = int(salle_id_form) if salle_id_form else None
+
+
+            if session_obj.heure_fin <= session_obj.heure_debut:
+                flash("L'heure de fin doit être après l'heure de début.", "warning")
+            else:
+                db.session.commit()
+                add_activity('modif_session', f'Modif session: {session_obj.theme.nom if session_obj.theme else "N/A"} le {session_obj.formatage_date}', user=current_user)
+                flash(f"Session '{session_obj.theme.nom}' mise à jour.", "success")
+                cache.delete('dashboard_essential_data_v3.2')
+                return redirect(url_for('admin_sessions_list'))
+        except ValueError:
+            flash("Format de date ou d'heure invalide.", "danger")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            app.logger.error(f"Erreur DB modif session {session_id}: {e}", exc_info=True)
+            flash("Erreur base de données.", "danger")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Erreur inattendue modif session {session_id}: {e}", exc_info=True)
+            flash("Erreur inattendue.", "danger")
+            
+    themes = Theme.query.order_by(Theme.nom).all()
+    salles = Salle.query.order_by(Salle.nom).all()
+    return render_template('admin_session_form.html', themes=themes, salles=salles, form_action=url_for('admin_edit_session', session_id=session_id), session_obj=session_obj, page_title="Modifier la Session")
+
+@app.route('/admin/session/<int:session_id>/delete', methods=['POST'])
+@login_required
+@db_operation_with_retry()
+def admin_delete_session(session_id):
+    if current_user.role != 'admin':
+        flash("Accès réservé aux administrateurs.", "danger")
+        return jsonify({'success': False, 'message': 'Non autorisé'}), 403 # Mieux pour AJAX
+
+    session_obj = db.session.get(Session, session_id)
+    if not session_obj:
+        flash("Session introuvable.", "danger")
+        return jsonify({'success': False, 'message': 'Session introuvable'}), 404
+
+    try:
+        # Les inscriptions et liste d'attente sont supprimées par cascade="all, delete-orphan"
+        theme_nom = session_obj.theme.nom if session_obj.theme else "N/A"
+        session_date = session_obj.formatage_date
+        
+        db.session.delete(session_obj)
+        db.session.commit()
+        add_activity('suppr_session', f'Suppression session: {theme_nom} le {session_date}', user=current_user)
+        flash(f"Session '{theme_nom}' du {session_date} supprimée.", "success")
+        cache.delete('dashboard_essential_data_v3.2')
+        if request.is_json: # Si la requête vient d'un appel AJAX
+            return jsonify({'success': True, 'message': 'Session supprimée avec succès.'})
+        return redirect(url_for('admin_sessions_list'))
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB suppression session {session_id}: {e}", exc_info=True)
+        flash("Erreur base de données lors de la suppression.", "danger")
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Erreur base de données.'}), 500
+        return redirect(url_for('admin_sessions_list'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue suppression session {session_id}: {e}", exc_info=True)
+        flash("Erreur inattendue.", "danger")
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Erreur inattendue.'}), 500
+        return redirect(url_for('admin_sessions_list'))
 
 # ==============================================================================
 # === Routes participants et activités ===
