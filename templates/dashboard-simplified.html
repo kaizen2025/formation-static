@@ -1,0 +1,331 @@
+{% extends "layout.html" %}
+
+{% block title %}Tableau de bord{% endblock %}
+
+{% block extra_css %}
+<style>
+  .card {
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+  }
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.3);
+  }
+  .card-header {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+  }
+  .chart-container {
+    height: 300px;
+    position: relative;
+  }
+  .activity-container {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .stat-card {
+    border-left: 4px solid;
+    background-color: white;
+  }
+  .stat-card h5 {
+    font-weight: 700;
+    font-size: 1.5rem;
+  }
+  .border-left-primary { border-left-color: #4e73df !important; }
+  .border-left-success { border-left-color: #1cc88a !important; }
+  .border-left-info { border-left-color: #36b9cc !important; }
+  .border-left-warning { border-left-color: #f6c23e !important; }
+  
+  .badge-theme {
+    padding: 0.5em 0.7em;
+    border-radius: 30px;
+    color: white;
+    font-weight: 500;
+  }
+  .badge-theme.Communiquer { background-color: #4e73df; }
+  .badge-theme.Gérer { background-color: #1cc88a; }
+  .badge-theme.Collaborer { background-color: #f6c23e; }
+  
+  .rounded-circle-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: white;
+    margin-right: 1rem;
+  }
+  
+  .session-row td {
+    vertical-align: middle;
+  }
+  
+  .loading-circle {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    vertical-align: middle;
+    border: 0.25em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    -webkit-animation: loading-circle .75s linear infinite;
+    animation: loading-circle .75s linear infinite;
+  }
+  
+  @keyframes loading-circle {
+    100% { transform: rotate(360deg); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+      <i class="fas fa-tachometer-alt me-2"></i> Tableau de bord
+    </h1>
+    <div>
+      <button id="refresh-dashboard" class="btn btn-sm btn-primary">
+        <i class="fas fa-sync-alt me-1"></i> Actualiser
+      </button>
+    </div>
+  </div>
+
+  <!-- Cartes statistiques -->
+  <div class="row">
+    <!-- Sessions programmées -->
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card stat-card border-left-info h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                Sessions programmées
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-sessions">16</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-calendar fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inscriptions confirmées -->
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card stat-card border-left-primary h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                Inscriptions confirmées
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-inscriptions">8</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-users fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- En liste d'attente -->
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card stat-card border-left-warning h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                En liste d'attente
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-en-attente">0</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-clock fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sessions complètes -->
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card stat-card border-left-success h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                Sessions complètes
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-sessions-completes">0</div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graphiques et Sessions -->
+  <div class="row">
+    <!-- Tableau des sessions -->
+    <div class="col-lg-7">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-calendar-alt mr-1"></i> Sessions à venir
+          </h6>
+          <a href="{{ url_for('sessions') }}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-search mr-1"></i> Toutes les sessions
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table session-table">
+              <thead>
+                <tr>
+                  <th>Date / Horaire</th>
+                  <th>Thème</th>
+                  <th>Places</th>
+                  <th>Salle</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Le contenu sera généré par le JavaScript -->
+                <tr class="no-data-row">
+                  <td colspan="5" class="text-center py-4">
+                    <div class="loading-circle text-primary"></div>
+                    <p class="text-muted mt-2">Chargement des sessions...</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="col-lg-5">
+      <!-- Répartition par thème -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-chart-pie mr-1"></i> Répartition des inscriptions par thème
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="themeDistributionChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Répartition par service -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-chart-bar mr-1"></i> Distribution des participants par service
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="serviceDistributionChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activités récentes -->
+  <div class="row">
+    <div class="col-lg-12">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-history mr-1"></i> Activités récentes
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="activity-container" id="recent-activity">
+            <div class="text-center py-4">
+              <div class="loading-circle text-primary"></div>
+              <p class="text-muted mt-2">Chargement des activités récentes...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Configuration du dashboard
+    if (!window.dashboardConfig) {
+      window.dashboardConfig = {
+        themesDataForChart: {
+          'Communiquer avec Teams': { color: '#4e73df', description: 'Apprenez à utiliser Microsoft Teams pour communiquer.' },
+          'Gérer les tâches (Planner)': { color: '#1cc88a', description: 'Maîtrisez la gestion des tâches avec Planner.' },
+          'Gérer mes fichiers (OneDrive/SharePoint)': { color: '#36b9cc', description: 'Organisez vos fichiers avec OneDrive et SharePoint.' },
+          'Collaborer avec Teams': { color: '#f6c23e', description: 'Collaborez sur des documents via Teams.' }
+        },
+        servicesDataForChart: {
+          'Qualité': { color: '#e74a3b' },
+          'Informatique': { color: '#36b9cc' },
+          'RH': { color: '#f6c23e' },
+          'Commerce': { color: '#1cc88a' },
+          'Marketing': { color: '#9c27b0' }
+        }
+      };
+    }
+    
+    // Bouton d'actualisation
+    const refreshButton = document.getElementById('refresh-dashboard');
+    if (refreshButton) {
+      refreshButton.addEventListener('click', function() {
+        this.disabled = true;
+        const originalText = this.innerHTML;
+        this.innerHTML = '<i class="fas fa-sync-alt fa-spin mr-1"></i> Actualisation...';
+        
+        // Utiliser la fonction de correction si disponible
+        if (window.dashboardBugFix && typeof window.dashboardBugFix.forceUpdate === 'function') {
+          window.dashboardBugFix.forceUpdate(true);
+        } else if (window.forceFullDashboardUpdate) {
+          window.forceFullDashboardUpdate(true);
+        } else if (window.forcePollingUpdate) {
+          window.forcePollingUpdate(true);
+        } else {
+          location.reload();
+        }
+        
+        setTimeout(() => {
+          this.disabled = false;
+          this.innerHTML = originalText;
+        }, 1000);
+      });
+    }
+    
+    // Forcer la mise à jour du tableau de bord
+    setTimeout(() => {
+      if (window.dashboardBugFix && typeof window.dashboardBugFix.forceUpdate === 'function') {
+        window.dashboardBugFix.forceUpdate(true);
+      } else if (window.forceFullDashboardUpdate) {
+        window.forceFullDashboardUpdate(true);
+      } else if (window.forcePollingUpdate) {
+        window.forcePollingUpdate(true);
+      }
+    }, 500);
+  });
+</script>
+{% endblock %}
