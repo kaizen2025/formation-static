@@ -1848,69 +1848,82 @@ def delete_document(doc_id):
     return redirect(redirect_url)
         
 @app.route('/api/dashboard_essential')
-@db_operation_with_retry(max_retries=2) # Garder le retry
+@db_operation_with_retry(max_retries=2)
 def api_dashboard_essential():
-    cache_key = 'dashboard_essential_data_v2' # Changer la clé de cache si la structure change
+    cache_key = 'dashboard_essential_data_v3.1' # Clé de cache mise à jour
+    # Tenter de récupérer depuis le cache
+    # if not app.debug: # Ne pas utiliser le cache en mode debug pour faciliter les tests
+    #     cached_data = cache.get(cache_key)
+    #     if cached_data:
+    #         app.logger.debug(f"API dashboard_essential: Using cached data (key: {cache_key})")
+    #         return jsonify(cached_data)
+    # else:
+    #     app.logger.debug("API dashboard_essential: Cache skipped in debug mode.")
+    # Pour le développement, on peut désactiver le cache pour cette route pour voir les changements immédiatement
+    # OU laisser le cache et le vider manuellement si besoin. Je le laisse actif pour l'instant.
     cached_data = cache.get(cache_key)
-    if cached_data:
+    if cached_data and not app.debug: # Optionnel: désactiver le cache en debug
         app.logger.debug(f"API dashboard_essential: Using cached data (key: {cache_key})")
         return jsonify(cached_data)
 
+
     try:
+        app.logger.debug("API dashboard_essential: Fetching fresh data from DB.")
         # Sessions avec détails
         sessions_q = Session.query.options(
-            joinedload(Session.theme),
-            joinedload(Session.salle)
+            selectinload(Session.theme),
+            selectinload(Session.salle),
+            # Pour les comptes, il est parfois plus efficace de les faire séparément ou via des sous-requêtes
+            # Mais pour un nombre modéré de sessions, selectinload des inscriptions est acceptable.
+            selectinload(Session.inscriptions), # Pour compter les inscrits
+            selectinload(Session.liste_attente) # Pour compter la liste d'attente
         ).order_by(Session.date, Session.heure_debut).all()
 
         sessions_data = []
         for s in sessions_q:
-            inscrits_count = db.session.query(func.count(Inscription.id)).filter(
-                Inscription.session_id == s.id,
-                Inscription.statut == 'confirmé'
-            ).scalar() or 0
-            attente_count = db.session.query(func.count(ListeAttente.id)).filter(
-                ListeAttente.session_id == s.id
-            ).scalar() or 0
-            # pending_count = db.session.query(func.count(Inscription.id)).filter(
-            #     Inscription.session_id == s.id,
-            #     Inscription.statut == 'en attente' # Si vous avez besoin de ce compte séparément
-            # ).scalar() or 0
+            inscrits_count = sum(1 for insc in s.inscriptions if insc.statut == 'confirmé')
+            attente_count = len(s.liste_attente) # len() fonctionne si c'est une collection chargée
+            
+            # Compte des inscriptions en attente de validation pour cette session
+            pending_validation_count = sum(1 for insc in s.inscriptions if insc.statut == 'en attente')
 
-            max_p = s.max_participants if s.max_participants is not None else 10 # Default si null
+            max_p = s.max_participants if s.max_participants is not None else 10
             
             sessions_data.append({
                 'id': s.id,
-                'date': s.formatage_date, # Utilise la propriété du modèle
-                'horaire': s.formatage_horaire, # Utilise la propriété du modèle
+                'date': s.formatage_date,
+                'horaire': s.formatage_horaire,
                 'theme': s.theme.nom if s.theme else 'N/A',
                 'theme_id': s.theme_id,
                 'places_restantes': max(0, max_p - inscrits_count),
                 'inscrits': inscrits_count,
                 'max_participants': max_p,
                 'liste_attente': attente_count,
-                # 'pending_count': pending_count, # Décommentez si nécessaire
+                'pending_validation_count': pending_validation_count, # Ajouté pour la modale participants
                 'salle': s.salle.nom if s.salle else None,
-                'salle_id': s.salle_id
+                'salle_id': s.salle_id,
+                # Pour la modale des participants, on pourrait pré-charger des infos simplifiées ici
+                # ou faire un appel API dédié quand la modale s'ouvre.
+                # Pour l'instant, on ne pré-charge pas les listes détaillées ici pour garder cet appel léger.
             })
 
-        # Participants avec détails de service (pour les graphiques et potentiellement les modales)
+        # Participants (tous les participants pour les selects des modales)
         participants_q = Participant.query.options(
-            joinedload(Participant.service)
+            joinedload(Participant.service) # joinedload est ok ici car on accède directement à service.nom/couleur
         ).order_by(Participant.nom, Participant.prenom).all()
 
         participants_data = [{
             'id': p.id,
             'nom': p.nom,
             'prenom': p.prenom,
-            'email': p.email, # Peut être utile pour les modales d'inscription
+            'email': p.email,
             'service': p.service.nom if p.service else 'N/A',
             'service_id': p.service_id,
             'service_color': p.service.couleur if p.service and p.service.couleur else '#6c757d'
         } for p in participants_q]
 
         # Activités récentes
-        activites_q = get_recent_activities(limit=10) # Utilise la fonction helper déjà cachée
+        activites_q = get_recent_activities(limit=7) # Limiter à 7 pour le dashboard
         activites_data = [{
             'id': a.id,
             'type': a.type,
@@ -1920,13 +1933,25 @@ def api_dashboard_essential():
             'user': a.utilisateur.username if a.utilisateur else None
         } for a in activites_q]
         
+        # Services (pour les selects des modales)
+        all_services_q = Service.query.order_by(Service.nom).all()
+        services_list_data = [{'id': srv.id, 'nom': srv.nom} for srv in all_services_q]
+
+        # Salles (pour les selects des modales)
+        all_salles_q = Salle.query.order_by(Salle.nom).all()
+        salles_list_data = [{'id': sal.id, 'nom': sal.nom, 'capacite': sal.capacite} for sal in all_salles_q]
+        
         response_data = {
             'sessions': sessions_data,
             'participants': participants_data,
             'activites': activites_data,
+            'services': services_list_data,
+            'salles': salles_list_data,
             'timestamp': datetime.now(UTC).timestamp(),
             'status': 'ok'
         }
+        
+        # if not app.debug: # Ne pas utiliser le cache en mode debug
         cache.set(cache_key, response_data, timeout=45) # Cache pour 45 secondes
         app.logger.debug(f"API dashboard_essential: Data fetched and cached (key: {cache_key})")
         return jsonify(response_data)
@@ -1937,6 +1962,82 @@ def api_dashboard_essential():
         return jsonify({"error": "Database error", "message": str(e), "status": "error"}), 500
     except Exception as e:
         app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error", "message": str(e), "status": "error"}), 500
+
+# NOUVELLE ROUTE API pour les détails des participants d'une session (pour la modale)
+@app.route('/api/session/<int:session_id>/participants_details')
+@login_required # Assurer que l'utilisateur est connecté pour voir ces détails
+@db_operation_with_retry(max_retries=2)
+def api_session_participants_details(session_id):
+    try:
+        session = db.session.get(Session, session_id)
+        if not session:
+            return jsonify({"error": "Session non trouvée"}), 404
+
+        # Inscriptions confirmées
+        confirmes = Inscription.query.options(
+            joinedload(Inscription.participant).joinedload(Participant.service)
+        ).filter(
+            Inscription.session_id == session_id,
+            Inscription.statut == 'confirmé'
+        ).order_by(Participant.nom, Participant.prenom).all()
+        
+        confirmes_data = [{
+            'id': insc.id, # ID de l'inscription
+            'participant_id': insc.participant.id,
+            'nom_complet': f"{insc.participant.prenom} {insc.participant.nom}",
+            'service_nom': insc.participant.service.nom if insc.participant.service else 'N/A',
+            'service_couleur': insc.participant.service.couleur if insc.participant.service else '#6c757d',
+            'date_inscription': insc.date_inscription.strftime('%d/%m/%Y %H:%M')
+        } for insc in confirmes]
+
+        # Inscriptions en attente de validation
+        en_attente_validation = Inscription.query.options(
+            joinedload(Inscription.participant).joinedload(Participant.service)
+        ).filter(
+            Inscription.session_id == session_id,
+            Inscription.statut == 'en attente'
+        ).order_by(Inscription.date_inscription.asc()).all()
+
+        en_attente_data = [{
+            'id': insc.id, # ID de l'inscription
+            'participant_id': insc.participant.id,
+            'nom_complet': f"{insc.participant.prenom} {insc.participant.nom}",
+            'service_nom': insc.participant.service.nom if insc.participant.service else 'N/A',
+            'service_couleur': insc.participant.service.couleur if insc.participant.service else '#6c757d',
+            'date_demande': insc.date_inscription.strftime('%d/%m/%Y %H:%M')
+        } for insc in en_attente_validation]
+
+        # Liste d'attente
+        liste_attente = ListeAttente.query.options(
+            joinedload(ListeAttente.participant).joinedload(Participant.service)
+        ).filter(
+            ListeAttente.session_id == session_id
+        ).order_by(ListeAttente.position.asc()).all()
+
+        liste_attente_data = [{
+            'id': la.id, # ID de l'entrée en liste d'attente
+            'participant_id': la.participant.id,
+            'nom_complet': f"{la.participant.prenom} {la.participant.nom}",
+            'service_nom': la.participant.service.nom if la.participant.service else 'N/A',
+            'service_couleur': la.participant.service.couleur if la.participant.service else '#6c757d',
+            'date_inscription': la.date_inscription.strftime('%d/%m/%Y %H:%M'),
+            'position': la.position
+        } for la in liste_attente]
+
+        return jsonify({
+            'confirmes': confirmes_data,
+            'en_attente_validation': en_attente_data,
+            'liste_attente': liste_attente_data,
+            'status': 'ok'
+        })
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"API DB Error for session participant details (SessID: {session_id}): {e}", exc_info=True)
+        return jsonify({"error": "Database error", "message": str(e), "status": "error"}), 500
+    except Exception as e:
+        app.logger.error(f"API Unexpected Error for session participant details (SessID: {session_id}): {e}", exc_info=True)
         return jsonify({"error": "Internal server error", "message": str(e), "status": "error"}), 500
 
 @app.route('/api/sessions')
