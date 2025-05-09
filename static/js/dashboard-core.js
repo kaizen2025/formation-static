@@ -1,4 +1,4 @@
-// static/js/dashboard-core.js (v2.2.3)
+// static/js/dashboard-core.js (v2.3.0) - Version améliorée
 
 // --- Configuration ---
 const defaultConfig = {
@@ -59,8 +59,8 @@ if (window.dashboardConfig && typeof window.dashboardConfig.baseApiUrl === 'stri
 }
 
 if (config.debugMode) {
-    console.log('Dashboard Core (v2.2.3): Initializing.');
-    console.log('Dashboard Core: Effective Config', config); // VÉRIFIE config.baseApiUrl ICI DANS TA CONSOLE
+    console.log('Dashboard Core (v2.3.0): Initializing.');
+    console.log('Dashboard Core: Effective Config', config);
 }
 
 // --- Variables d'état globales ---
@@ -156,31 +156,51 @@ function handleApiError(endpoint, error) {
 function getSimulatedData(endpoint) {
     // Génération de données de remplacement simples en cas d'erreur API
     switch(endpoint) {
-        case '/dashboard/stats':
+        case '/dashboard_essential':
             return {
-                sessions_count: 3,
-                participants_count: 15,
-                waiting_count: 2,
-                completed_sessions: 5
+                sessions: [],
+                participants: [],
+                activites: [{
+                    id: 1,
+                    type: "Simulation d'activité",
+                    description: "Données générées suite à une erreur API",
+                    details: null,
+                    date_relative: "à l'instant",
+                    user: "Système"
+                }],
+                services: [],
+                salles: [],
+                timestamp: Date.now(),
+                status: 'error'
             };
-        case '/dashboard/sessions_upcoming':
+        case '/sessions?page=1&per_page=5':
+            return {
+                items: [{
+                    id: 1,
+                    date: "Aujourd'hui",
+                    iso_date: new Date().toISOString().split('T')[0],
+                    horaire: "09:00 - 12:00",
+                    theme: "Session de remplacement",
+                    theme_id: 1,
+                    places_restantes: 10,
+                    inscrits: 5,
+                    max_participants: 15,
+                    liste_attente: 0,
+                    salle: "Salle virtuelle",
+                    salle_id: 1
+                }],
+                total: 1,
+                pages: 1,
+                page: 1,
+                per_page: 5
+            };
+        case '/activites?limit=7':
             return [{
                 id: 1,
-                date: new Date().toISOString().split('T')[0],
-                heure_debut: "09:00",
-                heure_fin: "12:00",
-                titre: "Session de remplacement",
-                theme: "Données simulées",
-                salle: "Salle virtuelle",
-                places_disponibles: 10,
-                places_prises: 5
-            }];
-        case '/dashboard/recent_activities':
-            return [{
-                id: 1,
-                timestamp: new Date().toISOString(),
-                action: "Simulation d'activité",
+                type: "Simulation d'activité",
                 description: "Données générées suite à une erreur API",
+                details: null,
+                date_relative: "à l'instant",
                 user: "Système"
             }];
         default:
@@ -191,7 +211,27 @@ function getSimulatedData(endpoint) {
 // --- Fonctions de chargement des données ---
 async function loadDashboardStats() {
     try {
-        const stats = await fetchAPI('/dashboard/stats');
+        // Récupérer les données essentielles du dashboard
+        const dashboardData = await fetchAPI('/dashboard_essential');
+        
+        // Extraire les statistiques
+        const stats = {
+            sessions_count: dashboardData.sessions.length || 0,
+            participants_count: dashboardData.participants.length || 0,
+            waiting_count: 0, // À calculer
+            completed_sessions: 0 // À calculer
+        };
+        
+        // Calculer le nombre total de personnes en attente
+        for (const session of dashboardData.sessions) {
+            stats.waiting_count += session.liste_attente_count || 0;
+            
+            // Compter les sessions complètes (où places_restantes = 0)
+            if (session.places_restantes <= 0) {
+                stats.completed_sessions++;
+            }
+        }
+        
         dashboardState.dataCache.stats = stats;
         updateDashboardCounters(stats);
         return stats;
@@ -199,30 +239,95 @@ async function loadDashboardStats() {
         console.error('Error loading dashboard stats:', error);
         // Utiliser des données de secours si nécessaire
         if (config.useSimulatedDataOnError) {
-            const fallbackStats = getSimulatedData('/dashboard/stats');
+            const fallbackStats = {
+                sessions_count: 3,
+                participants_count: 15,
+                waiting_count: 2,
+                completed_sessions: 5
+            };
             updateDashboardCounters(fallbackStats);
+            return fallbackStats;
         }
     }
 }
 
 async function loadUpcomingSessions() {
     try {
-        const sessions = await fetchAPI('/dashboard/sessions_upcoming');
+        // Utiliser l'API /sessions existante avec pagination
+        const sessionsData = await fetchAPI('/sessions?page=1&per_page=5');
+        
+        // Transformer les données au format attendu par updateSessionsTable
+        const sessions = sessionsData.items.map(session => ({
+            id: session.id,
+            date: session.iso_date,
+            heure_debut: session.horaire.split(' - ')[0],
+            heure_fin: session.horaire.split(' - ')[1],
+            theme: session.theme,
+            titre: session.theme, // Utiliser le même titre que le thème
+            salle: session.salle || "Non définie",
+            places_disponibles: session.places_restantes,
+            places_prises: session.inscrits
+        }));
+        
         dashboardState.dataCache.sessions = sessions;
         updateSessionsTable(sessions);
         return sessions;
     } catch (error) {
         console.error('Error loading upcoming sessions:', error);
         if (config.useSimulatedDataOnError) {
-            const fallbackSessions = getSimulatedData('/dashboard/sessions_upcoming');
+            const fallbackSessions = getSimulatedData('/sessions?page=1&per_page=5').items.map(session => ({
+                id: session.id,
+                date: session.iso_date,
+                heure_debut: session.horaire.split(' - ')[0],
+                heure_fin: session.horaire.split(' - ')[1],
+                theme: session.theme,
+                titre: session.theme,
+                salle: session.salle || "Non définie",
+                places_disponibles: session.places_restantes,
+                places_prises: session.inscrits
+            }));
             updateSessionsTable(fallbackSessions);
+            return fallbackSessions;
         }
     }
 }
 
 async function loadThemeDistribution() {
     try {
-        const themeData = await fetchAPI('/dashboard/theme_distribution');
+        // Récupérer les données essentielles du dashboard qui contiennent les sessions
+        const dashboardData = await fetchAPI('/dashboard_essential');
+        
+        // Créer un dictionnaire pour compter les sessions par thème
+        const themeCounts = {};
+        const themeColors = {};
+        
+        // Extraire et compter les thèmes à partir des sessions
+        dashboardData.sessions.forEach(session => {
+            if (session.theme && session.theme_id) {
+                if (!themeCounts[session.theme]) {
+                    themeCounts[session.theme] = 0;
+                    // Assigner des couleurs par défaut pour les thèmes
+                    const themeColors = {
+                        'Communiquer avec Teams': '#4e73df',
+                        'Collaborer avec Teams': '#1cc88a',
+                        'Gérer les tâches (Planner)': '#f6c23e',
+                        'Gérer mes fichiers (OneDrive/SharePoint)': '#36b9cc'
+                    };
+                    themeColors[session.theme] = themeColors[session.theme] || 
+                                               config.themeColors[Object.keys(themeCounts).length % Object.keys(config.themeColors).length] || 
+                                               '#6c757d';
+                }
+                themeCounts[session.theme]++;
+            }
+        });
+        
+        // Convertir en format attendu par updateThemeChart
+        const themeData = Object.keys(themeCounts).map(theme => ({
+            theme: theme,
+            count: themeCounts[theme],
+            color: themeColors[theme] || '#6c757d'
+        }));
+        
         updateThemeChart(themeData);
         return themeData;
     } catch (error) {
@@ -234,12 +339,40 @@ async function loadThemeDistribution() {
             { theme: "PowerPoint", count: 2, color: "#FFC107" }
         ];
         updateThemeChart(fallbackThemeData);
+        return fallbackThemeData;
     }
 }
 
 async function loadServiceDistribution() {
     try {
-        const serviceData = await fetchAPI('/dashboard/service_distribution');
+        // Récupérer les données essentielles du dashboard
+        const dashboardData = await fetchAPI('/dashboard_essential');
+        
+        // Créer un dictionnaire pour compter les participants par service
+        const serviceCounts = {};
+        const serviceColors = {};
+        
+        // Extraire les services à partir des participants
+        dashboardData.participants.forEach(participant => {
+            if (participant.service) {
+                if (!serviceCounts[participant.service]) {
+                    serviceCounts[participant.service] = 0;
+                    serviceColors[participant.service] = participant.service_color || '#6c757d';
+                }
+                serviceCounts[participant.service]++;
+            }
+        });
+        
+        // Convertir en format attendu par updateServiceChart
+        const serviceData = Object.keys(serviceCounts).map(service => ({
+            service: service,
+            count: serviceCounts[service],
+            color: serviceColors[service]
+        }));
+        
+        // Trier par nombre décroissant
+        serviceData.sort((a, b) => b.count - a.count);
+        
         updateServiceChart(serviceData);
         return serviceData;
     } catch (error) {
@@ -251,20 +384,33 @@ async function loadServiceDistribution() {
             { service: "RH", count: 3, color: "#607D8B" }
         ];
         updateServiceChart(fallbackServiceData);
+        return fallbackServiceData;
     }
 }
 
 async function loadRecentActivities() {
     try {
-        const activities = await fetchAPI('/dashboard/recent_activities');
-        dashboardState.dataCache.activities = activities;
-        updateActivitiesList(activities);
-        return activities;
+        // Utiliser l'API /activites existante avec limitation
+        const activities = await fetchAPI('/activites?limit=7');
+        
+        // Transformer au format attendu par updateActivitiesList si nécessaire
+        const formattedActivities = activities.map(activity => ({
+            id: activity.id,
+            timestamp: activity.date_iso,
+            action: activity.type,
+            description: activity.description,
+            user: activity.user || 'Système'
+        }));
+        
+        dashboardState.dataCache.activities = formattedActivities;
+        updateActivitiesList(formattedActivities);
+        return formattedActivities;
     } catch (error) {
         console.error('Error loading recent activities:', error);
         if (config.useSimulatedDataOnError) {
-            const fallbackActivities = getSimulatedData('/dashboard/recent_activities');
+            const fallbackActivities = getSimulatedData('/activites?limit=7');
             updateActivitiesList(fallbackActivities);
+            return fallbackActivities;
         }
     }
 }
@@ -372,7 +518,7 @@ function updateSessionsTable(sessions) {
                 </td>
                 <td>
                     <span class="fw-semibold">${session.titre || session.theme}</span>
-                    ${session.titre && session.theme ? `<div class="small text-muted">${session.theme}</div>` : ''}
+                    ${session.titre && session.theme && session.titre !== session.theme ? `<div class="small text-muted">${session.theme}</div>` : ''}
                 </td>
                 <td>${session.salle || '-'}</td>
                 <td>
@@ -472,19 +618,19 @@ function updateActivitiesList(activities) {
         let icon = 'fa-circle-check';
         let iconClass = 'text-success';
         
-        if (activity.action.includes('supprim')) {
+        if (activity.action && activity.action.includes('supprim') || activity.type && activity.type.includes('supprim')) {
             icon = 'fa-trash';
             iconClass = 'text-danger';
-        } else if (activity.action.includes('modifi')) {
+        } else if (activity.action && activity.action.includes('modifi') || activity.type && activity.type.includes('modifi')) {
             icon = 'fa-pen-to-square';
             iconClass = 'text-primary';
-        } else if (activity.action.includes('connect')) {
+        } else if (activity.action && activity.action.includes('connect') || activity.type && activity.type.includes('connect')) {
             icon = 'fa-sign-in-alt';
             iconClass = 'text-info';
-        } else if (activity.action.includes('inscri')) {
+        } else if (activity.action && activity.action.includes('inscri') || activity.type && activity.type.includes('inscri')) {
             icon = 'fa-user-plus';
             iconClass = 'text-success';
-        } else if (activity.action.includes('désinscri')) {
+        } else if (activity.action && activity.action.includes('désinscri') || activity.type && activity.type.includes('désinscri')) {
             icon = 'fa-user-minus';
             iconClass = 'text-warning';
         }
@@ -499,7 +645,10 @@ function updateActivitiesList(activities) {
                         <div class="mb-1">${activity.description}</div>
                         <div class="d-flex justify-content-between align-items-center">
                             <small class="text-muted">${activity.user || 'Système'}</small>
-                            <small class="text-muted">${formatDateTime(activity.timestamp)}</small>
+                            <small class="text-muted">${
+                                activity.date_relative || 
+                                formatDateTime(activity.timestamp)
+                            }</small>
                         </div>
                     </div>
                 </div>
@@ -874,7 +1023,7 @@ window.DashboardCore = {
     refreshDashboard,
     togglePolling,
     getCurrentState: () => ({ ...dashboardState }),
-    getVersion: () => '2.2.3'
+    getVersion: () => '2.3.0'
 };
 
 // Émettre un événement pour signaler que dashboard-core.js est complètement chargé
