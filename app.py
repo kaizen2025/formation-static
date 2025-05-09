@@ -1704,7 +1704,6 @@ def api_single_session(session_id):
 
 # --- Route pour afficher la page des participants (Publique) ---
 @app.route('/participants')
-# @login_required # Commenté ou retiré pour rendre la page publique
 @db_operation_with_retry(max_retries=3)
 def participants_page():
     """Affiche la page principale de la liste des participants."""
