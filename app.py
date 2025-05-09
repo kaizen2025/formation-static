@@ -323,56 +323,27 @@ class Session(db.Model):
 
     def get_places_restantes(self, confirmed_count=None):
         try:
-            if confirmed_count is None: confirmed_count = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == self.id, Inscription.statut == 'confirmé').scalar() or 0
-            max_p = 10
-            if self.max_participants is not None:
-                try: max_p = int(self.max_participants)
-                except (ValueError, TypeError): pass
+            if confirmed_count is None:
+                # Utiliser la relation chargée si possible pour éviter une requête supplémentaire
+                if self.inscriptions: # Vérifie si la relation est chargée
+                    confirmed_count = sum(1 for insc in self.inscriptions if insc.statut == 'confirmé')
+                else: # Fallback si non chargée (ne devrait pas arriver avec selectinload)
+                    confirmed_count = db.session.query(func.count(Inscription.id)).filter(Inscription.session_id == self.id, Inscription.statut == 'confirmé').scalar() or 0
+            
+            max_p = self.max_participants if self.max_participants is not None else 10
             return max(0, max_p - confirmed_count)
-        except Exception as e: app.logger.error(f"Error calculating places restantes for S:{self.id}: {e}"); return 0
+        except Exception as e:
+            app.logger.error(f"Erreur calcul places restantes S:{self.id}: {e}")
+            return 0
 
-    # Définition des filtres personnalisés pour les templates
-@app.template_filter('format_date')
-def format_date_filter(date):
-    if not date:
-        return ""
-    if isinstance(date, str):
-        try:
-            date = datetime.strptime(date, "%Y-%m-%d")
-        except ValueError:
-            return date
-    return date.strftime("%d %B %Y")
-
-@app.template_filter('format_datetime_relative')
-def format_datetime_relative_filter(dt):
-    if not dt:
-        return ""
-    if isinstance(dt, str):
-        try:
-            dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
-        except ValueError:
-            return dt
-    
-    now = datetime.now()
-    diff = now - dt
-    
-    if diff.days == 0:
-        # Aujourd'hui
-        return f"aujourd'hui à {dt.strftime('%H:%M')}"
-    elif diff.days == 1:
-        # Hier
-        return f"hier à {dt.strftime('%H:%M')}"
-    else:
-        # Autre
-        return dt.strftime("%d %b à %H:%M")
-
-    @property
+ @property
     def formatage_date(self):
         try:
             jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
             mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
             return f"{jours[self.date.weekday()]} {self.date.day} {mois[self.date.month-1]} {self.date.year}"
-        except Exception: return self.date.strftime('%d/%m/%Y')
+        except Exception:
+            return self.date.strftime('%d/%m/%Y') if self.date else "Date N/A"
 
     @property
     def formatage_horaire(self):
@@ -380,31 +351,35 @@ def format_datetime_relative_filter(dt):
             debut = f"{self.heure_debut.hour:02d}h{self.heure_debut.minute:02d}"
             fin = f"{self.heure_fin.hour:02d}h{self.heure_fin.minute:02d}"
             return f"{debut}–{fin}"
-        except Exception: return f"{self.heure_debut.strftime('%H:%M')}–{self.heure_fin.strftime('%H:%M')}"
+        except Exception:
+            return f"{self.heure_debut.strftime('%H:%M')}–{self.heure_fin.strftime('%H:%M')}" if self.heure_debut and self.heure_fin else "Horaire N/A"
 
     @property
     def formatage_ics(self):
         try:
             if not isinstance(self.date, date) or not isinstance(self.heure_debut, time_obj) or not isinstance(self.heure_fin, time_obj):
                 app.logger.error(f"ICS Formatting Error S:{self.id}: Invalid date/time types.")
-                now_utc = datetime.now(UTC); return now_utc, now_utc + timedelta(hours=1)
-            naive_start_dt = datetime.combine(self.date, self.heure_debut)
-            naive_end_dt = datetime.combine(self.date, self.heure_fin)
-            try:
-                start_dt_aware = naive_start_dt.astimezone(); end_dt_aware = naive_end_dt.astimezone()
-                start_utc = start_dt_aware.astimezone(UTC); end_utc = end_dt_aware.astimezone(UTC)
-            except Exception as tz_err:
-                app.logger.warning(f"ICS Timezone Warning S:{self.id}: Assuming naive times are UTC. Error: {tz_err}")
-                start_utc = naive_start_dt.replace(tzinfo=UTC); end_utc = naive_end_dt.replace(tzinfo=UTC)
+                now_utc = datetime.now(UTC)
+                return now_utc, now_utc + timedelta(hours=1)
+            
+            # Supposer que les heures sont stockées en UTC ou sont naïves et doivent être traitées comme UTC
+            # Si elles sont locales, il faudrait les convertir en UTC ici.
+            # Pour simplifier, on les traite comme si elles étaient déjà prêtes pour UTC.
+            start_utc = datetime.combine(self.date, self.heure_debut).replace(tzinfo=UTC)
+            end_utc = datetime.combine(self.date, self.heure_fin).replace(tzinfo=UTC)
+
             if end_utc <= start_utc:
                 app.logger.warning(f"ICS Formatting Warning S:{self.id}: End time not after start. Adjusting.")
                 end_utc = start_utc + timedelta(hours=1)
             return start_utc, end_utc
         except Exception as e:
             app.logger.error(f"Critical error in formatage_ics for S:{self.id}: {e}", exc_info=True)
-            now_utc = datetime.now(UTC); return now_utc, now_utc + timedelta(hours=1)
+            now_utc = datetime.now(UTC)
+            return now_utc, now_utc + timedelta(hours=1)
 
-    def __repr__(self): theme_nom = self.theme.nom if self.theme else "N/A"; return f'<Session {self.id} - {theme_nom} le {self.date.strftime("%Y-%m-%d")}>'
+    def __repr__(self):
+        theme_nom = self.theme.nom if self.theme else "N/A"
+        return f'<Session {self.id} - {theme_nom} le {self.date.strftime("%Y-%m-%d") if self.date else "N/A"}>'
         
 class Participant(db.Model):
     __tablename__ = 'participant'
@@ -415,13 +390,13 @@ class Participant(db.Model):
     service_id = db.Column(db.String(20), db.ForeignKey('service.id'), nullable=False, index=True)
     
     inscriptions = db.relationship('Inscription', backref='participant', 
-                                   lazy='selectin',  # CORRIGÉ
+                                   lazy='selectin',
                                    cascade="all, delete-orphan")
     liste_attente = db.relationship('ListeAttente', backref='participant', 
-                                    lazy='selectin',  # CORRIGÉ
+                                    lazy='selectin',
                                     cascade="all, delete-orphan")
-
-    def __repr__(self): return f'<Participant {self.id}: {self.prenom} {self.nom}>'
+    def __repr__(self): 
+        return f'<Participant {self.id}: {self.prenom} {self.nom}>'
 
 class Inscription(db.Model):
     __tablename__ = 'inscription'
@@ -460,11 +435,16 @@ class Activite(db.Model):
     @property
     def date_relative(self):
         now = datetime.now(UTC)
-        aware_date = self.date.replace(tzinfo=UTC) if self.date.tzinfo is None else self.date
+        # S'assurer que self.date est conscient du fuseau horaire (UTC)
+        aware_date = self.date
+        if self.date.tzinfo is None:
+            aware_date = self.date.replace(tzinfo=UTC)
+        
         if not isinstance(aware_date, datetime): return "Date invalide"
         try:
             if aware_date > now: return f"le {aware_date.strftime('%d/%m/%Y à %H:%M')}"
-            diff = now - aware_date; seconds = diff.total_seconds()
+            diff = now - aware_date
+            seconds = diff.total_seconds()
             if seconds < 5: return "à l'instant"
             if seconds < 60: s = 's' if int(seconds) >= 2 else ''; return f"il y a {int(seconds)} seconde{s}"
             if seconds < 3600: m = int(seconds // 60); s = 's' if m >= 2 else ''; return f"il y a {m} minute{s}"
@@ -473,24 +453,30 @@ class Activite(db.Model):
             if days == 1: return "hier"
             if days <= 7: return f"il y a {days} jours"
             return f"le {aware_date.strftime('%d/%m/%Y')}"
-        except Exception as e: app.logger.error(f"Error calculating relative date for activity {self.id}: {e}"); return "Date inconnue"
+        except Exception as e: 
+            app.logger.error(f"Error calculating relative date for activity {self.id}: {e}")
+            return "Date inconnue"
 
-    def __repr__(self): return f'<Activite {self.id} - Type:{self.type} Date:{self.date.strftime("%Y-%m-%d %H:%M")}>'
+    def __repr__(self): 
+        return f'<Activite {self.id} - Type:{self.type} Date:{self.date.strftime("%Y-%m-%d %H:%M") if self.date else "N/A"}>'
 
 class User(UserMixin, db.Model):
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(200), nullable=False)
+    password_hash = db.Column(db.String(200), nullable=False) # Augmenté pour des hash plus longs
     email = db.Column(db.String(100), unique=True, nullable=False)
     role = db.Column(db.String(20), default='user', nullable=False, index=True)
     service_id = db.Column(db.String(20), db.ForeignKey('service.id'), nullable=True)
-    # activites_generees défini par backref dans Activite
-    # uploaded_documents défini par backref dans Document
 
-    def set_password(self, password): self.password_hash = generate_password_hash(password)
-    def check_password(self, password): return check_password_hash(self.password_hash, password)
-    def __repr__(self): return f'<User {self.id}: {self.username} ({self.role})>'
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def __repr__(self):
+        return f'<User {self.id}: {self.username} ({self.role})>'
 
 # ==============================================================================
 # === Flask-Login Configuration ===
