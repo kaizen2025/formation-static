@@ -1,0 +1,35 @@
+<!-- templates/_document_item.html -->
+<div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3 px-3">
+    <a href="{{ url_for('download_document', filename=doc.filename) }}"
+       class="d-flex align-items-center text-decoration-none text-dark flex-grow-1 me-3"
+       title="Télécharger {{ doc.original_filename }}">
+        {% set ext = doc.file_type|lower if doc.file_type else doc.original_filename.rsplit('.', 1)[-1]|lower %}
+        <span class="document-icon">
+            {% if ext == 'pdf' %}<i class="fas fa-file-pdf text-danger"></i>
+            {% elif ext in ['doc', 'docx'] %}<i class="fas fa-file-word text-primary"></i>
+            {% elif ext in ['xls', 'xlsx'] %}<i class="fas fa-file-excel text-success"></i>
+            {% elif ext in ['ppt', 'pptx'] %}<i class="fas fa-file-powerpoint text-warning"></i>
+            {% elif ext in ['png', 'jpg', 'jpeg', 'gif'] %}<i class="fas fa-file-image text-info"></i>
+            {% elif ext == 'txt' %}<i class="fas fa-file-alt text-secondary"></i>
+            {% else %}<i class="fas fa-file text-muted"></i>{% endif %}
+        </span>
+        <div class="flex-grow-1" style="min-width: 0;"> {# Pour text-truncate #}
+            <strong class="mb-1 d-block text-truncate document-title">{{ doc.original_filename }}</strong>
+            {% if doc.description %}
+            <p class="mb-1 text-muted small text-truncate">{{ doc.description }}</p>
+            {% endif %}
+            <small class="document-meta d-block">
+                Ajouté le {{ doc.upload_date.strftime('%d/%m/%Y') }}
+                {% if doc.uploader %}par {{ doc.uploader.username }}{% endif %}
+            </small>
+        </div>
+    </a>
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    <button type="button" class="btn btn-sm btn-outline-danger btn-delete-document"
+            data-doc-id="{{ doc.id }}"
+            data-doc-name="{{ doc.original_filename }}"
+            title="Supprimer {{ doc.original_filename }}">
+        <i class="fas fa-trash"></i>
+    </button>
+    {% endif %}
+</div>
