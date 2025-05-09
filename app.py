@@ -936,6 +936,53 @@ def documents():
         app.logger.error(f"Unexpected error loading documents page: {e}", exc_info=True)
         flash("Une erreur interne est survenue.", "danger")
         return redirect(url_for('dashboard')) # Ou une page d'erreur générique
+
+# --- Route download_document (VÉRIFIER/MODIFIER) ---
+@app.route('/download_document/<path:filename>')
+# @login_required # ASSUREZ-VOUS QUE CETTE LIGNE EST ABSENTE OU COMMENTÉE
+@db_operation_with_retry(max_retries=2)
+def download_document(filename):
+    try:
+        # Utiliser werkzeug.utils.secure_filename est une bonne pratique
+        safe_filename = secure_filename(filename)
+        if safe_filename != filename:
+             app.logger.warning(f"Tentative de téléchargement avec nom de fichier potentiellement dangereux: {filename}")
+             flash("Nom de fichier invalide.", "danger")
+             # Rediriger vers 'documents' au lieu de 'dashboard' en cas d'erreur ici
+             return redirect(url_for('documents'))
+
+        # Trouver le document dans la base de données par son nom de fichier sécurisé/stocké
+        doc = Document.query.filter_by(filename=safe_filename).first()
+
+        if not doc:
+            app.logger.warning(f"Tentative de téléchargement d'un document inexistant: {safe_filename}")
+            flash("Document non trouvé.", "danger")
+            return redirect(url_for('documents'))
+
+        app.logger.info(f"Téléchargement du document '{doc.original_filename}' (fichier: {safe_filename}) demandé.")
+
+        # Utiliser send_from_directory pour envoyer le fichier
+        # S'assurer que UPLOAD_FOLDER est correctement défini
+        upload_dir = app.config['UPLOAD_FOLDER']
+        if not os.path.isabs(upload_dir): # Rendre le chemin absolu si nécessaire
+            upload_dir = os.path.join(app.root_path, upload_dir)
+
+        # Envoyer le fichier avec son nom original pour le téléchargement
+        return send_from_directory(
+            upload_dir,
+            safe_filename,
+            as_attachment=True,
+            download_name=doc.original_filename # Important pour que l'utilisateur voie le bon nom
+        )
+
+    except FileNotFoundError:
+        app.logger.error(f"Fichier non trouvé sur le disque pour le document: {safe_filename}", exc_info=True)
+        flash("Erreur : le fichier demandé n'existe plus sur le serveur.", "danger")
+        return redirect(url_for('documents'))
+    except Exception as e:
+        app.logger.error(f"Erreur lors du téléchargement du document {safe_filename}: {e}", exc_info=True)
+        flash("Erreur lors du téléchargement du document.", "danger")
+        return redirect(url_for('documents'))
         
 @app.route('/salle/add', methods=['POST'])
 @login_required
