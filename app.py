@@ -667,6 +667,85 @@ def logout():
     except Exception as e: app.logger.error(f"Error during logout for user {current_user.username}: {e}", exc_info=True); flash("Erreur lors de la déconnexion.", "warning")
     return redirect(url_for('login'))
 
+@app.route('/profile')
+@login_required # L'utilisateur doit être connecté pour voir son profil
+@db_operation_with_retry(max_retries=2)
+def profile():
+    """Affiche la page de profil de l'utilisateur connecté."""
+    app.logger.info(f"Utilisateur '{current_user.username}' accède à sa page de profil.")
+    # current_user est déjà chargé par Flask-Login et contient les infos de base.
+    # Si vous avez besoin de charger des relations spécifiques (ex: service avec plus de détails),
+    # vous pouvez re-requêter l'utilisateur, mais souvent ce n'est pas nécessaire ici.
+    # user = db.session.query(User).options(joinedload(User.service)).get(current_user.id)
+    return render_template('profile.html', user_profile=current_user) # Passer current_user au template
+
+# --- NOUVELLE ROUTE : Mes Inscriptions ---
+@app.route('/mes_inscriptions')
+@login_required # L'utilisateur doit être connecté
+@db_operation_with_retry(max_retries=2)
+def mes_inscriptions():
+    """Affiche les inscriptions (confirmées et en attente) et les listes d'attente de l'utilisateur connecté."""
+    app.logger.info(f"Utilisateur '{current_user.username}' accède à la page 'Mes Inscriptions'.")
+    try:
+        participant_id = None
+        # Trouver l'ID du participant correspondant à l'utilisateur connecté
+        # Cela suppose que l'email de l'utilisateur est le même que celui du participant
+        # ou que vous avez un lien direct User.id -> Participant.user_id (non présent dans vos modèles actuels)
+        # Pour cet exemple, nous allons supposer que l'email est le lien.
+        # Une meilleure approche serait d'avoir un user_id dans la table Participant.
+        participant = Participant.query.filter(func.lower(Participant.email) == func.lower(current_user.email)).first()
+
+        if not participant:
+            flash("Profil participant non trouvé pour cet utilisateur. Veuillez contacter l'administrateur.", "warning")
+            return render_template('mes_inscriptions.html', confirmed_inscriptions=[], pending_inscriptions=[], waitlist_entries=[])
+
+        participant_id = participant.id
+
+        # Charger les inscriptions confirmées
+        confirmed_inscriptions = Inscription.query.options(
+            joinedload(Inscription.session).joinedload(Session.theme),
+            joinedload(Inscription.session).joinedload(Session.salle)
+        ).filter(
+            Inscription.participant_id == participant_id,
+            Inscription.statut == 'confirmé'
+        ).order_by(Session.date.asc(), Session.heure_debut.asc()).all() # Trier par date de session
+
+        # Charger les inscriptions en attente de validation
+        pending_inscriptions = Inscription.query.options(
+            joinedload(Inscription.session).joinedload(Session.theme),
+            joinedload(Inscription.session).joinedload(Session.salle)
+        ).filter(
+            Inscription.participant_id == participant_id,
+            Inscription.statut == 'en attente'
+        ).order_by(Session.date.asc(), Session.heure_debut.asc()).all()
+
+        # Charger les entrées en liste d'attente
+        waitlist_entries = ListeAttente.query.options(
+            joinedload(ListeAttente.session).joinedload(Session.theme),
+            joinedload(ListeAttente.session).joinedload(Session.salle)
+        ).filter(
+            ListeAttente.participant_id == participant_id
+        ).order_by(Session.date.asc(), Session.heure_debut.asc(), ListeAttente.position.asc()).all() # Trier aussi par position
+
+        return render_template('mes_inscriptions.html',
+                               confirmed_inscriptions=confirmed_inscriptions,
+                               pending_inscriptions=pending_inscriptions,
+                               waitlist_entries=waitlist_entries,
+                               participant=participant)
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB chargement 'Mes Inscriptions' pour {current_user.username}: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement de vos inscriptions.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue chargement 'Mes Inscriptions' pour {current_user.username}: {e}", exc_info=True)
+        flash("Une erreur interne est survenue.", "danger")
+    
+    # En cas d'erreur, retourner une page avec des listes vides pour éviter une page blanche
+    return render_template('mes_inscriptions.html', confirmed_inscriptions=[], pending_inscriptions=[], waitlist_entries=[], participant=None)
+
+
 @app.route('/generer_invitation/<int:inscription_id>')
 @db_operation_with_retry(max_retries=2)
 def generer_invitation(inscription_id):
