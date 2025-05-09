@@ -404,8 +404,15 @@ class Participant(db.Model):
     prenom = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False, unique=True, index=True)
     service_id = db.Column(db.String(20), db.ForeignKey('service.id'), nullable=False, index=True)
-    inscriptions = db.relationship('Inscription', backref='participant', lazy='dynamic', cascade="all, delete-orphan")
-    liste_attente = db.relationship('ListeAttente', backref='participant', lazy='dynamic', cascade="all, delete-orphan")
+    
+    # MODIFICATION CRUCIALE ICI :
+    inscriptions = db.relationship('Inscription', backref='participant', 
+                                   lazy='selectin',  # ÉTAIT 'dynamic'
+                                   cascade="all, delete-orphan")
+    liste_attente = db.relationship('ListeAttente', backref='participant', 
+                                    lazy='selectin',  # ÉTAIT 'dynamic'
+                                    cascade="all, delete-orphan")
+
     def __repr__(self): return f'<Participant {self.id}: {self.prenom} {self.nom}>'
 
 class Inscription(db.Model):
@@ -806,39 +813,33 @@ def generer_invitation(inscription_id):
 
 
 @app.route('/services')
+@login_required 
 @db_operation_with_retry(max_retries=3)
-def services():
+def services(): 
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /services page.")
     try:
-        # Récupérer tous les services
-        # Charger les participants associés à chaque service, et pour chaque participant, charger ses inscriptions
         all_services = Service.query.options(
-            selectinload(Service.participants).selectinload(Participant.inscriptions)
+            selectinload(Service.participants).selectinload(Participant.inscriptions) # Ceci devrait maintenant fonctionner
         ).order_by(Service.nom).all()
 
         services_data_for_template = []
         for service_obj in all_services:
             participants_detailed_list = []
-            for participant in service_obj.participants:
-                # Compter les inscriptions confirmées pour CE participant
+            for participant in service_obj.participants: # service_obj.participants est une liste
+                # participant.inscriptions est maintenant aussi une liste
                 confirmed_count = sum(1 for insc in participant.inscriptions if insc.statut == 'confirmé')
                 participants_detailed_list.append({
                     'obj': participant,
                     'confirmed_count': confirmed_count
                 })
-            
-            # Trier les participants par nom pour un affichage cohérent
-            participants_detailed_list.sort(key=lambda p: (p['obj'].nom, p['obj'].prenom))
-
+            participants_detailed_list.sort(key=lambda p: (p['obj'].nom.lower(), p['obj'].prenom.lower()))
             services_data_for_template.append({
                 'obj': service_obj,
-                'participant_count': len(service_obj.participants), # Nombre total de participants dans le service
-                'user_count': User.query.filter_by(service_id=service_obj.id).count(), # Si tu as besoin du compte des Users
+                'participant_count': len(service_obj.participants),
                 'participants_detailed': participants_detailed_list
             })
         
         return render_template('services.html', services_data=services_data_for_template)
-
     except SQLAlchemyError as e:
         db.session.rollback()
         app.logger.error(f"DB error loading services page: {e}", exc_info=True)
@@ -847,7 +848,7 @@ def services():
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Unexpected error loading services page: {e}", exc_info=True)
-        flash("Une erreur interne est survenue.", "danger")
+        flash("Une erreur interne est survenue lors du chargement des services.", "danger")
         return redirect(url_for('dashboard'))
 
 # app.py - Route /dashboard - Version 1 (Minimaliste)
