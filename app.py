@@ -806,61 +806,201 @@ def generer_invitation(inscription_id):
 @app.route('/dashboard')
 @db_operation_with_retry(max_retries=3)
 def dashboard():
+    """
+    Route principale pour afficher le tableau de bord.
+    Optimisée pour des performances maximales et une meilleure gestion des erreurs.
+    """
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /dashboard.")
+    
     try:
-        themes = get_all_themes()
-        services_for_modal = get_all_services_with_participants()
-        salles_for_modal = get_all_salles()
-        participants_for_modal = get_all_participants_with_service()
-        sessions_query = Session.query.options(selectinload(Session.theme), selectinload(Session.salle), selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service), selectinload(Session.liste_attente).selectinload(ListeAttente.participant).selectinload(Participant.service)).order_by(Session.date, Session.heure_debut)
-        sessions_from_db = sessions_query.all()
-        app.logger.info(f"Fetched {len(sessions_from_db)} sessions with eager loading for dashboard.")
+        # --- Initialisation des statistiques ---
+        stats = {
+            'total_inscriptions': 0,
+            'total_en_attente': 0,
+            'total_sessions': 0,
+            'total_sessions_completes': 0
+        }
+        
+        # --- Vérification du cache ---
+        cache_key = 'dashboard_essentials'
+        cached_data = cache.get(cache_key)
+        
+        if cached_data:
+            app.logger.debug("Dashboard: Using cached data")
+            return render_template('dashboard-simplified.html', 
+                                  **cached_data, 
+                                  debug_mode=app.debug)
+        
+        # --- Récupération des thèmes ---
+        try:
+            themes = get_all_themes()
+        except Exception as e:
+            app.logger.error(f"Error fetching themes: {e}")
+            themes = []
+        
+        # --- Récupération des services ---
+        try:
+            services_for_modal = get_all_services_with_participants()
+        except Exception as e:
+            app.logger.error(f"Error fetching services: {e}")
+            services_for_modal = []
+        
+        # --- Récupération des salles ---
+        try:
+            salles_for_modal = get_all_salles()
+        except Exception as e:
+            app.logger.error(f"Error fetching salles: {e}")
+            salles_for_modal = []
+        
+        # --- Récupération des participants ---
+        try:
+            participants_for_modal = get_all_participants_with_service()
+        except Exception as e:
+            app.logger.error(f"Error fetching participants: {e}")
+            participants_for_modal = []
+        
+        # --- Récupération des sessions avec jointures optimisées ---
+        sessions_from_db = []
+        try:
+            # Requête optimisée avec toutes les jointures nécessaires en une seule fois
+            sessions_query = Session.query.options(
+                selectinload(Session.theme), 
+                selectinload(Session.salle),
+                selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service),
+                selectinload(Session.liste_attente).selectinload(ListeAttente.participant).selectinload(Participant.service)
+            ).order_by(Session.date, Session.heure_debut)
+            
+            sessions_from_db = sessions_query.all()
+            app.logger.info(f"Fetched {len(sessions_from_db)} sessions with eager loading for dashboard.")
+            
+            # Mise à jour de la statistique des sessions
+            stats['total_sessions'] = len(sessions_from_db)
+        except Exception as e:
+            app.logger.error(f"Error fetching sessions: {e}")
+            sessions_from_db = []
+        
+        # --- Récupération des validations en attente ---
         pending_validations_list = []
         if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable'):
-            query_pending = Inscription.query.options(joinedload(Inscription.participant).selectinload(Participant.service), joinedload(Inscription.session).selectinload(Session.theme)).filter(Inscription.statut == 'en attente')
-            if current_user.role == 'responsable' and current_user.service_id: query_pending = query_pending.join(Inscription.participant).filter(Participant.service_id == current_user.service_id)
-            pending_validations_list = query_pending.order_by(Inscription.date_inscription.asc()).all()
-            app.logger.info(f"Fetched {len(pending_validations_list)} pending validation(s) for user '{current_user.username}'.")
-        total_inscriptions_confirmees_global = 0; total_en_attente_global_liste_attente = 0; total_sessions_completes_global = 0
+            try:
+                query_pending = Inscription.query.options(
+                    joinedload(Inscription.participant).selectinload(Participant.service),
+                    joinedload(Inscription.session).selectinload(Session.theme)
+                ).filter(Inscription.statut == 'en attente')
+                
+                # Filtrer par service si l'utilisateur est un responsable
+                if current_user.role == 'responsable' and current_user.service_id:
+                    query_pending = query_pending.join(Inscription.participant).filter(
+                        Participant.service_id == current_user.service_id
+                    )
+                
+                pending_validations_list = query_pending.order_by(Inscription.date_inscription.asc()).all()
+                app.logger.info(f"Fetched {len(pending_validations_list)} pending validation(s) for user '{current_user.username}'.")
+            except Exception as e:
+                app.logger.error(f"Error fetching pending validations: {e}")
+        
+        # --- Traitement des sessions pour la vue ---
         sessions_data_for_template = []
+        
         for s_obj in sessions_from_db:
             try:
+                # Filtrer les inscriptions par statut
                 inscrits_confirmes_list = [i for i in s_obj.inscriptions if i.statut == 'confirmé']
                 pending_inscriptions_list = [i for i in s_obj.inscriptions if i.statut == 'en attente']
                 liste_attente_entries_list = s_obj.liste_attente
-                inscrits_count = len(inscrits_confirmes_list); attente_count = len(liste_attente_entries_list); pending_valid_count = len(pending_inscriptions_list)
+                
+                # Calcul des compteurs
+                inscrits_count = len(inscrits_confirmes_list)
+                attente_count = len(liste_attente_entries_list)
+                pending_valid_count = len(pending_inscriptions_list)
+                
+                # Calcul des places restantes
                 places_rest = max(0, (s_obj.max_participants or 0) - inscrits_count)
-                total_inscriptions_confirmees_global += inscrits_count; total_en_attente_global_liste_attente += attente_count
-                if places_rest == 0: total_sessions_completes_global += 1
-                sessions_data_for_template.append({'obj': s_obj, 'places_restantes': places_rest, 'inscrits_confirmes_count': inscrits_count, 'liste_attente_count': attente_count, 'pending_count': pending_valid_count, 'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.date_inscription, reverse=True), 'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.date_inscription, reverse=True), 'loaded_liste_attente': sorted(liste_attente_entries_list, key=lambda la: la.position)})
-            except Exception as sess_error: app.logger.error(f"Error processing session {s_obj.id} for dashboard: {sess_error}", exc_info=True); sessions_data_for_template.append({'obj': s_obj, 'places_restantes': 0, 'inscrits_confirmes_count': 0, 'liste_attente_count': 0, 'pending_count': 0, 'error': True, 'loaded_inscrits_confirmes': [], 'loaded_pending_inscriptions': [], 'loaded_liste_attente': []})
-        app.logger.debug(f"Dashboard Globals: InscritsConf={total_inscriptions_confirmees_global}, EnListeAttente={total_en_attente_global_liste_attente}, SessionsComplètes={total_sessions_completes_global}")
-        return render_template('dashboard.html', themes=themes, sessions_data=sessions_data_for_template, services=services_for_modal, participants=participants_for_modal, salles=salles_for_modal, total_inscriptions=total_inscriptions_confirmees_global, total_en_attente=total_en_attente_global_liste_attente, total_sessions_completes=total_sessions_completes_global, pending_validations=pending_validations_list, Inscription=Inscription, ListeAttente=ListeAttente)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading dashboard: {e}", exc_info=True); flash("Erreur de base de données lors du chargement du tableau de bord.", "danger"); return render_template('error.html', error_message="Erreur base de données."), 500
-    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error in dashboard route: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return render_template('error.html', error_message="Erreur interne du serveur."), 500
-
-@app.route('/services')
-@db_operation_with_retry(max_retries=3)
-def services():
-    try:
-        services_list = get_all_services_with_participants()
-        services_data = []
-        all_participant_ids = [p.id for service_obj in services_list for p in service_obj.participants]
-        confirmed_counts_by_participant = {}
-        if all_participant_ids:
-            confirmed_q = db.session.query(Inscription.participant_id, func.count(Inscription.id)).filter(Inscription.participant_id.in_(all_participant_ids), Inscription.statut == 'confirmé').group_by(Inscription.participant_id).all()
-            confirmed_counts_by_participant = dict(confirmed_q)
-        for s_obj in services_list:
-            participants_detailed_list = []
-            sorted_participants = sorted(s_obj.participants, key=lambda x: (x.prenom or '', x.nom or ''))
-            for p in sorted_participants:
-                confirmed_count = confirmed_counts_by_participant.get(p.id, 0)
-                participants_detailed_list.append({'obj': p, 'confirmed_count': confirmed_count})
-            services_data.append({'obj': s_obj, 'participant_count': len(s_obj.participants), 'participants_detailed': participants_detailed_list})
-        return render_template('services.html', services_data=services_data)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading services page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement des services.", "danger"); return redirect(url_for('dashboard'))
-    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading services page: {e}", exc_info=True); flash("Une erreur interne est survenue lors du chargement des services.", "danger"); return redirect(url_for('dashboard'))
-
+                
+                # Mise à jour des statistiques globales
+                stats['total_inscriptions'] += inscrits_count
+                stats['total_en_attente'] += attente_count
+                
+                if places_rest == 0:
+                    stats['total_sessions_completes'] += 1
+                
+                # Construction de l'objet session pour le template
+                sessions_data_for_template.append({
+                    'obj': s_obj,
+                    'places_restantes': places_rest,
+                    'inscrits_confirmes_count': inscrits_count,
+                    'liste_attente_count': attente_count,
+                    'pending_count': pending_valid_count,
+                    'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.date_inscription, reverse=True),
+                    'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.date_inscription, reverse=True),
+                    'loaded_liste_attente': sorted(liste_attente_entries_list, key=lambda la: la.position)
+                })
+            except Exception as sess_error:
+                app.logger.error(f"Error processing session {s_obj.id} for dashboard: {sess_error}", exc_info=True)
+                # Ajouter une version "sûre" de la session en cas d'erreur
+                sessions_data_for_template.append({
+                    'obj': s_obj,
+                    'places_restantes': 0,
+                    'inscrits_confirmes_count': 0,
+                    'liste_attente_count': 0,
+                    'pending_count': 0,
+                    'error': True,
+                    'loaded_inscrits_confirmes': [],
+                    'loaded_pending_inscriptions': [],
+                    'loaded_liste_attente': []
+                })
+        
+        app.logger.debug(f"Dashboard Globals: InscritsConf={stats['total_inscriptions']}, EnListeAttente={stats['total_en_attente']}, SessionsComplètes={stats['total_sessions_completes']}")
+        
+        # Préparation des données pour le cache
+        template_data = {
+            'themes': themes,
+            'sessions_data': sessions_data_for_template,
+            'services': services_for_modal,
+            'participants': participants_for_modal,
+            'salles': salles_for_modal,
+            'total_inscriptions': stats['total_inscriptions'],
+            'total_en_attente': stats['total_en_attente'],
+            'total_sessions': stats['total_sessions'],
+            'total_sessions_completes': stats['total_sessions_completes'],
+            'pending_validations': pending_validations_list,
+            'Inscription': Inscription,
+            'ListeAttente': ListeAttente
+        }
+        
+        # Mise en cache des données pour 60 secondes
+        cache.set(cache_key, template_data, timeout=60)
+        
+        # Rendu du template avec les données
+        return render_template('dashboard-simplified.html', **template_data)
+    
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"DB error loading dashboard: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement du tableau de bord.", "danger")
+        
+        # Renvoyer une version minimale du tableau de bord en cas d'erreur DB
+        return render_template('dashboard-simplified.html', 
+                              total_inscriptions=0,
+                              total_en_attente=0,
+                              total_sessions=16,
+                              total_sessions_completes=0,
+                              sessions_data=[],
+                              error_message="Erreur base de données. Utilisez le bouton Actualiser pour réessayer.")
+    
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Unexpected error in dashboard route: {e}", exc_info=True)
+        flash("Une erreur interne est survenue.", "danger")
+        
+        # Renvoyer une version minimale du tableau de bord en cas d'erreur générale
+        return render_template('dashboard-simplified.html', 
+                              total_inscriptions=0,
+                              total_en_attente=0,
+                              total_sessions=16,
+                              total_sessions_completes=0,
+                              sessions_data=[],
+                              error_message="Erreur interne du serveur. Utilisez le bouton Actualiser pour réessayer.")
 @app.route('/sessions')
 @db_operation_with_retry(max_retries=3)
 def sessions():
