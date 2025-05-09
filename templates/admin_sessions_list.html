@@ -1,0 +1,165 @@
+<!-- templates/admin_sessions_list.html -->
+{% extends "layout.html" %}
+
+{% block title %}Gestion des Sessions - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}?v=2.0.1">
+<style>
+    .session-admin-table th, .session-admin-table td { font-size: 0.85rem; vertical-align: middle; }
+    .session-admin-table .action-btn { margin: 0 0.15rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid page-transition">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-calendar-check me-2"></i>Gestion des Sessions de Formation</h1>
+        <a href="{{ url_for('admin_add_session') }}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-plus me-2"></i>Ajouter une Session
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Liste des Sessions</h6>
+        </div>
+        <div class="card-body p-0">
+            {% if sessions_pagination.items %}
+            <div class="table-responsive">
+                <table class="table table-hover session-admin-table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Horaire</th>
+                            <th>Thème</th>
+                            <th>Salle</th>
+                            <th class="text-center">Max. Part.</th>
+                            <th class="text-center">Inscrits</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in sessions_pagination.items %}
+                        <tr>
+                            <td>{{ session.formatage_date }}</td>
+                            <td>{{ session.formatage_horaire }}</td>
+                            <td>
+                                <span class="theme-badge js-theme-cell" data-theme="{{ session.theme.nom if session.theme else 'N/A' }}">
+                                    {{ session.theme.nom if session.theme else 'N/A' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    {{ session.salle.nom if session.salle else 'Non définie' }}
+                                </span>
+                            </td>
+                            <td class="text-center">{{ session.max_participants }}</td>
+                            <td class="text-center">
+                                {% set inscrits_count = session.inscriptions|selectattr('statut', 'equalto', 'confirmé')|list|length %}
+                                <span class="badge bg-{{ 'success' if inscrits_count < session.max_participants else 'danger' }} rounded-pill">
+                                    {{ inscrits_count }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('admin_edit_session', session_id=session.id) }}" class="btn btn-outline-secondary action-btn" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-danger action-btn btn-delete-session-admin"
+                                            data-bs-toggle="modal" data-bs-target="#deleteSessionAdminModal"
+                                            data-session-id="{{ session.id }}"
+                                            data-session-info="{{ session.theme.nom if session.theme else 'N/A' }} du {{ session.formatage_date }}"
+                                            title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center p-4">
+                <p class="text-muted mb-0">Aucune session trouvée.</p>
+                <a href="{{ url_for('admin_add_session') }}" class="btn btn-sm btn-primary mt-2">Créer la première session</a>
+            </div>
+            {% endif %}
+        </div>
+        {% if sessions_pagination.pages > 1 %}
+        <div class="card-footer bg-light py-3">
+            <nav aria-label="Page navigation sessions admin">
+                <ul class="pagination justify-content-center mb-0">
+                    <li class="page-item {% if not sessions_pagination.has_prev %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin_sessions_list', page=sessions_pagination.prev_num) if sessions_pagination.has_prev else '#' }}">Précédent</a>
+                    </li>
+                    {% for page_num in sessions_pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            <li class="page-item {% if page_num == sessions_pagination.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin_sessions_list', page=page_num) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {% if not sessions_pagination.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin_sessions_list', page=sessions_pagination.next_num) if sessions_pagination.has_next else '#' }}">Suivant</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modale Unique pour Supprimer une Session (Admin) -->
+<div class="modal fade" id="deleteSessionAdminModal" tabindex="-1" aria-labelledby="deleteSessionAdminModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="deleteSessionAdminModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Confirmer Suppression</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Êtes-vous sûr de vouloir supprimer la session "<strong id="deleteSessionAdminInfoPlaceholder">Info Session</strong>" ?
+        <p class="text-danger small mt-2"><i class="fas fa-exclamation-circle me-1"></i>Toutes les inscriptions et listes d'attente associées seront également supprimées. Cette action est irréversible.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+        <form id="deleteSessionAdminForm" action="" method="post" class="d-inline">
+          <button type="submit" class="btn btn-danger btn-sm">Supprimer Définitivement</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+        window.enhanceThemeBadgesGlobally();
+    }
+
+    const deleteSessionModalEl = document.getElementById('deleteSessionAdminModal');
+    const deleteSessionModal = deleteSessionModalEl ? new bootstrap.Modal(deleteSessionModalEl) : null;
+    
+    document.querySelectorAll('.btn-delete-session-admin').forEach(button => {
+        button.addEventListener('click', function() {
+            const sessionId = this.dataset.sessionId;
+            const sessionInfo = this.dataset.sessionInfo;
+            
+            const form = deleteSessionModalEl.querySelector('#deleteSessionAdminForm');
+            const infoPlaceholder = deleteSessionModalEl.querySelector('#deleteSessionAdminInfoPlaceholder');
+
+            if(form) form.action = `{{ url_for('index') }}admin/session/${sessionId}/delete`;
+            if(infoPlaceholder) infoPlaceholder.textContent = sessionInfo;
+            
+            // deleteSessionModal.show(); // Déjà géré par data-bs-toggle
+        });
+    });
+});
+</script>
+{% endblock %}
