@@ -853,23 +853,76 @@ def services():
 # app.py - Route /dashboard - Version 1 (Minimaliste)
 
 @app.route('/dashboard')
-@db_operation_with_retry(max_retries=2) # Retry pour le rendu de la page de base
+@db_operation_with_retry(max_retries=3)
 def dashboard():
-    app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /dashboard (minimal backend render).")
+    app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /dashboard (with initial data).")
+    
+    template_data_for_view = [] # Renommé pour éviter confusion avec template_data global
     try:
-        # Cette route sert principalement le HTML. Le JS chargera le contenu.
-        # 'debug_mode' est injecté globalement via app.context_processor
-        # 'config' est aussi disponible globalement dans les templates via app.context_processor
-        return render_template('dashboard.html', 
-                               page_title="Tableau de Bord Dynamique")
+        # Récupérer les données pour le rendu initial (limité pour la performance)
+        # Le JS prendra le relais pour les mises à jour complètes.
+        sessions_from_db = Session.query.options(
+            selectinload(Session.theme), 
+            selectinload(Session.salle),
+            selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service), # Pour les comptes et détails initiaux
+            selectinload(Session.liste_attente) # Pour le compte de la liste d'attente
+        ).order_by(Session.date, Session.heure_debut).limit(20).all() # Limiter pour le rendu initial
 
-    except TemplateNotFound:
-        app.logger.error("Dashboard template not found!", exc_info=True)
-        return "Erreur: Template du tableau de bord introuvable.", 500
+        for s_obj in sessions_from_db:
+            inscrits_confirmes_list = [i for i in s_obj.inscriptions if i.statut == 'confirmé']
+            pending_inscriptions_list = [i for i in s_obj.inscriptions if i.statut == 'en attente']
+            
+            inscrits_count = len(inscrits_confirmes_list)
+            pending_count = len(pending_inscriptions_list)
+            attente_count = len(s_obj.liste_attente) # Supposant que liste_attente est une collection
+            
+            max_p = s_obj.max_participants if s_obj.max_participants is not None else 10
+            
+            template_data_for_view.append({
+                'obj': s_obj, 
+                'places_restantes': max(0, max_p - inscrits_count),
+                'inscrits_confirmes_count': inscrits_count,
+                'liste_attente_count': attente_count,
+                'pending_count': pending_count,
+                # Passer les listes chargées pour les modales si nécessaire
+                'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.participant.nom if i.participant else ''),
+                'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.participant.nom if i.participant else ''),
+                'loaded_liste_attente': sorted(s_obj.liste_attente, key=lambda la: la.position)
+            })
+
+        # Données nécessaires pour les dropdowns dans les modales d'inscription
+        all_participants_for_modal = get_all_participants_with_service() # Fonction helper existante
+        all_services_for_modal = get_all_services_with_participants() # Fonction helper existante
+        all_salles_for_modal = get_all_salles() # Fonction helper existante
+
+
+        template_context = {
+            'page_title': 'Tableau de Bord - Formation Microsoft 365',
+            'sessions_data': template_data_for_view, # Pour la boucle Jinja des modales et potentiellement le tableau initial
+            'participants': all_participants_for_modal, # Pour le select dans _inscription_modal.html
+            'services': all_services_for_modal,       # Pour le select dans _inscription_modal.html (nouveau participant)
+            'salles': all_salles_for_modal,           # Pour le select dans _attribuer_salle_modal.html
+            # Passer les classes de modèle si les modales en ont besoin directement
+            'Inscription': Inscription,
+            'ListeAttente': ListeAttente,
+        }
+        # Utilise dashboard.html (celui que tu as fourni avec la structure complète)
+        return render_template('dashboard.html', **template_context)
+
+    # ... (gestion des erreurs comme dans la version précédente de la route /dashboard v2) ...
+    except TemplateNotFound as e:
+        app.logger.error(f"TemplateNotFound error in dashboard route: {e}", exc_info=True)
+        return "Erreur critique: Le template du tableau de bord est introuvable.", 500
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"DB error loading initial dashboard data: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement initial du tableau de bord.", "danger")
+        return render_template('error.html', error_message="Impossible de charger les données initiales du tableau de bord.")
     except Exception as e:
-        app.logger.error(f"Unexpected error rendering dashboard shell: {e}", exc_info=True)
-        # Éviter render_template ici si le problème pourrait être Jinja lui-même
-        return "Une erreur interne est survenue lors du chargement de la page.", 500
+        db.session.rollback()
+        app.logger.error(f"Unexpected error in dashboard route (initial data): {e}", exc_info=True)
+        flash("Une erreur interne est survenue.", "danger")
+        return render_template('error.html', error_message="Erreur interne du serveur lors du chargement du tableau de bord.")
 
 
 @app.route('/sessions')
