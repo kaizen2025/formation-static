@@ -1,272 +1,174 @@
-/**
- * Styles personnalisés pour l'application Formation
- */
+/* static/css/custom.css */
+/* Contient les styles personnalisés et ceux des graphiques */
 
-/* Variables et thèmes */
+/* ===== VARIABLES DE COULEUR ===== */
 :root {
-    --primary: #4e73df;
-    --secondary: #858796;
-    --success: #1cc88a;
-    --info: #36b9cc;
-    --warning: #f6c23e;
-    --danger: #e74a3b;
-    --light: #f8f9fc;
-    --dark: #5a5c69;
-    
-    --primary-light: #eaecf4;
-    --text-primary: #212529;
-    --text-secondary: #6c757d;
-    --border-color: #e3e6f0;
-    
-    --sidebar-width: 250px;
-    --topbar-height: 60px;
-    --footer-height: 60px;
-    
-    --card-cap-bg: #f8f9fc;
-    --card-border-color: #e3e6f0;
-    
-    --transition-speed: 0.25s;
+    --primary: #0078d4; /* Bleu Microsoft principal */
+    --secondary: #6c757d;
+    --success: #107c10; /* Vert Microsoft */
+    --warning: #ffb900; /* Jaune Microsoft */
+    --danger: #d83b01;  /* Rouge Microsoft */
+    --info: #0078d4;    /* Peut être le même que primary ou un bleu plus clair */
+    --light: #f8f9fa;
+    --dark: #212529;
+    --white: #ffffff;
+    --border-radius: 0.3rem; /* Rayon de bordure légèrement plus petit */
+    --shadow-sm: 0 .125rem .25rem rgba(0,0,0,.075);
+    --shadow: 0 .25rem .75rem rgba(0,0,0,.1); /* Ombre plus subtile */
+    --transition-speed: 0.2s;
+
+    /* Couleurs des services (Palette Microsoft suggérée) */
+    --service-commerce: #ffb900;  /* Jaune */
+    --service-comptabilite: #0078d4; /* Bleu */
+    --service-florensud: #107c10;  /* Vert */
+    --service-informatique: #505050; /* Gris foncé */
+    --service-marketing: #b4009e; /* Magenta */
+    --service-qualite: #d83b01;   /* Rouge/Orange */
+    --service-rh: #00bcf2;      /* Cyan */
+    --service-default-bg: #7a7574; /* Gris neutre */
+
+
+    /* Couleurs des thèmes (Palette Microsoft suggérée) */
+    --theme-teams: #464eb8; /* Violet Teams */
+    --theme-planner: #038387; /* Teal Planner/Tasks */
+    --theme-onedrive: #0078d4; /* Bleu OneDrive */
+    --theme-sharepoint: #0078d4; /* Peut être similaire à OneDrive ou un vert SharePoint */
+    --theme-default-bg: #6c757d;
 }
 
-/* Elements généraux */
-body {
-    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-size: 0.9rem;
-    background-color: #f8f9fc;
-    color: var(--text-primary);
-}
-
-/* Cartes et conteneurs */
-.card {
-    border: 1px solid var(--card-border-color);
-    border-radius: 0.35rem;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-}
-
-.card-header {
-    background-color: var(--card-cap-bg);
-    border-bottom: 1px solid var(--card-border-color);
-}
-
-.border-left-primary {
-    border-left: 0.25rem solid var(--primary) !important;
-}
-
-.border-left-secondary {
-    border-left: 0.25rem solid var(--secondary) !important;
-}
-
-.border-left-success {
-    border-left: 0.25rem solid var(--success) !important;
-}
-
-.border-left-info {
-    border-left: 0.25rem solid var(--info) !important;
-}
-
-.border-left-warning {
-    border-left: 0.25rem solid var(--warning) !important;
-}
-
-.border-left-danger {
-    border-left: 0.25rem solid var(--danger) !important;
-}
-
-/* Textes et typographie */
-.text-xs {
-    font-size: 0.7rem;
-}
-
-.text-lg {
-    font-size: 1.2rem;
-}
-
-.text-gray-300 {
-    color: #dddfeb !important;
-}
-
-.text-gray-600 {
-    color: #858796 !important;
-}
-
-.text-gray-800 {
-    color: #5a5c69 !important;
-}
-
-/* Graphiques et visualisations */
-.chart-container {
-    position: relative;
-    height: 300px;
-}
-
-/* Styles spécifiques pour les conteneurs de graphiques */
-#theme-chart-container, 
-#service-chart-container {
-    min-height: 300px;
-    position: relative;
-}
-
-/* Animation pour le chargement des graphiques */
-.chart-loading {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
+/* ===== STYLES COMMUNS POUR TOUS LES GRAPHIQUES ===== */
+.dynamic-chart-container {
     width: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    background-color: rgba(255, 255, 255, 0.7);
-    z-index: 1;
+    height: 260px; /* Hauteur légèrement réduite pour plus de compacité */
+    position: relative;
+    margin-bottom: 1rem;
 }
-
-/* Listes d'activités */
-#activities-container .list-group-item {
-    transition: background-color 0.2s ease;
-}
-
-#activities-container .list-group-item:hover {
-    background-color: var(--primary-light);
-}
-
-/* Styles pour les tableaux */
-.table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.table-hover tbody tr:hover {
-    background-color: rgba(78, 115, 223, 0.05);
-}
-
-/* Badges et étiquettes */
-.badge {
-    font-weight: 600;
-    padding: 0.35em 0.65em;
-    border-radius: 0.25rem;
-}
-
-/* Animation pour les éléments en attente */
-.fade-in-element {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.5s ease, transform 0.5s ease;
-}
-
-.fade-in-element.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Style des boutons */
-.btn-circle {
-    border-radius: 100%;
-    width: 2.5rem;
-    height: 2.5rem;
-    font-size: 1rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-}
-
-.btn-circle.btn-sm {
-    width: 1.8rem;
-    height: 1.8rem;
-    font-size: 0.75rem;
-}
-
-.btn-circle.btn-lg {
-    width: 3.5rem;
-    height: 3.5rem;
-    font-size: 1.35rem;
-}
-
-/* Style des alertes */
-.alert {
-    border-radius: 0.35rem;
-    border: 1px solid transparent;
-}
-
-/* Icônes dans les alertes */
-.alert i {
-    margin-right: 0.5rem;
-}
-
-/* Correctifs spécifiques pour les graphiques */
-canvas {
+.dynamic-chart-container canvas {
     max-width: 100%;
+    max-height: 100%;
 }
-
-/* Style pour les conteneurs sans données */
-.no-data {
-    text-align: center;
-    padding: 2rem;
-    color: var(--text-secondary);
-    background-color: rgba(248, 249, 252, 0.5);
-    border-radius: 0.35rem;
-}
-
-.no-data i {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    display: block;
-}
-
-/* Barre de navigation */
-.navbar-brand img {
-    margin-right: 0.5rem;
-}
-
-/* Améliorations d'accessibilité */
-.btn:focus, .form-control:focus {
-    box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.25);
-}
-
-/* Style pour les info-bulles des graphiques */
-.chartjs-tooltip {
-    opacity: 0;
+.no-data-message-chart {
     position: absolute;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    border-radius: 3px;
-    padding: 6px;
-    pointer-events: none;
-    transform: translate(-50%, 0);
-    transition: opacity 0.3s ease;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--secondary);
+    font-size: 0.85rem; /* Plus petit */
+}
+.no-data-message-chart i {
+    font-size: 1.5rem; /* Icône plus grande */
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #adb5bd; /* Gris plus clair pour l'icône */
 }
 
-/* Media queries pour la responsivité */
+
+/* Légende personnalisée pour les graphiques Chart.js */
+.static-chart-legend {
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+    gap: 0.4rem 0.8rem; /* Augmenter légèrement l'espacement */
+    padding: 0.5rem 0; font-size: 0.75rem; /* Police légèrement plus grande */
+    margin-top: 0.75rem;
+}
+.legend-item {
+    display: flex; align-items: center; padding: 0.25rem 0.5rem;
+    background-color: var(--bs-gray-100, #f8f9fa);
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-speed) ease;
+    cursor: default;
+    border: 1px solid var(--bs-gray-300, #dee2e6); /* Bordure subtile */
+}
+.legend-item:hover { background-color: var(--bs-gray-200, #e9ecef); }
+.legend-color {
+    width: 12px; height: 12px; /* Carrés de couleur légèrement plus grands */
+    border-radius: 3px; margin-right: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+.legend-label {
+    font-weight: 500; color: var(--dark, #212529);
+    white-space: nowrap;
+    max-width: 120px; /* Limiter la largeur pour éviter les débordements */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.legend-value {
+    margin-left: 0.4rem; padding: 0.1rem 0.4rem;
+    background-color: var(--bs-gray-200, #e9ecef);
+    border-radius: 8px; font-size: 0.7rem; /* Plus lisible */
+    font-weight: 600; color: var(--dark, #212529);
+}
+
+@keyframes fadeInLegend {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ===== BADGES DE THÈMES AMÉLIORÉS ===== */
+.theme-badge {
+    display: inline-flex; align-items: center; padding: 0.35em 0.75em; /* Padding ajusté */
+    font-size: 0.78rem; font-weight: 500; line-height: 1.2; color: #fff !important;
+    text-align: center; white-space: nowrap; vertical-align: baseline;
+    border-radius: 50rem; /* Badge arrondi */
+    box-shadow: none; /* Ombre retirée pour un look plus plat */
+    transition: all var(--transition-speed) ease; margin: 0.1rem 0;
+    position: relative; cursor: help;
+    border: 1px solid rgba(0,0,0,0.1); /* Bordure subtile pour définition */
+}
+.theme-badge:hover { filter: brightness(110%); } /* Éclaircir au survol */
+.theme-badge.theme-comm { background-color: var(--theme-teams); }
+.theme-badge.theme-planner { background-color: var(--theme-planner); }
+.theme-badge.theme-onedrive { background-color: var(--theme-onedrive); }
+.theme-badge.theme-sharepoint { background-color: var(--theme-sharepoint); }
+.theme-badge.bg-secondary { background-color: var(--theme-default-bg) !important; }
+.theme-badge i.fas { margin-right: 0.4em; font-size: 0.9em; }
+
+
+/* ===== Feed d'activité récentes amélioré ===== */
+.activity-container { max-height: 260px; overflow-y: auto; padding-right: 5px; }
+.activity-item {
+    padding: 0.65rem 0.85rem; margin-bottom: 0.6rem;
+    border-left-width: 4px; /* Bordure plus épaisse */
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    transition: all var(--transition-speed) ease;
+    display: flex; align-items: flex-start;
+    box-shadow: var(--shadow-sm);
+}
+.activity-item:hover { transform: none; box-shadow: var(--shadow); border-left-width: 5px;}
+.activity-icon { margin-right: 0.75rem; margin-top: 0.15rem; font-size: 0.9rem; width: 1.3em; text-align: center; }
+.activity-content { flex-grow: 1; }
+.activity-title { font-weight: 500; font-size: 0.8rem; color: var(--dark, #212529); margin-bottom: 0.1rem; line-height: 1.3; }
+.activity-details { font-size: 0.75rem; color: var(--secondary, #6c757d); line-height: 1.3; margin-top: 0.2rem !important;}
+.activity-time { display: block; margin-top: 0.2rem; font-size: 0.7rem; }
+/* Couleurs par type d'activité */
+.activity-item.type-ajout_participant, .activity-item.type-inscription, .activity-item.type-validation, .activity-item.type-connexion { border-left-color: var(--success); }
+.activity-item.type-suppression_participant, .activity-item.type-refus, .activity-item.type-annulation, .activity-item.type-suppression_document { border-left-color: var(--danger); }
+.activity-item.type-modification_participant, .activity-item.type-liste_attente, .activity-item.type-notification, .activity-item.type-deconnexion { border-left-color: var(--warning); }
+.activity-item.type-attribution_salle, .activity-item.type-ajout_document, .activity-item.type-telecharger_invitation { border-left-color: var(--info); }
+.activity-item.type-systeme, .activity-item.type-default { border-left-color: var(--secondary); }
+
+
+/* ===== RESPONSIVITÉ GÉNÉRALE ===== */
+.session-table th, .session-table td { padding: 0.5rem; font-size: 0.8rem; } /* Padding légèrement augmenté */
+
+@media (max-width: 992px) {
+    .dynamic-chart-container { min-height: 240px; height: 240px; }
+    .static-chart-legend { font-size: 0.7rem; }
+    .legend-label { max-width: 90px; }
+}
 @media (max-width: 768px) {
-    .card-deck {
-        display: block;
-    }
-    
-    .card-deck .card {
-        margin-bottom: 15px;
-    }
-    
-    .table-responsive {
-        overflow-x: auto;
-    }
+    .dynamic-chart-container { min-height: 220px; height: 220px; }
+    .activity-title { font-size: 0.78rem; }
+    .activity-details { font-size: 0.72rem; }
 }
 
-/* Animations pour les chargements */
-@keyframes pulse {
-    0% {
-        transform: scale(0.95);
-        opacity: 0.7;
-    }
-    50% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    100% {
-        transform: scale(0.95);
-        opacity: 0.7;
-    }
-}
+/* Styles pour les éléments mis à jour */
+.updated { animation: highlightUpdate 0.7s ease-out; }
+@keyframes highlightUpdate { 0% { background-color: rgba(255, 235, 59, 0.4); } 100% { background-color: transparent; } } /* Jaune plus subtil */
 
-.loading-pulse {
-    animation: pulse 1.5s infinite ease-in-out;
-}
+/* Style pour les données invalides/erreur */
+.data-error { color: var(--danger, #dc3545) !important; font-style: italic; opacity: 0.85; }
+.data-error i { margin-right: 0.3em; }
