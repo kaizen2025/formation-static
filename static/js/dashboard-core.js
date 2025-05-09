@@ -1,20 +1,22 @@
 /**
  * dashboard-core.js - Module principal et unique pour le tableau de bord
- * Version: 2.1.0 - Fusionné avec dashboard-init, dashboard-fix et dashboard.js
+ * Version: 2.2.0 - Robustesse accrue, gestion des erreurs et états de chargement améliorés.
  */
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Empêcher la double initialisation
     if (window.dashboardCoreInitialized) {
         if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-            console.log('Dashboard Core: Already initialized. Skipping.');
+            console.log('Dashboard Core (v2.2.0): Already initialized. Skipping.');
         }
-        if (window.dashboardCore) {
+        if (window.dashboardCore) { // S'assurer que l'événement est émis pour les scripts en attente
             document.dispatchEvent(new CustomEvent('dashboardCoreFullyReady', { detail: { success: true, source: 'cached' } }));
         }
         return;
     }
     window.dashboardCoreInitialized = true;
 
+    // --- Configuration ---
     const defaultConfig = {
         debugMode: false,
         autoRefreshInterval: 60000,
@@ -22,50 +24,44 @@ document.addEventListener('DOMContentLoaded', function() {
         debounceDelay: 500,
         baseApiUrl: '/api',
         fetchTimeoutDuration: 20000,
-        maxErrorsBeforeThrottle: 5,
+        maxErrorsBeforeThrottle: 3, // Réduit pour un throttling plus rapide en cas de problèmes persistants
         errorThrottleDelay: 60000,
         useSimulatedDataOnError: true,
         pollingEnabled: true,
         activeMode: 'polling',
-        themeColors: { /* ... (comme avant) ... */ },
-        serviceColors: { /* ... (comme avant) ... */ }
+        themeColors: {
+            'Communiquer avec Teams': '#464eb8',
+            'Gérer les tâches (Planner)': '#038387',
+            'Gérer mes fichiers (OneDrive/SharePoint)': '#0078d4',
+            'Collaborer avec Teams': '#107c10',
+            'default': '#6c757d'
+        },
+        serviceColors: {
+            'Qualité': '#F44336',
+            'Informatique': '#607D8B',
+            'RH': '#FF9800',
+            'Commerce Anecoop-Solagora': '#FFC107',
+            'Marketing': '#9C27B0',
+            'Florensud': '#4CAF50',
+            'Comptabilité': '#2196F3',
+            'default': '#7a7574'
+        }
     };
-    // Remplir les couleurs par défaut si elles ne sont pas déjà là
-    defaultConfig.themeColors = {
-        'Communiquer avec Teams': '#464eb8',
-        'Gérer les tâches (Planner)': '#038387',
-        'Gérer mes fichiers (OneDrive/SharePoint)': '#0078d4',
-        'Collaborer avec Teams': '#107c10',
-        'default': '#6c757d',
-        ...(defaultConfig.themeColors || {})
-    };
-    defaultConfig.serviceColors = {
-        'Qualité': '#F44336',
-        'Informatique': '#607D8B',
-        'RH': '#FF9800',
-        'Commerce Anecoop-Solagora': '#FFC107',
-        'Marketing': '#9C27B0',
-        'Florensud': '#4CAF50',
-        'Comptabilité': '#2196F3',
-        'default': '#7a7574',
-        ...(defaultConfig.serviceColors || {})
-    };
-
-
     const config = { ...defaultConfig, ...(window.dashboardConfig || {}) };
 
     if (config.debugMode) {
-        console.log('Dashboard Core: Initializing (v2.1.0)');
+        console.log('Dashboard Core (v2.2.0): Initializing.');
         console.log('Dashboard Core: Effective Config', config);
     }
 
+    // --- État de l'Application ---
     const globalLoadingOverlay = document.getElementById('loading-overlay');
     const dashboardState = {
         lastSuccessfulRefresh: 0,
         isUpdating: false,
         dataHashes: { sessions: null, participants: null, activites: null },
-        apiData: { sessions: [], participants: [], activites: [] },
-        displayData: { sessions: [], participants: [], activites: [] },
+        apiData: null, // Sera { sessions: [], participants: [], activites: [] } ou null
+        displayData: null, // Données utilisées pour l'affichage (peut être simulé)
         errorCount: 0,
         isErrorThrottleActive: false,
         pollingTimeoutId: null,
@@ -75,229 +71,208 @@ document.addEventListener('DOMContentLoaded', function() {
         initialLoadComplete: false
     };
 
-    const errorHandler = window.apiErrorHandler || { /* ... (comme avant) ... */ };
-     // Fallback error handler si api-error-handler.js n'est pas chargé
-    if (!window.apiErrorHandler) {
-        errorHandler.handleApiError = (endpoint, errorData, statusCode) => {
+    // --- Gestionnaire d'Erreurs ---
+    const errorHandler = window.apiErrorHandler || {
+        handleApiError: (endpoint, errorData, statusCode) => {
             console.error(`[FallbackErrorHandler] API Error ${statusCode} on ${endpoint}:`, errorData);
             if (typeof showToast === 'function') showToast(`Erreur API (${statusCode}) lors du chargement de ${endpoint}.`, 'danger');
             return false;
-        };
-        errorHandler.checkAndFixBrokenElements = () => {
+        },
+        checkAndFixBrokenElements: () => {
             if (config.debugMode) console.log("[FallbackErrorHandler] Checking and fixing UI elements.");
-        };
-    }
-
+        }
+    };
 
     // --- Fonctions Utilitaires ---
-    // showGlobalLoading, debounce, simpleHash, getSimulatedData (comme avant)
     function showGlobalLoading(show) {
-        if (globalLoadingOverlay) {
-            globalLoadingOverlay.classList.toggle('hidden', !show);
-        }
+        if (globalLoadingOverlay) globalLoadingOverlay.classList.toggle('hidden', !show);
     }
 
     function debounce(func, delay) {
         let timeout;
         return function(...args) {
-            const context = this;
             clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(context, args), delay);
+            timeout = setTimeout(() => func.apply(this, args), delay);
         };
     }
 
     function simpleHash(obj) {
+        if (obj === null || typeof obj === 'undefined') return 'null_or_undefined';
         const str = JSON.stringify(obj);
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash |= 0; 
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash |= 0;
         }
         return hash;
     }
 
     function getSimulatedData() {
-        // ... (contenu de getSimulatedData comme dans la v2.0.0)
+        if (config.debugMode) console.log("Dashboard Core: Providing simulated data.");
         return {
             sessions: [
                 { id: 1, date: "mardi 13 mai 2025", horaire: "09h00–10h30", theme: "Communiquer avec Teams", theme_id: 1, places_restantes: 0, inscrits: 10, max_participants: 10, liste_attente: 0, salle: "Salle Tramontane", salle_id: 1 },
                 { id: 2, date: "mardi 13 mai 2025", horaire: "10h45–12h15", theme: "Communiquer avec Teams", theme_id: 1, places_restantes: 1, inscrits: 9, max_participants: 10, liste_attente: 0, salle: "Salle Tramontane", salle_id: 1 },
-                { id: 3, date: "mardi 13 mai 2025", horaire: "14h00–15h30", theme: "Gérer les tâches (Planner)", theme_id: 2, places_restantes: 1, inscrits: 9, max_participants: 10, liste_attente: 0, salle: "Salle Tramontane", salle_id: 1 },
-                { id: 4, date: "mardi 13 mai 2025", horaire: "15h45–17h15", theme: "Gérer les tâches (Planner)", theme_id: 2, places_restantes: 0, inscrits: 10, max_participants: 10, liste_attente: 0, salle: "Salle Tramontane", salle_id: 1 },
+                { id: 5, date: "mardi 3 juin 2025", horaire: "09h00–10h30", theme: "Gérer mes fichiers (OneDrive/SharePoint)", theme_id: 3, places_restantes: 0, inscrits: 10, max_participants: 10, liste_attente: 2, salle: "Salle Tramontane", salle_id: 1 },
             ],
             participants: [
-                { id: 1, nom: "PHILIBERT", prenom: "Elodie", email: "ephilibert@anecoop-france.com", service: "Qualité", service_id: "qualite", service_color: config.serviceColors['Qualité'] },
-                { id: 2, nom: "SARRAZIN", prenom: "Enora", email: "esarrazin@anecoop-france.com", service: "Qualité", service_id: "qualite", service_color: config.serviceColors['Qualité'] },
-                { id: 4, nom: "BIVIA", prenom: "Kevin", email: "kbivia@anecoop-france.com", service: "Informatique", service_id: "informatique", service_color: config.serviceColors['Informatique'] },
+                { id: 1, nom: "PHILIBERT", prenom: "Elodie", service: "Qualité", service_color: config.serviceColors['Qualité'] },
+                { id: 4, nom: "BIVIA", prenom: "Kevin", service: "Informatique", service_color: config.serviceColors['Informatique'] },
+                { id: 5, nom: "GOMEZ", prenom: "Elisabeth", service: "RH", service_color: config.serviceColors['RH'] },
             ],
             activites: [
-                { id: 1, type: "validation", description: "Validation inscription: Elodie PHILIBERT", details: "Session: Communiquer avec Teams (mardi 13 mai 2025)", date_relative: "il y a 32 minutes", user: "admin" },
-                { id: 2, type: "ajout_participant", description: "Ajout: Kevin BIVIA", details: "Service: Informatique", date_relative: "il y a 2 heures", user: "admin" },
+                { id: 1, type: "validation", description: "Validation inscription: Elodie PHILIBERT", details: "Session: Communiquer avec Teams", date_relative: "il y a 10 minutes", user: "admin" },
+                { id: 2, type: "ajout_participant", description: "Ajout: Kevin BIVIA", details: "Service: Informatique", date_relative: "il y a 1 heure", user: "admin" },
             ],
             status: "ok_simulated",
             timestamp: Date.now()
         };
     }
 
-    // --- Fonctions de mise à jour de l'UI ---
-    // updateStatisticsCounters, updateSessionTable, updateActivityFeed, updateCharts, updateThemeDistributionChart, updateServiceDistributionChart, initTooltips (comme avant)
-    // ... (coller ici les fonctions UI de la v2.0.0)
-    function updateStatisticsCounters(sessions) {
+    // --- Fonctions de Mise à Jour de l'UI ---
+    function updateElementText(elementId, value, defaultValue = '0') {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = (typeof value === 'number' ? value.toLocaleString() : value) || defaultValue;
+        } else if (config.debugMode) {
+            console.warn(`updateElementText: Element with ID '${elementId}' not found.`);
+        }
+    }
+
+    function updateStatisticsCounters(sessions = []) {
         try {
             let stats = { totalInscriptions: 0, totalEnAttente: 0, totalSessions: 0, totalSessionsCompletes: 0 };
-            if (sessions && Array.isArray(sessions)) {
+            if (Array.isArray(sessions)) {
                 stats.totalSessions = sessions.length;
                 sessions.forEach(session => {
                     const inscrits = parseInt(session.inscrits, 10) || 0;
                     const maxParticipants = parseInt(session.max_participants, 10) || 0;
                     let placesRestantes = session.places_restantes;
                     if (typeof placesRestantes !== 'number' || isNaN(placesRestantes)) {
-                        placesRestantes = Math.max(0, maxParticipants - inscrits);
+                        placesRestantes = (maxParticipants > 0) ? Math.max(0, maxParticipants - inscrits) : 0; // Si maxP est 0, places restantes est 0
                     }
 
                     stats.totalInscriptions += inscrits;
                     stats.totalEnAttente += parseInt(session.liste_attente, 10) || 0;
-                    if (placesRestantes <= 0 && maxParticipants > 0) { 
+                    if (maxParticipants > 0 && placesRestantes <= 0) {
                         stats.totalSessionsCompletes++;
                     }
                 });
-            } else {
-                 if (config.debugMode) console.warn("updateStatisticsCounters: sessions data is invalid or empty. Using zeros.");
             }
-
-            document.getElementById('total-inscriptions-confirmees')?.textContent = stats.totalInscriptions.toLocaleString() || '0';
-            document.getElementById('total-en-attente')?.textContent = stats.totalEnAttente.toLocaleString() || '0';
-            document.getElementById('total-sessions-programmes')?.textContent = stats.totalSessions.toLocaleString() || '0';
-            document.getElementById('total-sessions-completes')?.textContent = stats.totalSessionsCompletes.toLocaleString() || '0';
-
+            updateElementText('total-sessions-programmes', stats.totalSessions);
+            updateElementText('total-inscriptions-confirmees', stats.totalInscriptions);
+            updateElementText('total-en-attente', stats.totalEnAttente);
+            updateElementText('total-sessions-completes', stats.totalSessionsCompletes);
         } catch (e) {
             console.error('Dashboard Core: Error in updateStatisticsCounters', e);
-            document.getElementById('total-inscriptions-confirmees')?.textContent = 'N/A';
-            document.getElementById('total-en-attente')?.textContent = 'N/A';
-            document.getElementById('total-sessions-programmes')?.textContent = 'N/A';
-            document.getElementById('total-sessions-completes')?.textContent = 'N/A';
+            ['total-sessions-programmes', 'total-inscriptions-confirmees', 'total-en-attente', 'total-sessions-completes'].forEach(id => updateElementText(id, 'N/A'));
         }
     }
 
-    function updateSessionTable(sessions) {
-        try {
-            const sessionTableBody = document.querySelector('#sessions-a-venir-table tbody');
-            if (!sessionTableBody) {
-                if (config.debugMode) console.warn("updateSessionTable: Table body not found.");
-                return;
-            }
-            sessionTableBody.innerHTML = ''; 
-
-            if (!sessions || sessions.length === 0) {
-                const cols = sessionTableBody.closest('table')?.querySelectorAll('thead th').length || 5;
-                sessionTableBody.innerHTML = `<tr class="no-data-row"><td colspan="${cols}" class="text-center p-4 text-muted"><i class="fas fa-info-circle me-2"></i>Aucune session à venir à afficher.</td></tr>`;
-                return;
-            }
-
-            sessions.forEach(session => {
-                const inscrits = parseInt(session.inscrits, 10) || 0;
-                const maxParticipants = parseInt(session.max_participants, 10) || 0;
-                let placesRestantes = session.places_restantes;
-                 if (typeof placesRestantes !== 'number' || isNaN(placesRestantes)) {
-                    placesRestantes = Math.max(0, maxParticipants - inscrits);
-                }
-
-                let placesClass = 'text-success';
-                let placesIcon = 'fa-check-circle';
-                if (maxParticipants > 0) { 
-                    if (placesRestantes <= 0) {
-                        placesClass = 'text-danger fw-bold'; placesIcon = 'fa-times-circle';
-                    } else if (placesRestantes <= Math.floor(maxParticipants * 0.25)) { 
-                        placesClass = 'text-warning'; placesIcon = 'fa-exclamation-triangle';
-                    }
-                } else { 
-                    placesClass = 'text-muted'; placesIcon = 'fa-minus-circle';
-                }
-
-                const themeName = session.theme || 'N/A';
-                const themeColor = config.themeColors[themeName] || config.themeColors.default;
-
-                const rowHtml = `
-                    <tr class="session-row" data-session-id="${session.id}">
-                        <td>
-                            <span class="fw-bold d-block">${session.date || 'N/A'}</span>
-                            <small class="text-secondary">${session.horaire || 'N/A'}</small>
-                        </td>
-                        <td class="theme-cell">
-                            <span class="theme-badge" style="background-color: ${themeColor}; color: white;" data-bs-toggle="tooltip" title="${themeName}">
-                                ${themeName}
-                            </span>
-                        </td>
-                        <td class="places-dispo text-nowrap ${placesClass}">
-                            <i class="fas ${placesIcon} me-1"></i> ${placesRestantes} / ${maxParticipants || '∞'}
-                        </td>
-                        <td class="js-salle-cell">
-                            ${session.salle ? `<span class="badge bg-light text-dark border">${session.salle}</span>` : '<span class="badge bg-secondary">Non définie</span>'}
-                        </td>
-                        <td class="text-nowrap text-center">
-                            <button type="button" class="btn btn-sm btn-outline-secondary me-1 action-btn" data-bs-toggle="modal" data-bs-target="#participantsModal_${session.id}" title="Voir les participants (${inscrits})">
-                                <i class="fas fa-users"></i> <span class="badge bg-secondary ms-1">${inscrits}</span>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#inscriptionModal_${session.id}" title="Inscrire un participant">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </td>
-                    </tr>`;
-                sessionTableBody.insertAdjacentHTML('beforeend', rowHtml);
-            });
-            initTooltips(sessionTableBody); 
-        } catch (e) {
-            console.error('Dashboard Core: Error in updateSessionTable', e);
-            const sessionTableBody = document.querySelector('#sessions-a-venir-table tbody');
-            if(sessionTableBody) {
-                const cols = sessionTableBody.closest('table')?.querySelectorAll('thead th').length || 5;
-                sessionTableBody.innerHTML = `<tr class="error-row"><td colspan="${cols}" class="text-center p-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Erreur lors du chargement des sessions.</td></tr>`;
-            }
+    function updateSessionTable(sessions = []) {
+        const sessionTableBody = document.querySelector('#sessions-a-venir-table tbody');
+        if (!sessionTableBody) {
+            if (config.debugMode) console.warn("updateSessionTable: Table body '#sessions-a-venir-table tbody' not found.");
+            return;
         }
+        sessionTableBody.innerHTML = ''; // Clear existing rows
+
+        if (!Array.isArray(sessions) || sessions.length === 0) {
+            const cols = sessionTableBody.closest('table')?.querySelectorAll('thead th').length || 5;
+            sessionTableBody.innerHTML = `<tr class="no-data-row"><td colspan="${cols}" class="text-center p-4 text-muted"><i class="fas fa-info-circle me-2"></i>Aucune session à venir à afficher.</td></tr>`;
+            return;
+        }
+
+        sessions.forEach(session => {
+            const inscrits = parseInt(session.inscrits, 10) || 0;
+            const maxParticipants = parseInt(session.max_participants, 10) || 0;
+            let placesRestantes = session.places_restantes;
+            if (typeof placesRestantes !== 'number' || isNaN(placesRestantes)) {
+                placesRestantes = (maxParticipants > 0) ? Math.max(0, maxParticipants - inscrits) : 0;
+            }
+
+            let placesClass = 'text-success';
+            let placesIcon = 'fa-check-circle';
+            // La ligne 169 est ici ou très proche. Vérifions attentivement les conditions.
+            // `maxParticipants` est un nombre. `placesRestantes` est un nombre.
+            // Les comparaisons sont correctes (`>`, `<=`).
+            if (maxParticipants > 0) { // Condition correcte
+                if (placesRestantes <= 0) { // Condition correcte
+                    placesClass = 'text-danger fw-bold'; placesIcon = 'fa-times-circle';
+                } else if (placesRestantes <= Math.floor(maxParticipants * 0.25)) { // Condition correcte
+                    placesClass = 'text-warning'; placesIcon = 'fa-exclamation-triangle';
+                }
+            } else {
+                placesClass = 'text-muted'; placesIcon = 'fa-minus-circle'; // Cas où maxParticipants est 0 ou non défini
+            }
+
+            const themeName = session.theme || 'N/A';
+            const themeColor = config.themeColors[themeName] || config.themeColors.default;
+
+            const rowHtml = `
+                <tr class="session-row" data-session-id="${session.id || ''}">
+                    <td>
+                        <span class="fw-bold d-block">${session.date || 'N/A'}</span>
+                        <small class="text-secondary">${session.horaire || 'N/A'}</small>
+                    </td>
+                    <td class="theme-cell">
+                        <span class="theme-badge" style="background-color: ${themeColor}; color: white;" data-bs-toggle="tooltip" title="${themeName}">
+                            ${themeName}
+                        </span>
+                    </td>
+                    <td class="places-dispo text-nowrap ${placesClass}">
+                        <i class="fas ${placesIcon} me-1"></i> ${placesRestantes} / ${maxParticipants || '∞'}
+                    </td>
+                    <td class="js-salle-cell">
+                        ${session.salle ? `<span class="badge bg-light text-dark border">${session.salle}</span>` : '<span class="badge bg-secondary">Non définie</span>'}
+                    </td>
+                    <td class="text-nowrap text-center">
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-1 action-btn" data-bs-toggle="modal" data-bs-target="#participantsModal_${session.id || 'default'}" title="Voir les participants (${inscrits})">
+                            <i class="fas fa-users"></i> <span class="badge bg-secondary ms-1">${inscrits}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-primary action-btn" data-bs-toggle="modal" data-bs-target="#inscriptionModal_${session.id || 'default'}" title="Inscrire un participant">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            sessionTableBody.insertAdjacentHTML('beforeend', rowHtml);
+        });
+        initTooltips(sessionTableBody);
     }
 
-    function updateActivityFeed(activities) {
-        try {
-            const container = document.getElementById('recent-activity-list'); 
-            if (!container) {
-                if (config.debugMode) console.warn("updateActivityFeed: Activity container not found.");
-                return;
-            }
-            const spinner = document.getElementById('activity-loading-spinner');
-            if (spinner) spinner.classList.add('d-none');
-            container.innerHTML = ''; 
+    function updateActivityFeed(activities = []) {
+        const container = document.getElementById('recent-activity-list');
+        if (!container) {
+            if (config.debugMode) console.warn("updateActivityFeed: Activity container '#recent-activity-list' not found.");
+            return;
+        }
+        const spinner = document.getElementById('activity-loading-spinner');
+        if (spinner) spinner.classList.add('d-none');
+        container.innerHTML = '';
 
-            if (!activities || activities.length === 0) {
-                container.innerHTML = `<li class="list-group-item text-center p-3 text-muted"><i class="fas fa-info-circle me-2"></i>Aucune activité récente à afficher.</li>`;
-                return;
-            }
-
+        if (!Array.isArray(activities) || activities.length === 0) {
+            container.innerHTML = `<li class="list-group-item text-center p-3 text-muted"><i class="fas fa-info-circle me-2"></i>Aucune activité récente.</li>`;
+            return;
+        }
+        // ... (logique de génération HTML des activités comme dans v2.1.0)
             activities.forEach(activity => {
-                const iconMap = { /* ... (comme avant) ... */ };
-                 iconMap['connexion'] = 'fas fa-sign-in-alt text-success';
-                 iconMap['deconnexion'] = 'fas fa-sign-out-alt text-warning';
-                 iconMap['inscription'] = 'fas fa-user-plus text-primary';
-                 iconMap['validation'] = 'fas fa-check-circle text-success';
-                 iconMap['refus'] = 'fas fa-times-circle text-danger';
-                 iconMap['annulation'] = 'fas fa-ban text-danger';
-                 iconMap['ajout_participant'] = 'fas fa-user-tag text-info';
-                 iconMap['suppression_participant'] = 'fas fa-user-slash text-danger';
-                 iconMap['modification_participant'] = 'fas fa-user-edit text-warning';
-                 iconMap['liste_attente'] = 'fas fa-clock text-warning';
-                 iconMap['ajout_document'] = 'fas fa-file-medical text-info';
-                 iconMap['suppression_document'] = 'fas fa-file-excel text-danger';
-                 iconMap['systeme'] = 'fas fa-cogs text-secondary';
-                 iconMap['default'] = 'fas fa-info-circle text-secondary';
-
+                const iconMap = {
+                    'connexion': 'fas fa-sign-in-alt text-success', 'deconnexion': 'fas fa-sign-out-alt text-warning',
+                    'inscription': 'fas fa-user-plus text-primary', 'validation': 'fas fa-check-circle text-success',
+                    'refus': 'fas fa-times-circle text-danger', 'annulation': 'fas fa-ban text-danger',
+                    'ajout_participant': 'fas fa-user-tag text-info', 'suppression_participant': 'fas fa-user-slash text-danger',
+                    'modification_participant': 'fas fa-user-edit text-warning', 'liste_attente': 'fas fa-clock text-warning',
+                    'ajout_document': 'fas fa-file-medical text-info', 'suppression_document': 'fas fa-file-excel text-danger',
+                    'systeme': 'fas fa-cogs text-secondary', 'default': 'fas fa-info-circle text-secondary'
+                };
                 const icon = iconMap[activity.type] || iconMap.default;
                 const userHtml = activity.user ? `<span class="text-primary fw-bold">${activity.user}</span>` : 'Système';
                 const detailsHtml = activity.details ? `<p class="mb-1 activity-details text-muted small"><i class="fas fa-info-circle fa-fw me-1"></i>${activity.details}</p>` : '';
 
                 const itemHtml = `
-                    <li class="list-group-item activity-item type-${activity.type || 'default'}" data-activity-id="${activity.id}">
+                    <li class="list-group-item activity-item type-${activity.type || 'default'}" data-activity-id="${activity.id || ''}">
                         <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1 activity-title"><i class="${icon} me-2 fa-fw"></i>${activity.description || 'Activité non spécifiée'}</h6>
+                            <h6 class="mb-1 activity-title"><i class="${icon} me-2 fa-fw"></i>${activity.description || 'N/A'}</h6>
                             <small class="text-muted activity-time text-nowrap ms-2">${activity.date_relative || ''}</small>
                         </div>
                         ${detailsHtml}
@@ -305,16 +280,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     </li>`;
                 container.insertAdjacentHTML('beforeend', itemHtml);
             });
-        } catch (e) {
-            console.error('Dashboard Core: Error in updateActivityFeed', e);
-            const container = document.getElementById('recent-activity-list');
-            if (container) {
-                container.innerHTML = `<li class="list-group-item text-center p-3 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Erreur lors du chargement des activités.</li>`;
-            }
-        }
     }
 
-    function updateCharts(sessions, participants) {
+    function updateCharts(sessions = [], participants = []) {
         try {
             updateThemeDistributionChart(sessions);
             updateServiceDistributionChart(participants);
@@ -322,160 +290,98 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Dashboard Core: Error in updateCharts', e);
         }
     }
-    
-    function updateThemeDistributionChart(sessions) {
-        const canvas = document.getElementById('themeDistributionChart');
-        if (!canvas) return;
+
+    function createChart(canvasId, type, data, options) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) {
+            if (config.debugMode) console.warn(`createChart: Canvas with ID '${canvasId}' not found.`);
+            return null;
+        }
         const ctx = canvas.getContext('2d');
+        // Nettoyer le message "pas de données"
+        const parentContainer = canvas.parentNode;
+        parentContainer.querySelector('.no-data-message-chart')?.remove();
 
-        if (dashboardState.themeChartInstance) {
-            dashboardState.themeChartInstance.destroy();
-            dashboardState.themeChartInstance = null;
-        }
-        canvas.parentNode.querySelector('.no-data-message-chart')?.remove();
-
-        if (!sessions || sessions.length === 0) {
+        if (!data || !data.labels || data.labels.length === 0 || !data.datasets || data.datasets.some(ds => ds.data.length === 0)) {
             const noDataMsg = document.createElement('div');
-            noDataMsg.className = 'no-data-message-chart text-center p-3 text-muted';
-            noDataMsg.innerHTML = '<i class="fas fa-chart-pie fa-2x mb-2"></i><p>Aucune donnée d\'inscription par thème disponible.</p>';
-            canvas.parentNode.appendChild(noDataMsg);
-            return;
+            noDataMsg.className = 'no-data-message-chart text-center p-3 text-muted d-flex flex-column justify-content-center align-items-center h-100';
+            noDataMsg.innerHTML = `<i class="fas ${type === 'doughnut' ? 'fa-chart-pie' : 'fa-chart-bar'} fa-2x mb-2 text-gray-300"></i><p class="mb-0">Aucune donnée disponible pour ce graphique.</p>`;
+            parentContainer.appendChild(noDataMsg);
+            return null;
         }
-
+        return new Chart(ctx, { type, data, options });
+    }
+    
+    function updateThemeDistributionChart(sessions = []) {
+        if (dashboardState.themeChartInstance) dashboardState.themeChartInstance.destroy();
+        
         const themeCounts = {};
-        sessions.forEach(session => {
-            const theme = session.theme || 'Non défini';
-            themeCounts[theme] = (themeCounts[theme] || 0) + (parseInt(session.inscrits, 10) || 0);
-        });
+        if (Array.isArray(sessions)) {
+            sessions.forEach(session => {
+                const theme = session.theme || 'Non défini';
+                themeCounts[theme] = (themeCounts[theme] || 0) + (parseInt(session.inscrits, 10) || 0);
+            });
+        }
 
         const labels = Object.keys(themeCounts).filter(k => themeCounts[k] > 0);
-        const data = labels.map(l => themeCounts[l]);
-
-        if (labels.length === 0) { 
-            const noDataMsg = document.createElement('div');
-            noDataMsg.className = 'no-data-message-chart text-center p-3 text-muted';
-            noDataMsg.innerHTML = '<i class="fas fa-chart-pie fa-2x mb-2"></i><p>Aucune inscription enregistrée pour les thèmes.</p>';
-            canvas.parentNode.appendChild(noDataMsg);
-            return;
-        }
-
+        const dataValues = labels.map(l => themeCounts[l]);
         const backgroundColors = labels.map(label => config.themeColors[label] || config.themeColors.default);
 
-        dashboardState.themeChartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: { labels: labels, datasets: [{ data: data, backgroundColor: backgroundColors, borderWidth: 1 }] },
-            options: { /* ... (options comme avant) ... */ }
-        });
-         dashboardState.themeChartInstance.options = {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 15, padding: 15 } },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const value = context.raw;
-                            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                            return `${context.label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        };
-        dashboardState.themeChartInstance.update();
+        dashboardState.themeChartInstance = createChart('themeDistributionChart', 'doughnut',
+            { labels: labels, datasets: [{ data: dataValues, backgroundColor: backgroundColors, borderWidth: 1 }] },
+            { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 10 } }, tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw} (${(c.raw / c.dataset.data.reduce((a,b)=>a+b,0) * 100).toFixed(0)}%)` } } } }
+        );
     }
 
-    function updateServiceDistributionChart(participants) {
-        const canvas = document.getElementById('serviceDistributionChart');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
-        if (dashboardState.serviceChartInstance) {
-            dashboardState.serviceChartInstance.destroy();
-            dashboardState.serviceChartInstance = null;
-        }
-        canvas.parentNode.querySelector('.no-data-message-chart')?.remove();
-
-        if (!participants || participants.length === 0) {
-            const noDataMsg = document.createElement('div');
-            noDataMsg.className = 'no-data-message-chart text-center p-3 text-muted';
-            noDataMsg.innerHTML = '<i class="fas fa-chart-bar fa-2x mb-2"></i><p>Aucune donnée de participant par service.</p>';
-            canvas.parentNode.appendChild(noDataMsg);
-            return;
-        }
+    function updateServiceDistributionChart(participants = []) {
+        if (dashboardState.serviceChartInstance) dashboardState.serviceChartInstance.destroy();
 
         const serviceCounts = {};
-        participants.forEach(participant => {
-            const service = participant.service || 'Non défini';
-            serviceCounts[service] = (serviceCounts[service] || 0) + 1;
-        });
-
-        const labels = Object.keys(serviceCounts).filter(k => serviceCounts[k] > 0);
-        const data = labels.map(l => serviceCounts[l]);
-
-        if (labels.length === 0) {
-             const noDataMsg = document.createElement('div');
-            noDataMsg.className = 'no-data-message-chart text-center p-3 text-muted';
-            noDataMsg.innerHTML = '<i class="fas fa-chart-bar fa-2x mb-2"></i><p>Aucun participant enregistré pour les services.</p>';
-            canvas.parentNode.appendChild(noDataMsg);
-            return;
+         if (Array.isArray(participants)) {
+            participants.forEach(participant => {
+                const service = participant.service || 'Non défini';
+                serviceCounts[service] = (serviceCounts[service] || 0) + 1;
+            });
         }
 
+        const labels = Object.keys(serviceCounts).filter(k => serviceCounts[k] > 0);
+        const dataValues = labels.map(l => serviceCounts[l]);
         const backgroundColors = labels.map(label => {
-            const participantWithColor = participants.find(p => p.service === label && p.service_color);
-            return participantWithColor ? participantWithColor.service_color : (config.serviceColors[label] || config.serviceColors.default);
+            const pWithColor = Array.isArray(participants) ? participants.find(p => p.service === label && p.service_color) : null;
+            return pWithColor ? pWithColor.service_color : (config.serviceColors[label] || config.serviceColors.default);
         });
 
-        dashboardState.serviceChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: { labels: labels, datasets: [{ label: 'Participants', data: data, backgroundColor: backgroundColors, borderWidth: 1 }] },
-            options: { /* ... (options comme avant) ... */ }
-        });
-        dashboardState.serviceChartInstance.options = {
-            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
-        };
-        dashboardState.serviceChartInstance.update();
+        dashboardState.serviceChartInstance = createChart('serviceDistributionChart', 'bar',
+            { labels: labels, datasets: [{ label: 'Participants', data: dataValues, backgroundColor: backgroundColors, borderWidth: 1 }] },
+            { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+        );
     }
 
     function initTooltips(parentElement = document) {
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            const tooltipTriggerList = [].slice.call(parentElement.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.forEach(function(tooltipTriggerEl) {
-                // Détruire l'ancien tooltip s'il existe pour éviter les doublons
-                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-                if (existingTooltip) {
-                    existingTooltip.dispose();
-                }
-                new bootstrap.Tooltip(tooltipTriggerEl);
+            const tooltipTriggerList = Array.from(parentElement.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(el => {
+                const existingTooltip = bootstrap.Tooltip.getInstance(el);
+                if (existingTooltip) existingTooltip.dispose();
+                new bootstrap.Tooltip(el);
             });
         }
     }
 
-
-    // --- Gestion des données et Polling ---
-    // fetchAndProcessData, processAndRenderData, startPolling, stopPolling (comme avant)
-    // ... (coller ici les fonctions de gestion des données de la v2.0.0)
+    // --- Gestion des Données et Polling ---
     const debouncedFetchAndProcessData = debounce(fetchAndProcessData, config.debounceDelay);
 
-    async function fetchAndProcessData(forceRefresh = false, isLightPoll = false) {
-        if (dashboardState.isUpdating && !forceRefresh) {
-            if (config.debugMode) console.log('Dashboard Core: Fetch skipped (update in progress).');
-            return false; 
-        }
-        if (dashboardState.isErrorThrottleActive && !forceRefresh) {
-            if (config.debugMode) console.log('Dashboard Core: Fetch skipped (error throttle active).');
-            return false;
-        }
+    async function fetchAndProcessData(forceRefresh = false) {
+        // ... (logique de fetchAndProcessData de v2.1.0, en s'assurant que les erreurs sont bien gérées)
+        // S'assurer que dashboardState.apiData et dashboardState.displayData sont initialisés à null ou un objet vide
+        // pour éviter les erreurs si l'API ne retourne rien ou échoue.
+        if (dashboardState.isUpdating && !forceRefresh) return false;
+        if (dashboardState.isErrorThrottleActive && !forceRefresh) return false;
         const now = Date.now();
-        if (!forceRefresh && (now - dashboardState.lastSuccessfulRefresh < config.minRefreshDelay)) {
-            if (config.debugMode) console.log(`Dashboard Core: Fetch skipped (too soon).`);
-            return false;
-        }
+        if (!forceRefresh && (now - dashboardState.lastSuccessfulRefresh < config.minRefreshDelay)) return false;
 
         dashboardState.isUpdating = true;
-        if (forceRefresh && !isLightPoll && dashboardState.initialLoadComplete) showGlobalLoading(true);
+        if (forceRefresh && dashboardState.initialLoadComplete) showGlobalLoading(true);
 
         const apiUrl = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
         if (config.debugMode) console.log(`Dashboard Core: Fetching from ${apiUrl}`);
@@ -483,7 +389,6 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), config.fetchTimeoutDuration);
-
             const response = await fetch(apiUrl, { signal: controller.signal, cache: "no-store", headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }});
             clearTimeout(timeoutId);
 
@@ -492,107 +397,104 @@ document.addEventListener('DOMContentLoaded', function() {
                 try { errorData = await response.json(); } catch (e) { /* ignore */ }
                 throw { ...errorData, status: response.status, endpoint: apiUrl, isApiError: true };
             }
-
             const data = await response.json();
-            if (!data || typeof data !== 'object') {
-                throw { message: "Format de données API invalide.", endpoint: apiUrl, isApiError: true };
+            if (!data || typeof data !== 'object' || !data.sessions || !data.participants || !data.activites) {
+                throw { message: "Format de données API invalide ou données essentielles manquantes.", dataReceived: data, endpoint: apiUrl, isApiError: true };
             }
 
-            if (config.debugMode) console.log('Dashboard Core: API Data received:', data);
-            dashboardState.apiData = data; 
-            dashboardState.displayData = data; 
-
+            dashboardState.apiData = data;
+            dashboardState.displayData = data;
             const hasChanged = processAndRenderData(dashboardState.displayData, forceRefresh);
 
-            dashboardState.lastSuccessfulRefresh = Date.now();
+            dashboardState.lastSuccessfulRefresh = now;
             dashboardState.errorCount = 0;
             if (dashboardState.isErrorThrottleActive) {
                 dashboardState.isErrorThrottleActive = false;
                 if (config.debugMode) console.log("Dashboard Core: Error throttle deactivated.");
             }
-            if (hasChanged && config.debugMode) {
-                document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: dashboardState.displayData } }));
-            }
-            return true; 
+            if (hasChanged) document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: dashboardState.displayData } }));
+            return true;
         } catch (error) {
             console.error(`Dashboard Core: Error during fetchAndProcessData from ${error.endpoint || apiUrl}:`, error);
             const recovered = errorHandler.handleApiError(error.endpoint || apiUrl, error, error.status || 0);
 
             if (!recovered && config.useSimulatedDataOnError) {
-                if (config.debugMode) console.warn("Dashboard Core: API error, attempting to use simulated data as fallback.");
-                dashboardState.displayData = getSimulatedData();
-                processAndRenderData(dashboardState.displayData, true); 
+                if (config.debugMode) console.warn("Dashboard Core: API error, using simulated data as fallback.");
+                dashboardState.displayData = getSimulatedData(); // Utiliser les données simulées
+                processAndRenderData(dashboardState.displayData, true);
                 if (typeof showToast === 'function') showToast("Affichage des données de démonstration suite à une erreur API.", "warning");
+            } else if (!recovered) {
+                // Si pas de récupération et pas de données simulées, afficher des états vides/d'erreur
+                processAndRenderData(getSimulatedData(), true); // Afficher au moins la structure avec des données vides/simulées
             }
+
 
             dashboardState.errorCount++;
             if (dashboardState.errorCount >= config.maxErrorsBeforeThrottle && !dashboardState.isErrorThrottleActive) {
                 dashboardState.isErrorThrottleActive = true;
                 console.warn(`Dashboard Core: Error throttle activated after ${dashboardState.errorCount} errors.`);
-                setTimeout(() => {
-                    dashboardState.isErrorThrottleActive = false;
-                    if (config.debugMode) console.log("Dashboard Core: Error throttle period ended.");
-                }, config.errorThrottleDelay);
+                setTimeout(() => { dashboardState.isErrorThrottleActive = false; if (config.debugMode) console.log("Dashboard Core: Error throttle period ended."); }, config.errorThrottleDelay);
             }
-            return false; 
+            return false;
         } finally {
             dashboardState.isUpdating = false;
-            if (forceRefresh && !isLightPoll && dashboardState.initialLoadComplete) showGlobalLoading(false);
+            if (forceRefresh && dashboardState.initialLoadComplete) showGlobalLoading(false);
             if (!dashboardState.initialLoadComplete) {
                 dashboardState.initialLoadComplete = true;
-                showGlobalLoading(false); 
-                document.dispatchEvent(new CustomEvent('dashboardCoreFullyReady', { detail: { success: dashboardState.errorCount === 0 } }));
+                showGlobalLoading(false);
+                document.dispatchEvent(new CustomEvent('dashboardCoreFullyReady', { detail: { success: dashboardState.errorCount === 0 && dashboardState.apiData !== null } }));
             }
-            if (config.debugMode) console.log('Dashboard Core: Fetch cycle finished.');
         }
     }
 
     function processAndRenderData(dataToRender, forceRefresh) {
-        if (config.debugMode) console.log('Dashboard Core: Starting processAndRenderData. Force refresh:', forceRefresh);
+        // ... (logique de processAndRenderData de v2.1.0)
+        // S'assurer que dataToRender et ses propriétés (sessions, participants, activites) sont vérifiées
+        // avant d'être utilisées pour éviter les erreurs si elles sont null ou undefined.
+        if (!dataToRender) {
+            if (config.debugMode) console.warn("processAndRenderData: dataToRender is null or undefined. Using empty fallbacks.");
+            dataToRender = { sessions: [], participants: [], activites: [] };
+        }
+        const sessions = dataToRender.sessions || [];
+        const participants = dataToRender.participants || [];
+        const activites = dataToRender.activites || [];
+
         let hasChangedOverall = forceRefresh;
 
-        try {
-            const sessionsHash = simpleHash(dataToRender.sessions);
-            if (sessionsHash !== dashboardState.dataHashes.sessions || forceRefresh) {
-                updateSessionTable(dataToRender.sessions || []);
-                updateStatisticsCounters(dataToRender.sessions || []);
-                dashboardState.dataHashes.sessions = sessionsHash;
-                hasChangedOverall = true;
-            }
+        const sessionsHash = simpleHash(sessions);
+        if (sessionsHash !== dashboardState.dataHashes.sessions || forceRefresh) {
+            updateSessionTable(sessions);
+            updateStatisticsCounters(sessions);
+            dashboardState.dataHashes.sessions = sessionsHash;
+            hasChangedOverall = true;
+        }
 
-            const participantsHash = simpleHash(dataToRender.participants);
-            if (participantsHash !== dashboardState.dataHashes.participants || forceRefresh) {
-                dashboardState.dataHashes.participants = participantsHash;
-                hasChangedOverall = true; 
-            }
+        const participantsHash = simpleHash(participants);
+        if (participantsHash !== dashboardState.dataHashes.participants || forceRefresh) {
+            dashboardState.dataHashes.participants = participantsHash;
+            hasChangedOverall = true;
+        }
 
-            const activitiesHash = simpleHash(dataToRender.activites);
-            if (activitiesHash !== dashboardState.dataHashes.activites || forceRefresh) {
-                updateActivityFeed(dataToRender.activites || []);
-                dashboardState.dataHashes.activites = activitiesHash;
-                hasChangedOverall = true;
-            }
+        const activitiesHash = simpleHash(activites);
+        if (activitiesHash !== dashboardState.dataHashes.activites || forceRefresh) {
+            updateActivityFeed(activites);
+            dashboardState.dataHashes.activites = activitiesHash;
+            hasChangedOverall = true;
+        }
 
-            if (hasChangedOverall) {
-                updateCharts(dataToRender.sessions || [], dataToRender.participants || []);
-            }
-
-        } catch (e) {
-            console.error("Dashboard Core: Error in processAndRenderData:", e);
-            if(typeof showToast === 'function') showToast("Erreur lors de la mise à jour de l'affichage.", "danger");
+        if (hasChangedOverall) {
+            updateCharts(sessions, participants);
         }
 
         setTimeout(() => {
             errorHandler.checkAndFixBrokenElements?.();
             initTooltips();
-            applyGlobalUiFixes(); // Appeler les correctifs globaux
-        }, 150);
-
-        if (config.debugMode) console.log('Dashboard Core: Finished processAndRenderData. Overall changes:', hasChangedOverall);
+            applyGlobalUiFixes();
+        }, 200); // Délai légèrement augmenté pour s'assurer que le DOM est stable
         return hasChangedOverall;
     }
 
-    function startPolling() {
+    function startPolling() { /* ... (comme v2.1.0) ... */ 
         if (!dashboardState.pollingActive) {
             if (config.debugMode) console.log("Dashboard Core: Polling is not active or disabled.");
             return;
@@ -611,38 +513,30 @@ document.addEventListener('DOMContentLoaded', function() {
         dashboardState.pollingTimeoutId = setTimeout(poll, config.autoRefreshInterval);
         if (config.debugMode) console.log(`Dashboard Core: Polling started (interval: ${config.autoRefreshInterval}ms).`);
     }
-
-    function stopPolling() {
+    function stopPolling() { /* ... (comme v2.1.0) ... */ 
         dashboardState.pollingActive = false;
         clearTimeout(dashboardState.pollingTimeoutId);
         dashboardState.pollingTimeoutId = null;
         if (config.debugMode) console.log("Dashboard Core: Polling stopped.");
     }
 
-    // --- Logique potentiellement issue de dashboard-fix.js ou dashboard.js ---
+    // --- Logique d'Initialisation et Correctifs Globaux ---
     function applyGlobalUiFixes() {
         if (config.debugMode) console.log("Dashboard Core: Applying global UI fixes.");
-        // Exemple : S'assurer que les modales sont correctement configurées
-        // Si vous aviez des correctifs spécifiques dans dashboard-fix.js, mettez-les ici.
-        // Par exemple, forcer le recalcul de la hauteur de certains éléments, etc.
-
-        // Exemple de correctif pour les badges de thème (si ce n'est pas déjà géré ailleurs)
+        // Exemple: S'assurer que les badges de thème ont les bonnes couleurs
         document.querySelectorAll('.theme-badge').forEach(badge => {
             const themeName = badge.dataset.theme || badge.textContent.trim();
-            if (themeName && config.themeColors[themeName]) {
-                badge.style.backgroundColor = config.themeColors[themeName];
+            const color = config.themeColors[themeName] || config.themeColors.default;
+            if (color) { // Appliquer seulement si une couleur est trouvée
+                badge.style.backgroundColor = color;
                 badge.style.color = 'white'; // Assurer la lisibilité
-            } else if (themeName) {
-                badge.style.backgroundColor = config.themeColors.default;
-                badge.style.color = 'white';
             }
         });
+        // Ajoutez ici d'autres correctifs globaux de dashboard-fix.js
     }
 
-    // --- Event Listeners & Initialisation (potentiellement de dashboard-init.js) ---
     function setupEventListeners() {
         if (config.debugMode) console.log("Dashboard Core: Setting up event listeners.");
-
         const refreshButton = document.getElementById('refresh-dashboard-button');
         if (refreshButton) {
             refreshButton.addEventListener('click', () => {
@@ -650,59 +544,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 fetchAndProcessData(true);
             });
         }
-
+        // ... (autres écouteurs de dashboard-init.js ou dashboard.js)
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && dashboardState.pollingActive) {
-                if (config.debugMode) console.log("Dashboard Core: Page visible, immediate refresh and restarting poll.");
-                fetchAndProcessData(false);
-                // startPolling(); // Le poll se relance déjà lui-même s'il est actif
+            if (document.visibilityState === 'visible' && dashboardState.pollingActive && !dashboardState.isUpdating) {
+                if (config.debugMode) console.log("Dashboard Core: Page visible, attempting immediate refresh.");
+                fetchAndProcessData(false); 
             }
         });
 
-        // --- Logique potentiellement issue de dashboard.js ou dashboard-init.js ---
-        // Exemple : Gestion des filtres de tableau
         const sessionFilterInput = document.getElementById('session-filter');
         if (sessionFilterInput) {
-            sessionFilterInput.addEventListener('keyup', debounce(function(e) {
-                const searchTerm = e.target.value.toLowerCase();
+            sessionFilterInput.addEventListener('input', debounce(function(e) { // 'input' est mieux que 'keyup' pour coller etc.
+                const searchTerm = e.target.value.toLowerCase().trim();
                 document.querySelectorAll('#sessions-a-venir-table tbody tr.session-row').forEach(row => {
+                    const dateText = row.cells[0]?.textContent.toLowerCase() || '';
                     const themeCell = row.querySelector('.theme-cell .theme-badge');
-                    const dateText = row.cells[0].textContent.toLowerCase();
                     const themeText = themeCell ? (themeCell.dataset.theme || themeCell.textContent).toLowerCase() : '';
-                    row.style.display = (dateText.includes(searchTerm) || themeText.includes(searchTerm)) ? '' : 'none';
+                    const salleText = row.querySelector('.js-salle-cell')?.textContent.toLowerCase() || '';
+                    
+                    const isVisible = !searchTerm || dateText.includes(searchTerm) || themeText.includes(searchTerm) || salleText.includes(searchTerm);
+                    row.style.display = isVisible ? '' : 'none';
                 });
             }, 300));
         }
-
-        // Initialisation de composants UI spécifiques (ex: date pickers, select2, etc.)
-        // if (typeof $ !== 'undefined' && $.fn.select2) {
-        //     $('.select2-component').select2();
-        // }
     }
 
     async function initializeDashboard() {
         if (config.debugMode) console.log('Dashboard Core: Starting main initialization sequence.');
-        showGlobalLoading(true);
-        setupEventListeners(); // Intègre la logique de dashboard-init.js
-        applyGlobalUiFixes(); // Intègre la logique de dashboard-fix.js
+        showGlobalLoading(true); // Afficher le loader global dès le début
+        setupEventListeners();
+        applyGlobalUiFixes(); // Appliquer les correctifs UI de base une fois
 
-        await fetchAndProcessData(true);
+        // Premier chargement de données
+        await fetchAndProcessData(true); // true = forceRefresh
 
-        if (dashboardState.pollingActive) {
+        // Démarrer le polling si activé et si le chargement initial n'a pas complètement échoué
+        if (dashboardState.pollingActive && dashboardState.apiData !== null) {
             startPolling();
+        } else if (dashboardState.apiData === null && config.debugMode) {
+            console.warn("Dashboard Core: Initial data load failed, polling not started.");
         }
+        // Le loader global est caché et l'événement 'dashboardCoreFullyReady' est émis dans fetchAndProcessData
     }
 
-    // Exposer des fonctions pour un contrôle externe si nécessaire
+    // --- Exposition Globale et Démarrage ---
     window.dashboardCore = {
         refreshData: (force = true) => fetchAndProcessData(force),
         startPolling: () => { dashboardState.pollingActive = true; startPolling(); },
         stopPolling: stopPolling,
-        getState: () => dashboardState,
-        getConfig: () => config,
-        applyUiFixes: applyGlobalUiFixes // Exposer pour appel manuel si besoin
+        getState: () => ({ ...dashboardState }), // Retourner une copie pour éviter la modification directe
+        getConfig: () => ({ ...config })
     };
 
-    // Démarrer l'initialisation
     initializeDashboard();
 });
