@@ -18,7 +18,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                                 Sessions programmées</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="sessions-count">{{ stats.sessions_count|default(0) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="sessions-count">{{ stats.sessions_count if stats is defined else 0 }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-calendar fa-2x text-gray-300"></i>
@@ -36,7 +36,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 Participants inscrits (confirmés)</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="participants-count">{{ stats.participants_count|default(0) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="participants-count">{{ stats.participants_count if stats is defined else 0 }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-users fa-2x text-gray-300"></i>
@@ -54,7 +54,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
                                 En liste d'attente (total)</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="waiting-count">{{ stats.waiting_count|default(0) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="waiting-count">{{ stats.waiting_count if stats is defined else 0 }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-user-clock fa-2x text-gray-300"></i>
@@ -72,7 +72,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
                                 Sessions complétées</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="completed-sessions-count">{{ stats.completed_sessions|default(0) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="completed-sessions-count">{{ stats.completed_sessions if stats is defined else 0 }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-check-circle fa-2x text-gray-300"></i>
@@ -131,40 +131,40 @@
                                         <span class="ms-2">Chargement des sessions...</span>
                                     </td>
                                 </tr>
-                                {% for session in upcoming_sessions %}
-                                <tr data-session-id="{{ session.id }}">
-                                    <td>
-                                        <div class="fw-bold">{{ session.date|format_date }}</div>
-                                        <div class="small text-muted">{{ session.heure_debut }} - {{ session.heure_fin }}</div>
-                                    </td>
-                                    <td>
-                                        <span class="fw-semibold">{{ session.titre or session.theme }}</span>
-                                        {% if session.titre and session.theme %}
-                                        <div class="small text-muted">{{ session.theme }}</div>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ session.salle or '-' }}</td>
-                                    <td>
-                                        <span class="badge {{ 'bg-danger' if session.places_disponibles <= 0 else ('bg-warning text-dark' if session.places_disponibles <= 3 else 'bg-success') }}">
-                                            {{ session.places_prises }}/{{ session.places_prises + session.places_disponibles }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('session_detail', session_id=session.id) }}" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                    </td>
-                                </tr>
+                                {% if upcoming_sessions is defined and upcoming_sessions %}
+                                    {% for session in upcoming_sessions %}
+                                    <tr data-session-id="{{ session.id }}">
+                                        <td>
+                                            <div class="fw-bold">{{ session.date }}</div>
+                                            <div class="small text-muted">{{ session.heure_debut }} - {{ session.heure_fin }}</div>
+                                        </td>
+                                        <td>
+                                            <span class="fw-semibold">{{ session.titre or session.theme }}</span>
+                                            {% if session.titre and session.theme %}
+                                            <div class="small text-muted">{{ session.theme }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ session.salle or '-' }}</td>
+                                        <td>
+                                            <span class="badge {{ 'bg-danger' if session.places_disponibles <= 0 else ('bg-warning text-dark' if session.places_disponibles <= 3 else 'bg-success') }}">
+                                                {{ session.places_prises }}/{{ session.places_prises + session.places_disponibles }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('session_detail', session_id=session.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
                                 {% else %}
-                                {% if not sessions_loading %}
-                                <tr>
-                                    <td colspan="5" class="text-center py-4">
-                                        <i class="fas fa-info-circle me-2 text-info"></i>
-                                        Aucune session à venir n'est programmée pour le moment.
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">
+                                            <i class="fas fa-info-circle me-2 text-info"></i>
+                                            Aucune session à venir n'est programmée pour le moment.
+                                        </td>
+                                    </tr>
                                 {% endif %}
-                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -218,35 +218,35 @@
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                             <span class="ms-2 text-muted">Chargement des activités...</span>
                         </li>
-                        {% for activity in recent_activities %}
-                        <li class="list-group-item border-start-0 border-end-0 py-3">
-                            <div class="d-flex">
-                                <div class="me-3">
-                                    <i class="fas 
-                                    {% if 'supprim' in activity.action %}fa-trash text-danger
-                                    {% elif 'modifi' in activity.action %}fa-pen-to-square text-primary
-                                    {% elif 'connect' in activity.action %}fa-sign-in-alt text-info
-                                    {% elif 'inscri' in activity.action %}fa-user-plus text-success
-                                    {% elif 'désinscri' in activity.action %}fa-user-minus text-warning
-                                    {% else %}fa-circle-check text-success{% endif %}"></i>
-                                </div>
-                                <div class="activity-content">
-                                    <div class="mb-1">{{ activity.description }}</div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <small class="text-muted">{{ activity.user or 'Système' }}</small>
-                                        <small class="text-muted">{{ activity.timestamp|format_datetime_relative }}</small>
+                        {% if recent_activities is defined and recent_activities %}
+                            {% for activity in recent_activities %}
+                            <li class="list-group-item border-start-0 border-end-0 py-3">
+                                <div class="d-flex">
+                                    <div class="me-3">
+                                        <i class="fas 
+                                        {% if 'supprim' in activity.action %}fa-trash text-danger
+                                        {% elif 'modifi' in activity.action %}fa-pen-to-square text-primary
+                                        {% elif 'connect' in activity.action %}fa-sign-in-alt text-info
+                                        {% elif 'inscri' in activity.action %}fa-user-plus text-success
+                                        {% elif 'désinscri' in activity.action %}fa-user-minus text-warning
+                                        {% else %}fa-circle-check text-success{% endif %}"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <div class="mb-1">{{ activity.description }}</div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">{{ activity.user or 'Système' }}</small>
+                                            <small class="text-muted">{{ activity.timestamp }}</small>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </li>
+                            </li>
+                            {% endfor %}
                         {% else %}
-                        {% if not activities_loading %}
-                        <li class="list-group-item text-center py-4">
-                            <i class="fas fa-info-circle me-2 text-info"></i>
-                            Aucune activité récente à afficher.
-                        </li>
+                            <li class="list-group-item text-center py-4">
+                                <i class="fas fa-info-circle me-2 text-info"></i>
+                                Aucune activité récente à afficher.
+                            </li>
                         {% endif %}
-                        {% endfor %}
                     </ul>
                 </div>
             </div>
