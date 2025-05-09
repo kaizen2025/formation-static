@@ -308,6 +308,7 @@ class Document(db.Model):
     uploader = db.relationship('User', backref=db.backref('uploaded_documents', lazy='dynamic'))
     # 'theme' est défini par le backref dans Theme
     def __repr__(self): return f'<Document {self.id}: {self.original_filename}>'
+        
 class Session(db.Model):
     __tablename__ = 'session'
     id = db.Column(db.Integer, primary_key=True)
@@ -802,115 +803,68 @@ def generer_invitation(inscription_id):
     return redirect(request.referrer or url_for('dashboard'))
 
 
-
-# ROUTE /services CORRIGÉE
-@app.route('/services')
-@login_required 
-@db_operation_with_retry(max_retries=3)
-def services(): 
-    app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /services page.")
-    try:
-        all_services_db = Service.query.options(
-            selectinload(Service.participants).selectinload(Participant.inscriptions) # Nécessite lazy='selectin' sur Participant.inscriptions
-        ).order_by(Service.nom).all()
-
-        services_data_for_template = []
-        for service_obj in all_services_db:
-            participants_detailed_list = []
-            # service_obj.participants est une liste grâce à selectinload(Service.participants)
-            for participant in service_obj.participants:
-                # participant.inscriptions est maintenant aussi une liste grâce à selectinload(Participant.inscriptions)
-                confirmed_count = sum(1 for insc in participant.inscriptions if insc.statut == 'confirmé')
-                participants_detailed_list.append({
-                    'obj': participant,
-                    'confirmed_count': confirmed_count
-                })
-            participants_detailed_list.sort(key=lambda p: (p['obj'].nom.lower(), p['obj'].prenom.lower()))
-            
-            services_data_for_template.append({
-                'obj': service_obj,
-                'participant_count': len(service_obj.participants),
-                'participants_detailed': participants_detailed_list
-                # 'user_count': User.query.filter_by(service_id=service_obj.id).count(), # Optionnel
-            })
-        
-        return render_template('services.html', services_data=services_data_for_template)
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        app.logger.error(f"DB error loading services page: {e}", exc_info=True)
-        flash("Erreur de base de données lors du chargement des services.", "danger")
-        return redirect(url_for('dashboard'))
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Unexpected error loading services page: {e}", exc_info=True)
-        flash("Une erreur interne est survenue lors du chargement des services.", "danger")
-        return redirect(url_for('dashboard'))
-
 @app.route('/dashboard')
 @db_operation_with_retry(max_retries=3)
 def dashboard():
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /dashboard (with initial data).")
-    
     template_data_for_view = []
     try:
         sessions_from_db = Session.query.options(
             selectinload(Session.theme), 
             selectinload(Session.salle),
-            selectinload(Session.inscriptions), # Pas besoin de charger participant ici, déjà dans inscriptions
+            selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service),
             selectinload(Session.liste_attente)
         ).order_by(Session.date, Session.heure_debut).limit(20).all()
 
         for s_obj in sessions_from_db:
             inscrits_confirmes_list = [i for i in s_obj.inscriptions if i.statut == 'confirmé']
             pending_inscriptions_list = [i for i in s_obj.inscriptions if i.statut == 'en attente']
-            
             inscrits_count = len(inscrits_confirmes_list)
             pending_count = len(pending_inscriptions_list)
             attente_count = len(s_obj.liste_attente)
-            
             max_p = s_obj.max_participants if s_obj.max_participants is not None else 10
             
             template_data_for_view.append({
-                'obj': s_obj, 
-                'places_restantes': max(0, max_p - inscrits_count),
-                'inscrits_confirmes_count': inscrits_count,
-                'liste_attente_count': attente_count,
+                'obj': s_obj, 'places_restantes': max(0, max_p - inscrits_count),
+                'inscrits_confirmes_count': inscrits_count, 'liste_attente_count': attente_count,
                 'pending_count': pending_count,
-                # Pour les modales générées par Jinja, on a besoin des listes d'objets
                 'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.participant.nom.lower() if i.participant else ''),
                 'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.participant.nom.lower() if i.participant else ''),
                 'loaded_liste_attente': sorted(s_obj.liste_attente, key=lambda la: la.position)
             })
-
         all_participants_for_modal = get_all_participants_with_service()
-        all_services_for_modal = get_all_services_with_participants() # Pour le dropdown des services
+        all_services_for_modal = get_all_services_with_participants()
         all_salles_for_modal = get_all_salles()
-
         template_context = {
             'page_title': 'Tableau de Bord - Formation Microsoft 365',
-            'sessions_data': template_data_for_view, 
-            'participants': all_participants_for_modal, 
-            'services': all_services_for_modal, # Pour la modale d'inscription -> nouveau participant -> choix service
-            'salles': all_salles_for_modal, # Pour la modale d'attribution de salle
-            'Inscription': Inscription, # Si utilisé dans les modales Jinja
-            'ListeAttente': ListeAttente # Si utilisé dans les modales Jinja
+            'sessions_data': template_data_for_view, 'participants': all_participants_for_modal, 
+            'services': all_services_for_modal, 'salles': all_salles_for_modal,
+            'Inscription': Inscription, 'ListeAttente': ListeAttente,
         }
         return render_template('dashboard.html', **template_context)
+    except TemplateNotFound as e: app.logger.error(f"TemplateNotFound error in dashboard route: {e}", exc_info=True); return "Erreur critique: Le template du tableau de bord est introuvable.", 500
+    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading initial dashboard data: {e}", exc_info=True); flash("Erreur de base de données lors du chargement initial du tableau de bord.", "danger"); return render_template('error.html', error_message="Impossible de charger les données initiales du tableau de bord.")
+    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error in dashboard route (initial data): {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return render_template('error.html', error_message="Erreur interne du serveur lors du chargement du tableau de bord.")
 
-    except TemplateNotFound as e:
-        app.logger.error(f"TemplateNotFound error in dashboard route: {e}", exc_info=True)
-        return "Erreur critique: Le template du tableau de bord est introuvable.", 500
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        app.logger.error(f"DB error loading initial dashboard data: {e}", exc_info=True)
-        flash("Erreur de base de données lors du chargement initial du tableau de bord.", "danger")
-        return render_template('error.html', error_message="Impossible de charger les données initiales du tableau de bord.")
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Unexpected error in dashboard route (initial data): {e}", exc_info=True)
-        flash("Une erreur interne est survenue.", "danger")
-        return render_template('error.html', error_message="Erreur interne du serveur lors du chargement du tableau de bord.")
-
+# ROUTE /services (CORRIGÉE)
+@app.route('/services')
+@login_required 
+@db_operation_with_retry(max_retries=3)
+def services(): 
+    app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /services page.")
+    try:
+        all_services_db = Service.query.options(selectinload(Service.participants).selectinload(Participant.inscriptions)).order_by(Service.nom).all()
+        services_data_for_template = []
+        for service_obj in all_services_db:
+            participants_detailed_list = []
+            for participant in service_obj.participants:
+                confirmed_count = sum(1 for insc in participant.inscriptions if insc.statut == 'confirmé')
+                participants_detailed_list.append({'obj': participant, 'confirmed_count': confirmed_count})
+            participants_detailed_list.sort(key=lambda p: (p['obj'].nom.lower(), p['obj'].prenom.lower()))
+            services_data_for_template.append({'obj': service_obj, 'participant_count': len(service_obj.participants), 'participants_detailed': participants_detailed_list})
+        return render_template('services.html', services_data=services_data_for_template)
+    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading services page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement des services.", "danger"); return redirect(url_for('dashboard'))
+    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading services page: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return redirect(url_for('dashboard')
 @app.route('/sessions')
 @db_operation_with_retry(max_retries=3)
 def sessions():
