@@ -633,7 +633,6 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/generer_invitation/<int:inscription_id>')
-@login_required # Keep login required for downloading specific invitations
 @db_operation_with_retry(max_retries=2)
 def generer_invitation(inscription_id):
     """Génère un fichier .ics pour une inscription confirmée."""
