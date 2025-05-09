@@ -396,7 +396,7 @@ class Session(db.Model):
             now_utc = datetime.now(UTC); return now_utc, now_utc + timedelta(hours=1)
 
     def __repr__(self): theme_nom = self.theme.nom if self.theme else "N/A"; return f'<Session {self.id} - {theme_nom} le {self.date.strftime("%Y-%m-%d")}>'
-
+        
 class Participant(db.Model):
     __tablename__ = 'participant'
     id = db.Column(db.Integer, primary_key=True)
@@ -406,13 +406,12 @@ class Participant(db.Model):
     service_id = db.Column(db.String(20), db.ForeignKey('service.id'), nullable=False, index=True)
     
     # MODIFICATION CRUCIALE ICI :
-  inscriptions = db.relationship('Inscription', backref='participant', 
+    inscriptions = db.relationship('Inscription', backref='participant', 
                                    lazy='selectin',  # DOIT ÊTRE 'selectin'
                                    cascade="all, delete-orphan")
     liste_attente = db.relationship('ListeAttente', backref='participant', 
                                     lazy='selectin',  # DOIT ÊTRE 'selectin'
                                     cascade="all, delete-orphan")
-
     def __repr__(self): return f'<Participant {self.id}: {self.prenom} {self.nom}>'
 
 class Inscription(db.Model):
