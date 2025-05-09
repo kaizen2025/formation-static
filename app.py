@@ -806,7 +806,6 @@ def generer_invitation(inscription_id):
 
 
 @app.route('/services')
-@login_required
 @db_operation_with_retry(max_retries=3)
 def services():
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /services page.")
