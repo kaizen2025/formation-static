@@ -29,12 +29,15 @@
                     </div>
                 </div>
 
+                 {# CORRECTION: Utiliser url_for('attribuer_salle') #}
                  <form action="{{ url_for('attribuer_salle') }}" method="post" id="attribuer_salle_form_{{ session.id }}" class="needs-validation" novalidate>
                     <input type="hidden" name="session_id" value="{{ session.id }}">
                     <div class="mb-3">
                          <label for="salle_id_assign_{{ session.id }}" class="form-label">Choisir une salle*</label>
-                        <select class="form-select" id="salle_id_assign_{{ session.id }}" name="salle_id" required>
+                        {# Assurer que le select est visible et fonctionnel #}
+                        <select class="form-select salle-select" id="salle_id_assign_{{ session.id }}" name="salle_id" required style="display: block !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 2000 !important;">
                             <option value="" {% if not session.salle_id %}selected{% endif %}>-- Aucune salle (Retirer l'attribution) --</option>
+                            {# Assurer que la variable 'salles' est bien passée au template parent #}
                             {% for salle_item in salles|sort(attribute='nom') %}
                             <option value="{{ salle_item.id }}" {% if session.salle_id == salle_item.id %}selected{% endif %}>
                                 {{ salle_item.nom }} (Capacité: {{ salle_item.capacite }})
@@ -68,7 +71,7 @@
     </div>
 </div>
 
-{# Script spécifique pour cette instance de modale #}
+{# Script spécifique pour cette instance de modale (validation et fix select) #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const modalSalle_{{ session.id }} = document.getElementById('attribuerSalleModal{{ session.id }}');
@@ -83,12 +86,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 form.classList.add('was-validated');
             }, false);
         }
-         // S'assurer que le select est visible
+         // S'assurer que le select est visible et fonctionnel quand la modale est montrée
         modalSalle_{{ session.id }}.addEventListener('shown.bs.modal', function () {
             const selectInModal = this.querySelector('select.salle-select');
             if (selectInModal) {
+                 // Appliquer les styles pour contrer les problèmes potentiels
                  selectInModal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
+                 // Forcer un reflow peut aider dans certains cas
+                 selectInModal.offsetHeight;
             }
+            // S'assurer que les autres boutons sont aussi cliquables
+            this.querySelectorAll('button, .btn').forEach(button => {
+                if (!button.classList.contains('btn-close')) {
+                    button.style.position = 'relative';
+                    button.style.zIndex = '2001';
+                    button.style.pointerEvents = 'auto';
+                }
+            });
         });
     }
 });
