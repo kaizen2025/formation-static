@@ -1,8 +1,36 @@
 {% extends "layout.html" %}
 
+{% block title %}Participants - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* Style pour le spinner dans la modale */
+    #viewParticipantModal .modal-loading-spinner {
+        display: none; /* Caché par défaut */
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--secondary);
+    }
+    #viewParticipantModal .modal-loading-spinner .spinner-border {
+        width: 2rem; height: 2rem; margin-bottom: 1rem;
+    }
+    #viewParticipantModal .modal-tabs-content.is-loading .tab-pane {
+        display: none; /* Cacher le contenu pendant le chargement */
+    }
+     #viewParticipantModal .modal-tabs-content.is-loading + .modal-loading-spinner {
+        display: block; /* Afficher le spinner */
+    }
+    /* Style pour les tables dans la modale */
+    #viewParticipantModal .table thead th { font-size: 0.75rem; }
+    #viewParticipantModal .table tbody td { font-size: 0.8rem; }
+</style>
+{% endblock %}
+
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mb-0"><i class="fas fa-users me-2"></i>Gestion des Participants</h1>
+    {# Bouton Ajouter Participant Global (utilise la modale globale) #}
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">
         <i class="fas fa-user-plus me-2"></i>Ajouter un Participant
     </button>
@@ -19,7 +47,7 @@
             </div>
             <div class="modal-body">
                  <form action="{{ url_for('add_participant') }}" method="post">
-                    <input type="hidden" name="from_page" value="participants"> <!-- Indique la page d'origine -->
+                    <input type="hidden" name="from_page" value="participants_page"> {# CORRECTION: Utiliser le nom de la fonction route #}
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label for="add_nom_global" class="form-label">Nom*</label>
@@ -37,8 +65,8 @@
                             <label for="add_service_id_global" class="form-label">Service*</label>
                             <select class="form-select" id="add_service_id_global" name="service_id" required>
                                 <option value="" disabled selected>-- Choisir --</option>
-                                {# services is passed from the participants route #}
-                                {% for service in services|sort(attribute='nom') %} 
+                                {# services est passé depuis la route participants_page #}
+                                {% for service in services|sort(attribute='nom') %}
                                 <option value="{{ service.id }}">{{ service.nom }}</option>
                                 {% endfor %}
                             </select>
@@ -87,7 +115,7 @@
                         <td>
                             <div class="fw-bold">{{ participant.nom }} {{ participant.prenom }}</div>
                         </td>
-                        <td class="js-service-cell"> {# Added class for easier JS targeting if needed #}
+                        <td class="js-service-cell">
                             <span class="badge" style="background-color: {{ participant.service.couleur or '#6c757d' }}; color: white; padding: 0.3em 0.5em;">
                                 {{ participant.service.nom }}
                             </span>
@@ -101,14 +129,30 @@
                         </td>
                         <td class="text-center">
                             <div class="btn-group btn-group-sm" role="group" aria-label="Actions participant">
-                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewParticipantModal{{ participant.id }}" title="Voir détails">
+                                {# Bouton Voir - Utilise la modale unique #}
+                                <button type="button" class="btn btn-outline-primary btn-view-participant"
+                                        data-bs-toggle="modal" data-bs-target="#viewParticipantModal"
+                                        data-participant-id="{{ participant.id }}"
+                                        data-participant-nom="{{ participant.nom }}"
+                                        data-participant-prenom="{{ participant.prenom }}"
+                                        data-participant-email="{{ participant.email }}"
+                                        data-service-nom="{{ participant.service.nom }}"
+                                        data-service-couleur="{{ participant.service.couleur or '#6c757d' }}"
+                                        data-responsable-nom="{{ participant.service.responsable }}"
+                                        data-responsable-email="{{ participant.service.email_responsable }}"
+                                        data-count-confirmed="{{ p_data.inscriptions_count }}"
+                                        data-count-pending="{{ p_data.pending_count }}"
+                                        data-count-waitlist="{{ p_data.attente_count }}"
+                                        title="Voir détails">
                                     <i class="fas fa-eye"></i>
                                 </button>
+                                {# Bouton Modifier - Utilise sa propre modale (définie ci-dessous) #}
                                 {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
                                 <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editParticipantModal{{ participant.id }}" title="Modifier">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 {% endif %}
+                                {# Bouton Supprimer - Utilise sa propre modale (définie ci-dessous) #}
                                  {% if current_user.is_authenticated and current_user.role == 'admin' %}
                                  <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteParticipantModal{{ participant.id }}" title="Supprimer">
                                      <i class="fas fa-trash"></i>
@@ -116,169 +160,7 @@
                                  {% endif %}
                             </div>
 
-                             <!-- Modal Voir Participant -->
-                            <div class="modal fade" id="viewParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="viewParticipantModalLabel{{ participant.id }}" aria-hidden="true">
-                                <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" id="viewParticipantModalLabel{{ participant.id }}">
-                                                 <i class="fas fa-user-circle me-2"></i>{{ participant.prenom }} {{ participant.nom }}
-                                                <small class="text-muted d-block fw-normal">{{ participant.email }}</small>
-                                            </h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="row mb-4">
-                                                <div class="col-md-6">
-                                                    <h6><i class="fas fa-sitemap me-2"></i>Service</h6>
-                                                    <p>
-                                                        <span class="badge" style="background-color: {{ participant.service.couleur or '#6c757d' }}; color: white; padding: 0.3em 0.5em;">
-                                                            {{ participant.service.nom }}
-                                                        </span>
-                                                    </p>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <h6><i class="fas fa-user-tie me-2"></i>Responsable Service</h6>
-                                                    <p>{{ participant.service.responsable }}
-                                                       (<a href="mailto:{{ participant.service.email_responsable }}">{{ participant.service.email_responsable }}</a>)
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <ul class="nav nav-tabs mb-3" id="participantTabs{{ participant.id }}" role="tablist">
-                                                <li class="nav-item" role="presentation">
-                                                    <button class="nav-link active" id="view-inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-inscriptions{{ participant.id }}" type="button" role="tab">
-                                                        Inscriptions Confirmées <span class="badge bg-success ms-1">{{ p_data.inscriptions_count }}</span>
-                                                    </button>
-                                                </li>
-                                                 <li class="nav-item" role="presentation">
-                                                    <button class="nav-link" id="view-pending-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-pending{{ participant.id }}" type="button" role="tab">
-                                                        En Attente Validation <span class="badge bg-secondary ms-1">{{ p_data.pending_count }}</span>
-                                                    </button>
-                                                </li>
-                                                <li class="nav-item" role="presentation">
-                                                    <button class="nav-link" id="view-attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-attente{{ participant.id }}" type="button" role="tab">
-                                                        Liste d'attente <span class="badge bg-warning text-dark ms-1">{{ p_data.attente_count }}</span>
-                                                    </button>
-                                                </li>
-                                            </ul>
-                                            <div class="tab-content" id="participantTabsContent{{ participant.id }}">
-                                                <!-- Onglet inscriptions confirmées -->
-                                                <div class="tab-pane fade show active" id="view-inscriptions{{ participant.id }}" role="tabpanel">
-                                                    {% set confirmed_inscriptions = p_data.loaded_confirmed_inscriptions %}
-                                                    {% if confirmed_inscriptions %}
-                                                    <div class="table-responsive">
-                                                        <table class="table table-sm table-striped">
-                                                            <thead><tr><th>Session</th><th>Date</th><th>Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
-                                                            <tbody>
-                                                            {% for inscription in confirmed_inscriptions %}
-                                                                <tr>
-                                                                    <td class="js-theme-cell">
-                                                                        {{ inscription.session.theme.nom }}
-                                                                    </td>
-                                                                    <td>{{ inscription.session.formatage_date }}</td>
-                                                                    <td>{{ inscription.session.formatage_horaire }}</td>
-                                                                    <td>{{ inscription.session.salle.nom if inscription.session.salle else '-' }}</td>
-                                                                    <td>
-                                                                        <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation Outlook"><i class="far fa-calendar-plus"></i></a>
-                                                                         {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                                                         <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
-                                                                             <input type="hidden" name="action" value="annuler">
-                                                                             <button type="button" class="btn btn-sm btn-outline-danger btn-cancel-inscription" title="Annuler" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');">
-                                                                                <i class="fas fa-times"></i>
-                                                                             </button>
-                                                                         </form>
-                                                                         {% endif %}
-                                                                    </td>
-                                                                </tr>
-                                                            {% endfor %}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                    {% else %}
-                                                    <p class="text-muted text-center fst-italic mt-3">Aucune inscription confirmée.</p>
-                                                    {% endif %}
-                                                </div>
-                                                 <!-- Onglet inscriptions en attente -->
-                                                <div class="tab-pane fade" id="view-pending{{ participant.id }}" role="tabpanel">
-                                                      {% set pending_inscriptions = p_data.loaded_pending_inscriptions %}
-                                                    {% if pending_inscriptions %}
-                                                    <div class="table-responsive">
-                                                        <table class="table table-sm table-striped">
-                                                             <thead><tr><th>Session</th><th>Date</th><th>Demandé le</th><th>Actions</th></tr></thead>
-                                                            <tbody>
-                                                               {% for inscription in pending_inscriptions %}
-                                                                <tr>
-                                                                    <td class="js-theme-cell">
-                                                                        {{ inscription.session.theme.nom }}
-                                                                    </td>
-                                                                    <td>{{ inscription.session.formatage_date }}</td>
-                                                                    <td>{{ inscription.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
-                                                                    <td>
-                                                                        {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
-                                                                            <div class="btn-group btn-group-sm">
-                                                                                <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
-                                                                                    <input type="hidden" name="action" value="valider">
-                                                                                    <button type="submit" class="btn btn-success" title="Valider"><i class="fas fa-check"></i></button>
-                                                                                </form>
-                                                                                <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
-                                                                                    <input type="hidden" name="action" value="refuser">
-                                                                                    <button type="submit" class="btn btn-danger" title="Refuser" onclick="return confirm('Êtes-vous sûr de vouloir refuser cette inscription ?');">
-                                                                                        <i class="fas fa-times"></i>
-                                                                                    </button>
-                                                                                </form>
-                                                                            </div>
-                                                                        {% else %}
-                                                                            <span class="text-muted small">Validation requise</span>
-                                                                        {% endif %}
-                                                                    </td>
-                                                                </tr>
-                                                               {% endfor %}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                    {% else %}
-                                                    <p class="text-muted text-center fst-italic mt-3">Aucune inscription en attente de validation.</p>
-                                                    {% endif %}
-                                                </div>
-                                                <!-- Onglet liste d'attente -->
-                                                <div class="tab-pane fade" id="view-attente{{ participant.id }}" role="tabpanel">
-                                                    {% set waitlist_entries = p_data.loaded_waitlist %}
-                                                    {% if waitlist_entries %}
-                                                    <div class="table-responsive">
-                                                         <table class="table table-sm table-striped">
-                                                            <thead><tr><th>Session</th><th>Date</th><th>Position</th><th>Inscrit le</th><th>Statut</th></tr></thead>
-                                                            <tbody>
-                                                               {% for attente in waitlist_entries %}
-                                                                <tr>
-                                                                    <td class="js-theme-cell">
-                                                                        {{ attente.session.theme.nom }}
-                                                                    </td>
-                                                                    <td>{{ attente.session.formatage_date }}</td>
-                                                                    <td><span class="badge bg-secondary">{{ attente.position }}</span></td>
-                                                                    <td>{{ attente.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
-                                                                    <td>
-                                                                        {% if attente.notification_envoyee %}<span class="badge bg-info">Notifié</span>
-                                                                        {% else %}<span class="badge bg-light text-dark border">En attente</span>{% endif %}
-                                                                    </td>
-                                                                </tr>
-                                                               {% endfor %}
-                                                            </tbody>
-                                                         </table>
-                                                    </div>
-                                                    {% else %}
-                                                    <p class="text-muted text-center fst-italic mt-3">Aucune inscription en liste d'attente.</p>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
+                            <!-- Modales Modifier et Supprimer (restent spécifiques à chaque participant) -->
                             <!-- Modal Modifier Participant -->
                             {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
                             <div class="modal fade" id="editParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="editParticipantModalLabel{{ participant.id }}" aria-hidden="true">
@@ -306,7 +188,7 @@
                                                     <div class="col-md-6">
                                                         <label for="edit_service_id_{{ participant.id }}" class="form-label">Service*</label>
                                                         <select class="form-select" id="edit_service_id_{{ participant.id }}" name="service_id" required>
-                                                            {% for service_item in services|sort(attribute='nom') %} {# Use service_item to avoid conflict #}
+                                                            {% for service_item in services|sort(attribute='nom') %} {# Utiliser la variable 'services' passée globalement #}
                                                             <option value="{{ service_item.id }}" {% if service_item.id == participant.service_id %}selected{% endif %}>{{ service_item.nom }}</option>
                                                             {% endfor %}
                                                         </select>
@@ -349,7 +231,7 @@
                      {% else %}
                       <tr>
                           <td colspan="6" class="text-center text-muted p-4">
-                              Aucun participant trouvé. 
+                              Aucun participant trouvé.
                               {% if current_user.is_authenticated and current_user.role in ['admin', 'responsable'] %}
                               <a href="#" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">Ajouter un participant</a>.
                               {% endif %}
@@ -364,10 +246,116 @@
          Total: {{ participants_data|length }} participant(s)
      </div>
 </div>
+
+
+<!-- ====================================================== -->
+<!-- == MODALE UNIQUE POUR VOIR LES DÉTAILS PARTICIPANT == -->
+<!-- ====================================================== -->
+<div class="modal fade" id="viewParticipantModal" tabindex="-1" aria-labelledby="viewParticipantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable"> {# XL pour plus d'espace #}
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewParticipantModalLabel">
+                     <i class="fas fa-user-circle me-2"></i> <span id="modalParticipantName">Nom Participant</span>
+                    <small class="text-muted d-block fw-normal" id="modalParticipantEmail">email@participant.com</small>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {# Informations Participant et Service #}
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-sitemap me-2"></i>Service</h6>
+                        <p><span class="badge" id="modalServiceBadge" style="color: white; padding: 0.3em 0.5em;">Nom Service</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-user-tie me-2"></i>Responsable Service</h6>
+                        <p><span id="modalResponsableName">Nom Resp</span> (<a href="#" id="modalResponsableEmail">email@resp.com</a>)</p>
+                    </div>
+                </div>
+
+                {# Onglets pour les détails #}
+                <ul class="nav nav-tabs mb-3" id="participantDetailsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="view-inscriptions-tab" data-bs-toggle="tab" data-bs-target="#view-inscriptions-content" type="button" role="tab">
+                            Inscriptions Confirmées <span class="badge bg-success ms-1" id="modalCountConfirmed">0</span>
+                        </button>
+                    </li>
+                     <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="view-pending-tab" data-bs-toggle="tab" data-bs-target="#view-pending-content" type="button" role="tab">
+                            En Attente Validation <span class="badge bg-secondary ms-1" id="modalCountPending">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="view-attente-tab" data-bs-toggle="tab" data-bs-target="#view-attente-content" type="button" role="tab">
+                            Liste d'attente <span class="badge bg-warning text-dark ms-1" id="modalCountWaitlist">0</span>
+                        </button>
+                    </li>
+                </ul>
+
+                {# Conteneur pour le contenu des onglets et le spinner #}
+                <div class="modal-tabs-content" id="participantDetailsContent">
+                    <!-- Onglet inscriptions confirmées -->
+                    <div class="tab-pane fade show active" id="view-inscriptions-content" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead><tr><th>Session</th><th>Date</th><th>Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
+                                <tbody id="modalConfirmedInscriptionsTableBody">
+                                    <!-- Contenu chargé par JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="noConfirmedMsg" class="alert alert-light text-center border py-3" style="display: none;">Aucune inscription confirmée.</div>
+                    </div>
+                     <!-- Onglet inscriptions en attente -->
+                    <div class="tab-pane fade" id="view-pending-content" role="tabpanel">
+                          <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                 <thead><tr><th>Session</th><th>Date</th><th>Demandé le</th><th>Actions</th></tr></thead>
+                                <tbody id="modalPendingInscriptionsTableBody">
+                                    <!-- Contenu chargé par JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="noPendingMsg" class="alert alert-light text-center border py-3" style="display: none;">Aucune inscription en attente de validation.</div>
+                    </div>
+                    <!-- Onglet liste d'attente -->
+                    <div class="tab-pane fade" id="view-attente-content" role="tabpanel">
+                        <div class="table-responsive">
+                             <table class="table table-sm table-striped">
+                                <thead><tr><th>Session</th><th>Date</th><th>Position</th><th>Inscrit le</th><th>Statut</th></tr></thead>
+                                <tbody id="modalWaitlistTableBody">
+                                    <!-- Contenu chargé par JS -->
+                                </tbody>
+                             </table>
+                        </div>
+                        <div id="noWaitlistMsg" class="alert alert-light text-center border py-3" style="display: none;">Aucune inscription en liste d'attente.</div>
+                    </div>
+                </div>
+                {# Spinner de chargement pour les détails AJAX #}
+                <div class="modal-loading-spinner" id="modalDetailsSpinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p>Chargement des détails...</p>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ====================================================== -->
+<!-- == FIN MODALE UNIQUE POUR VOIR LES DÉTAILS PARTICIPANT == -->
+<!-- ====================================================== -->
+
+
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
+{% block scripts_extra %}
+{# Remplacer le bloc scripts par scripts_extra pour ajouter au lieu de remplacer #}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         if (window.dashboardConfig && window.dashboardConfig.debugMode) {
@@ -376,36 +364,194 @@
 
         const searchInput = document.getElementById('searchParticipant');
         const participantsTableBody = document.getElementById('participants-table')?.querySelector('tbody');
+        const viewParticipantModalElement = document.getElementById('viewParticipantModal');
+        const viewParticipantModal = viewParticipantModalElement ? new bootstrap.Modal(viewParticipantModalElement) : null;
 
+        // --- Filtre de recherche ---
         function filterParticipants() {
              if (!searchInput || !participantsTableBody) return;
-
             const searchValue = searchInput.value.toLowerCase().trim();
             const rows = participantsTableBody.querySelectorAll('tr.participant-row');
-            
+            let visibleCount = 0;
             rows.forEach(row => {
                 const nameCell = row.querySelector('td:nth-child(1)');
-                const serviceCell = row.querySelector('td:nth-child(2) span.badge'); // Target the badge text
+                const serviceCell = row.querySelector('td:nth-child(2) span.badge');
                 const emailCell = row.querySelector('td:nth-child(3) a');
-
                 const nameText = nameCell ? nameCell.textContent.toLowerCase() : '';
                 const serviceText = serviceCell ? serviceCell.textContent.toLowerCase() : '';
                 const emailText = emailCell ? emailCell.textContent.toLowerCase() : '';
-
-                const isVisible = nameText.includes(searchValue) || 
-                                  serviceText.includes(searchValue) || 
-                                  emailText.includes(searchValue);
+                const isVisible = nameText.includes(searchValue) || serviceText.includes(searchValue) || emailText.includes(searchValue);
                 row.style.display = isVisible ? '' : 'none';
+                if (isVisible) visibleCount++;
             });
+            // Afficher message si aucun résultat? (Optionnel)
         }
-
         if (searchInput) {
             searchInput.addEventListener('input', filterParticipants);
         }
-        
-        // Call enhanceThemeBadgesGlobally if it's available and you added js-theme-cell
+
+        // --- Gestion Modale Unique "Voir Participant" ---
+        const modalTitle = document.getElementById('viewParticipantModalLabel');
+        const modalName = document.getElementById('modalParticipantName');
+        const modalEmail = document.getElementById('modalParticipantEmail');
+        const modalServiceBadge = document.getElementById('modalServiceBadge');
+        const modalResponsableName = document.getElementById('modalResponsableName');
+        const modalResponsableEmail = document.getElementById('modalResponsableEmail');
+        const modalCountConfirmed = document.getElementById('modalCountConfirmed');
+        const modalCountPending = document.getElementById('modalCountPending');
+        const modalCountWaitlist = document.getElementById('modalCountWaitlist');
+        const modalDetailsContent = document.getElementById('participantDetailsContent');
+        const modalSpinner = document.getElementById('modalDetailsSpinner');
+        const confirmedTbody = document.getElementById('modalConfirmedInscriptionsTableBody');
+        const pendingTbody = document.getElementById('modalPendingInscriptionsTableBody');
+        const waitlistTbody = document.getElementById('modalWaitlistTableBody');
+        const noConfirmedMsg = document.getElementById('noConfirmedMsg');
+        const noPendingMsg = document.getElementById('noPendingMsg');
+        const noWaitlistMsg = document.getElementById('noWaitlistMsg');
+
+        document.getElementById('participants-table')?.addEventListener('click', function(event) {
+            const viewButton = event.target.closest('.btn-view-participant');
+            if (!viewButton || !viewParticipantModal) return;
+
+            const participantId = viewButton.dataset.participantId;
+            const prenom = viewButton.dataset.participantPrenom;
+            const nom = viewButton.dataset.participantNom;
+            const email = viewButton.dataset.participantEmail;
+            const serviceNom = viewButton.dataset.serviceNom;
+            const serviceCouleur = viewButton.dataset.serviceCouleur;
+            const respNom = viewButton.dataset.responsableNom;
+            const respEmail = viewButton.dataset.responsableEmail;
+            const countConfirmed = viewButton.dataset.countConfirmed;
+            const countPending = viewButton.dataset.countPending;
+            const countWaitlist = viewButton.dataset.countWaitlist;
+
+            // 1. Mettre à jour les infos statiques de la modale
+            if(modalName) modalName.textContent = `${prenom} ${nom}`;
+            if(modalEmail) modalEmail.textContent = email;
+            if(modalServiceBadge) {
+                modalServiceBadge.textContent = serviceNom;
+                modalServiceBadge.style.backgroundColor = serviceCouleur;
+            }
+            if(modalResponsableName) modalResponsableName.textContent = respNom;
+            if(modalResponsableEmail) {
+                modalResponsableEmail.textContent = respEmail;
+                modalResponsableEmail.href = `mailto:${respEmail}`;
+            }
+            if(modalCountConfirmed) modalCountConfirmed.textContent = countConfirmed;
+            if(modalCountPending) modalCountPending.textContent = countPending;
+            if(modalCountWaitlist) modalCountWaitlist.textContent = countWaitlist;
+
+            // 2. Afficher le spinner et cacher le contenu
+            if(modalDetailsContent) modalDetailsContent.classList.add('is-loading');
+            if(confirmedTbody) confirmedTbody.innerHTML = '';
+            if(pendingTbody) pendingTbody.innerHTML = '';
+            if(waitlistTbody) waitlistTbody.innerHTML = '';
+            if(noConfirmedMsg) noConfirmedMsg.style.display = 'none';
+            if(noPendingMsg) noPendingMsg.style.display = 'none';
+            if(noWaitlistMsg) noWaitlistMsg.style.display = 'none';
+
+            // 3. Faire l'appel API pour les détails
+            fetch(`/api/participant/${participantId}/details`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erreur ${response.status} lors de la récupération des détails.`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 4. Peupler les tableaux avec les données reçues
+                    populateModalTable(confirmedTbody, data.confirmed, 'confirmed', noConfirmedMsg);
+                    populateModalTable(pendingTbody, data.pending, 'pending', noPendingMsg);
+                    populateModalTable(waitlistTbody, data.waitlist, 'waitlist', noWaitlistMsg);
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement des détails du participant:", error);
+                    if(confirmedTbody) confirmedTbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erreur de chargement des inscriptions.</td></tr>`;
+                    if(pendingTbody) pendingTbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Erreur de chargement.</td></tr>`;
+                    if(waitlistTbody) waitlistTbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erreur de chargement.</td></tr>`;
+                    if (typeof showToast === 'function') showToast(error.message || 'Impossible de charger les détails.', 'danger');
+                })
+                .finally(() => {
+                    // 5. Cacher le spinner et afficher le contenu
+                    if(modalDetailsContent) modalDetailsContent.classList.remove('is-loading');
+                });
+        });
+
+        // Fonction pour peupler les tableaux dans la modale
+        function populateModalTable(tbody, items, type, noDataElement) {
+            if (!tbody || !noDataElement) return;
+            tbody.innerHTML = ''; // Vider d'abord
+
+            if (!items || items.length === 0) {
+                noDataElement.style.display = 'block';
+                tbody.closest('.table-responsive').style.display = 'none'; // Cacher la table vide
+                return;
+            }
+
+            noDataElement.style.display = 'none';
+            tbody.closest('.table-responsive').style.display = 'block'; // Afficher la table
+
+            items.forEach(item => {
+                let rowHtml = '<tr>';
+                if (type === 'confirmed') {
+                    rowHtml += `<td><span class="theme-badge" data-theme="${item.theme}">${item.theme}</span></td>`;
+                    rowHtml += `<td>${item.date}</td>`;
+                    rowHtml += `<td>${item.horaire}</td>`;
+                    rowHtml += `<td><span class="badge bg-light text-dark border">${item.salle}</span></td>`;
+                    rowHtml += `<td class="text-center">
+                                    <a href="/generer_invitation/${item.id}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation Outlook"><i class="far fa-calendar-plus"></i></a>
+                                    ${canAdminCancel() ? `
+                                    <form action="/validation_inscription/${item.id}" method="post" class="d-inline ms-1">
+                                        <input type="hidden" name="action" value="annuler">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Annuler" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');"><i class="fas fa-ban"></i></button>
+                                    </form>` : ''}
+                               </td>`;
+                } else if (type === 'pending') {
+                    rowHtml += `<td><span class="theme-badge" data-theme="${item.theme}">${item.theme}</span></td>`;
+                    rowHtml += `<td>${item.date}</td>`;
+                    rowHtml += `<td><small>${item.date_inscription}</small></td>`;
+                    rowHtml += `<td class="text-center">
+                                    ${canAdminValidate() ? `
+                                    <div class="btn-group btn-group-sm">
+                                        <form action="/validation_inscription/${item.id}" method="post" class="d-inline">
+                                            <input type="hidden" name="action" value="valider">
+                                            <button type="submit" class="btn btn-outline-success" title="Valider"><i class="fas fa-check"></i></button>
+                                        </form>
+                                        <form action="/validation_inscription/${item.id}" method="post" class="d-inline ms-1">
+                                            <input type="hidden" name="action" value="refuser">
+                                            <button type="submit" class="btn btn-outline-danger" title="Refuser" onclick="return confirm('Êtes-vous sûr de vouloir refuser cette inscription ?');"><i class="fas fa-times"></i></button>
+                                        </form>
+                                    </div>` : '<span class="badge bg-secondary">Validation requise</span>'}
+                               </td>`;
+                } else if (type === 'waitlist') {
+                    rowHtml += `<td><span class="theme-badge" data-theme="${item.theme}">${item.theme}</span></td>`;
+                    rowHtml += `<td>${item.date}</td>`;
+                    rowHtml += `<td class="text-center"><span class="badge bg-secondary">${item.position}</span></td>`;
+                    rowHtml += `<td><small>${item.date_inscription}</small></td>`;
+                    rowHtml += `<td>${item.notification_envoyee ? '<span class="badge bg-info">Notifié</span>' : '<span class="badge bg-light text-dark border">En attente</span>'}</td>`;
+                }
+                rowHtml += '</tr>';
+                tbody.insertAdjacentHTML('beforeend', rowHtml);
+            });
+            // Améliorer les badges thème DANS la modale après ajout
+            if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+                 window.enhanceThemeBadgesGlobally();
+            }
+        }
+
+        // Fonctions helper pour vérifier les permissions (simplifié, adapter si besoin)
+        function canAdminValidate() {
+            // Vérifier si l'utilisateur actuel (via une variable JS globale ou data attribute) a le rôle admin/responsable
+            // Exemple simple:
+            return {{ current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') | tojson }};
+        }
+        function canAdminCancel() {
+             return {{ current_user.is_authenticated and current_user.role == 'admin' | tojson }};
+        }
+
+        // Appliquer les styles de badge thème au chargement initial de la page
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-            setTimeout(window.enhanceThemeBadgesGlobally, 200); // Give DOM a moment
+            window.enhanceThemeBadgesGlobally();
         }
     });
 </script>
