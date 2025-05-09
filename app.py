@@ -1786,72 +1786,67 @@ def delete_document(doc_id):
 # Routes essentielles pour le tableau de bord
 # Intégrer ces routes dans votre app.py ou créer un fichier routes.py à importer
 
+# Voici la correction de l'erreur de syntaxe à la ligne 2233 de app.py
+# Remplacez le code erroné par ce qui suit:
+
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
 def api_dashboard_essential():
-    """
-    Endpoint API qui fournit les données essentielles pour le tableau de bord:
-    - Sessions
-    - Participants (avec service)
-    - Activités récentes
-    """
     try:
-        # Vérifier si le cache est actif et le récupérer si disponible
+        # Vérifier si le cache est actif et récupérer les données si disponibles
         cache_key = 'dashboard_essential_data'
         cached_data = cache.get(cache_key)
-        if cached_data:
+        if cached_data and 'participants' in cached_data and cached_data['participants']:
             return jsonify(cached_data)
+        elif cached_data:
+            cache.delete(cache_key)
+            app.logger.debug("API dashboard_essential: Participants missing from cache, re-fetching.")
         
-        # Récupérer les sessions avec tous les détails nécessaires
+        # Récupérer les sessions
         sessions_q = Session.query.options(
             joinedload(Session.theme), 
             joinedload(Session.salle)
         ).order_by(Session.date, Session.heure_debut).all()
         
-        # Récupérer les participants avec leur service
+        # Récupérer les participants
         participants_q = Participant.query.options(
             joinedload(Participant.service)
         ).order_by(Participant.nom).all()
         
         # Récupérer les activités récentes
-        activites_q = get_recent_activities(limit=10)
+        activites_q = get_recent_activities(limit=5)
         
         # Préparer les données des sessions
         sessions_data = []
         for s in sessions_q:
             try:
-                # Calculer le nombre d'inscrits confirmés
-                inscrits_count = db.session.query(
-                    func.count(Inscription.id)
-                ).filter(
+                inscrits_count = db.session.query(func.count(Inscription.id)).filter(
                     Inscription.session_id == s.id, 
                     Inscription.statut == 'confirmé'
                 ).scalar() or 0
                 
-                # Calculer le nombre de personnes en attente
-                attente_count = db.session.query(
-                    func.count(ListeAttente.id)
-                ).filter(
+                attente_count = db.session.query(func.count(ListeAttente.id)).filter(
                     ListeAttente.session_id == s.id
                 ).scalar() or 0
                 
-                # Calculer le nombre d'inscriptions en attente
-                pending_count = db.session.query(
-                    func.count(Inscription.id)
-                ).filter(
+                pending_count = db.session.query(func.count(Inscription.id)).filter(
                     Inscription.session_id == s.id,
                     Inscription.statut == 'en attente'
                 ).scalar() or 0
                 
-                # Calculer le nombre de places restantes
-                max_participants = s.max_participants or 10
+                max_participants = 10
+                if s.max_participants is not None:
+                    try:
+                        max_participants = int(s.max_participants)
+                    except (ValueError, TypeError):
+                        pass
+                
                 places_rest = max(0, max_participants - inscrits_count)
                 
-                # Ajouter les données de la session
                 sessions_data.append({
                     'id': s.id,
                     'date': s.formatage_date if hasattr(s, 'formatage_date') else s.date.strftime('%d/%m/%Y'),
-                    'horaire': s.formatage_horaire if hasattr(s, 'formatage_horaire') else f"{s.heure_debut.strftime('%H:%M')} - {s.heure_fin.strftime('%H:%M')}",
+                    'horaire': s.formatage_horaire if hasattr(s, 'formatage_horaire') else f"{s.heure_debut.strftime('%H:%M')}–{s.heure_fin.strftime('%H:%M')}",
                     'theme': s.theme.nom if s.theme else 'N/A',
                     'theme_id': s.theme_id,
                     'places_restantes': places_rest,
@@ -1887,9 +1882,9 @@ def api_dashboard_essential():
                 'type': a.type,
                 'description': a.description,
                 'details': a.details,
-                'date_relative': a.date_relative,
-                'date_iso': a.date.isoformat() if a.date else None,
-                'user': a.utilisateur.username if a.utilisateur else None
+                'date_relative': a.date_relative if hasattr(a, 'date_relative') else '',
+                'date_iso': a.date.isoformat() if hasattr(a, 'date') and a.date else None,
+                'user': a.utilisateur.username if hasattr(a, 'utilisateur') and a.utilisateur else None
             })
         
         # Assembler la réponse
@@ -1901,8 +1896,8 @@ def api_dashboard_essential():
             'status': 'ok'
         }
         
-        # Mettre en cache pour 60 secondes
-        cache.set(cache_key, response_data, timeout=60)
+        # Mettre en cache
+        cache.set(cache_key, response_data, timeout=30)
         
         return jsonify(response_data)
     
@@ -1912,9 +1907,9 @@ def api_dashboard_essential():
         app._last_connection_error = datetime.now(UTC)
         app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
         return jsonify({
-            "error": "Database error",
-            "message": str(e),
-            "status": "error",
+            "error": "Database error", 
+            "message": str(e), 
+            "status": "error", 
             "timestamp": datetime.now(UTC).timestamp()
         }), 500
     except Exception as e:
@@ -1922,9 +1917,9 @@ def api_dashboard_essential():
         app._last_connection_error = datetime.now(UTC)
         app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
         return jsonify({
-            "error": "Internal server error",
-            "message": str(e),
-            "status": "error",
+            "error": "Internal server error", 
+            "message": str(e), 
+            "status": "error", 
             "timestamp": datetime.now(UTC).timestamp()
         }), 500
 
