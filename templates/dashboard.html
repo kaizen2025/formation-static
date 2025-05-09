@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
 
 {% block title %}Tableau de bord - Formation Microsoft 365{% endblock %}
 
@@ -22,7 +22,7 @@
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                                 Inscriptions confirmées
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.inscriptions_confirmees }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_inscriptions }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-users fa-2x text-gray-300"></i>
@@ -41,7 +41,7 @@
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
                                 En liste d'attente
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.en_attente }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_en_attente }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-clock fa-2x text-gray-300"></i>
@@ -60,7 +60,7 @@
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
                                 Sessions totales
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.sessions_totales }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ sessions_data|length }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
@@ -79,7 +79,7 @@
                             <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
                                 Sessions complètes
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.sessions_completes }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_sessions_completes }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-bookmark fa-2x text-gray-300"></i>
@@ -116,7 +116,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for session in sessions_a_venir %}
+                                {% for session in sessions_data %}
+                                {% if session.date_debut|string >= now|string %}
                                 <tr>
                                     <td>
                                         <strong>{{ session.date_debut.strftime('%d/%m/%Y') }}</strong><br>
@@ -150,6 +151,7 @@
                                         </div>
                                     </td>
                                 </tr>
+                                {% endif %}
                                 {% else %}
                                 <tr>
                                     <td colspan="5" class="text-center">
@@ -218,6 +220,9 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js" integrity="sha512-ElRFoEQdI5Ht6kZvyzXhyzg6AgOZVOJOFSWOQ8ALkGawisy/uTbGX2nNaIAdmXTvS1CoQekqrB1cSzcG00MFxA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="{{ url_for('static', filename='js/dashboard-core.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Dashboard initialized');
+    });
+</script>
 {% endblock %}
