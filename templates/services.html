@@ -1,191 +1,232 @@
 <!-- templates/services.html -->
 {% extends "layout.html" %}
 
+{% block title %}Gestion des Services - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}?v=2.0.1">
+<style>
+    .service-card .card-header { /* La couleur est déjà appliquée inline, mais on peut définir une transition */
+        transition: background-color 0.3s ease;
+    }
+    .service-card .list-group-item {
+        padding: 0.4rem 0; /* Plus compact */
+        font-size: 0.8rem;
+        border: none; /* Retirer les bordures pour un look plus épuré dans la carte */
+    }
+    .service-card .badge.bg-primary { /* Pour le compte d'inscriptions */
+        background-color: var(--primary-light) !important;
+        color: var(--primary-dark) !important;
+        border: 1px solid var(--primary-dark);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="mb-0"><i class="fas fa-sitemap me-2"></i>Gestion des Services</h1>
-     {% if current_user.is_authenticated and current_user.role == 'admin' %}
-     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServiceModal">
-         <i class="fas fa-plus me-2"></i>Ajouter un Service
-     </button>
-     {% endif %}
-</div>
-
-
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-    {# Itérer sur services_data passé depuis app.py #}
-    {% for item in services_data|sort(attribute='obj.nom') %}
-    {% set service = item.obj %} {# Accéder à l'objet service #}
-    <div class="col">
-        <div class="card h-100 shadow-sm service-card">
-            <div class="card-header text-white d-flex justify-content-between align-items-center" style="background-color: {{ service.couleur or '#6c757d' }};">
-                <h5 class="mb-0 text-truncate">{{ service.nom }}</h5>
-                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#editServiceModal{{ service.id }}" title="Modifier le service">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                 </div>
-                 {% endif %}
-            </div>
-            <div class="card-body">
-                 <h6 class="card-subtitle mb-2 text-muted">Responsable</h6>
-                 <p><i class="fas fa-user-tie me-2"></i>{{ service.responsable }}</p>
-                 <p><i class="fas fa-envelope me-2"></i><a href="mailto:{{ service.email_responsable }}">{{ service.email_responsable }}</a></p>
-
-                {# Utiliser le compte pré-calculé #}
-                <h6 class="mt-4 mb-2 text-muted">Participants ({% if item.participant_count >= 0 %}{{ item.participant_count }}{% else %}Erreur{% endif %})</h6>
-                 <div style="max-height: 150px; overflow-y: auto;">
-                    {% if item.participant_count > 0 %}
-                    <ul class="list-group list-group-flush">
-                        {# Iterate over item.participants_detailed which has pre-calculated counts #}
-                        {% for p_detail in item.participants_detailed %}
-                        {% set participant = p_detail.obj %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
-                            <span class="text-truncate small">{{ participant.prenom }} {{ participant.nom }}</span>
-                            {# Use the pre-calculated confirmed_count from p_detail #}
-                            <span class="badge bg-primary rounded-pill small" title="{{ p_detail.confirmed_count }} inscription(s) confirmée(s)">{{ p_detail.confirmed_count }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% elif item.participant_count == 0 %}
-                         <p class="text-muted small fst-italic">Aucun participant.</p>
-                    {% else %} {# participant_count < 0 indicates an error #}
-                         <p class="text-danger small fst-italic">Erreur chargement participants.</p>
-                    {% endif %}
-                 </div>
-            </div>
-             {% if current_user.is_authenticated %}
-            <div class="card-footer bg-light">
-                <button type="button" class="btn btn-outline-primary w-100 btn-sm" data-bs-toggle="modal" data-bs-target="#addParticipantModal{{ service.id }}">
-                    <i class="fas fa-user-plus me-2"></i>Ajouter un participant à ce service
-                </button>
-            </div>
-             {% endif %}
-        </div>
+<div class="container-fluid page-transition">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-sitemap me-2"></i>Gestion des Services</h1>
+         {% if current_user.is_authenticated and current_user.role == 'admin' %}
+         <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addServiceModalGlobal"> {# Cible la modale globale #}
+             <i class="fas fa-plus me-2"></i>Ajouter un Service
+         </button>
+         {% endif %}
     </div>
 
-    <!-- Modal Ajouter Participant (Spécifique à ce service) -->
-     {% if current_user.is_authenticated %}
-    <div class="modal fade" id="addParticipantModal{{ service.id }}" tabindex="-1" aria-labelledby="addParticipantModalLabel{{ service.id }}" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addParticipantModalLabel{{ service.id }}">Ajouter Participant - {{ service.nom }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form action="{{ url_for('add_participant') }}" method="post">
-                        <input type="hidden" name="service_id" value="{{ service.id }}">
-                         <input type="hidden" name="from_page" value="services">
-                        <div class="mb-3">
-                            <label for="nom_{{service.id}}" class="form-label">Nom*</label>
-                            <input type="text" class="form-control" id="nom_{{service.id}}" name="nom" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="prenom_{{service.id}}" class="form-label">Prénom*</label>
-                            <input type="text" class="form-control" id="prenom_{{service.id}}" name="prenom" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email_{{service.id}}" class="form-label">Email*</label>
-                            <input type="email" class="form-control" id="email_{{service.id}}" name="email" required>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i>Ajouter Participant
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="services-container">
+        {% if services_data %}
+            {% for item in services_data|sort(attribute='obj.nom') %}
+            {% set service = item.obj %}
+            <div class="col">
+                <div class="card h-100 shadow-sm service-card">
+                    <div class="card-header text-white d-flex justify-content-between align-items-center" style="background-color: {{ service.couleur or 'var(--secondary)' }};">
+                        <h5 class="mb-0 text-truncate" title="{{ service.nom }}"><i class="fas fa-tags me-2"></i>{{ service.nom }}</h5>
+                         {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                         <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-light btn-sm btn-edit-service" 
+                                    data-bs-toggle="modal" data-bs-target="#editServiceModalGlobal"
+                                    data-service-id="{{ service.id }}"
+                                    data-service-nom="{{ service.nom }}"
+                                    data-service-responsable="{{ service.responsable }}"
+                                    data-service-email="{{ service.email_responsable }}"
+                                    data-service-couleur="{{ service.couleur or '#6c757d' }}"
+                                    title="Modifier {{ service.nom }}">
+                                <i class="fas fa-edit"></i>
                             </button>
-                        </div>
-                    </form>
+                            {# Le bouton supprimer pourrait aussi utiliser une modale unique #}
+                         </div>
+                         {% endif %}
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                         <h6 class="card-subtitle mb-2 text-secondary small fw-bold">RESPONSABLE</h6>
+                         <p class="mb-1"><i class="fas fa-user-tie fa-fw me-2 text-muted"></i>{{ service.responsable }}</p>
+                         <p><i class="fas fa-envelope fa-fw me-2 text-muted"></i><a href="mailto:{{ service.email_responsable }}">{{ service.email_responsable }}</a></p>
+
+                        <h6 class="mt-3 mb-2 text-secondary small fw-bold">PARTICIPANTS ({{ item.participant_count }})</h6>
+                         <div style="max-height: 150px; overflow-y: auto;" class="flex-grow-1">
+                            {% if item.participant_count > 0 and item.participants_detailed %}
+                            <ul class="list-group list-group-flush">
+                                {% for p_detail in item.participants_detailed|sort(attribute='obj.nom') %}
+                                {% set participant = p_detail.obj %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span class="text-truncate small">{{ participant.prenom }} {{ participant.nom }}</span>
+                                    <span class="badge bg-primary rounded-pill small" title="{{ p_detail.confirmed_count }} inscription(s) confirmée(s)">{{ p_detail.confirmed_count }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% elif item.participant_count == 0 %}
+                                 <p class="text-muted small fst-italic">Aucun participant assigné.</p>
+                            {% else %}
+                                 <p class="text-danger small fst-italic">Erreur chargement participants.</p>
+                            {% endif %}
+                         </div>
+                    </div>
+                     {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+                    <div class="card-footer bg-light">
+                        {# Ce bouton ouvre une modale spécifique au service, ce qui est ok, mais pourrait être une modale globale aussi #}
+                        <button type="button" class="btn btn-outline-primary w-100 btn-sm btn-add-participant-to-service" 
+                                data-bs-toggle="modal" data-bs-target="#addParticipantToServiceModal"
+                                data-service-id="{{ service.id }}"
+                                data-service-nom="{{ service.nom }}">
+                            <i class="fas fa-user-plus me-2"></i>Ajouter un participant
+                        </button>
+                    </div>
+                     {% endif %}
                 </div>
             </div>
-        </div>
+            {% endfor %}
+        {% else %}
+             <div class="col-12">
+                <div class="alert alert-light text-center border shadow-sm">
+                    <i class="fas fa-info-circle fa-2x text-muted mb-2"></i>
+                    <p class="mb-0">Aucun service n'a été configuré.</p>
+                    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                       <p class="mt-2"><a href="#" data-bs-toggle="modal" data-bs-target="#addServiceModalGlobal" class="btn btn-sm btn-primary">Ajouter un service</a></p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
     </div>
-     {% endif %}
-
-     <!-- Modal Edit Service (Admin only) -->
-     {% if current_user.is_authenticated and current_user.role == 'admin' %}
-     <div class="modal fade" id="editServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="editServiceModalLabel{{ service.id }}" aria-hidden="true">
-         <div class="modal-dialog">
-             <div class="modal-content">
-                 <div class="modal-header">
-                     <h5 class="modal-title" id="editServiceModalLabel{{ service.id }}">Modifier - {{ service.nom }}</h5>
-                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                 </div>
-                 <div class="modal-body">
-                     {# CORRECTION: Utiliser url_for('update_service') #}
-                     <form action="{{ url_for('update_service', service_id=service.id) }}" method="post">
-                         <div class="mb-3">
-                             <label for="edit_nom_{{service.id}}" class="form-label">Nom Service*</label>
-                             <input type="text" class="form-control" id="edit_nom_{{service.id}}" name="nom" value="{{ service.nom }}" required>
-                         </div>
-                         <div class="mb-3">
-                             <label for="edit_responsable_{{service.id}}" class="form-label">Responsable*</label>
-                             <input type="text" class="form-control" id="edit_responsable_{{service.id}}" name="responsable" value="{{ service.responsable }}" required>
-                         </div>
-                         <div class="mb-3">
-                             <label for="edit_email_{{service.id}}" class="form-label">Email Responsable*</label>
-                             <input type="email" class="form-control" id="edit_email_{{service.id}}" name="email_responsable" value="{{ service.email_responsable }}" required>
-                         </div>
-                         <div class="mb-3">
-                            <label for="edit_couleur_{{service.id}}" class="form-label">Couleur</label>
-                            <input type="color" class="form-control form-control-color" id="edit_couleur_{{service.id}}" name="couleur" value="{{ service.couleur or '#6c757d' }}" title="Choisir une couleur">
-                        </div>
-                         <div class="d-grid">
-                             <button type="submit" class="btn btn-primary">Enregistrer</button>
-                         </div>
-                     </form>
-                 </div>
-             </div>
-         </div>
-     </div>
-     {% endif %}
-
-    {% else %} {# Fin de la boucle for item in services_data #}
-     <div class="col-12">
-        <div class="alert alert-light text-center" role="alert">
-            <i class="fas fa-info-circle me-2"></i> Aucun service n'a été configuré pour le moment.
-             {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                <a href="#" data-bs-toggle="modal" data-bs-target="#addServiceModal">Ajouter un service</a>.
-             {% endif %}
-        </div>
-    </div>
-    {% endfor %} {# Fin de la boucle principale #}
 </div>
 
-<!-- Modal Add Service (Admin only) -->
+<!-- ====================================================== -->
+<!-- == MODALES UNIQUES POUR AJOUTER/MODIFIER SERVICE    == -->
+<!-- ====================================================== -->
 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-<div class="modal fade" id="addServiceModal" tabindex="-1" aria-labelledby="addServiceModalLabel" aria-hidden="true">
+<!-- Modal Ajouter Service (Unique) -->
+<div class="modal fade" id="addServiceModalGlobal" tabindex="-1" aria-labelledby="addServiceModalGlobalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addServiceModalLabel">Ajouter un Nouveau Service</h5>
+                <h5 class="modal-title" id="addServiceModalGlobalLabel"><i class="fas fa-plus-circle me-2"></i>Ajouter un Nouveau Service</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                {# CORRECTION: Utiliser url_for('add_service') #}
-                <form action="{{ url_for('add_service') }}" method="post">
+                <form action="{{ url_for('add_service') }}" method="post" id="addServiceForm" class="needs-validation" novalidate>
                     <div class="mb-3">
-                        <label for="add_nom" class="form-label">Nom Service*</label>
-                        <input type="text" class="form-control" id="add_nom" name="nom" required>
+                        <label for="add_service_nom_modal" class="form-label">Nom Service*</label>
+                        <input type="text" class="form-control" id="add_service_nom_modal" name="nom" required>
+                        <div class="invalid-feedback">Le nom du service est obligatoire.</div>
                     </div>
                      <div class="mb-3">
-                        <label for="add_id" class="form-label">ID Service* <small>(court, minuscules, ex: 'qualite')</small></label>
-                        <input type="text" class="form-control" id="add_id" name="id" pattern="[a-z0-9_]+" title="Utiliser uniquement minuscules, chiffres et underscores" required>
+                        <label for="add_service_id_modal" class="form-label">ID Service* <small class="text-muted">(court, minuscules, ex: 'qualite')</small></label>
+                        <input type="text" class="form-control" id="add_service_id_modal" name="id" pattern="[a-z0-9_]+" title="Minuscules, chiffres, underscores uniquement." required>
+                        <div class="invalid-feedback">L'ID est obligatoire (format: minuscules, chiffres, _).</div>
                     </div>
                     <div class="mb-3">
-                        <label for="add_responsable" class="form-label">Responsable*</label>
-                        <input type="text" class="form-control" id="add_responsable" name="responsable" required>
+                        <label for="add_service_responsable_modal" class="form-label">Responsable*</label>
+                        <input type="text" class="form-control" id="add_service_responsable_modal" name="responsable" required>
+                        <div class="invalid-feedback">Le nom du responsable est obligatoire.</div>
                     </div>
                     <div class="mb-3">
-                        <label for="add_email" class="form-label">Email Responsable*</label>
-                        <input type="email" class="form-control" id="add_email" name="email_responsable" required>
+                        <label for="add_service_email_modal" class="form-label">Email Responsable*</label>
+                        <input type="email" class="form-control" id="add_service_email_modal" name="email_responsable" required>
+                        <div class="invalid-feedback">Un email valide est obligatoire.</div>
                     </div>
                      <div class="mb-3">
-                        <label for="add_couleur" class="form-label">Couleur</label>
-                        <input type="color" class="form-control form-control-color" id="add_couleur" name="couleur" value="#6c757d" title="Choisir une couleur">
+                        <label for="add_service_couleur_modal" class="form-label">Couleur</label>
+                        <input type="color" class="form-control form-control-color" id="add_service_couleur_modal" name="couleur" value="#6c757d" title="Choisir une couleur">
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">Ajouter Service</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifier Service (Unique) -->
+<div class="modal fade" id="editServiceModalGlobal" tabindex="-1" aria-labelledby="editServiceModalGlobalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editServiceModalGlobalLabel"><i class="fas fa-edit me-2"></i>Modifier Service</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                 <form action="" method="post" id="editServiceForm" class="needs-validation" novalidate> {# Action définie par JS #}
+                     <div class="mb-3">
+                         <label for="edit_service_nom_modal" class="form-label">Nom Service*</label>
+                         <input type="text" class="form-control" id="edit_service_nom_modal" name="nom" required>
+                         <div class="invalid-feedback">Le nom du service est obligatoire.</div>
+                     </div>
+                     <div class="mb-3">
+                         <label for="edit_service_responsable_modal" class="form-label">Responsable*</label>
+                         <input type="text" class="form-control" id="edit_service_responsable_modal" name="responsable" required>
+                         <div class="invalid-feedback">Le nom du responsable est obligatoire.</div>
+                     </div>
+                     <div class="mb-3">
+                         <label for="edit_service_email_modal" class="form-label">Email Responsable*</label>
+                         <input type="email" class="form-control" id="edit_service_email_modal" name="email_responsable" required>
+                         <div class="invalid-feedback">Un email valide est obligatoire.</div>
+                     </div>
+                     <div class="mb-3">
+                        <label for="edit_service_couleur_modal" class="form-label">Couleur</label>
+                        <input type="color" class="form-control form-control-color" id="edit_service_couleur_modal" name="couleur" value="#6c757d" title="Choisir une couleur">
+                    </div>
+                     <div class="d-grid">
+                         <button type="submit" class="btn btn-primary">Enregistrer</button>
+                     </div>
+                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %} {# Fin current_user.role == 'admin' #}
+
+
+<!-- Modale Ajouter Participant à un Service Spécifique (peut rester par service ou devenir globale) -->
+{% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+<div class="modal fade" id="addParticipantToServiceModal" tabindex="-1" aria-labelledby="addParticipantToServiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addParticipantToServiceModalLabel"><i class="fas fa-user-plus me-2"></i>Ajouter Participant</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('add_participant') }}" method="post" id="addParticipantToServiceForm" class="needs-validation" novalidate>
+                    <input type="hidden" name="service_id" id="addParticipant_serviceId_input" value="">
+                    <input type="hidden" name="from_page" value="services">
+                    <p class="mb-3">Ajout d'un participant au service : <strong id="addParticipant_serviceNom_display"></strong></p>
+                    <div class="mb-3">
+                        <label for="addParticipant_nom" class="form-label">Nom*</label>
+                        <input type="text" class="form-control" id="addParticipant_nom" name="nom" required>
+                        <div class="invalid-feedback">Nom obligatoire.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addParticipant_prenom" class="form-label">Prénom*</label>
+                        <input type="text" class="form-control" id="addParticipant_prenom" name="prenom" required>
+                        <div class="invalid-feedback">Prénom obligatoire.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addParticipant_email" class="form-label">Email*</label>
+                        <input type="email" class="form-control" id="addParticipant_email" name="email" required>
+                        <div class="invalid-feedback">Email valide obligatoire.</div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Ajouter Participant</button>
                     </div>
                 </form>
             </div>
@@ -196,11 +237,58 @@
 
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
+{% block scripts_extra %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Scripts spécifiques à la page services si besoin
+document.addEventListener('DOMContentLoaded', function() {
+    // Validation Bootstrap pour les modales d'ajout/édition
+    ['addServiceForm', 'editServiceForm', 'addParticipantToServiceForm'].forEach(formId => {
+        const form = document.getElementById(formId);
+        if(form) {
+            form.addEventListener('submit', event => {
+                if (!form.checkValidity()) { event.preventDefault(); event.stopPropagation(); }
+                form.classList.add('was-validated');
+            }, false);
+        }
     });
+
+    const servicesContainer = document.getElementById('services-container');
+    const editServiceModalEl = document.getElementById('editServiceModalGlobal');
+    const editServiceModal = editServiceModalEl ? new bootstrap.Modal(editServiceModalEl) : null;
+    // Pour la modale "Ajouter Participant à un Service"
+    const addParticipantToServiceModalEl = document.getElementById('addParticipantToServiceModal');
+    const addParticipantToServiceModal = addParticipantToServiceModalEl ? new bootstrap.Modal(addParticipantToServiceModalEl) : null;
+
+
+    if (servicesContainer) {
+        servicesContainer.addEventListener('click', function(event) {
+            const editButton = event.target.closest('.btn-edit-service');
+            const addParticipantButton = event.target.closest('.btn-add-participant-to-service');
+
+            if (editButton && editServiceModal) {
+                const serviceId = editButton.dataset.serviceId;
+                const form = editServiceModalEl.querySelector('#editServiceForm');
+                const title = editServiceModalEl.querySelector('#editServiceModalGlobalLabel');
+                
+                if(form) form.action = `{{ url_for('index') }}service/update/${serviceId}`;
+                if(title) title.innerHTML = `<i class="fas fa-edit me-2"></i>Modifier - ${editButton.dataset.serviceNom}`;
+                editServiceModalEl.querySelector('#edit_service_nom_modal').value = editButton.dataset.serviceNom;
+                editServiceModalEl.querySelector('#edit_service_responsable_modal').value = editButton.dataset.serviceResponsable;
+                editServiceModalEl.querySelector('#edit_service_email_modal').value = editButton.dataset.serviceEmail;
+                editServiceModalEl.querySelector('#edit_service_couleur_modal').value = editButton.dataset.serviceCouleur;
+                form.classList.remove('was-validated');
+            }
+
+            if (addParticipantButton && addParticipantToServiceModal) {
+                const serviceId = addParticipantButton.dataset.serviceId;
+                const serviceNom = addParticipantButton.dataset.serviceNom;
+                addParticipantToServiceModalEl.querySelector('#addParticipant_serviceId_input').value = serviceId;
+                addParticipantToServiceModalEl.querySelector('#addParticipant_serviceNom_display').textContent = serviceNom;
+                addParticipantToServiceModalEl.querySelector('#addParticipantToServiceModalLabel').innerHTML = `<i class="fas fa-user-plus me-2"></i>Ajouter Participant à ${serviceNom}`;
+                addParticipantToServiceModalEl.querySelector('#addParticipantToServiceForm').classList.remove('was-validated');
+                addParticipantToServiceModalEl.querySelector('#addParticipantToServiceForm').reset();
+            }
+        });
+    }
+});
 </script>
 {% endblock %}
