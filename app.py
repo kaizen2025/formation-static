@@ -1888,112 +1888,110 @@ def delete_document(doc_id):
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
 def api_dashboard_essential():
-    cache_key = 'dashboard_essential_data_v3.1' # Clé de cache mise à jour
-    # Tenter de récupérer depuis le cache
-    # if not app.debug: # Ne pas utiliser le cache en mode debug pour faciliter les tests
-    #     cached_data = cache.get(cache_key)
-    #     if cached_data:
-    #         app.logger.debug(f"API dashboard_essential: Using cached data (key: {cache_key})")
-    #         return jsonify(cached_data)
-    # else:
-    #     app.logger.debug("API dashboard_essential: Cache skipped in debug mode.")
-    # Pour le développement, on peut désactiver le cache pour cette route pour voir les changements immédiatement
-    # OU laisser le cache et le vider manuellement si besoin. Je le laisse actif pour l'instant.
-    cached_data = cache.get(cache_key)
-    if cached_data and not app.debug: # Optionnel: désactiver le cache en debug
-        app.logger.debug(f"API dashboard_essential: Using cached data (key: {cache_key})")
-        return jsonify(cached_data)
-
-
     try:
-        app.logger.debug("API dashboard_essential: Fetching fresh data from DB.")
-        # Sessions avec détails
+        # Récupérer depuis le cache si disponible
+        cache_key = 'dashboard_essential_data'
+        cached_data = cache.get(cache_key)
+        if cached_data and not app.debug:
+            app.logger.debug(f"API dashboard_essential: Using cached data")
+            return jsonify(cached_data)
+        
+        app.logger.info("Fetch fresh dashboard essential data from DB")
+        
+        # 1. Sessions avec détails
+        today = datetime.now(UTC).date()
         sessions_q = Session.query.options(
             selectinload(Session.theme),
             selectinload(Session.salle),
-            # Pour les comptes, il est parfois plus efficace de les faire séparément ou via des sous-requêtes
-            # Mais pour un nombre modéré de sessions, selectinload des inscriptions est acceptable.
-            selectinload(Session.inscriptions), # Pour compter les inscrits
-            selectinload(Session.liste_attente) # Pour compter la liste d'attente
+            selectinload(Session.inscriptions),
+            selectinload(Session.liste_attente)
         ).order_by(Session.date, Session.heure_debut).all()
-
+        
         sessions_data = []
         for s in sessions_q:
-            inscrits_count = sum(1 for insc in s.inscriptions if insc.statut == 'confirmé')
-            attente_count = len(s.liste_attente) # len() fonctionne si c'est une collection chargée
-            
-            # Compte des inscriptions en attente de validation pour cette session
-            pending_validation_count = sum(1 for insc in s.inscriptions if insc.statut == 'en attente')
-
+            inscrits_confirmes_count = sum(1 for insc in s.inscriptions if insc.statut == 'confirmé')
+            liste_attente_count = len(s.liste_attente)
+            pending_count = sum(1 for insc in s.inscriptions if insc.statut == 'en attente')
             max_p = s.max_participants if s.max_participants is not None else 10
             
             sessions_data.append({
                 'id': s.id,
-                'date': s.formatage_date,
-                'horaire': s.formatage_horaire,
+                'date': s.formatage_date if hasattr(s, 'formatage_date') else s.date.strftime('%d/%m/%Y'),
+                'horaire': s.formatage_horaire if hasattr(s, 'formatage_horaire') else f"{s.heure_debut.strftime('%H:%M')} - {s.heure_fin.strftime('%H:%M')}",
                 'theme': s.theme.nom if s.theme else 'N/A',
                 'theme_id': s.theme_id,
-                'places_restantes': max(0, max_p - inscrits_count),
-                'inscrits': inscrits_count,
-                'max_participants': max_p,
-                'liste_attente': attente_count,
-                'pending_validation_count': pending_validation_count, # Ajouté pour la modale participants
+                'places_restantes': max(0, max_p - inscrits_confirmes_count),
+                'inscrits_confirmes_count': inscrits_confirmes_count,
+                'liste_attente_count': liste_attente_count,
+                'pending_count': pending_count,
                 'salle': s.salle.nom if s.salle else None,
-                'salle_id': s.salle_id,
-                # Pour la modale des participants, on pourrait pré-charger des infos simplifiées ici
-                # ou faire un appel API dédié quand la modale s'ouvre.
-                # Pour l'instant, on ne pré-charge pas les listes détaillées ici pour garder cet appel léger.
+                'salle_id': s.salle_id
             })
-
-        # Participants (tous les participants pour les selects des modales)
+        
+        # 2. Récupérer tous les participants avec leurs services
         participants_q = Participant.query.options(
-            joinedload(Participant.service) # joinedload est ok ici car on accède directement à service.nom/couleur
+            joinedload(Participant.service)
         ).order_by(Participant.nom, Participant.prenom).all()
-
-        participants_data = [{
-            'id': p.id,
-            'nom': p.nom,
-            'prenom': p.prenom,
-            'email': p.email,
-            'service': p.service.nom if p.service else 'N/A',
-            'service_id': p.service_id,
-            'service_color': p.service.couleur if p.service and p.service.couleur else '#6c757d'
-        } for p in participants_q]
-
-        # Activités récentes
-        activites_q = get_recent_activities(limit=7) # Limiter à 7 pour le dashboard
-        activites_data = [{
-            'id': a.id,
-            'type': a.type,
-            'description': a.description,
-            'details': a.details,
-            'date_relative': a.date_relative,
-            'user': a.utilisateur.username if a.utilisateur else None
-        } for a in activites_q]
         
-        # Services (pour les selects des modales)
-        all_services_q = Service.query.order_by(Service.nom).all()
-        services_list_data = [{'id': srv.id, 'nom': srv.nom} for srv in all_services_q]
-
-        # Salles (pour les selects des modales)
-        all_salles_q = Salle.query.order_by(Salle.nom).all()
-        salles_list_data = [{'id': sal.id, 'nom': sal.nom, 'capacite': sal.capacite} for sal in all_salles_q]
+        participants_data = []
+        for p in participants_q:
+            participants_data.append({
+                'id': p.id,
+                'nom': p.nom,
+                'prenom': p.prenom,
+                'email': p.email,
+                'service': p.service.nom if p.service else 'N/A',
+                'service_id': p.service_id,
+                'service_color': p.service.couleur if p.service and hasattr(p.service, 'couleur') else '#6c757d'
+            })
         
+        # 3. Récupérer les activités récentes
+        activites_q = get_recent_activities(limit=7)
+        
+        activites_data = []
+        for a in activites_q:
+            activites_data.append({
+                'id': a.id,
+                'type': a.type,
+                'description': a.description,
+                'details': a.details,
+                'date_relative': a.date_relative,
+                'date_iso': a.date.isoformat() if hasattr(a, 'date') and a.date else None,
+                'user': a.utilisateur.username if hasattr(a, 'utilisateur') and a.utilisateur else None
+            })
+        
+        # 4. Récupérer les services
+        services_q = Service.query.order_by(Service.nom).all()
+        services_data = [{
+            'id': srv.id,
+            'nom': srv.nom,
+            'couleur': srv.couleur if hasattr(srv, 'couleur') else '#6c757d'
+        } for srv in services_q]
+        
+        # 5. Récupérer les salles
+        salles_q = Salle.query.order_by(Salle.nom).all()
+        salles_data = [{
+            'id': sal.id,
+            'nom': sal.nom,
+            'capacite': sal.capacite if hasattr(sal, 'capacite') else 10
+        } for sal in salles_q]
+        
+        # 6. Préparer la réponse finale
         response_data = {
             'sessions': sessions_data,
             'participants': participants_data,
             'activites': activites_data,
-            'services': services_list_data,
-            'salles': salles_list_data,
+            'services': services_data,
+            'salles': salles_data,
             'timestamp': datetime.now(UTC).timestamp(),
             'status': 'ok'
         }
         
-        # if not app.debug: # Ne pas utiliser le cache en mode debug
-        cache.set(cache_key, response_data, timeout=45) # Cache pour 45 secondes
-        app.logger.debug(f"API dashboard_essential: Data fetched and cached (key: {cache_key})")
+        # Mettre en cache pour 45 secondes
+        cache.set(cache_key, response_data, timeout=45)
+        
         return jsonify(response_data)
-
+        
     except SQLAlchemyError as e:
         db.session.rollback()
         app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
