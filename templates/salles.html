@@ -1,5 +1,6 @@
-<!-- templates/salles.html -->
 {% extends "layout.html" %}
+
+{% block title %}Salles - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -11,8 +12,7 @@
     {% endif %}
 </div>
 
-
-<!-- Add Salle Modal -->
+<!-- Add Salle Modal (Reste unique) -->
 {% if current_user.role == 'admin' %}
 <div class="modal fade" id="addSalleModal" tabindex="-1" aria-labelledby="addSalleModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -22,7 +22,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                {# CORRECTION: Utiliser url_for('add_salle') #}
                 <form action="{{ url_for('add_salle') }}" method="post">
                     <div class="mb-3">
                         <label for="add_nom_salle" class="form-label">Nom de la salle*</label>
@@ -52,11 +51,10 @@
 </div>
 {% endif %}
 
-
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-    {# Itération sur salles_data au lieu de salles #}
+<!-- Conteneur pour les cartes de salles -->
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="salles-container">
     {% for s_data in salles_data|sort(attribute='obj.nom') %}
-    {% set salle = s_data.obj %} {# Accès à l'objet salle #}
+    {% set salle = s_data.obj %}
     <div class="col">
         <div class="card h-100 shadow-sm salle-card">
              <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
@@ -70,100 +68,40 @@
                  {% if salle.description %}
                 <p class="card-text small text-muted">{{ salle.description }}</p>
                 {% endif %}
-
-                {# Utilisation du compteur pré-calculé #}
                 <h6 class="mt-3 mb-2 text-muted">
                     Sessions programmées :
                     <span class="badge bg-secondary ms-1">{{ s_data.sessions_count if s_data.sessions_count != -1 else 'Erreur' }}</span>
                 </h6>
                  <div style="max-height: 150px; overflow-y: auto;">
-                    {# Utilisation de la liste pré-chargée #}
-                    {% set sessions_associees = s_data.sessions_associees %}
-                    {% if sessions_associees %}
-                    <ul class="list-group list-group-flush">
-                        {% for session in sessions_associees %} {# Pas besoin de sort ici, déjà trié dans la route #}
-                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
-                            <span class="small text-truncate">
-                                {# Accès au thème via la relation chargée #}
-                                <span class="badge theme-badge {% if session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %} me-1" title="{{ session.theme.nom }}"></span>
-                                {{ session.formatage_date }}
-                            </span>
-                            <span class="badge bg-info rounded-pill small">{{ session.formatage_horaire }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
+                    {# Affichage simple, pas besoin de détails complexes ici a priori #}
+                    {% if s_data.sessions_count > 0 %}
+                        <small class="text-muted fst-italic">({{ s_data.sessions_count }} session(s))</small>
                     {% else %}
-                    <p class="text-muted small fst-italic">Aucune session programmée.</p>
+                        <p class="text-muted small fst-italic">Aucune session programmée.</p>
                     {% endif %}
                 </div>
             </div>
              {% if current_user.role == 'admin' %}
             <div class="card-footer bg-light">
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editSalleModal{{ salle.id }}">
+                     {# Boutons avec data-* pour la modale unique #}
+                     <button type="button" class="btn btn-outline-secondary btn-sm btn-edit-salle"
+                             data-bs-toggle="modal" data-bs-target="#editSalleModal"
+                             data-salle-id="{{ salle.id }}"
+                             data-salle-nom="{{ salle.nom }}"
+                             data-salle-capacite="{{ salle.capacite }}"
+                             data-salle-lieu="{{ salle.lieu or '' }}"
+                             data-salle-description="{{ salle.description or '' }}">
                         <i class="fas fa-edit me-1"></i>Modifier
                     </button>
-                     <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteSalleModal{{ salle.id }}">
+                     <button type="button" class="btn btn-outline-danger btn-sm btn-delete-salle"
+                             data-bs-toggle="modal" data-bs-target="#deleteSalleModal"
+                             data-salle-id="{{ salle.id }}"
+                             data-salle-nom="{{ salle.nom }}"
+                             data-session-count="{{ s_data.sessions_count }}">
                         <i class="fas fa-trash me-1"></i>Supprimer
                     </button>
                 </div>
-
-                 <!-- Modal d'édition -->
-                <div class="modal fade" id="editSalleModal{{ salle.id }}" tabindex="-1" aria-labelledby="editSalleModalLabel{{ salle.id }}" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editSalleModalLabel{{ salle.id }}">Modifier - {{ salle.nom }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                 {# CORRECTION: Utiliser url_for('update_salle') #}
-                                 <form action="{{ url_for('update_salle', id=salle.id) }}" method="post">
-                                    <div class="mb-3">
-                                        <label for="edit_nom{{ salle.id }}" class="form-label">Nom*</label>
-                                        <input type="text" class="form-control" id="edit_nom{{ salle.id }}" name="nom" value="{{ salle.nom }}" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_capacite{{ salle.id }}" class="form-label">Capacité*</label>
-                                        <input type="number" class="form-control" id="edit_capacite{{ salle.id }}" name="capacite" value="{{ salle.capacite }}" min="1" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_lieu{{ salle.id }}" class="form-label">Emplacement</label>
-                                        <input type="text" class="form-control" id="edit_lieu{{ salle.id }}" name="lieu" value="{{ salle.lieu or '' }}">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_description{{ salle.id }}" class="form-label">Description</label>
-                                        <textarea class="form-control" id="edit_description{{ salle.id }}" name="description" rows="3">{{ salle.description or '' }}</textarea>
-                                    </div>
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary">Enregistrer</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                 <!-- Modal de suppression -->
-                 <div class="modal fade" id="deleteSalleModal{{ salle.id }}" tabindex="-1" aria-labelledby="deleteSalleModalLabel{{ salle.id }}" aria-hidden="true">
-                      <div class="modal-dialog">
-                         <div class="modal-content">
-                             <div class="modal-header">
-                                 <h5 class="modal-title" id="deleteSalleModalLabel{{ salle.id }}">Confirmer Suppression</h5>
-                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                             </div>
-                             <div class="modal-body">
-                                 Êtes-vous sûr de vouloir supprimer la salle "{{ salle.nom }}" ? Les sessions associées devront être réassignées.
-                             </div>
-                             <div class="modal-footer">
-                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                 {# CORRECTION: Utiliser url_for('delete_salle') #}
-                                 <form action="{{ url_for('delete_salle', id=salle.id) }}" method="post" class="d-inline">
-                                     <button type="submit" class="btn btn-danger">Supprimer</button>
-                                 </form>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
             </div>
             {% endif %}
         </div>
@@ -179,17 +117,147 @@
     </div>
     {% endfor %}
 </div>
+
+<!-- ====================================================== -->
+<!-- == MODALES UNIQUES POUR MODIFIER/SUPPRIMER SALLE    == -->
+<!-- ====================================================== -->
+{% if current_user.role == 'admin' %}
+<!-- Modal Modifier Salle (Unique) -->
+<div class="modal fade" id="editSalleModal" tabindex="-1" aria-labelledby="editSalleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editSalleModalLabel">Modifier Salle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                 <form action="" method="post" id="editSalleForm"> {# Action sera définie par JS #}
+                    <div class="mb-3">
+                        <label for="edit_nom_salle" class="form-label">Nom*</label>
+                        <input type="text" class="form-control" id="edit_nom_salle" name="nom" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_capacite_salle" class="form-label">Capacité*</label>
+                        <input type="number" class="form-control" id="edit_capacite_salle" name="capacite" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_lieu_salle" class="form-label">Emplacement</label>
+                        <input type="text" class="form-control" id="edit_lieu_salle" name="lieu">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description_salle" class="form-label">Description</label>
+                        <textarea class="form-control" id="edit_description_salle" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Supprimer Salle (Unique) -->
+<div class="modal fade" id="deleteSalleModal" tabindex="-1" aria-labelledby="deleteSalleModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+         <div class="modal-content">
+             <div class="modal-header">
+                 <h5 class="modal-title" id="deleteSalleModalLabel">Confirmer Suppression</h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+             </div>
+             <div class="modal-body">
+                 <p id="deleteSalleText">Êtes-vous sûr de vouloir supprimer cette salle ?</p>
+                 <p id="deleteSalleWarning" class="text-danger small" style="display: none;"><i class="fas fa-exclamation-triangle me-1"></i> Cette salle est associée à des sessions. Veuillez les réassigner avant de supprimer.</p>
+             </div>
+             <div class="modal-footer">
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                 <form action="" method="post" id="deleteSalleForm" class="d-inline">
+                     <button type="submit" class="btn btn-danger" id="deleteSalleConfirmBtn">Supprimer</button>
+                 </form>
+             </div>
+         </div>
+     </div>
+ </div>
+{% endif %}
+<!-- ====================================================== -->
+<!-- == FIN MODALES UNIQUES SALLE                       == -->
+<!-- ====================================================== -->
+
 {% endblock %}
 
-{% block scripts %}
-{{ super() }} <!-- Include scripts from layout.html -->
+{% block scripts_extra %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Appliquer les styles de badge thème si nécessaire
-        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-            window.enhanceThemeBadgesGlobally();
+        // --- Gestion Modales Uniques Salle ---
+        const editSalleModalElement = document.getElementById('editSalleModal');
+        const editSalleModal = editSalleModalElement ? new bootstrap.Modal(editSalleModalElement) : null;
+        const deleteSalleModalElement = document.getElementById('deleteSalleModal');
+        const deleteSalleModal = deleteSalleModalElement ? new bootstrap.Modal(deleteSalleModalElement) : null;
+
+        const sallesContainer = document.getElementById('salles-container');
+
+        if (sallesContainer && editSalleModal) {
+            const form = editSalleModalElement.querySelector('#editSalleForm');
+            const title = editSalleModalElement.querySelector('#editSalleModalLabel');
+            const nomInput = editSalleModalElement.querySelector('#edit_nom_salle');
+            const capaciteInput = editSalleModalElement.querySelector('#edit_capacite_salle');
+            const lieuInput = editSalleModalElement.querySelector('#edit_lieu_salle');
+            const descriptionInput = editSalleModalElement.querySelector('#edit_description_salle');
+
+            sallesContainer.addEventListener('click', function(event) {
+                const editButton = event.target.closest('.btn-edit-salle');
+                if (!editButton) return;
+
+                const salleId = editButton.dataset.salleId;
+                const nom = editButton.dataset.salleNom;
+
+                // Mettre à jour le formulaire
+                if(form) form.action = `/salle/update/${salleId}`; // Construit l'URL dynamiquement
+                if(title) title.textContent = `Modifier - ${nom}`;
+                if(nomInput) nomInput.value = nom;
+                if(capaciteInput) capaciteInput.value = editButton.dataset.salleCapacite;
+                if(lieuInput) lieuInput.value = editButton.dataset.salleLieu;
+                if(descriptionInput) descriptionInput.value = editButton.dataset.salleDescription;
+
+                // editSalleModal.show(); // Déjà géré par data-bs-toggle
+            });
         }
-        // Autres scripts spécifiques à la page salles si besoin
+
+        if (sallesContainer && deleteSalleModal) {
+            const form = deleteSalleModalElement.querySelector('#deleteSalleForm');
+            const title = deleteSalleModalElement.querySelector('#deleteSalleModalLabel');
+            const bodyText = deleteSalleModalElement.querySelector('#deleteSalleText');
+            const warningText = deleteSalleModalElement.querySelector('#deleteSalleWarning');
+            const confirmBtn = deleteSalleModalElement.querySelector('#deleteSalleConfirmBtn');
+
+             sallesContainer.addEventListener('click', function(event) {
+                const deleteButton = event.target.closest('.btn-delete-salle');
+                if (!deleteButton) return;
+
+                const salleId = deleteButton.dataset.salleId;
+                const nom = deleteButton.dataset.salleNom;
+                const sessionCount = parseInt(deleteButton.dataset.sessionCount || '0');
+
+                // Mettre à jour le formulaire et le texte
+                if(form) form.action = `/salle/delete/${salleId}`; // Construit l'URL dynamiquement
+                if(title) title.textContent = `Confirmer Suppression`;
+                if(bodyText) bodyText.innerHTML = `Êtes-vous sûr de vouloir supprimer la salle "<strong>${nom}</strong>" ?`;
+
+                // Gérer l'avertissement et l'état du bouton
+                if (sessionCount > 0) {
+                    if(warningText) {
+                        warningText.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i> Cette salle est associée à <strong>${sessionCount}</strong> session(s). Veuillez les réassigner avant de supprimer.`;
+                        warningText.style.display = 'block';
+                    }
+                    if(confirmBtn) confirmBtn.disabled = true; // Désactiver suppression si sessions associées
+                } else {
+                    if(warningText) warningText.style.display = 'none';
+                    if(confirmBtn) confirmBtn.disabled = false;
+                }
+
+                // deleteSalleModal.show(); // Déjà géré par data-bs-toggle
+            });
+        }
     });
 </script>
 {% endblock %}
