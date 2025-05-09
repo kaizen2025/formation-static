@@ -1392,33 +1392,106 @@ def update_service(service_id):
     return redirect(url_for('services'))
 
 
-# --- Admin Routes ---
 @app.route('/admin')
 @login_required
 @db_operation_with_retry(max_retries=3)
 def admin():
-    if current_user.role != 'admin': flash('Accès réservé aux administrateurs.', 'danger'); return redirect(url_for('dashboard'))
+    if current_user.role != 'admin':
+        flash('Accès réservé aux administrateurs.', 'danger')
+        return redirect(url_for('dashboard'))
     try:
-        themes = get_all_themes()
-        sessions = Session.query.options(joinedload(Session.theme), joinedload(Session.salle)).order_by(Session.date, Session.heure_debut).all()
-        services = get_all_services_with_participants()
-        participants = get_all_participants_with_service()
-        salles = get_all_salles()
-        activites_recentes = get_recent_activities(limit=10)
+        # --- Fetch data with necessary relationships loaded ---
+        # Load themes WITH their sessions eagerly
+        themes = Theme.query.options(selectinload(Theme.sessions)).order_by(Theme.nom).all()
+
+        # Load sessions with theme and salle
+        sessions = Session.query.options(
+            joinedload(Session.theme),
+            joinedload(Session.salle)
+        ).order_by(Session.date, Session.heure_debut).all()
+
+        # Load services with participants
+        services = Service.query.options(
+            selectinload(Service.participants) # Load participants for each service
+        ).order_by(Service.nom).all()
+
+        # Load participants with service
+        participants = Participant.query.options(
+            joinedload(Participant.service) # Load service for each participant
+        ).order_by(Participant.nom, Participant.prenom).all()
+
+        # Load salles
+        salles = Salle.query.order_by(Salle.nom).all()
+
+        # Load recent activities with user
+        activites_recentes = Activite.query.options(
+            joinedload(Activite.utilisateur)
+        ).order_by(Activite.date.desc()).limit(10).all()
+
+        # --- Calculate Stats (using efficient queries) ---
         total_inscriptions = db.session.query(func.count(Inscription.id)).filter(Inscription.statut == 'confirmé').scalar() or 0
         total_en_attente = db.session.query(func.count(ListeAttente.id)).scalar() or 0
         total_sessions_count = db.session.query(func.count(Session.id)).scalar() or 0
+
+        # Calculate completed sessions efficiently
         total_sessions_completes = 0
         session_ids = [s.id for s in sessions]
         if session_ids:
-             subquery = db.session.query(Inscription.session_id, func.count(Inscription.id).label('confirmed_count')).filter(Inscription.session_id.in_(session_ids), Inscription.statut == 'confirmé').group_by(Inscription.session_id).subquery()
-             completed_sessions_q = db.session.query(Session.id).outerjoin(subquery, Session.id == subquery.c.session_id).filter(Session.id.in_(session_ids), func.coalesce(subquery.c.confirmed_count, 0) >= Session.max_participants).count()
+             # Subquery to count confirmed inscriptions per session
+             subquery = db.session.query(
+                 Inscription.session_id,
+                 func.count(Inscription.id).label('confirmed_count')
+             ).filter(
+                 Inscription.session_id.in_(session_ids),
+                 Inscription.statut == 'confirmé'
+             ).group_by(Inscription.session_id).subquery()
+
+             # Query sessions joining the subquery and comparing counts
+             completed_sessions_q = db.session.query(Session.id).outerjoin(
+                 subquery, Session.id == subquery.c.session_id
+             ).filter(
+                 Session.id.in_(session_ids),
+                 func.coalesce(subquery.c.confirmed_count, 0) >= Session.max_participants
+             ).count()
              total_sessions_completes = completed_sessions_q
+
+        # Calculate session counts per theme (using already loaded data)
+        # NO LAZY LOADING NEEDED HERE because Theme.sessions was loaded eagerly
         theme_session_counts = {theme.id: len(theme.sessions) for theme in themes}
-        existing_documents = Document.query.options(joinedload(Document.theme), joinedload(Document.uploader)).order_by(Document.upload_date.desc()).all()
-        return render_template('admin.html', themes=themes, theme_session_counts=theme_session_counts, sessions=sessions, services=services, participants=participants, salles=salles, total_inscriptions=total_inscriptions, total_en_attente=total_en_attente, total_sessions_completes=total_sessions_completes, total_sessions_count=total_sessions_count, activites_recentes=activites_recentes, existing_documents=existing_documents, ListeAttente=ListeAttente)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading admin page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement de la page admin.", "danger"); return render_template('error.html', error_message="Erreur base de données."), 500
-    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading admin page: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return render_template('error.html', error_message="Erreur interne du serveur."), 500
+
+        # Load existing documents with theme and uploader
+        existing_documents = Document.query.options(
+            joinedload(Document.theme),
+            joinedload(Document.uploader)
+        ).order_by(Document.upload_date.desc()).all()
+
+        return render_template(
+            'admin.html',
+            themes=themes,
+            theme_session_counts=theme_session_counts,
+            sessions=sessions,
+            services=services,
+            participants=participants,
+            salles=salles,
+            total_inscriptions=total_inscriptions,
+            total_en_attente=total_en_attente,
+            total_sessions_completes=total_sessions_completes,
+            total_sessions_count=total_sessions_count,
+            activites_recentes=activites_recentes,
+            existing_documents=existing_documents,
+            ListeAttente=ListeAttente # Pass class if needed in template logic
+        )
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"DB error loading admin page: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement de la page admin.", "danger")
+        # Render error template directly to avoid potential loops if dashboard also fails
+        return render_template('error.html', error_message="Erreur base de données lors du chargement de la page admin."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Unexpected error loading admin page: {e}", exc_info=True)
+        flash("Une erreur interne est survenue.", "danger")
+        return render_template('error.html', error_message="Erreur interne du serveur lors du chargement de la page admin."), 500
 
 @app.route('/admin/upload_document', methods=['POST'])
 @login_required
