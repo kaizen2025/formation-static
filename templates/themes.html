@@ -1,5 +1,7 @@
 {% extends "layout.html" %}
 
+{% block title %}Thèmes - {{ app_name }}{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mb-0"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h1>
@@ -10,7 +12,7 @@
     {% endif %}
 </div>
 
-<!-- Add Theme Modal -->
+<!-- Add Theme Modal (Reste unique) -->
 {% if current_user.is_authenticated and current_user.role == 'admin' %}
 <div class="modal fade" id="addThemeModal" tabindex="-1" aria-labelledby="addThemeModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -20,7 +22,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                {# CORRECTION: Utiliser url_for('add_theme') #}
                 <form action="{{ url_for('add_theme') }}" method="post" class="needs-validation" novalidate>
                     {# Include CSRF token if your app uses Flask-WTF or similar #}
                     {# Example: {{ form.csrf_token }} or manually generate if needed #}
@@ -45,7 +46,8 @@
 </div>
 {% endif %}
 
-<div class="row row-cols-1 row-cols-md-2 g-4">
+<!-- Conteneur pour les cartes de thèmes -->
+<div class="row row-cols-1 row-cols-md-2 g-4" id="themes-container">
     {% if themes_data %}
         {% for theme_item in themes_data %}
         {% set theme = theme_item.obj %}
@@ -58,10 +60,20 @@
                      </h5>
                      {% if current_user.is_authenticated and current_user.role == 'admin' %}
                      <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#editThemeModal{{ theme.id }}" title="Modifier le thème">
+                        {# Boutons avec data-* pour la modale unique #}
+                        <button type="button" class="btn btn-light btn-sm btn-edit-theme"
+                                data-bs-toggle="modal" data-bs-target="#editThemeModal"
+                                data-theme-id="{{ theme.id }}"
+                                data-theme-nom="{{ theme.nom }}"
+                                data-theme-description="{{ theme.description or '' }}"
+                                title="Modifier le thème">
                             <i class="fas fa-edit"></i>
                         </button>
-                          <button type="button" class="btn btn-light btn-sm btn-delete-theme" data-bs-toggle="modal" data-bs-target="#deleteThemeModal{{ theme.id }}" title="Supprimer le thème" data-theme-id="{{ theme.id }}" data-theme-name="{{ theme.nom }}">
+                          <button type="button" class="btn btn-light btn-sm btn-delete-theme"
+                                  data-bs-toggle="modal" data-bs-target="#deleteThemeModal"
+                                  data-theme-id="{{ theme.id }}"
+                                  data-theme-nom="{{ theme.nom }}"
+                                  title="Supprimer le thème">
                              <i class="fas fa-trash"></i>
                          </button>
                      </div>
@@ -103,62 +115,6 @@
                  <div class="card-footer bg-light text-center small text-muted">
                     {{ theme_item.total_sessions }} session(s) programmée(s)
                 </div>
-
-                 <!-- Modal d'édition -->
-                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                <div class="modal fade" id="editThemeModal{{ theme.id }}" tabindex="-1" aria-labelledby="editThemeModalLabel{{ theme.id }}" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editThemeModalLabel{{ theme.id }}">Modifier - {{ theme.nom }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                {# CORRECTION: Utiliser url_for('update_theme') #}
-                                <form action="{{ url_for('update_theme', id=theme.id) }}" method="post" class="needs-validation" novalidate>
-                                    {# Include CSRF token if needed #}
-                                    <div class="mb-3">
-                                        <label for="edit_nom{{ theme.id }}" class="form-label">Nom*</label>
-                                        <input type="text" class="form-control" id="edit_nom{{ theme.id }}" name="nom" value="{{ theme.nom }}" required>
-                                        <div class="invalid-feedback">Le nom du thème est obligatoire.</div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_description{{ theme.id }}" class="form-label">Description</label>
-                                        <textarea class="form-control" id="edit_description{{ theme.id }}" name="description" rows="4">{{ theme.description or '' }}</textarea>
-                                    </div>
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary">Enregistrer</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                 <!-- Modal de suppression -->
-                 <div class="modal fade" id="deleteThemeModal{{ theme.id }}" tabindex="-1" aria-labelledby="deleteThemeModalLabel{{ theme.id }}" aria-hidden="true">
-                     <div class="modal-dialog">
-                         <div class="modal-content">
-                             <div class="modal-header">
-                                 <h5 class="modal-title" id="deleteThemeModalLabel{{ theme.id }}">Confirmer la Suppression</h5>
-                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                             </div>
-                             <div class="modal-body">
-                                 <p>Êtes-vous sûr de vouloir supprimer le thème "<strong>{{ theme.nom }}</strong>" ?</p>
-                                 <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Attention : Toutes les sessions et documents associés à ce thème seront également supprimés. Cette action est irréversible.</p>
-                             </div>
-                             <div class="modal-footer">
-                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                 {# CORRECTION: Utiliser url_for('delete_theme') #}
-                                 <form id="deleteThemeForm{{ theme.id }}" action="{{ url_for('delete_theme', id=theme.id) }}" method="post" class="d-inline">
-                                     {# Include CSRF token if needed #}
-                                     <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
-                                 </form>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
-                 {% endif %}
-
             </div>
         </div>
         {% endfor %}
@@ -173,10 +129,71 @@
         </div>
     {% endif %}
 </div>
+
+
+<!-- ====================================================== -->
+<!-- == MODALES UNIQUES POUR MODIFIER/SUPPRIMER THEME    == -->
+<!-- ====================================================== -->
+{% if current_user.is_authenticated and current_user.role == 'admin' %}
+<!-- Modal Modifier Thème (Unique) -->
+<div class="modal fade" id="editThemeModal" tabindex="-1" aria-labelledby="editThemeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editThemeModalLabel">Modifier Thème</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="" method="post" id="editThemeForm" class="needs-validation" novalidate>
+                    {# Include CSRF token if needed #}
+                    <div class="mb-3">
+                        <label for="edit_nom_theme" class="form-label">Nom*</label>
+                        <input type="text" class="form-control" id="edit_nom_theme" name="nom" required>
+                        <div class="invalid-feedback">Le nom du thème est obligatoire.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description_theme" class="form-label">Description</label>
+                        <textarea class="form-control" id="edit_description_theme" name="description" rows="4"></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Supprimer Thème (Unique) -->
+<div class="modal fade" id="deleteThemeModal" tabindex="-1" aria-labelledby="deleteThemeModalLabel" aria-hidden="true">
+     <div class="modal-dialog">
+         <div class="modal-content">
+             <div class="modal-header">
+                 <h5 class="modal-title" id="deleteThemeModalLabel">Confirmer la Suppression</h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+             </div>
+             <div class="modal-body">
+                 <p>Êtes-vous sûr de vouloir supprimer le thème "<strong id="deleteThemeName">Nom Thème</strong>" ?</p>
+                 <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Attention : Toutes les sessions et documents associés à ce thème seront également supprimés. Cette action est irréversible.</p>
+             </div>
+             <div class="modal-footer">
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                 <form id="deleteThemeForm" action="" method="post" class="d-inline">
+                     {# Include CSRF token if needed #}
+                     <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
+                 </form>
+             </div>
+         </div>
+     </div>
+ </div>
+{% endif %}
+<!-- ====================================================== -->
+<!-- == FIN MODALES UNIQUES THEME                       == -->
+<!-- ====================================================== -->
+
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
+{% block scripts_extra %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Appliquer les styles de badge thème
@@ -184,17 +201,80 @@
             window.enhanceThemeBadgesGlobally();
         }
 
-        // Validation Bootstrap
-        const forms = document.querySelectorAll('.needs-validation');
-        Array.from(forms).forEach(form => {
-            form.addEventListener('submit', event => {
-            if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            form.classList.add('was-validated');
+        // Validation Bootstrap pour la modale d'ajout
+        const addForm = document.querySelector('#addThemeModal form.needs-validation');
+        if(addForm) {
+            addForm.addEventListener('submit', event => {
+                if (!addForm.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                addForm.classList.add('was-validated');
             }, false);
-        });
+        }
+
+        // --- Gestion Modales Uniques Thème ---
+        const editThemeModalElement = document.getElementById('editThemeModal');
+        const editThemeModal = editThemeModalElement ? new bootstrap.Modal(editThemeModalElement) : null;
+        const deleteThemeModalElement = document.getElementById('deleteThemeModal');
+        const deleteThemeModal = deleteThemeModalElement ? new bootstrap.Modal(deleteThemeModalElement) : null;
+
+        const themesContainer = document.getElementById('themes-container');
+
+        if (themesContainer && editThemeModal) {
+            const form = editThemeModalElement.querySelector('#editThemeForm');
+            const title = editThemeModalElement.querySelector('#editThemeModalLabel');
+            const nomInput = editThemeModalElement.querySelector('#edit_nom_theme');
+            const descriptionInput = editThemeModalElement.querySelector('#edit_description_theme');
+
+            themesContainer.addEventListener('click', function(event) {
+                const editButton = event.target.closest('.btn-edit-theme');
+                if (!editButton) return;
+
+                const themeId = editButton.dataset.themeId;
+                const nom = editButton.dataset.themeNom;
+                const description = editButton.dataset.themeDescription;
+
+                // Mettre à jour le formulaire
+                if(form) form.action = `/theme/update/${themeId}`; // Construit l'URL dynamiquement
+                if(title) title.textContent = `Modifier - ${nom}`;
+                if(nomInput) nomInput.value = nom;
+                if(descriptionInput) descriptionInput.value = description;
+
+                // Validation pour la modale d'édition (au cas où)
+                form.classList.remove('was-validated');
+                form.addEventListener('submit', event => {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, { once: true }); // S'assurer que ça ne s'accumule pas
+
+                // editThemeModal.show(); // Déjà géré par data-bs-toggle
+            });
+        }
+
+        if (themesContainer && deleteThemeModal) {
+            const form = deleteThemeModalElement.querySelector('#deleteThemeForm');
+            const title = deleteThemeModalElement.querySelector('#deleteThemeModalLabel');
+            const nameSpan = deleteThemeModalElement.querySelector('#deleteThemeName');
+
+             themesContainer.addEventListener('click', function(event) {
+                const deleteButton = event.target.closest('.btn-delete-theme');
+                if (!deleteButton) return;
+
+                const themeId = deleteButton.dataset.themeId;
+                const nom = deleteButton.dataset.themeNom;
+
+                // Mettre à jour le formulaire et le texte
+                if(form) form.action = `/theme/delete/${themeId}`; // Construit l'URL dynamiquement
+                if(title) title.textContent = `Confirmer la Suppression`;
+                if(nameSpan) nameSpan.textContent = nom;
+
+                // deleteThemeModal.show(); // Déjà géré par data-bs-toggle
+            });
+        }
     });
 </script>
 {% endblock %}
