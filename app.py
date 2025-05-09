@@ -180,13 +180,13 @@ def configure_logging(app_instance):
 
 configure_logging(app)
 
-# --- Context Processors and Teardown ---
 @app.context_processor
 def inject_global_template_vars():
     return dict(
         debug_mode=app.debug,
         now=datetime.now(UTC),
-        app_name="Formation Microsoft 365 - Anecoop France"
+        app_name="Formation Microsoft 365 - Anecoop France",
+        ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS # Ajouter cette ligne
     )
 
 @app.teardown_appcontext
