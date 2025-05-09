@@ -1,184 +1,187 @@
+<!-- templates/documents.html -->
 {% extends "layout.html" %}
 
 {% block title %}Documents de Formation - {{ app_name }}{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}?v=2.0.1">
 <style>
-    .document-icon {
-        font-size: 1.5rem;
-        width: 30px; /* Largeur fixe pour alignement */
-        text-align: center;
-        margin-right: 0.75rem;
-    }
-    .list-group-item {
-        transition: background-color 0.2s ease-in-out;
-    }
-    .list-group-item:hover {
-        background-color: #f8f9fa; /* Léger fond au survol */
-    }
-    .theme-section + .theme-section {
-        margin-top: 2rem; /* Espace entre les sections de thèmes */
-    }
-    .upload-section {
-        background-color: #f8f9fa;
+    .document-icon { font-size: 1.8rem; width: 40px; text-align: center; margin-right: 1rem; }
+    .list-group-item-action:hover .document-title { color: var(--primary); }
+    .document-title { font-weight: 500; }
+    .theme-section-docs + .theme-section-docs { margin-top: 2.5rem; } /* Espace entre les sections de thèmes */
+    .upload-section-docs {
+        background-color: #f8f9fC; /* Fond légèrement différent */
         padding: 1.5rem;
         border-radius: var(--border-radius);
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--border-color);
+        margin-bottom: 2.5rem;
     }
+    .document-meta { font-size: 0.75rem; color: var(--text-muted-light); }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid page-transition">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 text-primary mb-0"><i class="fas fa-folder-open me-2"></i>Documents de Formation</h1>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-arrow-left me-1"></i> Retour Dashboard
+        <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-folder-open me-2"></i>Documents de Formation</h1>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm shadow-sm">
+            <i class="fas fa-arrow-left me-1"></i> Retour au Dashboard
         </a>
     </div>
 
     {# Section d'Upload (Visible seulement pour l'admin) #}
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
-    <div class="upload-section mb-5">
-        <h4 class="mb-3"><i class="fas fa-upload me-2"></i>Ajouter un Document</h4>
-        <form action="{{ url_for('upload_document') }}" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="document_file_docs_page" class="form-label">Fichier*</label>
-                    <input class="form-control" type="file" id="document_file_docs_page" name="document_file" required>
-                    <div class="invalid-feedback">Veuillez sélectionner un fichier.</div>
-                    {# Utiliser la variable passée par la route #}
-                    <small class="form-text text-muted">Types autorisés: {{ ALLOWED_EXTENSIONS|join(', ') }}. Max 16MB.</small>
+    <div class="upload-section-docs card shadow-sm">
+        <div class="card-body">
+            <h4 class="mb-3 text-primary"><i class="fas fa-upload me-2"></i>Ajouter un Nouveau Document</h4>
+            <form action="{{ url_for('upload_document') }}" method="post" enctype="multipart/form-data" class="needs-validation" id="uploadDocumentForm" novalidate>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="doc_file_upload" class="form-label">Fichier à uploader*</label>
+                        <input class="form-control" type="file" id="doc_file_upload" name="document_file" required>
+                        <div class="invalid-feedback">Veuillez sélectionner un fichier.</div>
+                        <small class="form-text text-muted">Types autorisés: {{ ALLOWED_EXTENSIONS|join(', ') }}. Max 16MB.</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="doc_theme_id_upload" class="form-label">Associer au thème (Optionnel)</label>
+                        <select class="form-select" id="doc_theme_id_upload" name="theme_id">
+                            <option value="">-- Aucun thème (Document Général) --</option>
+                            {% for theme_item in themes|sort(attribute='nom') %} {# 'themes' doit être passé par la route #}
+                            <option value="{{ theme_item.id }}">{{ theme_item.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label for="theme_id_docs_page" class="form-label">Associer au thème (Optionnel)</label>
-                    <select class="form-select" id="theme_id_docs_page" name="theme_id">
-                        <option value="">-- Aucun thème (Général) --</option>
-                        {# Utiliser la variable 'themes' passée par la route 'documents' #}
-                        {% for theme in themes|sort(attribute='nom') %}
-                        <option value="{{ theme.id }}">{{ theme.nom }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="mt-3 mb-3">
+                    <label for="doc_description_upload" class="form-label">Description du document (Optionnel)</label>
+                    <textarea class="form-control" id="doc_description_upload" name="description" rows="2" placeholder="Brève description du contenu, version, etc."></textarea>
                 </div>
-            </div>
-            <div class="mb-3">
-                <label for="description_docs_page" class="form-label">Description (Optionnel)</label>
-                <textarea class="form-control" id="description_docs_page" name="description" rows="2" placeholder="Brève description du contenu..."></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-upload me-2"></i>Uploader
-            </button>
-        </form>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>Uploader le Document
+                </button>
+            </form>
+        </div>
     </div>
     {% endif %}
 
-
     {# Affichage des documents par thème #}
-    {% if not themes_with_docs %}
-        <div class="alert alert-info text-center">
-            <i class="fas fa-info-circle me-2"></i> Aucun document n'est disponible pour le moment.
+    {% if not themes_with_docs and not general_documents %} {# general_documents à ajouter dans la route #}
+        <div class="alert alert-info text-center shadow-sm">
+            <i class="fas fa-info-circle fa-2x text-muted mb-2"></i>
+            <p class="mb-0">Aucun document n'est disponible pour le moment.</p>
         </div>
     {% else %}
-        {% set found_docs = false %} {# Flag pour savoir si au moins un doc a été trouvé #}
-        {% for theme in themes_with_docs %}
-            {% if theme.documents %} {# Afficher la section seulement si le thème a des documents #}
-            {% set found_docs = true %}
-            <div class="theme-section mb-4">
+        {# Documents Généraux (non associés à un thème) #}
+        {% if general_documents %}
+        <div class="theme-section-docs mb-4">
+            <h4 class="mb-3 pb-2 border-bottom text-secondary">
+                <i class="fas fa-files me-2"></i>Documents Généraux
+            </h4>
+            <div class="list-group shadow-sm">
+                {% for doc in general_documents|sort(attribute='original_filename') %}
+                    {% include "_document_item.html" %} {# Template partiel pour un document #}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# Documents par Thème #}
+        {% for theme_obj in themes_with_docs|sort(attribute='nom') %} {# Renommé theme_obj pour éviter conflit #}
+            {% if theme_obj.documents %}
+            <div class="theme-section-docs mb-4">
                 <h4 class="mb-3 pb-2 border-bottom">
-                    <span class="theme-badge js-theme-cell" data-theme="{{ theme.nom }}">
-                        {{ theme.nom }} {# JS ajoutera icône/style #}
+                    <span class="theme-badge js-theme-cell" data-theme="{{ theme_obj.nom }}">
+                        {{ theme_obj.nom }}
                     </span>
                 </h4>
                 <div class="list-group shadow-sm">
-                    {% for doc in theme.documents|sort(attribute='original_filename') %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <a href="{{ url_for('download_document', filename=doc.filename) }}"
-                           class="d-flex align-items-center text-decoration-none text-dark flex-grow-1 me-3">
-                            {# Icône basée sur l'extension #}
-                            {% set ext = doc.file_type|lower if doc.file_type else doc.original_filename.rsplit('.', 1)[-1]|lower %}
-                            <span class="document-icon">
-                                {% if ext == 'pdf' %}<i class="fas fa-file-pdf text-danger"></i>
-                                {% elif ext in ['doc', 'docx'] %}<i class="fas fa-file-word text-primary"></i>
-                                {% elif ext in ['xls', 'xlsx'] %}<i class="fas fa-file-excel text-success"></i>
-                                {% elif ext in ['ppt', 'pptx'] %}<i class="fas fa-file-powerpoint text-warning"></i>
-                                {% elif ext in ['png', 'jpg', 'jpeg', 'gif'] %}<i class="fas fa-file-image text-info"></i>
-                                {% elif ext == 'txt' %}<i class="fas fa-file-alt text-secondary"></i>
-                                {% else %}<i class="fas fa-file text-muted"></i>{% endif %}
-                            </span>
-                            <div>
-                                <strong class="mb-1">{{ doc.original_filename }}</strong>
-                                {% if doc.description %}
-                                <p class="mb-0 text-muted small">{{ doc.description }}</p>
-                                {% endif %}
-                                <small class="text-muted d-block mt-1">Ajouté le {{ doc.upload_date.strftime('%d/%m/%Y') }} par {{ doc.uploader.username if doc.uploader else 'Admin' }}</small>
-                            </div>
-                        </a>
-                        {# Actions (Supprimer pour admin) #}
-                        {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteDocModal{{ doc.id }}" title="Supprimer">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                        <!-- Delete Confirmation Modal -->
-                        <div class="modal fade" id="deleteDocModal{{ doc.id }}" tabindex="-1" aria-labelledby="deleteDocModalLabel{{ doc.id }}" aria-hidden="true">
-                          <div class="modal-dialog">
-                            <div class="modal-content">
-                              <div class="modal-header">
-                                <h5 class="modal-title" id="deleteDocModalLabel{{ doc.id }}">Confirmer Suppression</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                              </div>
-                              <div class="modal-body">
-                                Êtes-vous sûr de vouloir supprimer le document "{{ doc.original_filename }}" ? Cette action est irréversible.
-                              </div>
-                              <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                <form action="{{ url_for('delete_document', doc_id=doc.id) }}" method="post" class="d-inline">
-                                  <button type="submit" class="btn btn-danger">Supprimer</button>
-                                </form>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        {% endif %}
-                    </div>
+                    {% for doc in theme_obj.documents|sort(attribute='original_filename') %}
+                        {% include "_document_item.html" %} {# Template partiel pour un document #}
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
         {% endfor %}
-
-        {# Message si aucun document n'a été trouvé au total #}
-        {% if not found_docs %}
-         <div class="alert alert-info text-center">
-            <i class="fas fa-info-circle me-2"></i> Aucun document n'est disponible pour le moment.
-             {% if current_user.is_authenticated and current_user.role == 'admin' %}
-             Utilisez le formulaire ci-dessus pour en ajouter.
-             {% endif %}
-        </div>
-        {% endif %}
     {% endif %}
-
 </div>
+
+<!-- Modale Unique pour Supprimer un Document -->
+{% if current_user.is_authenticated and current_user.role == 'admin' %}
+<div class="modal fade" id="deleteDocumentModal" tabindex="-1" aria-labelledby="deleteDocumentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="deleteDocumentModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Confirmer Suppression</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Êtes-vous sûr de vouloir supprimer le document "<strong id="deleteDocumentNamePlaceholder">Nom Document</strong>" ? Cette action est irréversible.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+        <form id="deleteDocumentForm" action="" method="post" class="d-inline">
+          <button type="submit" class="btn btn-danger btn-sm">Supprimer Définitivement</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts_extra %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Appliquer les styles de badge thème
-        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-            window.enhanceThemeBadgesGlobally();
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    // Appliquer les styles de badge thème
+    if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+        window.enhanceThemeBadgesGlobally();
+    } else {
+        document.querySelectorAll('.js-theme-cell').forEach(badge => {
+            const themeName = badge.dataset.theme || badge.textContent.trim();
+            let iconClass = 'fa-book'; // Icône par défaut pour thème
+            let bgColor = 'var(--theme-default-bg, #6c757d)';
+            if(window.dashboardConfig && window.dashboardConfig.themeColors && window.dashboardConfig.themeColors[themeName]){
+                bgColor = window.dashboardConfig.themeColors[themeName].color || bgColor;
+            } // Logique d'icône peut être ajoutée ici si nécessaire
+            badge.style.backgroundColor = bgColor;
+            badge.style.color = 'white';
+            const iconEl = document.createElement('i');
+            iconEl.className = `fas ${iconClass} me-2`;
+            badge.prepend(iconEl);
+        });
+    }
 
-        // Activer la validation Bootstrap pour le formulaire d'upload
-        const uploadForm = document.querySelector('form[action="{{ url_for('upload_document') }}"]');
-        if (uploadForm) {
-            uploadForm.addEventListener('submit', event => {
-                if (!uploadForm.checkValidity()) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                uploadForm.classList.add('was-validated');
-            }, false);
-        }
+    // Validation Bootstrap pour le formulaire d'upload
+    const uploadForm = document.getElementById('uploadDocumentForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', event => {
+            if (!uploadForm.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            uploadForm.classList.add('was-validated');
+        }, false);
+    }
+
+    // Gestion de la modale de suppression unique
+    const deleteDocModalEl = document.getElementById('deleteDocumentModal');
+    const deleteDocModal = deleteDocModalEl ? new bootstrap.Modal(deleteDocModalEl) : null;
+    
+    document.querySelectorAll('.btn-delete-document').forEach(button => {
+        button.addEventListener('click', function() {
+            const docId = this.dataset.docId;
+            const docName = this.dataset.docName;
+            
+            const form = deleteDocModalEl.querySelector('#deleteDocumentForm');
+            const namePlaceholder = deleteDocModalEl.querySelector('#deleteDocumentNamePlaceholder');
+
+            if(form) form.action = `{{ url_for('index') }}admin/delete_document/${docId}`;
+            if(namePlaceholder) namePlaceholder.textContent = docName;
+            
+            if(deleteDocModal) deleteDocModal.show();
+        });
     });
+});
 </script>
 {% endblock %}
