@@ -406,11 +406,11 @@ class Participant(db.Model):
     service_id = db.Column(db.String(20), db.ForeignKey('service.id'), nullable=False, index=True)
     
     # MODIFICATION CRUCIALE ICI :
-    inscriptions = db.relationship('Inscription', backref='participant', 
-                                   lazy='selectin',  # ÉTAIT 'dynamic'
+  inscriptions = db.relationship('Inscription', backref='participant', 
+                                   lazy='selectin',  # DOIT ÊTRE 'selectin'
                                    cascade="all, delete-orphan")
     liste_attente = db.relationship('ListeAttente', backref='participant', 
-                                    lazy='selectin',  # ÉTAIT 'dynamic'
+                                    lazy='selectin',  # DOIT ÊTRE 'selectin'
                                     cascade="all, delete-orphan")
 
     def __repr__(self): return f'<Participant {self.id}: {self.prenom} {self.nom}>'
