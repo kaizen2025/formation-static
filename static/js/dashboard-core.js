@@ -1,12 +1,12 @@
 /**
  * dashboard-core.js - Module principal et unique pour le tableau de bord
- * Version: 2.2.2 - Intégration complète, gestion modales génériques avec API dédiée.
+ * Version: 2.2.3 - Version complète et intégrée.
  */
 
 document.addEventListener('DOMContentLoaded', function() {
     if (window.dashboardCoreInitialized) {
         if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-            console.log('Dashboard Core (v2.2.2): Already initialized. Skipping.');
+            console.log('Dashboard Core (v2.2.3): Already initialized. Skipping.');
         }
         if (window.dashboardCore) {
             document.dispatchEvent(new CustomEvent('dashboardCoreFullyReady', { detail: { success: true, source: 'cached' } }));
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
         autoRefreshInterval: 60000,
         minRefreshDelay: 15000,
         debounceDelay: 500,
-        baseApiUrl: '/api',
+        baseApiUrl: '/api', // Sera préfixé par window.dashboardConfig.baseAppUrl si défini
         fetchTimeoutDuration: 20000,
         maxErrorsBeforeThrottle: 3,
         errorThrottleDelay: 60000,
@@ -46,10 +46,14 @@ document.addEventListener('DOMContentLoaded', function() {
             'default': '#7a7574'
         }
     };
+    // Construire baseApiUrl correctement
+    const baseAppUrl = (window.dashboardConfig && window.dashboardConfig.baseAppUrl && window.dashboardConfig.baseAppUrl !== '/') ? window.dashboardConfig.baseAppUrl : '';
+    defaultConfig.baseApiUrl = `${baseAppUrl}/api`;
+    
     const config = { ...defaultConfig, ...(window.dashboardConfig || {}) };
 
     if (config.debugMode) {
-        console.log('Dashboard Core (v2.2.2): Initializing.');
+        console.log('Dashboard Core (v2.2.3): Initializing.');
         console.log('Dashboard Core: Effective Config', config);
     }
 
@@ -128,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             updateElementText('total-sessions-programmes', stats.totalSessions);
-            updateElementText('total-inscriptions-confirmees', stats.totalInscriptions); // ID ajusté
+            updateElementText('total-inscriptions-confirmees', stats.totalInscriptions);
             updateElementText('total-en-attente', stats.totalEnAttente);
             updateElementText('total-sessions-completes', stats.totalSessionsCompletes);
         } catch (e) {
@@ -187,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('recent-activity-list');
         if (!container) { if (config.debugMode) console.warn("updateActivityFeed: Activity container '#recent-activity-list' not found."); return; }
         const spinner = document.getElementById('activity-loading-spinner');
-        if (spinner) spinner.style.display = 'none'; // Cacher le spinner
+        if (spinner) spinner.style.display = 'none';
         container.innerHTML = '';
 
         if (!Array.isArray(activities) || activities.length === 0) {
@@ -211,14 +215,249 @@ document.addEventListener('DOMContentLoaded', function() {
     function initTooltips(parentElement = document) { if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) { const tooltipTriggerList = Array.from(parentElement.querySelectorAll('[data-bs-toggle="tooltip"]')); tooltipTriggerList.forEach(el => { const existingTooltip = bootstrap.Tooltip.getInstance(el); if (existingTooltip) existingTooltip.dispose(); new bootstrap.Tooltip(el); }); } }
 
     // --- Gestion des Modales Génériques ---
-    function populateSelectWithOptions(selectElement, optionsArray, valueField, textField, placeholder = "-- Choisir --", currentVal = null) { if (!selectElement || !Array.isArray(optionsArray)) return; selectElement.innerHTML = `<option value="">${placeholder}</option>`; optionsArray.forEach(option => { const opt = document.createElement('option'); opt.value = option[valueField]; opt.textContent = typeof textField === 'function' ? textField(option) : option[textField]; if (currentVal && String(option[valueField]) === String(currentVal)) { opt.selected = true; } selectElement.appendChild(opt); }); }
-    function setupGenericModals() { /* ... (comme v2.2.1, utilisant populateGenericParticipantsTable) ... */ }
-    function prepareGenericInscriptionModal(sessionId) { /* ... (comme v2.2.1) ... */ }
-    function populateGenericParticipantsTable(tableContainer, items, type, noDataElement) { /* ... (comme v2.2.1) ... */ }
-    // ... (COLLER ICI LES IMPLÉMENTATIONS COMPLÈTES DE setupGenericModals, prepareGenericInscriptionModal, populateGenericParticipantsTable DEPUIS dashboard-core.js v2.2.1) ...
+    function populateSelectWithOptions(selectElement, optionsArray, valueField, textField, placeholder = "-- Choisir --", currentVal = null) {
+        if (!selectElement || !Array.isArray(optionsArray)) {
+            if(config.debugMode && !selectElement) console.warn("populateSelect: selectElement not found");
+            if(config.debugMode && !Array.isArray(optionsArray)) console.warn("populateSelect: optionsArray is not an array", optionsArray);
+            return;
+        }
+        selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+        optionsArray.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option[valueField];
+            opt.textContent = typeof textField === 'function' ? textField(option) : option[textField];
+            if (currentVal !== null && String(option[valueField]) === String(currentVal)) {
+                opt.selected = true;
+            }
+            selectElement.appendChild(opt);
+        });
+    }
+    
+    function setupGenericModals() {
+        const participantsModalEl = document.getElementById('genericParticipantsModal');
+        if (participantsModalEl) {
+            participantsModalEl.addEventListener('show.bs.modal', async function(event) {
+                const button = event.relatedTarget;
+                const sessionId = button.dataset.sessionId;
+                if (!sessionId) return;
+
+                const session = dashboardState.apiData?.sessions?.find(s => String(s.id) === String(sessionId));
+                if (!session) { showToast("Données de session introuvables pour la modale.", "danger"); return; }
+
+                document.getElementById('genericParticipantsModalSessionTheme').textContent = session.theme;
+                document.getElementById('genericParticipantsModalSessionDate').textContent = session.date;
+                document.getElementById('genericParticipantsModalSessionHoraire').textContent = session.horaire;
+                document.getElementById('genericParticipantsModalSessionSalle').textContent = session.salle || "Non définie";
+                const placesBadge = document.getElementById('genericParticipantsModalPlacesBadge');
+                if(placesBadge){
+                    placesBadge.textContent = `${session.places_restantes} / ${session.max_participants} places dispo.`;
+                    placesBadge.className = `badge fs-6 ${session.places_restantes === 0 ? 'bg-danger' : (session.places_restantes <= 3 ? 'bg-warning text-dark' : 'bg-success')}`;
+                }
+                
+                const btnInscrire = participantsModalEl.querySelector('.btn-inscrire-depuis-participants');
+                if(btnInscrire) { btnInscrire.dataset.sessionId = sessionId; btnInscrire.style.display = session.places_restantes > 0 ? 'inline-block' : 'none'; }
+
+                const spinner = document.getElementById('genericParticipantsModalSpinner');
+                const tabContent = document.getElementById('genericParticipantsTabsContent');
+                if (spinner) spinner.style.display = 'block';
+                if (tabContent) tabContent.style.display = 'none';
+                ['gConfirmesTableContainer', 'gEnAttenteTableContainer', 'gListeAttenteTableContainer'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
+                ['gConfirmesNoData', 'gEnAttenteNoData', 'gListeAttenteNoData'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+
+                try {
+                    const response = await fetch(`${config.baseApiUrl}/session/${sessionId}/participants_details`);
+                    if (!response.ok) throw new Error(`Erreur ${response.status} chargement détails participants`);
+                    const details = await response.json();
+                    if (details.status !== 'ok') throw new Error(details.message || "Erreur API détails participants");
+
+                    document.getElementById('gConfirmesCount').textContent = details.confirmes?.length || 0;
+                    document.getElementById('gEnAttenteCount').textContent = details.en_attente_validation?.length || 0;
+                    document.getElementById('gListeAttenteCount').textContent = details.liste_attente?.length || 0;
+
+                    populateGenericParticipantsTable(document.getElementById('gConfirmesTableContainer'), details.confirmes, 'confirmes', document.getElementById('gConfirmesNoData'));
+                    populateGenericParticipantsTable(document.getElementById('gEnAttenteTableContainer'), details.en_attente_validation, 'en_attente_validation', document.getElementById('gEnAttenteNoData'));
+                    populateGenericParticipantsTable(document.getElementById('gListeAttenteTableContainer'), details.liste_attente, 'liste_attente', document.getElementById('gListeAttenteNoData'));
+                } catch (err) {
+                    console.error("Erreur chargement détails participants pour modale:", err);
+                    showToast(err.message || "Erreur chargement détails participants.", "danger");
+                     ['gConfirmesTableContainer', 'gEnAttenteTableContainer', 'gListeAttenteTableContainer'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = `<tr><td colspan="5" class="text-center text-danger p-3"><i class="fas fa-exclamation-triangle me-2"></i>${err.message || 'Erreur de chargement.'}</td></tr>`; });
+                } finally {
+                    if (spinner) spinner.style.display = 'none';
+                    if (tabContent) tabContent.style.display = 'block';
+                }
+            });
+            const btnInscrireDepuisParticipants = participantsModalEl.querySelector('.btn-inscrire-depuis-participants');
+            if (btnInscrireDepuisParticipants) {
+                btnInscrireDepuisParticipants.addEventListener('click', function() {
+                    const sessionId = this.dataset.sessionId;
+                    const inscriptionModalElToOpen = document.getElementById('genericInscriptionModal');
+                    if (!inscriptionModalElToOpen) return;
+                    const inscriptionModal = bootstrap.Modal.getOrCreateInstance(inscriptionModalElToOpen);
+                    prepareGenericInscriptionModal(sessionId);
+                    const bsParticipantsModal = bootstrap.Modal.getInstance(participantsModalEl);
+                    if(bsParticipantsModal) bsParticipantsModal.hide();
+                    inscriptionModal.show();
+                });
+            }
+        }
+
+        const inscriptionModalEl = document.getElementById('genericInscriptionModal');
+        if (inscriptionModalEl) {
+            inscriptionModalEl.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const sessionIdFromButton = button ? button.dataset.sessionId : null;
+                const sessionId = sessionIdFromButton || inscriptionModalEl.dataset.currentSessionId;
+                if (!sessionId) { console.warn("ID de session manquant pour la modale d'inscription."); return; }
+                inscriptionModalEl.dataset.currentSessionId = sessionId;
+                prepareGenericInscriptionModal(sessionId);
+            });
+            const existantForm = document.getElementById('genericInscriptionExistantForm');
+            if (existantForm) { existantForm.action = `${baseAppUrl}/inscription`; existantForm.addEventListener('submit', handleGenericFormSubmit); }
+            const nouveauForm = document.getElementById('genericInscriptionNouveauForm');
+            if (nouveauForm) { nouveauForm.action = `${baseAppUrl}/participant/add`; nouveauForm.addEventListener('submit', handleGenericFormSubmit); }
+        }
+        
+        const attribuerSalleModalEl = document.getElementById('genericAttribuerSalleModal');
+        if (attribuerSalleModalEl && window.dashboardConfig && window.dashboardConfig.isAdmin) {
+            attribuerSalleModalEl.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const sessionId = button.dataset.sessionId;
+                if (!sessionId) return;
+                const session = dashboardState.apiData?.sessions?.find(s => String(s.id) === String(sessionId));
+                if (!session) return;
+
+                document.getElementById('genericAttribuerSalleModalSessionTheme').textContent = session.theme;
+                document.getElementById('genericAttribuerSalleModalSessionDate').textContent = session.date;
+                document.getElementById('genericAttribuerSalleModalSessionHoraire').textContent = session.horaire;
+                document.getElementById('gAttribuerSalleSessionId').value = sessionId;
+                
+                const salleSelect = document.getElementById('gSalleIdSelect');
+                populateSelectWithOptions(salleSelect, dashboardState.apiData?.salles || [], 'id', (salle) => `${salle.nom} (${salle.capacite} places)`, "-- Aucune salle --", session.salle_id);
+                
+                const currentInfo = document.getElementById('gAttribuerSalleCurrentInfo');
+                currentInfo.innerHTML = session.salle ? `<i class="fas fa-check-circle text-success me-1"></i>Salle actuelle: <strong>${session.salle}</strong>` : `<i class="fas fa-exclamation-triangle text-warning me-1"></i>Aucune salle attribuée.`;
+                
+                const form = document.getElementById('genericAttribuerSalleForm');
+                form.action = `${baseAppUrl}/attribuer_salle`;
+            });
+            const attribuerSalleForm = document.getElementById('genericAttribuerSalleForm');
+            if (attribuerSalleForm) { attribuerSalleForm.addEventListener('submit', handleGenericFormSubmit); }
+        }
+    }
+    
+    function prepareGenericInscriptionModal(sessionId) {
+        const session = dashboardState.apiData?.sessions?.find(s => String(s.id) === String(sessionId));
+        if (!session) { showToast("Données de session introuvables pour l'inscription.", "danger"); return; }
+
+        document.getElementById('genericInscriptionModalSessionTheme').textContent = session.theme;
+        document.getElementById('genericInscriptionModalSessionDate').textContent = session.date;
+        document.getElementById('genericInscriptionModalSessionHoraire').textContent = session.horaire;
+        document.getElementById('genericInscriptionModalSessionSalle').textContent = session.salle || "Non définie";
+        const placesBadge = document.getElementById('genericInscriptionModalPlacesBadge');
+        if(placesBadge){
+            placesBadge.textContent = `${session.places_restantes} / ${session.max_participants}`;
+            placesBadge.className = `badge ${session.places_restantes === 0 ? 'bg-danger' : (session.places_restantes <= 3 ? 'bg-warning text-dark' : 'bg-success')}`;
+        }
+
+        document.getElementById('gInscriptionSessionIdExistant').value = sessionId;
+        document.getElementById('gInscriptionSessionIdNouveau').value = sessionId;
+
+        const participantSelect = document.getElementById('gParticipantIdSelect');
+        populateSelectWithOptions(participantSelect, dashboardState.apiData?.participants || [], 'id', (p) => `${p.prenom} ${p.nom} (${p.service || 'N/A'})`);
+        
+        const serviceSelect = document.getElementById('gServiceIdNouveau');
+        populateSelectWithOptions(serviceSelect, dashboardState.apiData?.services || [], 'id', 'nom');
+
+        const listeAttenteLink = document.getElementById('gListeAttenteLink');
+        if(listeAttenteLink){
+            listeAttenteLink.href = `${baseAppUrl}/liste_attente?session_id=${sessionId}`;
+            listeAttenteLink.style.display = session.places_restantes <= 0 ? 'inline-block' : 'none';
+        }
+        
+        document.getElementById('genericInscriptionExistantForm')?.classList.remove('was-validated');
+        document.getElementById('genericInscriptionExistantForm')?.reset();
+        document.getElementById('genericInscriptionNouveauForm')?.classList.remove('was-validated');
+        document.getElementById('genericInscriptionNouveauForm')?.reset();
+    }
+
+    function populateGenericParticipantsTable(tableContainer, items, type, noDataElement) {
+        if (!tableContainer || !noDataElement) return;
+        tableContainer.innerHTML = '';
+        noDataElement.style.display = 'none';
+
+        if (!items || items.length === 0) {
+            noDataElement.style.display = 'block';
+            return;
+        }
+
+        const table = document.createElement('table');
+        table.className = 'table table-sm table-hover table-striped';
+        let headers = '';
+        if (type === 'confirmes') headers = '<tr><th>Participant</th><th>Service</th><th>Inscrit le</th><th class="text-center">Actions</th></tr>';
+        else if (type === 'en_attente_validation') headers = '<tr><th>Participant</th><th>Service</th><th>Demandé le</th><th class="text-center">Actions</th></tr>';
+        else if (type === 'liste_attente') headers = '<tr><th class="text-center">Pos.</th><th>Participant</th><th>Service</th><th>Inscrit le</th></tr>';
+        table.innerHTML = `<thead class="table-light small">${headers}</thead><tbody></tbody>`;
+        const tbody = table.querySelector('tbody');
+
+        items.forEach(item => {
+            let rowHtml = '<tr>';
+            if (type === 'confirmes') {
+                rowHtml += `<td>${item.nom_complet}</td>`;
+                rowHtml += `<td><span class="badge" style="background-color:${item.service_couleur || config.serviceColors.default}; color:white;">${item.service_nom}</span></td>`;
+                rowHtml += `<td><small>${item.date_inscription}</small></td>`;
+                rowHtml += `<td class="text-center"><a href="${baseAppUrl}/generer_invitation/${item.id}" class="btn btn-sm btn-outline-primary" title="Invitation .ics"><i class="far fa-calendar-plus"></i></a></td>`;
+            } else if (type === 'en_attente_validation') {
+                rowHtml += `<td>${item.nom_complet}</td>`;
+                rowHtml += `<td><span class="badge" style="background-color:${item.service_couleur || config.serviceColors.default}; color:white;">${item.service_nom}</span></td>`;
+                rowHtml += `<td><small>${item.date_demande}</small></td>`;
+                rowHtml += `<td class="text-center">
+                                ${ (window.dashboardConfig && (window.dashboardConfig.isAdmin || window.dashboardConfig.isResponsable)) ? `
+                                <div class="btn-group btn-group-sm">
+                                <form action="${baseAppUrl}/validation_inscription/${item.id}" method="post" class="d-inline"><input type="hidden" name="action" value="valider"><button type="submit" class="btn btn-outline-success btn-sm" title="Valider"><i class="fas fa-check"></i></button></form>
+                                <form action="${baseAppUrl}/validation_inscription/${item.id}" method="post" class="d-inline ms-1"><input type="hidden" name="action" value="refuser"><button type="submit" class="btn btn-outline-danger btn-sm" title="Refuser"><i class="fas fa-times"></i></button></form>
+                                </div>` : '<span class="badge bg-secondary">En attente</span>'}
+                            </td>`;
+            } else if (type === 'liste_attente') {
+                rowHtml += `<td class="text-center"><span class="badge bg-info">${item.position}</span></td>`;
+                rowHtml += `<td>${item.nom_complet}</td>`;
+                rowHtml += `<td><span class="badge" style="background-color:${item.service_couleur || config.serviceColors.default}; color:white;">${item.service_nom}</span></td>`;
+                rowHtml += `<td><small>${item.date_inscription}</small></td>`;
+            }
+            rowHtml += '</tr>';
+            tbody.insertAdjacentHTML('beforeend', rowHtml);
+        });
+        tableContainer.appendChild(table);
+    }
+
+    async function handleGenericFormSubmit(event) {
+        event.preventDefault();
+        const form = event.target;
+        if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+        const formData = new FormData(form);
+        const actionUrl = form.action;
+        const modalEl = form.closest('.modal');
+        const modalInstance = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+
+        try {
+            const response = await fetch(actionUrl, { method: 'POST', body: new URLSearchParams(formData) });
+            if (response.ok || response.redirected) {
+                showToast(form.id.includes('Nouveau') || form.id.includes('nouveau') ? 'Participant ajouté et demande enregistrée!' : 'Action enregistrée avec succès!', 'success');
+                if(modalInstance) modalInstance.hide();
+                fetchAndProcessData(true); // Rafraîchir le dashboard
+            } else {
+                const errorText = await response.text(); // Lire comme texte d'abord
+                let errorData;
+                try { errorData = JSON.parse(errorText); } 
+                catch (e) { errorData = { message: errorText.substring(0, 200) || `Erreur ${response.status}` }; }
+                showToast(errorData.message || `Erreur lors de la soumission. Code: ${response.status}`, 'danger');
+            }
+        } catch (error) {
+            console.error("Erreur soumission formulaire modale:", error);
+            showToast("Erreur réseau ou serveur lors de la soumission.", 'danger');
+        }
+    }
 
     // --- Gestion des Données et Polling ---
-    const debouncedFetchAndProcessData = debounce(fetchAndProcessData, config.debounceDelay);
     async function fetchAndProcessData(forceRefresh = false) {
         if (dashboardState.isUpdating && !forceRefresh) { if (config.debugMode) console.log('Dashboard Core: Fetch skipped (update in progress).'); return false; }
         if (dashboardState.isErrorThrottleActive && !forceRefresh) { if (config.debugMode) console.log('Dashboard Core: Fetch skipped (error throttle active).'); return false; }
@@ -227,6 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         dashboardState.isUpdating = true;
         if (forceRefresh && dashboardState.initialLoadComplete) showGlobalLoading(true);
+        else if (!dashboardState.initialLoadComplete) showGlobalLoading(true); // Afficher pour le premier chargement
 
         const apiUrl = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
         if (config.debugMode) console.log(`Dashboard Core: Fetching from ${apiUrl}`);
@@ -248,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             dashboardState.apiData = data;
-            dashboardState.displayData = data; // Par défaut, afficher les données de l'API
+            dashboardState.displayData = data;
             const hasChanged = processAndRenderData(dashboardState.displayData, forceRefresh);
 
             dashboardState.lastSuccessfulRefresh = now;
@@ -281,11 +521,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         } finally {
             dashboardState.isUpdating = false;
-            if (forceRefresh && dashboardState.initialLoadComplete) showGlobalLoading(false);
+            // Cacher le loader global seulement après le premier chargement complet (réussi ou échoué avec fallback)
             if (!dashboardState.initialLoadComplete) {
                 dashboardState.initialLoadComplete = true;
                 showGlobalLoading(false);
                 document.dispatchEvent(new CustomEvent('dashboardCoreFullyReady', { detail: { success: dashboardState.errorCount === 0 && dashboardState.apiData !== null } }));
+            } else if (forceRefresh) { // Cacher pour les refresh manuels
+                 showGlobalLoading(false);
             }
         }
     }
@@ -298,7 +540,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const sessions = dataToRender.sessions || [];
         const participants = dataToRender.participants || [];
         const activites = dataToRender.activites || [];
-        // services et salles sont dans dataToRender, utilisés par les modales
 
         let hasChangedOverall = forceRefresh;
 
@@ -315,17 +556,14 @@ document.addEventListener('DOMContentLoaded', function() {
             dashboardState.dataHashes.participants = participantsHash;
             hasChangedOverall = true;
         }
-        // Hashes pour services et salles (si on veut détecter leurs changements pour repeupler les selects)
         const servicesHash = simpleHash(dataToRender.services);
         if (servicesHash !== dashboardState.dataHashes.services || forceRefresh) {
             dashboardState.dataHashes.services = servicesHash;
-            // Pas de rendu direct, mais les modales utiliseront ces données fraîches
         }
         const sallesHash = simpleHash(dataToRender.salles);
         if (sallesHash !== dashboardState.dataHashes.salles || forceRefresh) {
             dashboardState.dataHashes.salles = sallesHash;
         }
-
 
         const activitiesHash = simpleHash(activites);
         if (activitiesHash !== dashboardState.dataHashes.activites || forceRefresh) {
@@ -340,7 +578,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         setTimeout(() => {
             errorHandler.checkAndFixBrokenElements?.();
-            initTooltips(); // Réinitialiser les tooltips pour les nouveaux éléments
+            initTooltips();
             applyGlobalUiFixes();
         }, 250);
         return hasChangedOverall;
@@ -397,7 +635,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }, 300));
         }
-        setupGenericModals(); // Attacher les écouteurs pour les modales génériques
+        setupGenericModals();
     }
 
     async function initializeDashboard() {
