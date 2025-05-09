@@ -1,113 +1,130 @@
-/*
- * modal-fix.js - Simple, robust fix for Bootstrap modals
- * v1.0.2 - Added more console logging and explicit style re-application on show.
+/**
+ * Correctifs pour les fenêtres modales
+ * Résout les problèmes d'affichage des modales Bootstrap
  */
 
-document.addEventListener('DOMContentLoaded', function() {
-    const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
-    if (DASH_CONFIG.debugMode) console.log('ModalFix: Simplified Modal Fix Initialized (v1.0.2)');
+/* Correction pour l'arrière-plan des modales */
+.modal-backdrop {
+    opacity: 0.5 !important;
+    z-index: 1040 !important;
+}
 
-    function applyModalFixes(modalElement) {
-        if (!modalElement) return;
-        if (DASH_CONFIG.debugMode) console.log(`ModalFix: Applying fixes to modal: #${modalElement.id}`);
+/* Amélioration de la position des modales */
+.modal {
+    z-index: 1050 !important;
+}
 
-        // Ensure modal itself has correct z-index
-        modalElement.style.zIndex = '1055';
+/* Évite le défilement du corps de la page lorsqu'une modale est ouverte */
+body.modal-open {
+    overflow: hidden;
+    padding-right: 0 !important;
+}
 
-        // Force visibility and interactivity for selects
-        modalElement.querySelectorAll('select, .form-select').forEach(select => {
-            select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1056 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
-        });
+/* Animation fluide pour les modales */
+.modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out !important;
+    transform: translate(0, -50px) !important;
+}
 
-        // Ensure buttons (not close) are clickable
-        modalElement.querySelectorAll('button, .btn, input[type="button"], input[type="submit"]').forEach(button => {
-            if (!button.classList.contains('btn-close')) {
-                button.style.position = 'relative'; // Use relative for layout flow
-                button.style.zIndex = '1057'; // Above selects
-                button.style.pointerEvents = 'auto';
-            }
-        });
+.modal.show .modal-dialog {
+    transform: none !important;
+}
 
-        // Ensure close button is clickable and on top
-        modalElement.querySelectorAll('.btn-close').forEach(closeBtn => {
-            closeBtn.style.position = 'relative';
-            closeBtn.style.zIndex = '1060'; // Highest z-index within modal
-            closeBtn.style.pointerEvents = 'auto';
-        });
+/* Styles améliorés pour le contenu des modales */
+.modal-content {
+    border: none !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
 
-        // Optional: Force reflow if rendering glitches persist
-        // modalElement.offsetHeight;
+/* En-tête de modal */
+.modal-header {
+    border-top-left-radius: 0.4rem !important;
+    border-top-right-radius: 0.4rem !important;
+    border-bottom: 1px solid #e3e6f0 !important;
+    padding: 1rem !important;
+}
+
+/* Pied de modal */
+.modal-footer {
+    border-bottom-left-radius: 0.4rem !important;
+    border-bottom-right-radius: 0.4rem !important;
+    border-top: 1px solid #e3e6f0 !important;
+    padding: 1rem !important;
+}
+
+/* Bouton de fermeture */
+.modal .btn-close {
+    opacity: 0.75 !important;
+    transition: opacity 0.15s linear !important;
+}
+
+.modal .btn-close:hover {
+    opacity: 1 !important;
+}
+
+/* Correction pour les modales centrées verticalement */
+.modal-dialog-centered {
+    display: flex !important;
+    align-items: center !important;
+    min-height: calc(100% - 3.5rem) !important;
+}
+
+/* Correction pour les modales plein écran */
+.modal-dialog-scrollable {
+    max-height: calc(100% - 3.5rem) !important;
+}
+
+.modal-dialog-scrollable .modal-content {
+    max-height: calc(100vh - 3.5rem) !important;
+    overflow: hidden !important;
+}
+
+.modal-dialog-scrollable .modal-body {
+    overflow-y: auto !important;
+}
+
+/* Styles pour différentes tailles de modales */
+.modal-sm {
+    max-width: 300px !important;
+}
+
+.modal-lg {
+    max-width: 800px !important;
+}
+
+.modal-xl {
+    max-width: 1140px !important;
+}
+
+/* Correction spécifique pour les modales avec formulaires */
+.modal-body form {
+    margin-bottom: 0 !important;
+}
+
+/* Animation d'entrée pour le contenu de la modale */
+.modal.show .modal-content {
+    animation: modal-content-show 0.3s ease-out;
+}
+
+@keyframes modal-content-show {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
     }
-
-    // Apply fixes AFTER Bootstrap shows the modal
-    document.addEventListener('shown.bs.modal', function(event) {
-        const modal = event.target;
-        if (modal && modal.classList.contains('modal')) {
-            if (DASH_CONFIG.debugMode) console.log(`ModalFix: 'shown.bs.modal' event for #${modal.id}. Re-applying fixes.`);
-
-            // Short delay to ensure Bootstrap transitions are complete
-            setTimeout(() => {
-                // Double-check visibility and backdrop (Bootstrap sometimes fails)
-                if (!modal.classList.contains('show')) {
-                    modal.classList.add('show');
-                    if (DASH_CONFIG.debugMode) console.warn(`ModalFix: Modal #${modal.id} was missing 'show' class after shown event.`);
-                }
-                if (modal.style.display !== 'block' && modal.classList.contains('show')) {
-                     modal.style.display = 'block';
-                     if (DASH_CONFIG.debugMode) console.warn(`ModalFix: Modal #${modal.id} was not display:block after shown event.`);
-                }
-                const backdrop = document.querySelector('.modal-backdrop.show');
-                if (!backdrop && modal.classList.contains('show')) {
-                    if (DASH_CONFIG.debugMode) console.warn(`ModalFix: Backdrop missing for #${modal.id}. Attempting to recreate.`);
-                    let existingBackdrop = document.querySelector('.modal-backdrop');
-                    if (!existingBackdrop) {
-                        existingBackdrop = document.createElement('div');
-                        existingBackdrop.className = 'modal-backdrop fade';
-                        document.body.appendChild(existingBackdrop);
-                        existingBackdrop.offsetHeight; // Force reflow
-                    }
-                    existingBackdrop.classList.add('show');
-                    document.body.classList.add('modal-open');
-                }
-
-                // Apply the core style fixes
-                applyModalFixes(modal);
-
-                // Attempt to focus on the first focusable element
-                const firstFocusable = modal.querySelector(
-                    'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled):not(.btn-close), [href], [tabindex]:not([tabindex="-1"])'
-                );
-                if (firstFocusable && typeof firstFocusable.focus === 'function') {
-                    try {
-                        firstFocusable.focus({ preventScroll: true });
-                         if (DASH_CONFIG.debugMode) console.log(`ModalFix: Focused on first element in #${modal.id}:`, firstFocusable);
-                    } catch (e) {
-                        if (DASH_CONFIG.debugMode) console.warn(`ModalFix: Error focusing in #${modal.id}:`, e);
-                    }
-                } else if (DASH_CONFIG.debugMode) {
-                     console.log(`ModalFix: No focusable element found in #${modal.id}`);
-                }
-
-            }, 100); // Increased delay slightly
-        }
-    });
-
-    // Optional: Add listener for dynamically added modals (if needed)
-    if (window.MutationObserver) {
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === 1 && node.classList && node.classList.contains('modal')) {
-                            if (DASH_CONFIG.debugMode) console.log('ModalFix: Detected dynamically added modal:', node.id);
-                            // Fixes will be applied on 'shown.bs.modal'
-                        }
-                    });
-                }
-            });
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
+}
 
-    if (DASH_CONFIG.debugMode) console.log('ModalFix: Initialization complete.');
-});
+/* Correction pour l'affichage sur mobile */
+@media (max-width: 576px) {
+    .modal-dialog {
+        margin: 0.5rem !important;
+    }
+    
+    .modal-dialog-centered {
+        min-height: calc(100% - 1rem) !important;
+    }
+}
