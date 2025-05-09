@@ -800,6 +800,45 @@ def generer_invitation(inscription_id):
         flash("Une erreur interne est survenue lors de la génération de l'invitation.", "danger")
     
     return redirect(request.referrer or url_for('dashboard'))
+
+
+
+@app.route('/services')
+@login_required 
+@db_operation_with_retry(max_retries=3)
+def services(): # <--- RENOMMER LA FONCTION ICI
+    app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /services page.")
+    try:
+        services_list = db.session.query(
+            Service,
+            func.count(func.distinct(Participant.id)).label('participant_count'),
+            func.count(func.distinct(User.id)).label('user_count')
+        ).outerjoin(Participant, Service.id == Participant.service_id)\
+         .outerjoin(User, Service.id == User.service_id)\
+         .group_by(Service.id)\
+         .order_by(Service.nom)\
+         .all()
+
+        services_data_for_template = []
+        for service_obj, p_count, u_count in services_list: # Renommer 'service' pour éviter conflit avec le nom de la fonction
+            services_data_for_template.append({
+                'obj': service_obj,
+                'participant_count': p_count,
+                'user_count': u_count
+            })
+        
+        return render_template('services.html', services_data=services_data_for_template)
+    # ... (gestion des erreurs comme ci-dessus) ...
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"DB error loading services page: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement des services.", "danger")
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Unexpected error loading services page: {e}", exc_info=True)
+        flash("Une erreur interne est survenue.", "danger")
+        return redirect(url_for('dashboard'))
 # === End of new route ===
 
 # app.py - Route /dashboard - Version 1 (Minimaliste)
