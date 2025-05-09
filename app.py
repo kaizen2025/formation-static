@@ -1929,140 +1929,6 @@ def delete_document(doc_id):
 # Voici la correction de l'erreur de syntaxe à la ligne 2233 de app.py
 # Remplacez le code erroné par ce qui suit:
 
-@app.route('/api/dashboard_essential')
-@db_operation_with_retry(max_retries=2)
-def api_dashboard_essential():
-    try:
-        # Vérifier si le cache est actif et récupérer les données si disponibles
-        cache_key = 'dashboard_essential_data'
-        cached_data = cache.get(cache_key)
-        if cached_data and 'participants' in cached_data and cached_data['participants']:
-            return jsonify(cached_data)
-        elif cached_data:
-            cache.delete(cache_key)
-            app.logger.debug("API dashboard_essential: Participants missing from cache, re-fetching.")
-        
-        # Récupérer les sessions
-        sessions_q = Session.query.options(
-            joinedload(Session.theme), 
-            joinedload(Session.salle)
-        ).order_by(Session.date, Session.heure_debut).all()
-        
-        # Récupérer les participants
-        participants_q = Participant.query.options(
-            joinedload(Participant.service)
-        ).order_by(Participant.nom).all()
-        
-        # Récupérer les activités récentes
-        activites_q = get_recent_activities(limit=5)
-        
-        # Préparer les données des sessions
-        sessions_data = []
-        for s in sessions_q:
-            try:
-                inscrits_count = db.session.query(func.count(Inscription.id)).filter(
-                    Inscription.session_id == s.id, 
-                    Inscription.statut == 'confirmé'
-                ).scalar() or 0
-                
-                attente_count = db.session.query(func.count(ListeAttente.id)).filter(
-                    ListeAttente.session_id == s.id
-                ).scalar() or 0
-                
-                pending_count = db.session.query(func.count(Inscription.id)).filter(
-                    Inscription.session_id == s.id,
-                    Inscription.statut == 'en attente'
-                ).scalar() or 0
-                
-                max_participants = 10
-                if s.max_participants is not None:
-                    try:
-                        max_participants = int(s.max_participants)
-                    except (ValueError, TypeError):
-                        pass
-                
-                places_rest = max(0, max_participants - inscrits_count)
-                
-                sessions_data.append({
-                    'id': s.id,
-                    'date': s.formatage_date if hasattr(s, 'formatage_date') else s.date.strftime('%d/%m/%Y'),
-                    'horaire': s.formatage_horaire if hasattr(s, 'formatage_horaire') else f"{s.heure_debut.strftime('%H:%M')}–{s.heure_fin.strftime('%H:%M')}",
-                    'theme': s.theme.nom if s.theme else 'N/A',
-                    'theme_id': s.theme_id,
-                    'places_restantes': places_rest,
-                    'inscrits': inscrits_count,
-                    'max_participants': max_participants,
-                    'liste_attente': attente_count,
-                    'pending_count': pending_count,
-                    'salle': s.salle.nom if s.salle else None,
-                    'salle_id': s.salle_id
-                })
-            except Exception as session_error:
-                app.logger.error(f"Error processing session {s.id} in dashboard_essential: {session_error}")
-                continue
-        
-        # Préparer les données des participants
-        participants_data = []
-        for p in participants_q:
-            participants_data.append({
-                'id': p.id,
-                'nom': p.nom,
-                'prenom': p.prenom,
-                'email': p.email,
-                'service': p.service.nom if p.service else 'N/A',
-                'service_id': p.service_id,
-                'service_color': p.service.couleur if p.service else '#6c757d'
-            })
-        
-        # Préparer les données des activités
-        activites_data = []
-        for a in activites_q:
-            activites_data.append({
-                'id': a.id,
-                'type': a.type,
-                'description': a.description,
-                'details': a.details,
-                'date_relative': a.date_relative if hasattr(a, 'date_relative') else '',
-                'date_iso': a.date.isoformat() if hasattr(a, 'date') and a.date else None,
-                'user': a.utilisateur.username if hasattr(a, 'utilisateur') and a.utilisateur else None
-            })
-        
-        # Assembler la réponse
-        response_data = {
-            'sessions': sessions_data,
-            'participants': participants_data,
-            'activites': activites_data,
-            'timestamp': datetime.now(UTC).timestamp(),
-            'status': 'ok'
-        }
-        
-        # Mettre en cache
-        cache.set(cache_key, response_data, timeout=30)
-        
-        return jsonify(response_data)
-    
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        app._connection_errors = getattr(app, '_connection_errors', 0) + 1
-        app._last_connection_error = datetime.now(UTC)
-        app.logger.error(f"API DB Error in dashboard_essential: {e}", exc_info=True)
-        return jsonify({
-            "error": "Database error", 
-            "message": str(e), 
-            "status": "error", 
-            "timestamp": datetime.now(UTC).timestamp()
-        }), 500
-    except Exception as e:
-        app._connection_errors = getattr(app, '_connection_errors', 0) + 1
-        app._last_connection_error = datetime.now(UTC)
-        app.logger.error(f"API Unexpected Error in dashboard_essential: {e}", exc_info=True)
-        return jsonify({
-            "error": "Internal server error", 
-            "message": str(e), 
-            "status": "error", 
-            "timestamp": datetime.now(UTC).timestamp()
-        }), 500
-
 @app.route('/api/inscriptions-par-theme')
 def api_inscriptions_par_theme():
     """
@@ -2224,6 +2090,7 @@ def api_activites_recentes():
              'details': 'Session: Gérer les tâches (Planner)', 
              'date_relative': 'hier', 'user': 'admin'}
         ])
+        
 # --- API Routes ---
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
@@ -2365,7 +2232,7 @@ def api_dashboard_essential():
             "message": str(e),
             "status": "error",
             "timestamp": datetime.now(UTC).timestamp()
-        }), 500"Internal server error", "message": str(e), "status": "error", "timestamp": datetime.now(UTC).timestamp()}), 500
+        }), 500
 
 @app.route('/api/sessions')
 @limiter.limit("30 per minute")
