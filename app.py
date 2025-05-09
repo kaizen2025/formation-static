@@ -847,35 +847,103 @@ def liste_attente():
     else: return redirect(redirect_url)
 
 @app.route('/validation_inscription/<int:inscription_id>', methods=['POST'])
-@login_required
+@login_required # Seuls les utilisateurs connectés peuvent effectuer cette action
 @db_operation_with_retry(max_retries=3)
 def validation_inscription(inscription_id):
+    """
+    Gère la validation, le refus (pour les statuts 'en attente')
+    ou l'annulation (pour les statuts 'confirmé') d'une inscription.
+    """
+    # Déterminer où rediriger l'utilisateur après l'action
     redirect_url = request.referrer or url_for('dashboard')
+    app.logger.info(f"Tentative de modification de l'inscription ID: {inscription_id} par l'utilisateur '{current_user.username}'. Action: {request.form.get('action')}")
+
     try:
-        inscription = Inscription.query.options(joinedload(Inscription.participant).joinedload(Participant.service), joinedload(Inscription.session).joinedload(Session.theme)).get(inscription_id)
-        if not inscription: flash('Inscription introuvable.', 'danger'); return redirect(redirect_url)
-        is_admin = current_user.role == 'admin'; is_responsable = (current_user.role == 'responsable' and inscription.participant and inscription.participant.service and current_user.service_id == inscription.participant.service_id)
-        if not (is_admin or is_responsable): flash('Action non autorisée.', 'danger'); return redirect(redirect_url)
-        action = request.form.get('action'); participant_name = f"{inscription.participant.prenom} {inscription.participant.nom}" if inscription.participant else "Inconnu"; session_info = f"Session: {inscription.session.theme.nom} ({inscription.session.formatage_date})" if inscription.session and inscription.session.theme else "Session inconnue"; session_id = inscription.session_id
+        # Récupérer l'inscription avec les données associées pour éviter des requêtes N+1
+        inscription = db.session.query(Inscription).options(
+            joinedload(Inscription.participant).joinedload(Participant.service),
+            joinedload(Inscription.session).joinedload(Session.theme)
+        ).get(inscription_id)
+
+        if not inscription:
+            flash('Inscription introuvable.', 'danger')
+            app.logger.warning(f"Inscription ID {inscription_id} non trouvée lors de la tentative de validation/annulation.")
+            return redirect(redirect_url)
+
+        # Vérifier les permissions de l'utilisateur
+        is_admin = current_user.role == 'admin'
+        # Vérifier si l'utilisateur est responsable du service du participant
+        is_responsable_du_service = (
+            current_user.role == 'responsable' and
+            inscription.participant and
+            inscription.participant.service and
+            current_user.service_id == inscription.participant.service_id
+        )
+
+        if not (is_admin or is_responsable_du_service):
+            flash('Action non autorisée. Vous n\'avez pas les permissions nécessaires.', 'danger')
+            app.logger.warning(f"Utilisateur '{current_user.username}' non autorisé à modifier l'inscription ID {inscription_id}.")
+            return redirect(redirect_url)
+
+        action = request.form.get('action')
+        participant_name = f"{inscription.participant.prenom} {inscription.participant.nom}" if inscription.participant else "Inconnu"
+        session_info = f"Session: {inscription.session.theme.nom} ({inscription.session.formatage_date})" if inscription.session and inscription.session.theme else "Session inconnue"
+        session_id_for_cache = inscription.session_id # Pour invalider le cache
+
         if action == 'valider' and inscription.statut == 'en attente':
-            if inscription.session.get_places_restantes() <= 0: flash("Impossible de valider : la session est complète.", "warning"); return redirect(redirect_url)
-            inscription.statut = 'confirmé'; inscription.validation_responsable = True; db.session.commit(); cache.delete(f'session_counts_{session_id}')
-            add_activity('validation', f'Validation inscription: {participant_name}', session_info, user=current_user); flash('Inscription validée avec succès.', 'success')
-            socketio.emit('inscription_validee', {'inscription_id': inscription.id, 'session_id': session_id, 'participant_id': inscription.participant_id, 'new_status': 'confirmé'}, room='general')
+            # Vérifier s'il reste des places avant de valider
+            if inscription.session.get_places_restantes() <= 0:
+                flash(f"Impossible de valider l'inscription de {participant_name} : la session '{inscription.session.theme.nom}' est complète.", "warning")
+                app.logger.info(f"Tentative de validation pour session complète S_ID:{session_id_for_cache} par {current_user.username}.")
+                return redirect(redirect_url)
+
+            inscription.statut = 'confirmé'
+            inscription.validation_responsable = True # Marquer qui a validé (ou si c'est une validation admin)
+            db.session.commit()
+            cache.delete(f'session_counts_{session_id_for_cache}') # Invalider le cache des comptes de session
+            cache.delete('dashboard_essential_data') # Invalider le cache du dashboard
+            add_activity('validation', f'Validation inscription: {participant_name}', session_info, user=current_user)
+            flash(f'Inscription de {participant_name} validée avec succès.', 'success')
+            socketio.emit('inscription_validee', {'inscription_id': inscription.id, 'session_id': session_id_for_cache, 'participant_id': inscription.participant_id, 'new_status': 'confirmé'}, room='general')
+            app.logger.info(f"Inscription ID {inscription_id} validée pour {participant_name} par {current_user.username}.")
+
         elif action == 'refuser' and inscription.statut == 'en attente':
-            inscription.statut = 'refusé'; db.session.commit()
-            add_activity('refus', f'Refus inscription: {participant_name}', session_info, user=current_user); flash('Inscription refusée.', 'warning')
-            socketio.emit('inscription_refusee', {'inscription_id': inscription.id, 'session_id': session_id, 'participant_id': inscription.participant_id, 'new_status': 'refusé'}, room='general')
+            inscription.statut = 'refusé'
+            db.session.commit()
+            # Pas besoin d'invalider session_counts car le nombre de confirmés ne change pas
+            cache.delete('dashboard_essential_data')
+            add_activity('refus', f'Refus inscription: {participant_name}', session_info, user=current_user)
+            flash(f'Inscription de {participant_name} refusée.', 'warning')
+            socketio.emit('inscription_refusee', {'inscription_id': inscription.id, 'session_id': session_id_for_cache, 'participant_id': inscription.participant_id, 'new_status': 'refusé'}, room='general')
+            app.logger.info(f"Inscription ID {inscription_id} refusée pour {participant_name} par {current_user.username}.")
+
         elif action == 'annuler' and inscription.statut == 'confirmé':
-            inscription.statut = 'annulé'; db.session.commit(); cache.delete(f'session_counts_{session_id}')
-            add_activity('annulation', f'Annulation inscription: {participant_name}', session_info, user=current_user); flash('Inscription annulée avec succès.', 'success')
-            check_waitlist(session_id)
-            socketio.emit('inscription_annulee', {'inscription_id': inscription.id, 'session_id': session_id, 'participant_id': inscription.participant_id, 'new_status': 'annulé'}, room='general')
-        else: flash(f"Action '{action}' invalide ou statut incorrect.", 'warning')
-    except SQLAlchemyError as e: db.session.rollback(); flash('Erreur de base de données lors de la validation/annulation.', 'danger'); app.logger.error(f"SQLAlchemyError during inscription validation/cancellation: {e}", exc_info=True)
-    except Exception as e: db.session.rollback(); flash('Une erreur inattendue est survenue.', 'danger'); app.logger.error(f"Unexpected error during inscription validation/cancellation: {e}", exc_info=True)
+            inscription.statut = 'annulé' # Le participant n'est PAS supprimé, seule l'inscription change
+            db.session.commit()
+            cache.delete(f'session_counts_{session_id_for_cache}') # Invalider car une place se libère
+            cache.delete('dashboard_essential_data')
+            add_activity('annulation', f'Annulation inscription: {participant_name}', session_info, user=current_user)
+            flash(f'Inscription de {participant_name} annulée avec succès.', 'success')
+            # Vérifier la liste d'attente pour cette session car une place s'est libérée
+            check_waitlist(session_id_for_cache)
+            socketio.emit('inscription_annulee', {'inscription_id': inscription.id, 'session_id': session_id_for_cache, 'participant_id': inscription.participant_id, 'new_status': 'annulé'}, room='general')
+            app.logger.info(f"Inscription ID {inscription_id} (confirmée) annulée pour {participant_name} par {current_user.username}.")
+
+        else:
+            flash(f"Action '{action}' invalide ou statut d'inscription incorrect pour cette action.", 'warning')
+            app.logger.warning(f"Action invalide '{action}' ou statut '{inscription.statut}' pour inscription ID {inscription_id}.")
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB lors de la modification de l'inscription ID {inscription_id}: {e}", exc_info=True)
+        flash('Erreur de base de données lors de la modification de l\'inscription.', 'danger')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue lors de la modification de l'inscription ID {inscription_id}: {e}", exc_info=True)
+        flash('Une erreur inattendue est survenue.', 'danger')
+
     return redirect(redirect_url)
-        
+    
 # --- End of new route ---
 @app.route('/validation_inscription_ajax', methods=['POST'])
 @login_required
@@ -2020,42 +2088,60 @@ def update_participant(id):
 
     return redirect(url_for('participants_page'))
 
+# --- Route pour supprimer un participant (Admin seulement) ---
 @app.route('/participant/delete/<int:id>', methods=['POST'])
-@login_required
+@login_required # Seuls les utilisateurs connectés peuvent tenter
 @db_operation_with_retry(max_retries=2)
 def delete_participant(id):
-    # Seuls les admins peuvent supprimer
+    """Supprime un participant et toutes ses inscriptions/attentes associées."""
+    # Vérifier si l'utilisateur est un administrateur
     if current_user.role != 'admin':
         flash('Action réservée aux administrateurs.', 'danger')
-        return redirect(url_for('participants_page'))
+        app.logger.warning(f"Tentative de suppression du participant ID {id} par l'utilisateur non-admin '{current_user.username}'.")
+        return redirect(url_for('participants_page')) # Rediriger vers la liste des participants
 
+    app.logger.info(f"Tentative de suppression du participant ID: {id} par l'admin '{current_user.username}'.")
+    # Récupérer le participant à supprimer
     participant = db.session.get(Participant, id)
+
     if not participant:
         flash('Participant introuvable.', 'warning')
+        app.logger.warning(f"Participant ID {id} non trouvé lors de la tentative de suppression.")
         return redirect(url_for('participants_page'))
 
     participant_name = f"{participant.prenom} {participant.nom}"
 
     try:
-        # La cascade SQLAlchemy devrait gérer la suppression des Inscription et ListeAttente liées
-        db.session.delete(participant)
-        db.session.commit()
+        # La suppression en cascade est configurée dans les modèles (Participant -> Inscription, Participant -> ListeAttente)
+        # SQLAlchemy s'occupera de supprimer les enregistrements dépendants.
+        # Si la cascade n'était pas configurée, il faudrait supprimer manuellement :
+        # Inscription.query.filter_by(participant_id=id).delete()
+        # ListeAttente.query.filter_by(participant_id=id).delete()
 
-        # Vider les caches pertinents
+        db.session.delete(participant) # Supprime l'objet Participant
+        db.session.commit() # Valide la suppression dans la base de données
+
+        # Invalider les caches pertinents
         cache.delete_memoized(get_all_participants_with_service)
         cache.delete_memoized(get_all_services_with_participants)
         cache.delete('dashboard_essential_data')
+        # Si vous avez des caches spécifiques par service, invalidez-les aussi
+        if participant.service_id:
+            cache.delete(f'service_participant_count_{participant.service_id}')
 
-        add_activity('suppression_participant', f'Suppression: {participant_name}', user=current_user)
-        flash(f'Participant "{participant_name}" et ses inscriptions/attentes supprimés.', 'success')
+
+        add_activity('suppression_participant', f'Suppression du participant: {participant_name}', f'ID: {id}, Email: {participant.email}', user=current_user)
+        flash(f'Le participant "{participant_name}" et toutes ses inscriptions/attentes associées ont été supprimés avec succès.', 'success')
+        app.logger.info(f"Participant ID {id} ({participant_name}) supprimé avec succès par {current_user.username}.")
+
     except SQLAlchemyError as e:
         db.session.rollback()
-        app.logger.error(f"Erreur DB suppression participant {id}: {e}", exc_info=True)
-        flash('Erreur de base de données lors de la suppression.', 'danger')
+        app.logger.error(f"Erreur DB lors de la suppression du participant ID {id}: {e}", exc_info=True)
+        flash('Erreur de base de données lors de la suppression du participant.', 'danger')
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Erreur inattendue suppression participant {id}: {e}", exc_info=True)
-        flash('Une erreur inattendue est survenue.', 'danger')
+        app.logger.error(f"Erreur inattendue lors de la suppression du participant ID {id}: {e}", exc_info=True)
+        flash('Une erreur inattendue est survenue lors de la suppression.', 'danger')
 
     return redirect(url_for('participants_page'))
 
