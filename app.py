@@ -38,6 +38,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, Ti
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, text, select, update, delete
 
+from jinja2 import TemplateNotFound 
+
 from werkzeug.exceptions import ServiceUnavailable, RequestEntityTooLarge # Correction Import
 from werkzeug.routing import BuildError
 from werkzeug.security import generate_password_hash, check_password_hash
