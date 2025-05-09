@@ -23,8 +23,7 @@
             </div>
             <div class="modal-body">
                 <form action="{{ url_for('add_theme') }}" method="post" class="needs-validation" novalidate>
-                    {# Include CSRF token if your app uses Flask-WTF or similar #}
-                    {# Example: {{ form.csrf_token }} or manually generate if needed #}
+                    {# Include CSRF token if needed #}
                     <div class="mb-3">
                         <label for="add_nom_theme" class="form-label">Nom du thème*</label>
                         <input type="text" class="form-control" id="add_nom_theme" name="nom" required>
@@ -144,7 +143,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form action="" method="post" id="editThemeForm" class="needs-validation" novalidate>
+                <form action="" method="post" id="editThemeForm" class="needs-validation" novalidate> {# Action définie par JS #}
                     {# Include CSRF token if needed #}
                     <div class="mb-3">
                         <label for="edit_nom_theme" class="form-label">Nom*</label>
@@ -178,7 +177,7 @@
              </div>
              <div class="modal-footer">
                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                 <form id="deleteThemeForm" action="" method="post" class="d-inline">
+                 <form id="deleteThemeForm" action="" method="post" class="d-inline"> {# Action définie par JS #}
                      {# Include CSRF token if needed #}
                      <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
                  </form>
@@ -243,16 +242,21 @@
 
                 // Validation pour la modale d'édition (au cas où)
                 form.classList.remove('was-validated');
-                form.addEventListener('submit', event => {
+                // Note: Re-adding validation listener inside might cause multiple listeners.
+                // It's better to rely on the initial validation setup or handle it differently if needed.
+
+                // editThemeModal.show(); // Déjà géré par data-bs-toggle
+            });
+             // Validation pour la modale d'édition (ajoutée une seule fois)
+             if(form) {
+                 form.addEventListener('submit', event => {
                     if (!form.checkValidity()) {
                         event.preventDefault();
                         event.stopPropagation();
                     }
                     form.classList.add('was-validated');
-                }, { once: true }); // S'assurer que ça ne s'accumule pas
-
-                // editThemeModal.show(); // Déjà géré par data-bs-toggle
-            });
+                }, false);
+             }
         }
 
         if (themesContainer && deleteThemeModal) {
