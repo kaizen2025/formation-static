@@ -3,18 +3,18 @@
 
 /* ===== VARIABLES DE COULEUR (Rappel, peuvent être dans :root de modern.css aussi) ===== */
 :root {
-    --primary: #0078d4;
+    --primary: #0078d4; /* Bleu Microsoft principal */
     --secondary: #6c757d;
-    --success: #107c10;
-    --warning: #ffb900;
-    --danger: #d83b01;
-    --info: #0078d4; /* Ou un bleu plus clair comme #00bcf2 */
+    --success: #107c10; /* Vert Microsoft */
+    --warning: #ffb900; /* Jaune Microsoft */
+    --danger: #d83b01;  /* Rouge Microsoft */
+    --info: #0078d4;    /* Peut être le même que primary ou un bleu plus clair comme #00bcf2 */
     --light: #f8f9fa;
     --dark: #212529;
     --white: #ffffff;
-    --border-radius: 0.3rem;
+    --border-radius: 0.3rem; /* Rayon de bordure légèrement plus petit */
     --shadow-sm: 0 .125rem .25rem rgba(0,0,0,.075);
-    --shadow: 0 .25rem .75rem rgba(0,0,0,.1);
+    --shadow: 0 .25rem .75rem rgba(0,0,0,.1); /* Ombre plus subtile */
     --transition-speed: 0.2s;
 
     /* Couleurs des services (Palette Microsoft suggérée) */
@@ -27,6 +27,7 @@
     --service-rh: #00bcf2;
     --service-default-bg: #7a7574;
 
+
     /* Couleurs des thèmes (Palette Microsoft suggérée) */
     --theme-teams: #464eb8; /* Violet Teams pour "Communiquer avec Teams" */
     --theme-planner: #038387; /* Teal Planner/Tasks pour "Gérer les tâches (Planner)" */
@@ -38,7 +39,7 @@
 /* ===== GRAPHIQUES ===== */
 .dynamic-chart-container {
     width: 100%;
-    height: 260px;
+    height: 260px; /* Hauteur légèrement réduite pour plus de compacité */
     position: relative;
     margin-bottom: 1.5rem; /* Plus d'espace */
     background-color: var(--white);
@@ -52,32 +53,62 @@
     transform: translate(-50%, -50%); text-align: center;
     color: var(--secondary); font-size: 0.9rem;
 }
-.no-data-message-chart i { font-size: 1.5rem; display: block; margin-bottom: 0.5rem; color: #adb5bd; }
+.no-data-message-chart i {
+    font-size: 1.5rem; /* Icône plus grande */
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #adb5bd; /* Gris plus clair pour l'icône */
+}
 
-.static-chart-legend {
+
+/* Légende personnalisée pour les graphiques Chart.js */
+.static-chart-legend { /* Garder le nom pour réutiliser les styles */
     display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
-    gap: 0.5rem 1rem; padding: 0.5rem 0; font-size: 0.75rem;
+    gap: 0.4rem 0.8rem; /* Augmenter légèrement l'espacement */
+    padding: 0.5rem 0; font-size: 0.75rem; /* Police légèrement plus grande */
     margin-top: 0.75rem;
 }
 .legend-item {
-    display: flex; align-items: center; padding: 0.3rem 0.6rem;
+    display: flex; align-items: center; padding: 0.25rem 0.5rem;
     background-color: var(--bs-gray-100, #f8f9fa);
     border-radius: var(--border-radius);
     transition: background-color var(--transition-speed) ease;
-    cursor: default; border: 1px solid var(--bs-gray-300, #dee2e6);
+    cursor: default;
+    border: 1px solid var(--bs-gray-300, #dee2e6); /* Bordure subtile */
 }
 .legend-item:hover { background-color: var(--bs-gray-200, #e9ecef); }
-.legend-color { width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); flex-shrink: 0; }
-.legend-label { font-weight: 500; color: var(--dark, #212529); white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
-.legend-value { margin-left: 0.4rem; padding: 0.1rem 0.4rem; background-color: var(--bs-gray-200, #e9ecef); border-radius: 8px; font-size: 0.7rem; font-weight: 600; color: var(--dark, #212529); }
-@keyframes fadeInLegend { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.legend-color {
+    width: 12px; height: 12px; /* Carrés de couleur légèrement plus grands */
+    border-radius: 3px; margin-right: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+.legend-label {
+    font-weight: 500; color: var(--dark, #212529);
+    white-space: nowrap;
+    max-width: 120px; /* Limiter la largeur pour éviter les débordements */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.legend-value {
+    margin-left: 0.4rem; padding: 0.1rem 0.4rem;
+    background-color: var(--bs-gray-200, #e9ecef);
+    border-radius: 8px; font-size: 0.7rem; /* Plus lisible */
+    font-weight: 600; color: var(--dark, #212529);
+}
+
+@keyframes fadeInLegend {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 
 /* ===== BADGES DE THÈMES AMÉLIORÉS ===== */
 .theme-badge {
     display: inline-flex; align-items: center; padding: 0.4em 0.8em; /* Plus de padding */
     font-size: 0.75rem; font-weight: 500; line-height: 1.2; color: #fff !important;
     text-align: center; white-space: nowrap; vertical-align: baseline;
-    border-radius: 50rem; box-shadow: none;
+    border-radius: 50rem; box-shadow: none; /* Ombre retirée pour un look plus plat */
     transition: all var(--transition-speed) ease; margin: 0.1rem;
     position: relative; cursor: help;
     border: 1px solid rgba(0,0,0,0.15); /* Bordure plus visible */
@@ -101,7 +132,8 @@
 .activity-container { max-height: 270px; overflow-y: auto; padding-right: 5px; }
 .activity-item {
     padding: 0.7rem 0.9rem; margin-bottom: 0.6rem;
-    border-left-width: 4px; background-color: var(--white);
+    border-left-width: 4px; /* Bordure plus épaisse */
+    background-color: var(--white);
     border-radius: var(--border-radius); transition: all var(--transition-speed) ease;
     display: flex; align-items: flex-start; box-shadow: var(--shadow-sm);
 }
@@ -119,11 +151,11 @@
 
 
 /* ===== RESPONSIVITÉ GÉNÉRALE ===== */
-.session-table th, .session-table td { padding: 0.5rem; font-size: 0.8rem; }
+.session-table th, .session-table td { padding: 0.5rem; font-size: 0.8rem; } /* Padding légèrement augmenté */
 
 /* Styles pour les éléments mis à jour */
 .updated { animation: highlightUpdate 0.7s ease-out; }
-@keyframes highlightUpdate { 0% { background-color: rgba(255, 235, 59, 0.4); } 100% { background-color: transparent; } }
+@keyframes highlightUpdate { 0% { background-color: rgba(255, 235, 59, 0.4); } 100% { background-color: transparent; } } /* Jaune plus subtil */
 
 /* Style pour les données invalides/erreur */
 .data-error { color: var(--danger, #dc3545) !important; font-style: italic; opacity: 0.85; }
