@@ -154,10 +154,10 @@
                                         title="Voir détails">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                {# Bouton Modifier - Utilise sa propre modale (définie ci-dessous) #}
+                                {# Bouton Modifier - Utilise la modale unique #}
                                 {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
-                                <button type="button" class="btn btn-outline-secondary btn-edit-participant" {# Ajout classe pour JS #}
-                                        data-bs-toggle="modal" data-bs-target="#editParticipantModal" {# Cible la modale unique #}
+                                <button type="button" class="btn btn-outline-secondary btn-edit-participant"
+                                        data-bs-toggle="modal" data-bs-target="#editParticipantModal"
                                         data-participant-id="{{ participant.id }}"
                                         data-participant-nom="{{ participant.nom }}"
                                         data-participant-prenom="{{ participant.prenom }}"
@@ -167,10 +167,10 @@
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 {% endif %}
-                                {# Bouton Supprimer - Utilise sa propre modale (définie ci-dessous) #}
+                                {# Bouton Supprimer - Utilise la modale unique #}
                                  {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                 <button type="button" class="btn btn-outline-danger btn-delete-participant" {# Ajout classe pour JS #}
-                                         data-bs-toggle="modal" data-bs-target="#deleteParticipantModal" {# Cible la modale unique #}
+                                 <button type="button" class="btn btn-outline-danger btn-delete-participant"
+                                         data-bs-toggle="modal" data-bs-target="#deleteParticipantModal"
                                          data-participant-id="{{ participant.id }}"
                                          data-participant-nom="{{ participant.nom }}"
                                          data-participant-prenom="{{ participant.prenom }}"
@@ -336,8 +336,8 @@
                         <div class="col-md-6">
                             <label for="edit_service_id" class="form-label">Service*</label>
                             <select class="form-select" id="edit_service_id" name="service_id" required>
-                                {# Options chargées par JS ou statiques si liste complète dispo #}
-                                <option value="" disabled>-- Charger Services --</option>
+                                {# Options chargées statiquement car la liste des services change peu #}
+                                <option value="" disabled>-- Choisir --</option>
                                 {% for service_item in services|sort(attribute='nom') %}
                                 <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
                                 {% endfor %}
@@ -362,11 +362,12 @@
                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
              </div>
              <div class="modal-body">
+                 {# Le texte sera mis à jour par JS #}
                  <span id="deleteParticipantText">Êtes-vous sûr de vouloir supprimer ce participant ? Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées. Cette action est irréversible.</span>
              </div>
              <div class="modal-footer">
                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                 <form action="" method="post" id="deleteParticipantForm" class="d-inline">
+                 <form action="" method="post" id="deleteParticipantForm" class="d-inline"> {# Action définie par JS #}
                      <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
                  </form>
              </div>
