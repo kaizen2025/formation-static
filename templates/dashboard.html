@@ -1,488 +1,273 @@
+<!-- templates/dashboard.html -->
 {% extends "layout.html" %}
 
-{% block title %}Tableau de bord{% endblock %}
+{% block title %}
+    Tableau de Bord - Formation Microsoft 365
+{% endblock %}
 
-{% block extra_css %}
-<style>
-  .stat-card {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
-  .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-  }
-  .dynamic-chart-container {
-    height: 260px;
-  }
-  .activity-container {
-    max-height: 500px;
-    overflow-y: auto;
-  }
-</style>
+{% block head_extra %}
+    <!-- CSS spécifiques au tableau de bord -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}?v=1.1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}?v=1.1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-modal-fixes.css') }}?v=1.1">
+    <style>
+        .dynamic-chart-container { min-height: 280px; /* Hauteur minimale pour éviter l'effondrement avant chargement */ }
+        .activity-container-card { max-height: 450px; overflow-y: auto; }
+        #activity-loading-spinner, .sessions-loading-spinner {
+            display: flex; justify-content: center; align-items: center; min-height: 100px;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" id="main-content">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0 text-gray-800">
-      <i class="fas fa-tachometer-alt me-2"></i> Tableau de bord
-    </h1>
-    <button id="refresh-dashboard" class="btn btn-sm btn-primary">
-      <i class="fas fa-sync-alt me-1"></i> Actualiser
-    </button>
-  </div>
+<div class="container-fluid page-transition">
 
-  <!-- Cartes statistiques -->
-  <div class="row mb-4">
-    <!-- Inscriptions confirmées -->
-    <div class="col-xl-3 col-md-6 mb-4">
-      <div class="card border-left-primary stat-card h-100 py-2">
-        <div class="card-body">
-          <div class="row no-gutters align-items-center">
-            <div class="col me-2">
-              <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                Inscriptions confirmées
-              </div>
-              <div class="h5 mb-0 font-weight-bold text-gray-800">
-                <span id="total-inscriptions" class="counter-value">{{ total_inscriptions|default('0') }}</span>
-              </div>
-            </div>
-            <div class="col-auto">
-              <i class="fas fa-users fa-2x text-gray-300"></i>
-            </div>
-          </div>
-        </div>
-      </div>
+    <!-- Titre de la Page et Bouton Actualiser -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-fw fa-tachometer-alt me-2"></i>Tableau de bord</h1>
+        <button id="refresh-dashboard-button" class="btn btn-sm btn-primary shadow-sm">
+            <i class="fas fa-sync-alt fa-sm text-white-50 me-1"></i> Actualiser
+        </button>
     </div>
 
-    <!-- En liste d'attente -->
-    <div class="col-xl-3 col-md-6 mb-4">
-      <div class="card border-left-warning stat-card h-100 py-2">
-        <div class="card-body">
-          <div class="row no-gutters align-items-center">
-            <div class="col me-2">
-              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                En liste d'attente
-              </div>
-              <div class="h5 mb-0 font-weight-bold text-gray-800">
-                <span id="total-en-attente" class="counter-value">{{ total_en_attente|default('0') }}</span>
-              </div>
+    <!-- Rangée des Cartes de Statistiques -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2 stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sessions Programmées</div>
+                            <div id="total-sessions-programmes" class="h5 mb-0 font-weight-bold text-gray-800">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-auto">
-              <i class="fas fa-clock fa-2x text-gray-300"></i>
-            </div>
-          </div>
         </div>
-      </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2 stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Participants Inscrits (Conf.)</div>
+                            <div id="total-inscriptions-confirmees" class="h5 mb-0 font-weight-bold text-gray-800">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2 stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">En Liste d'Attente (Total)</div>
+                            <div id="total-en-attente" class="h5 mb-0 mr-3 font-weight-bold text-gray-800">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2 stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Sessions Complètes</div>
+                            <div id="total-sessions-completes" class="h5 mb-0 font-weight-bold text-gray-800">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Sessions programmées -->
-    <div class="col-xl-3 col-md-6 mb-4">
-      <div class="card border-left-info stat-card h-100 py-2">
-        <div class="card-body">
-          <div class="row no-gutters align-items-center">
-            <div class="col me-2">
-              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                Sessions programmées
-              </div>
-              <div class="h5 mb-0 font-weight-bold text-gray-800">
-                <span id="total-sessions" class="counter-value">{{ total_sessions|default('16') }}</span>
-              </div>
+    <!-- Rangée de Contenu Principal -->
+    <div class="row">
+        <!-- Zone des Sessions à venir -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-alt me-2"></i>Sessions à venir</h6>
+                    <div>
+                        <input type="text" id="session-filter" class="form-control form-control-sm" placeholder="Filtrer sessions (date, thème)...">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="sessions-a-venir-table">
+                            <thead>
+                                <tr>
+                                    <th>Date / Horaire</th>
+                                    <th>Thème</th>
+                                    <th>Places</th>
+                                    <th>Salle</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="sessions-loading-spinner">
+                                    <td colspan="5" class="text-center p-5">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                        <p class="mt-2 text-muted">Chargement des sessions...</p>
+                                    </td>
+                                </tr>
+                                <!-- Les lignes de session seront injectées ici par JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                     {% if initial_sessions_data is defined and not initial_sessions_data %}
+                        <p class="text-center text-muted mt-3 no-data-initial">Aucune session programmée pour le moment.</p>
+                    {% endif %}
+                </div>
             </div>
-            <div class="col-auto">
-              <i class="fas fa-calendar fa-2x text-gray-300"></i>
-            </div>
-          </div>
         </div>
-      </div>
+
+        <!-- Zone des Graphiques -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Répartition par Thème (Inscrits)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="dynamic-chart-container d-flex justify-content-center align-items-center">
+                        <canvas id="themeDistributionChart"></canvas>
+                        <!-- Message "Pas de données" ou spinner sera géré par JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-bar me-2"></i>Participants par Service</h6>
+                </div>
+                <div class="card-body">
+                    <div class="dynamic-chart-container d-flex justify-content-center align-items-center">
+                        <canvas id="serviceDistributionChart"></canvas>
+                        <!-- Message "Pas de données" ou spinner sera géré par JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Sessions complètes -->
-    <div class="col-xl-3 col-md-6 mb-4">
-      <div class="card border-left-success stat-card h-100 py-2">
-        <div class="card-body">
-          <div class="row no-gutters align-items-center">
-            <div class="col me-2">
-              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                Sessions complètes
-              </div>
-              <div class="h5 mb-0 font-weight-bold text-gray-800">
-                <span id="total-sessions-completes" class="counter-value">{{ total_sessions_completes|default('0') }}</span>
-              </div>
+    <!-- Rangée des Activités Récentes -->
+    <div class="row">
+        <div class="col-lg-12 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-2"></i>Activités Récentes</h6>
+                </div>
+                <div class="card-body activity-container-card p-0">
+                    <ul class="list-group list-group-flush" id="recent-activity-list">
+                         <li class="list-group-item" id="activity-loading-spinner">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <span class="ms-2 text-muted">Chargement des activités...</span>
+                        </li>
+                        <!-- Les activités seront injectées ici par JavaScript -->
+                    </ul>
+                </div>
+                {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+                <div class="card-footer text-center">
+                    <a href="{{ url_for('activites_journal') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-book me-1"></i> Voir toutes les activités
+                    </a>
+                </div>
+                {% endif %}
             </div>
-            <div class="col-auto">
-              <i class="fas fa-check-circle fa-2x text-gray-300"></i>
-            </div>
-          </div>
         </div>
-      </div>
     </div>
-  </div>
-
-  <div class="row">
-    <!-- Sessions à venir -->
-    <div class="col-lg-8 mb-4">
-      <div class="card shadow mb-4">
-        <div class="card-header py-3">
-          <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-calendar-alt me-2"></i> Sessions à venir
-            <a href="{{ url_for('sessions') }}" class="btn btn-sm btn-outline-primary float-end">
-              <i class="fas fa-search me-1"></i> Toutes les sessions
-            </a>
-          </h6>
-        </div>
-        <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-bordered table-hover session-table">
-              <thead>
-                <tr>
-                  <th>Date / Horaire</th>
-                  <th>Thème</th>
-                  <th>Places</th>
-                  <th>Salle</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- Les lignes du tableau sont générées dynamiquement par dashboard-fix.js -->
-                <tr class="no-data-row">
-                  <td colspan="5" class="text-center p-4 text-muted">
-                    <i class="fas fa-spinner fa-spin me-2"></i> Chargement des sessions...
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Activités récentes -->
-    <div class="col-lg-4 mb-4">
-      <div class="card shadow mb-4">
-        <div class="card-header py-3">
-          <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-history me-2"></i> Activités récentes
-          </h6>
-        </div>
-        <div class="card-body p-0">
-          <div class="list-group activity-container" id="recent-activity">
-            <div class="loading-spinner text-center py-4">
-              <div class="spinner-border spinner-border-sm text-primary" role="status">
-                <span class="visually-hidden">Chargement...</span>
-              </div>
-              <p class="mt-2 text-muted">Chargement des activités récentes...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row">
-    <!-- Répartition des inscriptions par thème -->
-    <div class="col-lg-6 mb-4">
-      <div class="card shadow mb-4">
-        <div class="card-header py-3">
-          <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-chart-pie me-2"></i> Répartition des inscriptions par thème
-          </h6>
-        </div>
-        <div class="card-body">
-          <div class="dynamic-chart-container">
-            <canvas id="themeDistributionChart"></canvas>
-          </div>
-          <div class="static-chart-legend" id="themeChartLegend"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Distribution des participants par service -->
-    <div class="col-lg-6 mb-4">
-      <div class="card shadow mb-4">
-        <div class="card-header py-3">
-          <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-chart-bar me-2"></i> Distribution des participants par service
-          </h6>
-        </div>
-        <div class="card-body">
-          <div class="dynamic-chart-container">
-            <canvas id="serviceDistributionChart"></canvas>
-          </div>
-          <div class="static-chart-legend" id="serviceChartLegend"></div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
-<!-- Modales pour les sessions -->
-{% if sessions_data %}
-  {% for session in sessions_data %}
-    <!-- Modal pour voir les participants -->
-    <div class="modal fade" id="participantsModal_{{ session.obj.id }}" tabindex="-1" aria-labelledby="participantsModalLabel_{{ session.obj.id }}" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="participantsModalLabel_{{ session.obj.id }}">
-              <i class="fas fa-users me-2"></i> Participants - {{ session.obj.theme.nom }} ({{ session.obj.formatage_date }})
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <!-- Onglets -->
-            <ul class="nav nav-tabs mb-3" id="myTab_{{ session.obj.id }}" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="inscrits-tab_{{ session.obj.id }}" data-bs-toggle="tab" data-bs-target="#inscrits_{{ session.obj.id }}" type="button" role="tab" aria-controls="inscrits_{{ session.obj.id }}" aria-selected="true">
-                  <i class="fas fa-check-circle me-1"></i> Inscrits <span class="badge rounded-pill bg-primary ms-1">{{ session.inscrits_confirmes_count }}</span>
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="attente-tab_{{ session.obj.id }}" data-bs-toggle="tab" data-bs-target="#attente_{{ session.obj.id }}" type="button" role="tab" aria-controls="attente_{{ session.obj.id }}" aria-selected="false">
-                  <i class="fas fa-clock me-1"></i> Liste d'attente <span class="badge rounded-pill bg-warning text-dark ms-1">{{ session.liste_attente_count }}</span>
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="pending-tab_{{ session.obj.id }}" data-bs-toggle="tab" data-bs-target="#pending_{{ session.obj.id }}" type="button" role="tab" aria-controls="pending_{{ session.obj.id }}" aria-selected="false">
-                  <i class="fas fa-hourglass-half me-1"></i> En attente <span class="badge rounded-pill bg-secondary ms-1">{{ session.pending_count }}</span>
-                </button>
-              </li>
-            </ul>
-            
-            <!-- Contenu des onglets -->
-            <div class="tab-content" id="myTabContent_{{ session.obj.id }}">
-              <!-- Onglet Inscrits confirmés -->
-              <div class="tab-pane fade show active" id="inscrits_{{ session.obj.id }}" role="tabpanel" aria-labelledby="inscrits-tab_{{ session.obj.id }}">
-                {% if session.loaded_inscrits_confirmes %}
-                  <div class="table-responsive">
-                    <table class="table table-striped">
-                      <thead>
-                        <tr>
-                          <th>Participant</th>
-                          <th>Service</th>
-                          <th>Date d'inscription</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for inscription in session.loaded_inscrits_confirmes %}
-                          <tr>
-                            <td>{{ inscription.participant.prenom }} {{ inscription.participant.nom }}</td>
-                            <td>
-                              <span class="badge" style="background-color: {{ inscription.participant.service.couleur }};">
-                                {{ inscription.participant.service.nom }}
-                              </span>
-                            </td>
-                            <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
-                            <td>
-                              <form method="post" action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" class="d-inline">
-                                <input type="hidden" name="action" value="annuler">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');">
-                                  <i class="fas fa-times me-1"></i> Annuler
-                                </button>
-                              </form>
-                            </td>
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                {% else %}
-                  <div class="text-center p-3 text-muted">
-                    <i class="fas fa-info-circle me-2"></i> Aucun participant inscrit pour cette session.
-                  </div>
-                {% endif %}
-              </div>
-              
-              <!-- Onglet Liste d'attente -->
-              <div class="tab-pane fade" id="attente_{{ session.obj.id }}" role="tabpanel" aria-labelledby="attente-tab_{{ session.obj.id }}">
-                {% if session.loaded_liste_attente %}
-                  <div class="table-responsive">
-                    <table class="table table-striped">
-                      <thead>
-                        <tr>
-                          <th>Position</th>
-                          <th>Participant</th>
-                          <th>Service</th>
-                          <th>Date d'inscription</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for attente in session.loaded_liste_attente %}
-                          <tr>
-                            <td>{{ attente.position }}</td>
-                            <td>{{ attente.participant.prenom }} {{ attente.participant.nom }}</td>
-                            <td>
-                              <span class="badge" style="background-color: {{ attente.participant.service.couleur }};">
-                                {{ attente.participant.service.nom }}
-                              </span>
-                            </td>
-                            <td>{{ attente.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                {% else %}
-                  <div class="text-center p-3 text-muted">
-                    <i class="fas fa-info-circle me-2"></i> Aucun participant en liste d'attente pour cette session.
-                  </div>
-                {% endif %}
-              </div>
-              
-              <!-- Onglet En attente de validation -->
-              <div class="tab-pane fade" id="pending_{{ session.obj.id }}" role="tabpanel" aria-labelledby="pending-tab_{{ session.obj.id }}">
-                {% if session.loaded_pending_inscriptions %}
-                  <div class="table-responsive">
-                    <table class="table table-striped">
-                      <thead>
-                        <tr>
-                          <th>Participant</th>
-                          <th>Service</th>
-                          <th>Date de demande</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for inscription in session.loaded_pending_inscriptions %}
-                          <tr>
-                            <td>{{ inscription.participant.prenom }} {{ inscription.participant.nom }}</td>
-                            <td>
-                              <span class="badge" style="background-color: {{ inscription.participant.service.couleur }};">
-                                {{ inscription.participant.service.nom }}
-                              </span>
-                            </td>
-                            <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
-                            <td>
-                              {% if current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id) %}
-                                <button type="button" class="btn btn-sm btn-success validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="valider">
-                                  <i class="fas fa-check me-1"></i> Valider
-                                </button>
-                                <button type="button" class="btn btn-sm btn-danger validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="refuser">
-                                  <i class="fas fa-times me-1"></i> Refuser
-                                </button>
-                              {% else %}
-                                <span class="text-muted"><i class="fas fa-lock me-1"></i> Permissions insuffisantes</span>
-                              {% endif %}
-                            </td>
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                {% else %}
-                  <div class="text-center p-3 text-muted">
-                    <i class="fas fa-info-circle me-2"></i> Aucune inscription en attente de validation pour cette session.
-                  </div>
-                {% endif %}
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-          </div>
-        </div>
-      </div>
+<!-- Overlay de chargement global -->
+<div id="loading-overlay" class="hidden">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+        <span class="visually-hidden">Chargement...</span>
     </div>
-    
-    <!-- Modal pour inscrire un participant -->
-    <div class="modal fade" id="inscriptionModal_{{ session.obj.id }}" tabindex="-1" aria-labelledby="inscriptionModalLabel_{{ session.obj.id }}" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="inscriptionModalLabel_{{ session.obj.id }}">
-              <i class="fas fa-user-plus me-2"></i> Inscrire un participant
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <form action="{{ url_for('inscription') }}" method="post">
-            <div class="modal-body">
-              <div class="mb-3">
-                <label class="form-label">Session:</label>
-                <div class="p-2 bg-light rounded">
-                  <strong>{{ session.obj.theme.nom }}</strong><br>
-                  <small class="text-muted">{{ session.obj.formatage_date }} - {{ session.obj.formatage_horaire }}</small>
-                </div>
-              </div>
-              <input type="hidden" name="session_id" value="{{ session.obj.id }}">
-              <input type="hidden" name="from_page" value="dashboard">
-              
-              <div class="mb-3">
-                <label for="participant_id_{{ session.obj.id }}" class="form-label">Participant: <span class="text-danger">*</span></label>
-                <select class="form-select" id="participant_id_{{ session.obj.id }}" name="participant_id" required>
-                  <option value="">Sélectionnez un participant</option>
-                  {% for participant in participants %}
-                    <option value="{{ participant.id }}">{{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})</option>
-                  {% endfor %}
-                </select>
-              </div>
-              
-              <p class="mb-0 text-muted small"><i class="fas fa-info-circle me-1"></i> Une fois inscrit, le participant sera en attente de validation.</p>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-              <button type="submit" class="btn btn-primary">Inscrire</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  {% endfor %}
+</div>
+
+<!-- Modales pour les sessions (générées par Jinja si initial_sessions_data est fourni) -->
+{% if initial_sessions_data is defined %}
+    {% for session_item_data in initial_sessions_data %}
+        {% set session = session_item_data.obj %} {# Supposant que la structure est {obj: session_object, ...} #}
+        {% if session %}
+            {% include 'modals/_inscription_modal.html' with context %}
+            {% include 'modals/_participants_modal.html' with context %}
+        {% endif %}
+    {% endfor %}
 {% endif %}
+<!-- Ou, si les modales sont génériques et peuplées par JS, vous auriez ici des templates de modales vides -->
+<!-- Exemple de modale générique (si vous n'utilisez pas la boucle ci-dessus) -->
+<!-- 
+<div class="modal fade" id="genericInscriptionModal" tabindex="-1" aria-labelledby="genericInscriptionModalLabel" aria-hidden="true">
+    Contenu de la modale d'inscription générique
+</div>
+<div class="modal fade" id="genericParticipantsModal" tabindex="-1" aria-labelledby="genericParticipantsModalLabel" aria-hidden="true">
+    Contenu de la modale des participants générique
+</div>
+-->
+
 {% endblock %}
 
 {% block scripts %}
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // Si notre correctif n'a pas encore été chargé (pour une raison quelconque), on définit cette fonction
-    if (!window.dashboardFix) {
-      console.warn("Le correctif dashboard-fix.js n'a pas été chargé correctement");
-      window.dashboardFix = {
-        fix: function() {
-          console.log("Fonction de secours pour dashboardFix.fix()");
-          if (typeof window.forcePollingUpdate === 'function') {
-            window.forcePollingUpdate(true);
-          }
-        }
-      };
-    }
-    
-    // S'assurer que le tableau de bord est initialisé
-    if (window.dashboardFix && typeof window.dashboardFix.fix === 'function') {
-      window.dashboardFix.fix();
-    }
-    
-    // S'assurer que les tooltips sont initialisés
-    if (typeof initializeGlobalTooltips === 'function') {
-      initializeGlobalTooltips();
-    }
-    
-    // S'assurer que les badges de thème sont améliorés
-    if (typeof enhanceThemeBadgesGlobally === 'function') {
-      enhanceThemeBadgesGlobally();
-    }
-    
-    // Configurez le bouton Actualiser s'il n'est pas déjà configuré
-    const refreshButton = document.getElementById('refresh-dashboard');
-    if (refreshButton) {
-      refreshButton.addEventListener('click', function() {
-        this.disabled = true;
-        const originalText = this.innerHTML;
-        this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i> Actualisation...';
-        
-        // Utiliser le correctif ou la méthode d'origine
-        if (window.dashboardFix && typeof window.dashboardFix.fix === 'function') {
-          window.dashboardFix.fix();
-        } else if (typeof window.forcePollingUpdate === 'function') {
-          window.forcePollingUpdate(true);
-        }
-        
-        setTimeout(() => {
-          this.disabled = false;
-          this.innerHTML = originalText;
-        }, 1000);
-      });
-    }
-  });
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- Assurez-vous que Bootstrap JS est chargé (généralement dans layout.html) -->
+
+    <script>
+        window.dashboardConfig = {
+            debugMode: {{ debug_mode|tojson }},
+            baseApiUrl: "{{ url_for('index') }}api", // Assure une base URL correcte (ex: /api)
+            // Vous pouvez surcharger d'autres valeurs de config ici si nécessaire
+            // autoRefreshInterval: 30000, 
+            // pollingEnabled: true,
+            themeColors: {{ config.get('THEME_COLORS_CONFIG', {})|tojson }}, // Exemple pour passer des couleurs
+            serviceColors: {{ config.get('SERVICE_COLORS_CONFIG', {})|tojson }}
+        };
+
+        // Fonction Toast globale (si elle n'est pas déjà définie dans layout.html ou un script global)
+        // function showToast(message, type = 'info', duration = 3000) {
+        //     console.log(`Toast (${type}): ${message}`);
+        //     // Votre implémentation de Toast (ex: avec Bootstrap Toasts)
+        //     // Exemple simple:
+        //     const toastContainer = document.getElementById('toast-container-global'); // Assurez-vous que cet élément existe
+        //     if (toastContainer) {
+        //         const toastId = 'toast-' + Date.now();
+        //         const toastHtml = `
+        //             <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="${duration}">
+        //                 <div class="d-flex">
+        //                     <div class="toast-body">${message}</div>
+        //                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        //                 </div>
+        //             </div>`;
+        //         toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        //         var toastEl = document.getElementById(toastId);
+        //         var bsToast = new bootstrap.Toast(toastEl);
+        //         bsToast.show();
+        //         toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+        //     }
+        // }
+    </script>
+
+    <script src="{{ url_for('static', filename='js/api-error-handler.js') }}?v=1.1"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}?v=2.1.0"></script> 
 {% endblock %}
