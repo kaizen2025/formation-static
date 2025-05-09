@@ -189,32 +189,33 @@
                         </thead>
                         <tbody>
                             {% if sessions_data %}
-                                {% for session in sessions_data %}
-                                <tr class="session-row" data-session-id="{{ session.obj.id }}" data-theme="{{ session.obj.theme.nom }}" data-full="{{ '1' if session.places_restantes <= 0 else '0' }}">
+                                {% for session_item in sessions_data %} {# Renommé pour éviter conflit avec session Flask #}
+                                {% set session_obj = session_item.obj %}
+                                <tr class="session-row" data-session-id="{{ session_obj.id }}" data-theme="{{ session_obj.theme.nom }}" data-full="{{ '1' if session_item.places_restantes <= 0 else '0' }}">
                                     <td>
-                                        <span class="fw-bold d-block">{{ session.obj.formatage_date }}</span>
-                                        <small class="text-secondary">{{ session.obj.formatage_horaire }}</small>
+                                        <span class="fw-bold d-block">{{ session_obj.formatage_date }}</span>
+                                        <small class="text-secondary">{{ session_obj.formatage_horaire }}</small>
                                     </td>
                                     <td class="theme-cell">
-                                        <span class="theme-badge" data-theme="{{ session.obj.theme.nom }}">
-                                            {{ session.obj.theme.nom }}
+                                        <span class="theme-badge" data-theme="{{ session_obj.theme.nom }}">
+                                            {{ session_obj.theme.nom }}
                                         </span>
                                     </td>
-                                    <td class="places-dispo text-nowrap {{ 'text-danger' if session.places_restantes <= 0 else ('text-warning' if session.places_restantes <= 3 else 'text-success') }}">
-                                        <i class="fas {{ 'fa-times-circle' if session.places_restantes <= 0 else ('fa-exclamation-triangle' if session.places_restantes <= 3 else 'fa-check-circle') }} me-1"></i> {{ session.places_restantes }} / {{ session.obj.max_participants }}
+                                    <td class="places-dispo text-nowrap {{ 'text-danger' if session_item.places_restantes <= 0 else ('text-warning' if session_item.places_restantes <= 3 else 'text-success') }}">
+                                        <i class="fas {{ 'fa-times-circle' if session_item.places_restantes <= 0 else ('fa-exclamation-triangle' if session_item.places_restantes <= 3 else 'fa-check-circle') }} me-1"></i> {{ session_item.places_restantes }} / {{ session_obj.max_participants }}
                                     </td>
                                     <td class="js-salle-cell">
-                                        {% if session.obj.salle %}
-                                            {{ session.obj.salle.nom }}
+                                        {% if session_obj.salle %}
+                                            {{ session_obj.salle.nom }}
                                         {% else %}
                                             <span class="badge bg-secondary">Non définie</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-nowrap text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#participantsModal_{{ session.obj.id }}" title="Voir les participants">
-                                            <i class="fas fa-users"></i> <span class="badge bg-secondary ms-1">{{ session.inscrits_confirmes_count }}</span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#participantsModal_{{ session_obj.id }}" title="Voir les participants">
+                                            <i class="fas fa-users"></i> <span class="badge bg-secondary ms-1">{{ session_item.inscrits_confirmes_count }}</span>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal_{{ session.obj.id }}" title="Inscrire un participant">
+                                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal_{{ session_obj.id }}" title="Inscrire un participant">
                                             <i class="fas fa-plus"></i>
                                         </button>
                                     </td>
@@ -316,7 +317,7 @@
                     <canvas id="serviceDistributionChart"></canvas>
                 </div>
                  <div id="serviceChartLegend" class="static-chart-legend mt-2">
-                    {# Légende générée par JS si besoin, sinon Chart.js peut l'afficher #}
+                    {# Légende générée par JS si besoin #}
                 </div>
             </div>
         </div>
@@ -346,10 +347,11 @@
 
 {% block modals %}
 <!-- Modales pour chaque session (Inscription, Participants, Attribuer Salle) -->
-{% for session_item_dict in sessions_data %}
+{% for session_item_dict in sessions_data %} {# Renommé pour éviter conflit #}
     {% set session_obj_for_modal = session_item_dict.obj %}
     {% set session_data_for_modal = session_item_dict %}
 
+    {# Passer session_obj_for_modal comme 'session' aux sous-templates #}
     {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
         {% include 'modals/_inscription_modal.html' %}
     {% endwith %}
@@ -398,8 +400,9 @@
                         <label for="service_id_global_select" class="form-label">Service<span class="text-danger">*</span></label>
                         <select class="form-select" id="service_id_global_select" name="service_id" required>
                             <option value="">-- Sélectionner un service --</option>
-                            {% for service in services %} {# 'services' doit être passé au template dashboard #}
-                            <option value="{{ service.id }}">{{ service.nom }}</option>
+                            {# 'services' doit être passé au template dashboard par la route Python #}
+                            {% for service_item_loop in services %} {# Renommé pour éviter conflit #}
+                            <option value="{{ service_item_loop.id }}">{{ service_item_loop.nom }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -422,24 +425,17 @@
         if (nouveauParticipantModalGlobal) {
             nouveauParticipantModalGlobal.addEventListener('show.bs.modal', function(event) {
                 const button = event.relatedTarget;
-                const sessionId = button.getAttribute('data-session-id-for-new-participant'); // Attribut spécifique
+                // Utiliser un nom d'attribut clair pour éviter les conflits
+                const sessionIdForNewParticipant = button.getAttribute('data-session-id-for-new-participant');
                 const redirectSessionIdInput = document.getElementById('redirect_session_id_global');
-                if (redirectSessionIdInput && sessionId) {
-                    redirectSessionIdInput.value = sessionId;
+
+                if (redirectSessionIdInput && sessionIdForNewParticipant) {
+                    redirectSessionIdInput.value = sessionIdForNewParticipant;
                 } else if (redirectSessionIdInput) {
                     redirectSessionIdInput.value = ''; // Vider si pas de session ID
                 }
             });
         }
-
-        // S'assurer que les boutons "Nouveau participant" dans les modales d'inscription
-        // ont bien l'attribut data-session-id-for-new-participant="{{ session.obj.id }}"
-        // Exemple (dans _inscription_modal.html):
-        // <button type="button" class="btn btn-success" data-bs-toggle="modal"
-        //         data-bs-target="#nouveauParticipantModal"
-        //         data-session-id-for-new-participant="{{ session.id }}">
-        //     <i class="fas fa-plus me-1"></i>Nouveau participant
-        // </button>
 
         // Initialiser les badges thème sur cette page
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
