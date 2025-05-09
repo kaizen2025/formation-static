@@ -1,277 +1,266 @@
+<!-- templates/dashboard.html -->
 {% extends "layout.html" %}
 
-{% block title %}Tableau de bord - {{ app_name | default('Gestion Formation') }}{% endblock %}
+{% block title %}Tableau de Bord - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+    <style>
+        .stat-card .fa-2x { transition: transform 0.2s ease-out; }
+        .stat-card:hover .fa-2x { transform: scale(1.15) rotate(-5deg); }
+        #sessions-a-venir-table .action-btn { min-width: 38px; }
+        .activity-container-card { max-height: 350px; overflow-y: auto; } /* Ajuster hauteur si besoin */
+        #activity-loading-spinner, .sessions-loading-spinner td {
+            color: var(--text-muted-light);
+            padding: 2rem 0; /* Plus d'espace pour les spinners */
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <h1 class="h3 mb-4 text-gray-800">
-        <i class="fas fa-tachometer-alt me-2"></i>Tableau de bord
-    </h1>
+<div class="container-fluid page-transition">
 
-    <!-- Cartes d'informations -->
-    <div class="row mb-4">
-        <!-- Session programmées -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Sessions programmées</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="sessions-count">{{ stats.sessions_count if stats is defined else 0 }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
+    <!-- Titre de la Page et Bouton Actualiser -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-fw fa-tachometer-alt me-2"></i>Tableau de bord</h1>
+        <button id="refresh-dashboard-button" class="btn btn-sm btn-primary shadow-sm">
+            <i class="fas fa-sync-alt fa-sm text-white-50 me-1"></i> Actualiser
+        </button>
+    </div>
+
+    <!-- Rangée des Cartes de Statistiques -->
+    <div class="row">
+        <!-- ... (Les 4 cartes de statistiques comme dans ta version précédente, avec les ID corrects) ... -->
+        <!-- Ex: total-sessions-programmes, total-inscriptions-confirmees, total-en-attente, total-sessions-completes -->
+         <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2 stat-card">
+                <div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sessions Programmées</div>
+                    <div id="total-sessions-programmes" class="h5 mb-0 font-weight-bold text-gray-800"><span class="spinner-border spinner-border-sm" role="status"></span></div>
+                </div><div class="col-auto"><i class="fas fa-calendar-days fa-2x text-gray-300"></i></div></div></div>
             </div>
         </div>
-
-        <!-- Participants inscrits -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Participants inscrits (confirmés)</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="participants-count">{{ stats.participants_count if stats is defined else 0 }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
+            <div class="card border-left-success shadow h-100 py-2 stat-card">
+                <div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Participants Inscrits (Conf.)</div>
+                    <div id="total-inscriptions-confirmees" class="h5 mb-0 font-weight-bold text-gray-800"><span class="spinner-border spinner-border-sm" role="status"></span></div>
+                </div><div class="col-auto"><i class="fas fa-users-line fa-2x text-gray-300"></i></div></div></div>
             </div>
         </div>
-
-        <!-- En liste d'attente -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                En liste d'attente (total)</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="waiting-count">{{ stats.waiting_count if stats is defined else 0 }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-user-clock fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
+            <div class="card border-left-info shadow h-100 py-2 stat-card">
+                <div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">En Liste d'Attente (Total)</div>
+                    <div id="total-en-attente" class="h5 mb-0 mr-3 font-weight-bold text-gray-800"><span class="spinner-border spinner-border-sm" role="status"></span></div>
+                </div><div class="col-auto"><i class="fas fa-user-clock fa-2x text-gray-300"></i></div></div></div>
             </div>
         </div>
-
-        <!-- Sessions complétées -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Sessions complétées</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="completed-sessions-count">{{ stats.completed_sessions if stats is defined else 0 }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
+            <div class="card border-left-warning shadow h-100 py-2 stat-card">
+                <div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Sessions Complètes</div>
+                    <div id="total-sessions-completes" class="h5 mb-0 font-weight-bold text-gray-800"><span class="spinner-border spinner-border-sm" role="status"></span></div>
+                </div><div class="col-auto"><i class="fas fa-person-circle-check fa-2x text-gray-300"></i></div></div></div>
             </div>
         </div>
     </div>
 
-    <!-- Contenu Principal -->
+    <!-- Rangée de Contenu Principal -->
     <div class="row">
-        <!-- Colonne Principale (gauche) - Sessions à venir -->
+        <!-- Zone des Sessions à venir (colonne de gauche) -->
         <div class="col-xl-8 col-lg-7">
             <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-calendar-alt mr-1"></i> Sessions à venir
-                    </h6>
-                    <div class="dropdown no-arrow">
-                        <button id="refresh-dashboard-btn" class="btn btn-sm btn-primary">
-                            <i class="fas fa-sync-alt fa-fw"></i> Actualiser
-                        </button>
-                        <span id="polling-indicator" class="badge bg-success ms-2 {% if not config.pollingEnabled %}d-none{% endif %}" 
-                              title="Actualisation automatique activée">
-                            <i class="fas fa-circle-notch fa-spin"></i>
-                        </span>
-                        <span class="text-muted ms-2 small">
-                            <i class="far fa-clock fa-fw"></i>
-                            <span id="last-refresh-time">-</span>
-                        </span>
-                    </div>
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-alt me-2"></i>Sessions à venir</h6>
+                    <input type="text" id="session-filter" class="form-control form-control-sm w-auto" placeholder="Filtrer sessions...">
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-search"></i></span>
-                            <input type="text" class="form-control" id="sessions-filter-input" placeholder="Filtrer les sessions...">
-                        </div>
-                    </div>
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>DATE / HORAIRE</th>
-                                    <th>THÈME</th>
-                                    <th>SALLE</th>
-                                    <th>PLACES</th>
-                                    <th>ACTIONS</th>
-                                </tr>
-                            </thead>
-                            <tbody id="upcoming-sessions-tbody">
-                                <tr id="sessions-loading-row">
-                                    <td colspan="5" class="text-center py-4">
-                                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                        <span class="ms-2">Chargement des sessions...</span>
-                                    </td>
-                                </tr>
-                                {% if upcoming_sessions is defined and upcoming_sessions %}
-                                    {% for session in upcoming_sessions %}
-                                    <tr data-session-id="{{ session.id }}">
-                                        <td>
-                                            <div class="fw-bold">{{ session.date }}</div>
-                                            <div class="small text-muted">{{ session.heure_debut }} - {{ session.heure_fin }}</div>
-                                        </td>
-                                        <td>
-                                            <span class="fw-semibold">{{ session.titre or session.theme }}</span>
-                                            {% if session.titre and session.theme %}
-                                            <div class="small text-muted">{{ session.theme }}</div>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ session.salle or '-' }}</td>
-                                        <td>
-                                            <span class="badge {{ 'bg-danger' if session.places_disponibles <= 0 else ('bg-warning text-dark' if session.places_disponibles <= 3 else 'bg-success') }}">
-                                                {{ session.places_prises }}/{{ session.places_prises + session.places_disponibles }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <a href="{{ url_for('session_detail', session_id=session.id) }}" class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="5" class="text-center py-4">
-                                            <i class="fas fa-info-circle me-2 text-info"></i>
-                                            Aucune session à venir n'est programmée pour le moment.
-                                        </td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
+                        <table class="table table-hover mb-0" id="sessions-a-venir-table">
+                            <thead><tr><th>Date / Horaire</th><th>Thème</th><th class="text-center">Places</th><th>Salle</th><th class="text-center">Actions</th></tr></thead>
+                            <tbody><tr class="sessions-loading-spinner"><td colspan="5" class="text-center p-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Chargement...</p></td></tr></tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Colonne de Droite - Graphiques ET Activités Récentes -->
+        <!-- Colonne de Droite (Graphiques ET Activités) -->
         <div class="col-xl-4 col-lg-5">
-            <!-- Graphique par Thème -->
             <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-chart-pie fa-fw me-1"></i>Répartition par Thème
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container" style="position: relative; height: 260px;">
-                        <canvas id="theme-distribution-chart"></canvas>
-                    </div>
-                </div>
+                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Répartition par Thème</h6></div>
+                <div class="card-body"><div class="dynamic-chart-container"><canvas id="themeDistributionChart"></canvas></div></div>
             </div>
-
-            <!-- Graphique par Service -->
             <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-chart-bar fa-fw me-1"></i>Participants par Service
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container" style="position: relative; height: 260px;">
-                        <canvas id="service-distribution-chart"></canvas>
-                    </div>
-                </div>
+                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-bar me-2"></i>Participants par Service</h6></div>
+                <div class="card-body"><div class="dynamic-chart-container"><canvas id="serviceDistributionChart"></canvas></div></div>
             </div>
-
             <!-- Activités Récentes (DÉPLACÉ ICI) -->
             <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-2"></i>Activités Récentes</h6>
                     {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-                    <a href="{{ url_for('activites_journal') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-book me-1"></i> Tout le journal
-                    </a>
+                    <a href="{{ url_for('activites_journal') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-book me-1"></i> Tout le journal</a>
                     {% endif %}
                 </div>
                 <div class="card-body activity-container-card p-0">
                     <ul class="list-group list-group-flush" id="recent-activity-list">
-                        <li class="list-group-item text-center p-3" id="activity-loading-spinner">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                            <span class="ms-2 text-muted">Chargement des activités...</span>
-                        </li>
-                        {% if recent_activities is defined and recent_activities %}
-                            {% for activity in recent_activities %}
-                            <li class="list-group-item border-start-0 border-end-0 py-3">
-                                <div class="d-flex">
-                                    <div class="me-3">
-                                        <i class="fas 
-                                        {% if 'supprim' in activity.action %}fa-trash text-danger
-                                        {% elif 'modifi' in activity.action %}fa-pen-to-square text-primary
-                                        {% elif 'connect' in activity.action %}fa-sign-in-alt text-info
-                                        {% elif 'inscri' in activity.action %}fa-user-plus text-success
-                                        {% elif 'désinscri' in activity.action %}fa-user-minus text-warning
-                                        {% else %}fa-circle-check text-success{% endif %}"></i>
-                                    </div>
-                                    <div class="activity-content">
-                                        <div class="mb-1">{{ activity.description }}</div>
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <small class="text-muted">{{ activity.user or 'Système' }}</small>
-                                            <small class="text-muted">{{ activity.timestamp }}</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </li>
-                            {% endfor %}
-                        {% else %}
-                            <li class="list-group-item text-center py-4">
-                                <i class="fas fa-info-circle me-2 text-info"></i>
-                                Aucune activité récente à afficher.
-                            </li>
-                        {% endif %}
+                         <li class="list-group-item text-center p-3" id="activity-loading-spinner"><div class="spinner-border spinner-border-sm text-primary"></div><span class="ms-2 text-muted">Chargement...</span></li>
                     </ul>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
+        </div> <!-- Fin col-xl-4 col-lg-5 -->
+    </div> <!-- Fin row -->
+</div> <!-- Fin container-fluid -->
 {% endblock %}
 
-{% block scripts_extra %}
-<script>
-    // Code spécifique au dashboard si nécessaire
-    document.addEventListener('DOMContentLoaded', function() {
-        // Rendre les lignes de session cliquables
-        const sessionRows = document.querySelectorAll('#upcoming-sessions-tbody tr[data-session-id]');
-        sessionRows.forEach(row => {
-            row.classList.add('clickable-row');
-            row.addEventListener('click', function(e) {
-                // Ne pas déclencher si on a cliqué sur le bouton
-                if (e.target.closest('.btn') || e.target.closest('a')) {
-                    return;
-                }
-                const sessionId = this.dataset.sessionId;
-                window.location.href = '/sessions/' + sessionId;
-            });
-        });
-    });
-</script>
+{% block modals %}
+    <!-- ... (Coller ici le contenu COMPLET du bloc modals de ma réponse précédente, avec les 3 modales génériques) ... -->
+    <!-- Modale Générique pour Voir les Participants d'une Session -->
+    <div class="modal fade" id="genericParticipantsModal" tabindex="-1" aria-labelledby="genericParticipantsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header bg-info text-white">
+            <h5 class="modal-title" id="genericParticipantsModalLabel"><i class="fas fa-users me-2"></i>Participants: <span id="genericParticipantsModalSessionTheme">Thème</span></h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="alert alert-light border shadow-sm mb-4 p-3">
+              <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <h6 class="mb-1 fw-bold text-info-emphasis me-3">Session du <span id="genericParticipantsModalSessionDate">Date</span> (<span id="genericParticipantsModalSessionHoraire">Horaire</span>)</h6>
+                <span class="badge fs-6" id="genericParticipantsModalPlacesBadge">X / Y places dispo.</span>
+              </div>
+              <hr class="my-2">
+              <p class="mb-0 small text-body-secondary">
+                <i class="fas fa-building fa-fw me-1"></i><strong>Salle:</strong> 
+                <span class="badge bg-light text-dark border" id="genericParticipantsModalSessionSalle">Non définie</span>
+              </p>
+            </div>
+            <ul class="nav nav-tabs nav-fill mb-3" id="genericParticipantsTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="gConfirmes-tab" data-bs-toggle="tab" data-bs-target="#gConfirmes-content" type="button" role="tab"><i class="fas fa-check-circle text-success me-1"></i> Confirmés <span class="badge rounded-pill bg-success ms-1" id="gConfirmesCount">0</span></button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="gEnAttente-tab" data-bs-toggle="tab" data-bs-target="#gEnAttente-content" type="button" role="tab"><i class="fas fa-clock text-warning me-1"></i> En attente <span class="badge rounded-pill bg-warning text-dark ms-1" id="gEnAttenteCount">0</span></button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="gListeAttente-tab" data-bs-toggle="tab" data-bs-target="#gListeAttente-content" type="button" role="tab"><i class="fas fa-hourglass-half text-info me-1"></i> Liste d'attente <span class="badge rounded-pill bg-info text-dark ms-1" id="gListeAttenteCount">0</span></button>
+              </li>
+            </ul>
+            <div class="tab-content pt-3" id="genericParticipantsTabsContent">
+              <div class="tab-pane fade show active" id="gConfirmes-content" role="tabpanel">
+                  <div id="gConfirmesTableContainer" class="table-responsive"></div><div id="gConfirmesNoData" class="alert alert-light text-center py-4 border" style="display:none;">Aucun participant confirmé.</div>
+              </div>
+              <div class="tab-pane fade" id="gEnAttente-content" role="tabpanel">
+                  <div id="gEnAttenteTableContainer" class="table-responsive"></div><div id="gEnAttenteNoData" class="alert alert-light text-center py-4 border" style="display:none;">Aucune inscription en attente.</div>
+              </div>
+              <div class="tab-pane fade" id="gListeAttente-content" role="tabpanel">
+                  <div id="gListeAttenteTableContainer" class="table-responsive"></div><div id="gListeAttenteNoData" class="alert alert-light text-center py-4 border" style="display:none;">Aucun participant en liste d'attente.</div>
+              </div>
+            </div>
+            <div id="genericParticipantsModalSpinner" class="text-center py-5" style="display:none;"><div class="spinner-border text-info" role="status"></div><p class="mt-2">Chargement...</p></div>
+          </div>
+          <div class="modal-footer justify-content-between bg-light border-top">
+            <button type="button" class="btn btn-primary btn-sm btn-inscrire-depuis-participants" data-session-id=""><i class="fas fa-user-plus me-1"></i> Inscrire à cette session</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i> Fermer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modale Générique pour Inscrire un Participant à une Session -->
+    <div class="modal fade" id="genericInscriptionModal" tabindex="-1" aria-labelledby="genericInscriptionModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="genericInscriptionModalLabel"><i class="fas fa-user-plus me-2"></i>Inscription: <span id="genericInscriptionModalSessionTheme">Thème</span></h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="alert alert-light border mb-4 p-3 shadow-sm">
+              <div class="d-flex align-items-center">
+                 <i class="fas fa-calendar-check fa-2x me-3 text-primary-emphasis"></i>
+                 <div>
+                    <h6 class="mb-1 fw-bold text-primary-emphasis">Session du <span id="genericInscriptionModalSessionDate">Date</span></h6>
+                    <p class="mb-1 small text-body-secondary"><i class="far fa-clock fa-fw me-1"></i>Horaire: <span id="genericInscriptionModalSessionHoraire">Horaire</span></p>
+                    <p class="mb-1 small text-body-secondary"><i class="fas fa-chair fa-fw me-1"></i>Places disponibles: <strong class="badge" id="genericInscriptionModalPlacesBadge">X / Y</strong></p>
+                    <p class="mb-0 small text-body-secondary"><i class="fas fa-building fa-fw me-1"></i>Salle: <span class="badge bg-light text-dark border" id="genericInscriptionModalSessionSalle">Salle</span></p>
+                 </div>
+              </div>
+            </div>
+            <ul class="nav nav-tabs nav-fill mb-3" id="genericInscriptionTabs" role="tablist">
+              <li class="nav-item" role="presentation"><button class="nav-link active" id="gParticipantExistantTab" data-bs-toggle="tab" data-bs-target="#gParticipantExistantContent" type="button"><i class="fas fa-user me-1"></i> Existant</button></li>
+              <li class="nav-item" role="presentation"><button class="nav-link" id="gNouveauParticipantTab" data-bs-toggle="tab" data-bs-target="#gNouveauParticipantContent" type="button"><i class="fas fa-user-plus me-1"></i> Nouveau</button></li>
+            </ul>
+            <div class="tab-content pt-3" id="genericInscriptionTabsContent">
+              <div class="tab-pane fade show active" id="gParticipantExistantContent" role="tabpanel">
+                <form method="post" id="genericInscriptionExistantForm" class="needs-validation" novalidate>
+                  <input type="hidden" name="session_id" id="gInscriptionSessionIdExistant" value="">
+                  <input type="hidden" name="from_page" value="dashboard">
+                  <div class="mb-3">
+                    <label for="gParticipantIdSelect" class="form-label">Sélectionner un participant*</label>
+                    <select class="form-select" id="gParticipantIdSelect" name="participant_id" required></select>
+                    <div class="invalid-feedback">Veuillez sélectionner un participant.</div>
+                  </div>
+                  <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-check-circle me-2"></i>Confirmer l'inscription</button></div>
+                </form>
+              </div>
+              <div class="tab-pane fade" id="gNouveauParticipantContent" role="tabpanel">
+                <p class="small text-muted mb-3">Il sera automatiquement inscrit à cette session (en attente de validation).</p>
+                <form method="post" id="genericInscriptionNouveauForm" class="needs-validation" novalidate>
+                  <input type="hidden" name="from_page" value="dashboard">
+                  <input type="hidden" name="redirect_session_id" id="gInscriptionSessionIdNouveau" value="">
+                  <input type="hidden" name="action_after_add" value="inscription">
+                  <input type="hidden" name="from_modal" value="true">
+                  <div class="row g-3">
+                    <div class="col-md-6"><label for="gNomNouveau" class="form-label">Nom*</label><input type="text" class="form-control" id="gNomNouveau" name="nom" required><div class="invalid-feedback">Nom obligatoire.</div></div>
+                    <div class="col-md-6"><label for="gPrenomNouveau" class="form-label">Prénom*</label><input type="text" class="form-control" id="gPrenomNouveau" name="prenom" required><div class="invalid-feedback">Prénom obligatoire.</div></div>
+                    <div class="col-12"><label for="gEmailNouveau" class="form-label">Email*</label><input type="email" class="form-control" id="gEmailNouveau" name="email" required><div class="invalid-feedback">Email valide obligatoire.</div></div>
+                    <div class="col-12"><label for="gServiceIdNouveau" class="form-label">Service*</label><select class="form-select" id="gServiceIdNouveau" name="service_id" required></select><div class="invalid-feedback">Service obligatoire.</div></div>
+                  </div>
+                  <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-success btn-lg"><i class="fas fa-user-plus me-2"></i>Ajouter et Inscrire</button></div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer bg-light justify-content-between">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i> Annuler</button>
+            <a href="#" class="btn btn-warning btn-sm" id="gListeAttenteLink"><i class="fas fa-clock me-1"></i> S'inscrire en liste d'attente</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    <div class="modal fade" id="genericAttribuerSalleModal" tabindex="-1" aria-labelledby="genericAttribuerSalleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="genericAttribuerSalleModalLabel"><i class="fas fa-building me-2"></i>Attribuer Salle: <span id="genericAttribuerSalleModalSessionTheme">Thème</span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border shadow-sm mb-4 p-3">
+                        <h6 class="mb-1 fw-bold text-info-emphasis">Session du <span id="genericAttribuerSalleModalSessionDate">Date</span> (<span id="genericAttribuerSalleModalSessionHoraire">Horaire</span>)</h6>
+                    </div>
+                    <form method="post" id="genericAttribuerSalleForm" class="needs-validation" novalidate>
+                        <input type="hidden" name="session_id" id="gAttribuerSalleSessionId" value="">
+                        <div class="mb-3">
+                            <label for="gSalleIdSelect" class="form-label">Choisir une salle*</label>
+                            <select class="form-select" id="gSalleIdSelect" name="salle_id" required></select>
+                            <div class="invalid-feedback">Veuillez sélectionner une salle.</div>
+                        </div>
+                        <div id="gAttribuerSalleCurrentInfo" class="alert alert-light border small p-2 mb-3"></div>
+                        <div class="d-grid"><button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-check me-2"></i>Confirmer</button></div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light border-top"><button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}
+
+{% block scripts_page_specific %}
+    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}?v=2.2.3" defer></script>
 {% endblock %}
