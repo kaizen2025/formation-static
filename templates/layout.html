@@ -19,7 +19,7 @@
     <!-- Styles personnalisés consolidés -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}"> <!-- Styles de correction -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
 
     {% block head_extra %}{% endblock %}
 
@@ -169,11 +169,15 @@
     <!-- Bootstrap JS Bundle (inclut Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
 
+    <!-- Chart.js (AJOUTÉ ICI) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    {# Ou une version plus récente si disponible, ex: Chart.js 4.x #}
+    {# <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> #}
+
+
     <!-- Scripts personnalisés (l'ordre est important) -->
     <script src="{{ url_for('static', filename='js/api-error-handler.js') }}" defer></script>
-    <!-- modal-fix.js est le correctif principal -->
     <script src="{{ url_for('static', filename='js/modal-fix.js') }}" defer></script>
-    <!-- modal-fix-patch.js est un correctif supplémentaire, peut être commenté si cause problème -->
     <script src="{{ url_for('static', filename='js/modal-fix-patch.js') }}" defer></script>
 
     <!-- Configuration JS (si nécessaire, avant dashboard-init) -->
@@ -265,15 +269,14 @@
                 }
 
                 const themeDescription = window.themesDataForChart?.[themeName]?.description;
-                if (themeDescription && !badge.hasAttribute('data-bs-toggle')) { // Add tooltip only if not already present
+                if (themeDescription && !badge.hasAttribute('data-bs-toggle')) {
                     badge.setAttribute('data-bs-toggle', 'tooltip');
                     badge.setAttribute('data-bs-placement', 'top');
                     badge.setAttribute('title', themeDescription);
                 }
                 badge.dataset.enhanced = 'true';
             });
-            // Re-initialize tooltips for newly added attributes
-            initializeGlobalTooltips();
+            initializeGlobalTooltips(); // Réinitialiser après avoir potentiellement ajouté des attributs data-bs-toggle
         };
 
         // Fonction globale pour initialiser les tooltips
@@ -281,12 +284,10 @@
              if (typeof bootstrap === 'undefined' || typeof bootstrap.Tooltip !== 'function') return;
              var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
              var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                 // Dispose existing tooltip before creating a new one
                  var existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
                  if (existingTooltip) {
                      existingTooltip.dispose();
                  }
-                 // Create new tooltip
                  try {
                     return new bootstrap.Tooltip(tooltipTriggerEl);
                  } catch(e) {
@@ -298,8 +299,8 @@
 
         // Initialisation au chargement du DOM
         document.addEventListener('DOMContentLoaded', function () {
-            window.enhanceThemeBadgesGlobally(); // Enhance badges first
-            window.initializeGlobalTooltips(); // Then initialize all tooltips
+            window.enhanceThemeBadgesGlobally();
+            window.initializeGlobalTooltips();
         });
     </script>
 
