@@ -217,6 +217,37 @@ def limit_connections_if_needed():
     except Exception as e: app.logger.error(f"Error in limiting connections: {e}")
     return None
 
+def log_activity(user_name, description, entity_type=None, entity_id=None):
+    """
+    Enregistre une activité dans la base de données
+    
+    Args:
+        user_name (str): Nom de l'utilisateur qui a effectué l'action
+        description (str): Description de l'action
+        entity_type (str, optional): Type d'entité concernée (ex: 'Session', 'User')
+        entity_id (int, optional): ID de l'entité concernée
+    """
+    try:
+        activity = Activite(
+            user_name=user_name,
+            description=description,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            timestamp=datetime.datetime.now()
+        )
+        
+        db.session.add(activity)
+        db.session.commit()
+        
+        app.logger.info(f"Activité enregistrée: {user_name} - {description}")
+        return True
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur lors de l'enregistrement de l'activité: {str(e)}")
+        return False
+
+
 # --- DB Retry Decorator ---
 def db_operation_with_retry(max_retries=3, retry_delay=0.5,
                             retry_on_exceptions=(OperationalError, TimeoutError),
