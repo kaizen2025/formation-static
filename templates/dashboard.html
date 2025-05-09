@@ -27,6 +27,27 @@
     .activity-subtitle small { font-size: 100%; }
     .activity-time { display: block; margin-top: 0.2rem; }
 
+    /* Styles pour les conteneurs de graphiques dynamiques */
+    .dynamic-chart-container {
+        height: 280px; /* Hauteur fixe pour le canvas */
+        position: relative; /* Pour positionner le message "no data" */
+        margin-bottom: 1rem; /* Espace sous le graphique */
+    }
+    .dynamic-chart-container canvas {
+        max-width: 100%;
+        max-height: 100%;
+    }
+    .no-data-message-chart { /* Style pour le message si pas de données */
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: var(--secondary);
+        font-size: 0.9rem;
+    }
+
+
     /* Ajustements responsifs */
     @media (max-width: 1200px) {
         .session-table th, .session-table td { font-size: 0.75rem; padding: 0.35rem; }
@@ -36,7 +57,7 @@
     }
     @media (max-width: 992px) {
         .col-xl-7.col-lg-6, .col-xl-5.col-lg-6 { flex: 0 0 100%; max-width: 100%;} /* Empiler les colonnes */
-        .static-chart-container { min-height: 260px; }
+        .dynamic-chart-container { min-height: 260px; }
     }
     @media (max-width: 768px) {
         .stat-card .h5 { font-size: 1.3rem; }
@@ -245,14 +266,13 @@
                                 <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="me-1">
-                                            <input type="hidden" name="action" value="valider">
-                                            <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i>Valider</button>
-                                        </form>
-                                        <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post">
-                                            <input type="hidden" name="action" value="refuser">
-                                            <button type="submit" class="btn btn-danger"><i class="fas fa-times me-1"></i>Refuser</button>
-                                        </form>
+                                        {# Utilisation de la route AJAX pour validation/refus #}
+                                        <button type="button" class="btn btn-success validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="valider" {{ 'disabled' if inscription.session.get_places_restantes() <= 0 else '' }}>
+                                            <i class="fas fa-check me-1"></i>Valider
+                                        </button>
+                                        <button type="button" class="btn btn-danger validation-ajax ms-1" data-inscription-id="{{ inscription.id }}" data-action="refuser">
+                                            <i class="fas fa-times me-1"></i>Refuser
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -267,40 +287,36 @@
 
     <!-- Colonne secondaire avec les graphiques et activités -->
     <div class="col-xl-5 col-lg-6 mb-4">
-        <!-- Graphique distribution par thème (static) -->
+        <!-- Graphique distribution par thème (Dynamique) -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white py-3">
                 <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-chart-pie me-2"></i>Répartition des inscriptions
+                    <i class="fas fa-chart-pie me-2"></i>Répartition des inscriptions par Thème
                 </h6>
             </div>
             <div class="card-body">
-                <div id="themeChartStatic" class="static-chart-container">
-                    <div class="loading-spinner">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Chargement...</span>
-                        </div>
-                        <p>Chargement des données...</p>
-                    </div>
+                <div class="dynamic-chart-container">
+                    <canvas id="themeDistributionChart"></canvas>
+                </div>
+                <div id="themeChartLegend" class="static-chart-legend mt-2">
+                    {# Légende générée par JS #}
                 </div>
             </div>
         </div>
 
-        <!-- Graphique distribution par service -->
+        <!-- Graphique distribution par service (Dynamique) -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white py-3">
                 <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-chart-bar me-2"></i>Distribution par service
+                    <i class="fas fa-chart-bar me-2"></i>Distribution des participants par Service
                 </h6>
             </div>
             <div class="card-body">
-                <div id="serviceChartStatic" class="static-chart-container">
-                    <div class="loading-spinner">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Chargement...</span>
-                        </div>
-                        <p>Chargement des données...</p>
-                    </div>
+                <div class="dynamic-chart-container">
+                    <canvas id="serviceDistributionChart"></canvas>
+                </div>
+                 <div id="serviceChartLegend" class="static-chart-legend mt-2">
+                    {# Légende générée par JS si besoin, sinon Chart.js peut l'afficher #}
                 </div>
             </div>
         </div>
@@ -315,11 +331,11 @@
             </div>
             <div class="card-body p-0">
                 <div class="activity-container list-group list-group-flush" id="recent-activity">
-                    <div class="loading-spinner py-5">
-                        <div class="spinner-border text-primary" role="status">
+                    <div class="loading-spinner py-5 text-center">
+                        <div class="spinner-border text-primary spinner-border-sm" role="status">
                             <span class="visually-hidden">Chargement...</span>
                         </div>
-                        <p>Chargement des activités récentes...</p>
+                        <p class="small mt-2">Chargement des activités...</p>
                     </div>
                 </div>
             </div>
@@ -329,233 +345,27 @@
 {% endblock %}
 
 {% block modals %}
-<!-- Modales pour chaque session -->
-{% for session in sessions_data %}
-<!-- Modal inscription pour {{ session.obj.theme.nom }} -->
-<div class="modal fade" id="inscriptionModal_{{ session.obj.id }}" tabindex="-1" aria-labelledby="inscriptionModalLabel_{{ session.obj.id }}" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="inscriptionModalLabel_{{ session.obj.id }}">
-                    <i class="fas fa-user-plus me-2"></i>Inscrire un participant
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Inscription à la session <strong>{{ session.obj.theme.nom }}</strong> du <strong>{{ session.obj.formatage_date }}</strong> à <strong>{{ session.obj.formatage_horaire }}</strong>.</p>
-                
-                {% if session.places_restantes <= 0 %}
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Cette session est complète ({{ session.inscrits_confirmes_count }}/{{ session.obj.max_participants }}). 
-                    Les nouvelles inscriptions seront placées en liste d'attente.
-                </div>
-                {% elif session.places_restantes <= 3 %}
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Attention, il ne reste que {{ session.places_restantes }} place(s) disponible(s) !
-                </div>
-                {% else %}
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>Il reste {{ session.places_restantes }} places disponibles.
-                </div>
-                {% endif %}
-                
-                <form action="{{ url_for('inscription') }}" method="post">
-                    <input type="hidden" name="session_id" value="{{ session.obj.id }}">
-                    <input type="hidden" name="from_page" value="dashboard">
-                    
-                    <div class="mb-3">
-                        <label for="participant_id_{{ session.obj.id }}" class="form-label">Sélectionner un participant</label>
-                        <select name="participant_id" id="participant_id_{{ session.obj.id }}" class="form-select" required>
-                            <option value="">-- Choisir un participant --</option>
-                            {% for participant in participants %}
-                            <option value="{{ participant.id }}">{{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="text-center">
-                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#nouveauParticipantModal" data-session-id="{{ session.obj.id }}">
-                            <i class="fas fa-plus me-1"></i>Nouveau participant
-                        </button>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="submit" form="inscription_form_{{ session.obj.id }}" class="btn btn-primary">Inscrire</button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Modales pour chaque session (Inscription, Participants, Attribuer Salle) -->
+{% for session_item_dict in sessions_data %}
+    {% set session_obj_for_modal = session_item_dict.obj %}
+    {% set session_data_for_modal = session_item_dict %}
 
-<!-- Modal participants pour {{ session.obj.theme.nom }} -->
-<div class="modal fade" id="participantsModal_{{ session.obj.id }}" tabindex="-1" aria-labelledby="participantsModalLabel_{{ session.obj.id }}" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="participantsModalLabel_{{ session.obj.id }}">
-                    <i class="fas fa-users me-2"></i>Participants - {{ session.obj.theme.nom }}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="d-flex justify-content-between mb-3">
-                    <p>Session du <strong>{{ session.obj.formatage_date }}</strong> à <strong>{{ session.obj.formatage_horaire }}</strong>.</p>
-                    <span class="badge rounded-pill {{ 'bg-danger' if session.places_restantes <= 0 else ('bg-warning' if session.places_restantes <= 3 else 'bg-success') }} fs-6">
-                        {{ session.inscrits_confirmes_count }}/{{ session.obj.max_participants }} inscrits
-                    </span>
-                </div>
-                
-                <!-- Onglets -->
-                <ul class="nav nav-tabs" id="participantsTab_{{ session.obj.id }}" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="confirms-tab_{{ session.obj.id }}" data-bs-toggle="tab" data-bs-target="#confirms_{{ session.obj.id }}" type="button" role="tab" aria-controls="confirms_{{ session.obj.id }}" aria-selected="true">
-                            Confirmés <span class="badge bg-primary ms-1">{{ session.inscrits_confirmes_count }}</span>
-                        </button>
-                    </li>
-                    {% if session.pending_count > 0 %}
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="pending-tab_{{ session.obj.id }}" data-bs-toggle="tab" data-bs-target="#pending_{{ session.obj.id }}" type="button" role="tab" aria-controls="pending_{{ session.obj.id }}" aria-selected="false">
-                            En attente <span class="badge bg-warning ms-1">{{ session.pending_count }}</span>
-                        </button>
-                    </li>
-                    {% endif %}
-                    {% if session.liste_attente_count > 0 %}
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="waitlist-tab_{{ session.obj.id }}" data-bs-toggle="tab" data-bs-target="#waitlist_{{ session.obj.id }}" type="button" role="tab" aria-controls="waitlist_{{ session.obj.id }}" aria-selected="false">
-                            Liste d'attente <span class="badge bg-danger ms-1">{{ session.liste_attente_count }}</span>
-                        </button>
-                    </li>
-                    {% endif %}
-                </ul>
-                
-                <!-- Contenu des onglets -->
-                <div class="tab-content pt-3" id="participantsTabContent_{{ session.obj.id }}">
-                    <!-- Participants confirmés -->
-                    <div class="tab-pane fade show active" id="confirms_{{ session.obj.id }}" role="tabpanel" aria-labelledby="confirms-tab_{{ session.obj.id }}">
-                        {% if session.loaded_inscrits_confirmes %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Participant</th>
-                                        <th>Service</th>
-                                        <th>Date d'inscription</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for inscription in session.loaded_inscrits_confirmes %}
-                                    <tr>
-                                        <td>{{ inscription.participant.prenom }} {{ inscription.participant.nom }}</td>
-                                        <td><span class="badge" style="background-color:{{ inscription.participant.service.couleur }};">{{ inscription.participant.service.nom }}</span></td>
-                                        <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
-                                        <td>
-                                            {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id) %}
-                                            <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post">
-                                                <input type="hidden" name="action" value="annuler">
-                                                <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-times me-1"></i>Annuler</button>
-                                            </form>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <p class="text-center text-muted">Aucun participant confirmé pour cette session.</p>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Participants en attente de validation -->
-                    {% if session.pending_count > 0 %}
-                    <div class="tab-pane fade" id="pending_{{ session.obj.id }}" role="tabpanel" aria-labelledby="pending-tab_{{ session.obj.id }}">
-                        {% if session.loaded_pending_inscriptions %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Participant</th>
-                                        <th>Service</th>
-                                        <th>Date d'inscription</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for inscription in session.loaded_pending_inscriptions %}
-                                    <tr>
-                                        <td>{{ inscription.participant.prenom }} {{ inscription.participant.nom }}</td>
-                                        <td><span class="badge" style="background-color:{{ inscription.participant.service.couleur }};">{{ inscription.participant.service.nom }}</span></td>
-                                        <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
-                                        <td>
-                                            {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id) %}
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-success validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="valider" {{ 'disabled' if session.places_restantes <= 0 else '' }}>
-                                                    <i class="fas fa-check me-1"></i>Valider
-                                                </button>
-                                                <button type="button" class="btn btn-danger validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="refuser">
-                                                    <i class="fas fa-times me-1"></i>Refuser
-                                                </button>
-                                            </div>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <p class="text-center text-muted">Aucun participant en attente de validation.</p>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Liste d'attente -->
-                    {% if session.liste_attente_count > 0 %}
-                    <div class="tab-pane fade" id="waitlist_{{ session.obj.id }}" role="tabpanel" aria-labelledby="waitlist-tab_{{ session.obj.id }}">
-                        {% if session.loaded_liste_attente %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Position</th>
-                                        <th>Participant</th>
-                                        <th>Service</th>
-                                        <th>Date d'inscription</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for attente in session.loaded_liste_attente %}
-                                    <tr>
-                                        <td><span class="badge bg-secondary">{{ attente.position }}</span></td>
-                                        <td>{{ attente.participant.prenom }} {{ attente.participant.nom }}</td>
-                                        <td><span class="badge" style="background-color:{{ attente.participant.service.couleur }};">{{ attente.participant.service.nom }}</span></td>
-                                        <td>{{ attente.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <p class="text-center text-muted">Aucun participant en liste d'attente.</p>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal_{{ session.obj.id }}">
-                    <i class="fas fa-user-plus me-1"></i>Ajouter un participant
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+    {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
+        {% include 'modals/_inscription_modal.html' %}
+    {% endwith %}
+
+    {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
+        {% include 'modals/_participants_modal.html' %}
+    {% endwith %}
+
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+         {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
+             {% include 'modals/_attribuer_salle_modal.html' %}
+         {% endwith %}
+    {% endif %}
 {% endfor %}
 
-<!-- Modal Ajouter nouveau participant -->
+<!-- Modal Ajouter nouveau participant (Globale, appelée depuis modales d'inscription) -->
 <div class="modal fade" id="nouveauParticipantModal" tabindex="-1" aria-labelledby="nouveauParticipantModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -566,32 +376,29 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="new_participant_form" action="{{ url_for('add_participant') }}" method="post">
-                    <input type="hidden" name="from_page" value="dashboard">
-                    <input type="hidden" name="redirect_session_id" id="redirect_session_id" value="">
+                <form id="new_participant_form_global" action="{{ url_for('add_participant') }}" method="post">
+                    <input type="hidden" name="from_page" value="dashboard"> {# Ou la page actuelle #}
+                    <input type="hidden" name="redirect_session_id" id="redirect_session_id_global" value="">
                     <input type="hidden" name="action_after_add" value="inscription">
                     <input type="hidden" name="from_modal" value="true">
 
                     <div class="mb-3">
-                        <label for="nom" class="form-label">Nom<span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="nom" name="nom" required>
+                        <label for="nom_global" class="form-label">Nom<span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="nom_global" name="nom" required>
                     </div>
-
                     <div class="mb-3">
-                        <label for="prenom" class="form-label">Prénom<span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="prenom" name="prenom" required>
+                        <label for="prenom_global" class="form-label">Prénom<span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="prenom_global" name="prenom" required>
                     </div>
-
                     <div class="mb-3">
-                        <label for="email" class="form-label">Email<span class="text-danger">*</span></label>
-                        <input type="email" class="form-control" id="email" name="email" required>
+                        <label for="email_global" class="form-label">Email<span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email_global" name="email" required>
                     </div>
-
                     <div class="mb-3">
-                        <label for="service_id" class="form-label">Service<span class="text-danger">*</span></label>
-                        <select class="form-select" id="service_id" name="service_id" required>
+                        <label for="service_id_global_select" class="form-label">Service<span class="text-danger">*</span></label>
+                        <select class="form-select" id="service_id_global_select" name="service_id" required>
                             <option value="">-- Sélectionner un service --</option>
-                            {% for service in services %}
+                            {% for service in services %} {# 'services' doit être passé au template dashboard #}
                             <option value="{{ service.id }}">{{ service.nom }}</option>
                             {% endfor %}
                         </select>
@@ -600,7 +407,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="submit" form="new_participant_form" class="btn btn-primary">Ajouter et inscrire</button>
+                <button type="submit" form="new_participant_form_global" class="btn btn-primary">Ajouter et inscrire</button>
             </div>
         </div>
     </div>
@@ -610,65 +417,38 @@
 {% block scripts_extra %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Gérer la propagation de la session ID au modal de nouveau participant
-        const nouveauParticipantModal = document.getElementById('nouveauParticipantModal');
-        if (nouveauParticipantModal) {
-            nouveauParticipantModal.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget; // Button that triggered the modal
-                const sessionId = button.getAttribute('data-session-id'); // Extract session ID
-                const redirectSessionIdInput = document.getElementById('redirect_session_id');
+        // Gérer la propagation de la session ID au modal de nouveau participant global
+        const nouveauParticipantModalGlobal = document.getElementById('nouveauParticipantModal');
+        if (nouveauParticipantModalGlobal) {
+            nouveauParticipantModalGlobal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const sessionId = button.getAttribute('data-session-id-for-new-participant'); // Attribut spécifique
+                const redirectSessionIdInput = document.getElementById('redirect_session_id_global');
                 if (redirectSessionIdInput && sessionId) {
                     redirectSessionIdInput.value = sessionId;
+                } else if (redirectSessionIdInput) {
+                    redirectSessionIdInput.value = ''; // Vider si pas de session ID
                 }
             });
         }
 
-        // Filtrage des sessions dans le tableau
-        const filterSessions = () => {
-            const filterTheme = document.getElementById('filter-theme')?.value || '';
-            const filterAvailability = document.getElementById('filter-availability')?.value || '';
-            
-            document.querySelectorAll('.session-row').forEach(row => {
-                let show = true;
-                
-                // Filtre par thème
-                if (filterTheme && row.dataset.theme !== filterTheme) {
-                    show = false;
-                }
-                
-                // Filtre par disponibilité
-                if (filterAvailability === 'available' && row.dataset.full === '1') {
-                    show = false;
-                } else if (filterAvailability === 'full' && row.dataset.full === '0') {
-                    show = false;
-                }
-                
-                row.style.display = show ? '' : 'none';
-            });
-            
-            // Vérifier s'il reste des lignes visibles
-            const visibleRows = Array.from(document.querySelectorAll('.session-row')).filter(row => row.style.display !== 'none');
-            const noDataRow = document.querySelector('.no-data-row');
-            
-            if (visibleRows.length === 0) {
-                if (!noDataRow) {
-                    const tbody = document.querySelector('.session-table tbody');
-                    const colSpan = document.querySelectorAll('.session-table th').length;
-                    const newRow = document.createElement('tr');
-                    newRow.className = 'no-data-row';
-                    newRow.innerHTML = `<td colspan="${colSpan}" class="text-center p-3 text-muted">
-                        <i class="fas fa-filter me-2"></i>Aucune session ne correspond aux critères de filtrage.
-                    </td>`;
-                    tbody.appendChild(newRow);
-                }
-            } else if (noDataRow) {
-                noDataRow.remove();
-            }
-        };
-        
-        // Attacher les filtres s'ils existent
-        document.getElementById('filter-theme')?.addEventListener('change', filterSessions);
-        document.getElementById('filter-availability')?.addEventListener('change', filterSessions);
+        // S'assurer que les boutons "Nouveau participant" dans les modales d'inscription
+        // ont bien l'attribut data-session-id-for-new-participant="{{ session.obj.id }}"
+        // Exemple (dans _inscription_modal.html):
+        // <button type="button" class="btn btn-success" data-bs-toggle="modal"
+        //         data-bs-target="#nouveauParticipantModal"
+        //         data-session-id-for-new-participant="{{ session.id }}">
+        //     <i class="fas fa-plus me-1"></i>Nouveau participant
+        // </button>
+
+        // Initialiser les badges thème sur cette page
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            window.enhanceThemeBadgesGlobally();
+        }
+        // Initialiser les tooltips
+        if (typeof window.initializeGlobalTooltips === 'function') {
+            window.initializeGlobalTooltips();
+        }
     });
 </script>
 {% endblock %}
