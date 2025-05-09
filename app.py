@@ -357,6 +357,41 @@ class Session(db.Model):
             return max(0, max_p - confirmed_count)
         except Exception as e: app.logger.error(f"Error calculating places restantes for S:{self.id}: {e}"); return 0
 
+    # Définition des filtres personnalisés pour les templates
+@app.template_filter('format_date')
+def format_date_filter(date):
+    if not date:
+        return ""
+    if isinstance(date, str):
+        try:
+            date = datetime.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            return date
+    return date.strftime("%d %B %Y")
+
+@app.template_filter('format_datetime_relative')
+def format_datetime_relative_filter(dt):
+    if not dt:
+        return ""
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+        except ValueError:
+            return dt
+    
+    now = datetime.now()
+    diff = now - dt
+    
+    if diff.days == 0:
+        # Aujourd'hui
+        return f"aujourd'hui à {dt.strftime('%H:%M')}"
+    elif diff.days == 1:
+        # Hier
+        return f"hier à {dt.strftime('%H:%M')}"
+    else:
+        # Autre
+        return dt.strftime("%d %b à %H:%M")
+
     @property
     def formatage_date(self):
         try:
