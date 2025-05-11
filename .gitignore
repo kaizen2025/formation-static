@@ -1,0 +1,20 @@
+# Fichiers Python à ignorer
+__pycache__/
+*.py[cod]
+
+# Environnements virtuels
+.venv/
+env/
+
+# Fichiers de log et DB
+*.log
+*.sqlite
+*.db
+
+# Fichiers spécifiques à ton projet
+uploads/
+instance/
+
+# OS
+.DS_Store
+Thumbs.db
