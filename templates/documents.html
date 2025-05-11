@@ -27,19 +27,28 @@
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
         <h1 class="h3 text-primary mb-0"><i class="fas fa-folder-open me-2"></i>Documents de Formation</h1>
         <div>
-            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            {# Le bouton "Ajouter un Document" n'est affiché que si show_admin_features est vrai #}
+            {% if show_admin_features %}
             <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
                 <i class="fas fa-upload me-2"></i>Ajouter un Document
             </button>
             {% endif %}
+            {# Le bouton Retour Dashboard peut rester, ou être conditionné si le dashboard nécessite une connexion #}
+            {% if current_user.is_authenticated %}
             <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left me-1"></i> Retour Dashboard
             </a>
+            {% else %}
+            {# Optionnel: lien vers la page d'accueil si non connecté #}
+            {# <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-home me-1"></i> Accueil
+            </a> #}
+            {% endif %}
         </div>
     </div>
 
-    {# MODALE D'UPLOAD DE DOCUMENT (pour admin) #}
-    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    {# MODALE D'UPLOAD DE DOCUMENT (uniquement si show_admin_features est vrai) #}
+    {% if show_admin_features %}
     <div class="modal fade" id="uploadDocumentModal" tabindex="-1" aria-labelledby="uploadDocumentModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -49,14 +58,18 @@
                 </div>
                 <div class="modal-body">
                     <form action="{{ url_for('upload_document') }}" method="post" enctype="multipart/form-data">
-                        {# Si vous utilisez Flask-WTF, ajoutez le token CSRF ici #}
-                        {# {{ form.csrf_token }} #}
-                        <input type="hidden" name="from_page" value="documents"> {# Pour la redirection #}
-
+                        <input type="hidden" name="from_page" value="documents">
                         <div class="mb-3">
                             <label for="document_file_modal" class="form-label">Fichier*</label>
                             <input class="form-control" type="file" id="document_file_modal" name="document_file" required>
-                            <div class="form-text">Types autorisés : {{ ALLOWED_EXTENSIONS|join(', ') }}. Taille max: 16MB.</div>
+                            <div class="form-text">
+                                Types autorisés : 
+                                {% if ALLOWED_EXTENSIONS %}
+                                    {{ ALLOWED_EXTENSIONS|join(', ') }}
+                                {% else %}
+                                    txt, pdf, png, jpg, jpeg, gif, doc, docx, xls, xlsx, ppt, pptx
+                                {% endif %}. Taille max: 16MB.
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="theme_id_modal" class="form-label">Associer à un thème (Optionnel)</label>
@@ -82,17 +95,17 @@
     {% endif %}
     {# FIN MODALE D'UPLOAD #}
 
-
-    {% if not themes_with_docs and not general_docs %} {# Ajustez general_docs si vous avez une section pour docs non thématisés #}
+    {# Affichage des documents (accessible à tous) #}
+    {% if not themes_with_docs and not general_docs_list %} {# Ajustez general_docs_list si vous avez une section pour docs non thématisés #}
         <div class="alert alert-info text-center">
             <i class="fas fa-info-circle me-2"></i> Aucun document n'est disponible pour le moment.
-            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            {% if show_admin_features %}
                 Vous pouvez en ajouter un en utilisant le bouton "Ajouter un Document".
             {% endif %}
         </div>
     {% else %}
         {% for theme in themes_with_docs %}
-            {% if theme.documents %} {# Afficher la section seulement si le thème a des documents #}
+            {% if theme.documents %}
             <div class="theme-section mb-4">
                 <h4 class="mb-3 pb-2 border-bottom">
                     <span class="theme-badge" data-theme="{{ theme.nom }}">
@@ -121,7 +134,7 @@
                                 {% endif %}
                                 <small class="text-muted d-block mt-1">
                                     Ajouté le {{ doc.upload_date.strftime('%d/%m/%Y') }} 
-                                    par {{ doc.uploader.username if doc.uploader else 'Admin' }}
+                                    {% if doc.uploader %}par {{ doc.uploader.username }}{% endif %}
                                 </small>
                             </div>
                         </div>
@@ -130,7 +143,8 @@
                                class="btn btn-outline-primary btn-sm" title="Télécharger">
                                 <i class="fas fa-download"></i>
                             </a>
-                            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                            {# Bouton de suppression uniquement si show_admin_features est vrai #}
+                            {% if show_admin_features %}
                             <button type="button" class="btn btn-outline-danger btn-sm" title="Supprimer"
                                     data-bs-toggle="modal" data-bs-target="#deleteDocumentModal{{ doc.id }}">
                                 <i class="fas fa-trash"></i>
@@ -139,8 +153,8 @@
                         </div>
                     </div>
 
-                    {# MODALE DE SUPPRESSION DE DOCUMENT (pour admin) #}
-                    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                    {# MODALE DE SUPPRESSION DE DOCUMENT (uniquement si show_admin_features est vrai) #}
+                    {% if show_admin_features %}
                     <div class="modal fade" id="deleteDocumentModal{{ doc.id }}" tabindex="-1" aria-labelledby="deleteDocumentModalLabel{{ doc.id }}" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content">
@@ -155,7 +169,7 @@
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                                     <form action="{{ url_for('delete_document', doc_id=doc.id) }}" method="post" class="d-inline">
-                                        <input type="hidden" name="from_page" value="documents"> {# Pour la redirection #}
+                                        <input type="hidden" name="from_page" value="documents">
                                         <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
                                     </form>
                                 </div>
@@ -172,14 +186,13 @@
     {% endif %}
 
     {# Section pour les documents généraux (non associés à un thème) #}
+    {# ... (logique similaire pour les documents généraux, en utilisant show_admin_features pour le bouton supprimer) ... #}
     {% set general_docs_list = [] %}
-    {% for theme in themes_with_docs if theme.id is none %} {# Hypothétique, si vous avez des docs avec theme_id=NULL #}
+    {% for theme in themes_with_docs if theme.id is none %}
         {% for doc in theme.documents %}
             {% set general_docs_list = general_docs_list.append(doc) %}
         {% endfor %}
     {% endfor %}
-    {# Ou si vous chargez les documents généraux d'une autre manière : #}
-    {# {% set general_docs_list = Document.query.filter_by(theme_id=None).all() %} (ne pas faire ça dans le template) #}
 
     {% if general_docs_list %}
     <div class="theme-section mb-4">
@@ -190,7 +203,6 @@
         </h4>
         <div class="list-group shadow-sm">
             {% for doc in general_docs_list|sort(attribute='original_filename') %}
-            {# Copier la structure d'affichage d'un document d'en haut #}
             <div class="list-group-item d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
                     {% set ext = doc.file_type|lower if doc.file_type else doc.original_filename.rsplit('.', 1)[-1]|lower %}
@@ -211,7 +223,7 @@
                         {% endif %}
                         <small class="text-muted d-block mt-1">
                             Ajouté le {{ doc.upload_date.strftime('%d/%m/%Y') }} 
-                            par {{ doc.uploader.username if doc.uploader else 'Admin' }}
+                            {% if doc.uploader %}par {{ doc.uploader.username }}{% endif %}
                         </small>
                     </div>
                 </div>
@@ -220,12 +232,11 @@
                        class="btn btn-outline-primary btn-sm" title="Télécharger">
                         <i class="fas fa-download"></i>
                     </a>
-                    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                    {% if show_admin_features %}
                     <button type="button" class="btn btn-outline-danger btn-sm" title="Supprimer"
                             data-bs-toggle="modal" data-bs-target="#deleteDocumentModal{{ doc.id }}">
                         <i class="fas fa-trash"></i>
                     </button>
-                    {# S'assurer que la modale de suppression est aussi générée pour ces documents #}
                     <div class="modal fade" id="deleteDocumentModal{{ doc.id }}" tabindex="-1" aria-labelledby="deleteDocumentModalLabel{{ doc.id }}" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content">
@@ -261,14 +272,12 @@
 {% block scripts_extra %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialiser les badges de thème sur cette page
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
             window.enhanceThemeBadgesGlobally();
         }
-        // S'assurer que les selects dans les modales sont fonctionnels
-        const uploadModal = document.getElementById('uploadDocumentModal');
-        if (uploadModal) {
-            uploadModal.addEventListener('shown.bs.modal', function () {
+        const uploadModalEl = document.getElementById('uploadDocumentModal');
+        if (uploadModalEl) {
+            uploadModalEl.addEventListener('shown.bs.modal', function () {
                 const selectInModal = this.querySelector('select');
                 if (selectInModal) {
                     selectInModal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
