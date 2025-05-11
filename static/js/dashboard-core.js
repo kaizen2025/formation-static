@@ -1029,18 +1029,18 @@ document.addEventListener('DOMContentLoaded', function() {
         return colors[index % colors.length];
     }
 
-    // Exposer des fonctions si nécessaire
+        // Exposer des fonctions si nécessaire
     window.dashboardCore = {
         initialize: initializeDashboard,
         fetchData: debouncedFetchDashboardData,
-        updateCharts: updateCharts,
-        updateStatistics: updateStatisticsCounters,
-        updateActivity: updateActivityFeed,
+        updateCharts: updateCharts, // Garder pour chartModule
+        updateStatistics: updateStatisticsCounters, // Garder pour dashboard-init
+        updateActivity: updateActivityFeed, // Garder pour dashboard-init
         getState: () => dashboardState,
         getConfig: () => config,
         renderThemeChart: renderThemeDistributionChart,
         renderServiceChart: renderParticipantByServiceChart,
-        initializeCharts: initializeCharts,
+        initializeCharts: initializeCharts, // Garder pour chartModule
         startPolling: startPolling,
         stopPolling: () => {
              dashboardState.pollingActive = false;
@@ -1050,48 +1050,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
+    // Exposer les fonctions attendues par dashboard-init.js directement sur window
+    window.forcePollingUpdate = debouncedFetchDashboardData; // dashboard-init l'utilise
+    window.updateStatsCounters = updateStatisticsCounters;
+    window.refreshRecentActivity = () => updateActivityFeed(null); // Assurer que c'est une fonction qui peut être appelée sans args
+    window.chartModule = { // dashboard-init s'attend à un objet chartModule
+        initialize: initializeCharts, 
+        update: updateCharts 
+    };
+
+
     // Démarrer le tableau de bord
     initializeDashboard();
 });
-
-// Fonction showToast globale (si non définie ailleurs)
-if (typeof window.showToast !== 'function') {
-    window.showToast = function(message, type = 'info', duration = 5000) {
-        // ... (code identique) ...
-         const toastContainer = document.getElementById('toast-container') || (() => {
-            const container = document.createElement('div');
-            container.id = 'toast-container';
-            container.className = 'toast-container position-fixed top-0 end-0 p-3';
-            document.body.appendChild(container);
-            return container;
-        })();
-
-        const toastId = 'toast-' + Date.now();
-        const toastElement = document.createElement('div');
-        toastElement.id = toastId;
-        const validTypes = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
-        const bgType = validTypes.includes(type) ? type : 'info';
-        const textClass = (bgType === 'light') ? 'text-dark' : 'text-white';
-
-        toastElement.className = `toast align-items-center ${textClass} bg-${bgType} border-0 fade`;
-        toastElement.setAttribute('role', 'alert');
-        toastElement.setAttribute('aria-live', 'assertive');
-        toastElement.setAttribute('aria-atomic', 'true');
-
-        toastElement.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    ${message}
-                </div>
-                <button type="button" class="btn-close ${textClass === 'text-white' ? 'btn-close-white' : ''} me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        `;
-        toastContainer.appendChild(toastElement);
-
-        const bsToast = new bootstrap.Toast(toastElement, { delay: duration, autohide: true });
-        bsToast.show();
-        toastElement.addEventListener('hidden.bs.toast', () => {
-            toastElement.remove();
-        });
-    };
-}
