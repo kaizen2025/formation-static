@@ -575,6 +575,48 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ==============================================================================
+# === Jinja Global Functions / Filters ===
+# ==============================================================================
+
+def get_activity_icon_jinja(activity_type_str):
+    if not isinstance(activity_type_str, str):
+        activity_type_str = 'default' # Fallback si le type n'est pas une chaîne
+
+    icon_map = {
+        'inscription': 'fas fa-user-plus text-success',
+        'validation': 'fas fa-check-circle text-primary', # Changé en primary pour cohérence avec activites.html
+        'refus': 'fas fa-times-circle text-danger',
+        'annulation': 'fas fa-ban text-danger',
+        'liste_attente': 'fas fa-clock text-warning',
+        'attribution_salle': 'fas fa-map-marker-alt text-info', # Changé en map-marker-alt
+        'ajout_participant': 'fas fa-user-plus text-success',
+        'suppression_participant': 'fas fa-user-minus text-danger',
+        'modification_participant': 'fas fa-user-edit text-warning',
+        'ajout_salle': 'fas fa-door-open text-info', # Changé en text-info
+        'modification_salle': 'fas fa-edit text-info', # Changé en text-info
+        'suppression_salle': 'fas fa-trash-alt text-danger', # Ajouté
+        'ajout_theme': 'fas fa-book-medical text-success', # Changé pour être plus distinctif
+        'modification_theme': 'fas fa-edit text-warning',
+        'suppression_theme': 'fas fa-trash-alt text-danger', # Ajouté
+        'ajout_service': 'fas fa-concierge-bell text-success', # Ajouté
+        'modification_service': 'fas fa-cogs text-warning', # Ajouté
+        'suppression_service': 'fas fa-minus-circle text-danger', # Ajouté
+        'connexion': 'fas fa-sign-in-alt text-primary',
+        'deconnexion': 'fas fa-sign-out-alt text-secondary',
+        'systeme': 'fas fa-cogs text-secondary',
+        'notification': 'fas fa-bell text-warning',
+        'telecharger_invitation': 'far fa-calendar-plus text-primary',
+        'ajout_document': 'fas fa-file-upload text-info',
+        'suppression_document': 'fas fa-file-excel text-danger', # Note: file-excel est spécifique, peut-être fas fa-file-times ?
+        'reinscription': 'fas fa-redo text-info', # Ajouté depuis votre code
+        'default': 'fas fa-info-circle text-secondary' # Fallback
+    }
+    return icon_map.get(activity_type_str.lower(), icon_map['default'])
+
+# Enregistrer la fonction comme globale pour Jinja
+app.jinja_env.globals.update(getActivityIcon=get_activity_icon_jinja)
+
+# ==============================================================================
 # === WebSocket Event Handlers ===
 # ==============================================================================
 @socketio.on('connect')
