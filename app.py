@@ -753,35 +753,92 @@ def services():
 def sessions():
     app.logger.info(f"User '{current_user.username if current_user.is_authenticated else 'Anonymous'}' accessing /sessions.")
     try:
-        query = Session.query.options(selectinload(Session.theme), selectinload(Session.salle), selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service), selectinload(Session.liste_attente).selectinload(ListeAttente.participant).selectinload(Participant.service)).order_by(Session.date, Session.heure_debut)
-        theme_id_filter = request.args.get('theme'); date_str_filter = request.args.get('date'); places_filter = request.args.get('places')
+        query = Session.query.options(
+            selectinload(Session.theme), 
+            selectinload(Session.salle), 
+            selectinload(Session.inscriptions).selectinload(Inscription.participant).selectinload(Participant.service), 
+            selectinload(Session.liste_attente).selectinload(ListeAttente.participant).selectinload(Participant.service)
+        ).order_by(Session.date, Session.heure_debut)
+
+        theme_id_filter = request.args.get('theme')
+        date_str_filter = request.args.get('date')
+        places_filter = request.args.get('places')
+
         if theme_id_filter:
             try:
                 query = query.filter(Session.theme_id == int(theme_id_filter))
             except ValueError:
                 flash('ID de thème invalide.', 'warning')
+        
         if date_str_filter:
             try:
                 date_obj = date.fromisoformat(date_str_filter)
-                query = query.filter(Session.date >= date_obj)
+                query = query.filter(Session.date >= date_obj) # Filtrer pour les dates >= à la date fournie
             except ValueError:
                 flash('Format de date invalide (AAAA-MM-JJ).', 'warning')
-        all_sessions_from_db = query.all(); app.logger.info(f"Fetched {len(all_sessions_from_db)} sessions from DB after base filters.")
+
+        all_sessions_from_db = query.all()
+        app.logger.info(f"Fetched {len(all_sessions_from_db)} sessions from DB after base filters.")
+        
         sessions_final_data = []
         for s_obj in all_sessions_from_db:
-            inscrits_confirmes_list = [i for i in s_obj.inscriptions if i.statut == 'confirmé']; pending_inscriptions_list = [i for i in s_obj.inscriptions if i.statut == 'en attente']; liste_attente_entries_list = s_obj.liste_attente
-            inscrits_count = len(inscrits_confirmes_list); attente_count = len(liste_attente_entries_list); pending_count = len(pending_inscriptions_list)
-            places_rest = max(0, (s_obj.max_participants or 0) - inscrits_count)
-            if places_filter == 'available' and places_rest <= 0: continue
-            if places_filter == 'full' and places_rest > 0: continue
-            sessions_final_data.append({'obj': s_obj, 'places_restantes': places_rest, 'inscrits_confirmes_count': inscrits_count, 'liste_attente_count': attente_count, 'pending_count': pending_count, 'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.date_inscription, reverse=True), 'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.date_inscription, reverse=True), 'loaded_liste_attente': sorted(liste_attente_entries_list, key=lambda la: la.position)})
-        app.logger.info(f"Prepared {len(sessions_final_data)} sessions for template after all filters.")
-        themes_for_filter = get_all_themes(); participants_for_modal = get_all_participants_with_service(); services_for_modal = get_all_services_with_participants(); salles_for_modal = []
-        if current_user.is_authenticated and current_user.role == 'admin': salles_for_modal = get_all_salles()
-        return render_template('sessions.html', sessions_data=sessions_final_data, themes=themes_for_filter, participants=participants_for_modal, services=services_for_modal, salles=salles_for_modal, request_args=request.args, Inscription=Inscription, ListeAttente=ListeAttente)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error in /sessions route: {e}", exc_info=True); flash("Erreur de base de données lors du chargement des sessions.", "danger"); return redirect(url_for('dashboard'))
-    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error in /sessions route: {e}", exc_info=True); flash("Une erreur interne est survenue lors du chargement des sessions.", "danger"); return redirect(url_for('dashboard'))
+            # Utilisation des listes pré-chargées pour les comptes
+            inscrits_confirmes_list = [i for i in s_obj.inscriptions if i.statut == 'confirmé']
+            pending_inscriptions_list = [i for i in s_obj.inscriptions if i.statut == 'en attente']
+            liste_attente_entries_list = s_obj.liste_attente # Directement la relation
 
+            inscrits_count = len(inscrits_confirmes_list)
+            attente_count = len(liste_attente_entries_list)
+            pending_count = len(pending_inscriptions_list)
+            
+            places_rest = max(0, (s_obj.max_participants or 0) - inscrits_count)
+
+            if places_filter == 'available' and places_rest <= 0:
+                continue
+            if places_filter == 'full' and places_rest > 0:
+                continue
+            
+            sessions_final_data.append({
+                'obj': s_obj, 
+                'places_restantes': places_rest, 
+                'inscrits_confirmes_count': inscrits_count, 
+                'liste_attente_count': attente_count, 
+                'pending_count': pending_count,
+                'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.date_inscription, reverse=True),
+                'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.date_inscription, reverse=True),
+                'loaded_liste_attente': sorted(liste_attente_entries_list, key=lambda la: la.position)
+            })
+        
+        app.logger.info(f"Prepared {len(sessions_final_data)} sessions for template after all filters.")
+
+        themes_for_filter = get_all_themes()
+        participants_for_modal = get_all_participants_with_service()
+        services_for_modal = get_all_services_with_participants()
+        
+        salles_for_modal = [] # Initialiser
+        if current_user.is_authenticated and current_user.role == 'admin':
+            salles_for_modal = get_all_salles() # Charger les salles pour les admins
+
+        return render_template('sessions.html', 
+                              sessions_data=sessions_final_data, 
+                              themes=themes_for_filter, 
+                              participants=participants_for_modal, 
+                              services=services_for_modal, 
+                              salles=salles_for_modal, # Passer les salles ici
+                              request_args=request.args,
+                              Inscription=Inscription, # Pour les types dans les modales si besoin
+                              ListeAttente=ListeAttente) # Pour les types dans les modales si besoin
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"DB error in /sessions route: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement des sessions.", "danger")
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Unexpected error in /sessions route: {e}", exc_info=True)
+        flash("Une erreur interne est survenue lors du chargement des sessions.", "danger")
+        return redirect(url_for('dashboard'))
 @app.route('/inscription', methods=['POST'])
 @db_operation_with_retry(max_retries=3)
 def inscription():
@@ -1466,6 +1523,436 @@ def salles_page(): # Changed function name for clarity
         flash("Une erreur interne est survenue lors du chargement des salles.", "danger")
 
     return redirect(url_for('admin')) # Redirect to admin panel on error
+
+@app.route('/admin/salle/add', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def add_salle():
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    try:
+        nom = request.form.get('nom')
+        capacite_str = request.form.get('capacite')
+        lieu = request.form.get('lieu')
+        description = request.form.get('description')
+
+        if not nom or not capacite_str:
+            flash("Le nom et la capacité de la salle sont obligatoires.", "warning")
+            return redirect(url_for('salles_page'))
+
+        try:
+            capacite = int(capacite_str)
+            if capacite <= 0:
+                raise ValueError("Capacity must be positive")
+        except ValueError:
+            flash("La capacité doit être un nombre entier positif.", "warning")
+            return redirect(url_for('salles_page'))
+
+        existing_salle = Salle.query.filter_by(nom=nom).first()
+        if existing_salle:
+            flash(f"Une salle nommée '{nom}' existe déjà.", "warning")
+            return redirect(url_for('salles_page'))
+
+        new_salle = Salle(nom=nom, capacite=capacite, lieu=lieu, description=description)
+        db.session.add(new_salle)
+        db.session.commit()
+        cache.delete_memoized(get_all_salles)
+        cache.delete('dashboard_essential_data') # Salles are used in dashboard
+        add_activity('ajout_salle', f'Ajout salle: {new_salle.nom}', user=current_user)
+        flash(f"Salle '{new_salle.nom}' ajoutée avec succès.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur d'intégrité: Une salle nommée '{nom}' existe peut-être déjà.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB ajout salle: {e}", exc_info=True)
+        flash("Erreur de base de données lors de l'ajout de la salle.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue ajout salle: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+    return redirect(url_for('salles_page'))
+
+@app.route('/admin/salle/update/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def update_salle(id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    salle = db.session.get(Salle, id)
+    if not salle:
+        flash("Salle introuvable.", "danger")
+        return redirect(url_for('salles_page'))
+    try:
+        nom = request.form.get('nom')
+        capacite_str = request.form.get('capacite')
+        lieu = request.form.get('lieu')
+        description = request.form.get('description')
+
+        if not nom or not capacite_str:
+            flash("Le nom et la capacité sont obligatoires.", "warning")
+            return redirect(url_for('salles_page'))
+        
+        try:
+            capacite = int(capacite_str)
+            if capacite <= 0:
+                raise ValueError("Capacity must be positive")
+        except ValueError:
+            flash("La capacité doit être un nombre entier positif.", "warning")
+            return redirect(url_for('salles_page'))
+
+        # Check if new name conflicts with another existing salle
+        if nom != salle.nom:
+            existing_salle = Salle.query.filter(Salle.nom == nom, Salle.id != id).first()
+            if existing_salle:
+                flash(f"Une autre salle nommée '{nom}' existe déjà.", "warning")
+                return redirect(url_for('salles_page'))
+        
+        salle.nom = nom
+        salle.capacite = capacite
+        salle.lieu = lieu
+        salle.description = description
+        db.session.commit()
+        cache.delete_memoized(get_all_salles)
+        cache.delete('dashboard_essential_data')
+        add_activity('modification_salle', f'Modification salle: {salle.nom}', user=current_user)
+        flash(f"Salle '{salle.nom}' mise à jour avec succès.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur d'intégrité lors de la mise à jour de la salle '{salle.nom}'.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB màj salle {id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la mise à jour.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue màj salle {id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+    return redirect(url_for('salles_page'))
+
+@app.route('/admin/salle/delete/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def delete_salle(id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    salle = db.session.get(Salle, id)
+    if not salle:
+        flash("Salle introuvable.", "danger")
+        return redirect(url_for('salles_page'))
+    
+    try:
+        # Check if salle is used by any session
+        if salle.sessions.first(): # Check if the dynamic relationship has any items
+            flash(f"Impossible de supprimer la salle '{salle.nom}' car elle est utilisée par des sessions. Veuillez d'abord réassigner ces sessions.", "warning")
+            return redirect(url_for('salles_page'))
+            
+        salle_nom = salle.nom
+        db.session.delete(salle)
+        db.session.commit()
+        cache.delete_memoized(get_all_salles)
+        cache.delete('dashboard_essential_data')
+        add_activity('suppression_salle', f'Suppression salle: {salle_nom}', user=current_user)
+        flash(f"Salle '{salle_nom}' supprimée avec succès.", "success")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB suppression salle {id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la suppression.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue suppression salle {id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+    return redirect(url_for('salles_page'))
+
+# --- Admin CRUD Routes for Thèmes ---
+@app.route('/admin/theme/add', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def add_theme():
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    try:
+        nom = request.form.get('nom')
+        description = request.form.get('description')
+
+        if not nom:
+            flash("Le nom du thème est obligatoire.", "warning")
+            return redirect(url_for('themes_page'))
+
+        existing_theme = Theme.query.filter_by(nom=nom).first()
+        if existing_theme:
+            flash(f"Un thème nommé '{nom}' existe déjà.", "warning")
+            return redirect(url_for('themes_page'))
+
+        new_theme = Theme(nom=nom, description=description)
+        db.session.add(new_theme)
+        db.session.commit()
+        cache.delete_memoized(get_all_themes)
+        cache.delete('dashboard_essential_data') # Themes are used in dashboard
+        add_activity('ajout_theme', f'Ajout thème: {new_theme.nom}', user=current_user)
+        flash(f"Thème '{new_theme.nom}' ajouté avec succès.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur d'intégrité: Un thème nommé '{nom}' existe peut-être déjà.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB ajout thème: {e}", exc_info=True)
+        flash("Erreur de base de données lors de l'ajout du thème.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue ajout thème: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+    return redirect(url_for('themes_page'))
+
+@app.route('/admin/theme/update/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def update_theme(id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    theme = db.session.get(Theme, id)
+    if not theme:
+        flash("Thème introuvable.", "danger")
+        return redirect(url_for('themes_page'))
+    try:
+        nom = request.form.get('nom')
+        description = request.form.get('description')
+
+        if not nom:
+            flash("Le nom du thème est obligatoire.", "warning")
+            return redirect(url_for('themes_page'))
+
+        if nom != theme.nom:
+            existing_theme = Theme.query.filter(Theme.nom == nom, Theme.id != id).first()
+            if existing_theme:
+                flash(f"Un autre thème nommé '{nom}' existe déjà.", "warning")
+                return redirect(url_for('themes_page'))
+        
+        theme.nom = nom
+        theme.description = description
+        db.session.commit()
+        cache.delete_memoized(get_all_themes)
+        cache.delete('dashboard_essential_data')
+        add_activity('modification_theme', f'Modification thème: {theme.nom}', user=current_user)
+        flash(f"Thème '{theme.nom}' mis à jour avec succès.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur d'intégrité lors de la mise à jour du thème '{theme.nom}'.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB màj thème {id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la mise à jour.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue màj thème {id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+    return redirect(url_for('themes_page'))
+
+@app.route('/admin/theme/delete/<int:id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def delete_theme(id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    theme = db.session.get(Theme, id)
+    if not theme:
+        flash("Thème introuvable.", "danger")
+        return redirect(url_for('themes_page'))
+    
+    try:
+        # Cascade delete for sessions is handled by SQLAlchemy relationship if configured
+        # but documents associated with this theme also need to be handled.
+        # If Theme.documents has cascade="all, delete-orphan", they will be deleted.
+        # If not, you might need to manually delete or reassign documents.
+        # Assuming cascade="all, delete-orphan" on Theme.documents and Session.theme
+        
+        theme_nom = theme.nom
+        
+        # Manually delete associated sessions if cascade is not set up or to be sure
+        # Session.query.filter_by(theme_id=id).delete()
+        # Document.query.filter_by(theme_id=id).delete() # If documents are not cascaded
+
+        db.session.delete(theme)
+        db.session.commit()
+        cache.delete_memoized(get_all_themes)
+        cache.delete('dashboard_essential_data')
+        add_activity('suppression_theme', f'Suppression thème: {theme_nom} et ses sessions/documents associés', user=current_user)
+        flash(f"Thème '{theme_nom}' et toutes ses sessions/documents associés ont été supprimés.", "success")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB suppression thème {id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la suppression du thème.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue suppression thème {id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+    return redirect(url_for('themes_page'))
+
+# --- Admin CRUD Routes for Services ---
+@app.route('/admin/service/add', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def add_service():
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    try:
+        service_id = request.form.get('id') # This is the primary key
+        nom = request.form.get('nom')
+        responsable = request.form.get('responsable')
+        email_responsable = request.form.get('email_responsable')
+        couleur = request.form.get('couleur', '#6c757d')
+
+        if not all([service_id, nom, responsable, email_responsable]):
+            flash("ID, Nom, Responsable et Email du responsable sont obligatoires.", "warning")
+            return redirect(url_for('services')) # Redirect to services page
+
+        existing_service_id = Service.query.get(service_id)
+        if existing_service_id:
+            flash(f"Un service avec l'ID '{service_id}' existe déjà.", "warning")
+            return redirect(url_for('services'))
+        
+        existing_service_nom = Service.query.filter_by(nom=nom).first()
+        if existing_service_nom:
+            flash(f"Un service nommé '{nom}' existe déjà.", "warning")
+            return redirect(url_for('services'))
+
+        new_service = Service(id=service_id, nom=nom, responsable=responsable, email_responsable=email_responsable, couleur=couleur)
+        db.session.add(new_service)
+        db.session.commit()
+        cache.delete_memoized(get_all_services_with_participants)
+        cache.delete('dashboard_essential_data')
+        add_activity('ajout_service', f'Ajout service: {new_service.nom}', user=current_user)
+        flash(f"Service '{new_service.nom}' ajouté avec succès.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur d'intégrité: L'ID ou le nom du service existe peut-être déjà.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB ajout service: {e}", exc_info=True)
+        flash("Erreur de base de données lors de l'ajout du service.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue ajout service: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+    return redirect(url_for('services'))
+
+@app.route('/admin/service/update/<service_id>', methods=['POST']) # service_id is string
+@login_required
+@db_operation_with_retry(max_retries=2)
+def update_service(service_id):
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    service = db.session.get(Service, service_id)
+    if not service:
+        flash("Service introuvable.", "danger")
+        return redirect(url_for('services'))
+    try:
+        nom = request.form.get('nom')
+        responsable = request.form.get('responsable')
+        email_responsable = request.form.get('email_responsable')
+        couleur = request.form.get('couleur', '#6c757d')
+
+        if not all([nom, responsable, email_responsable]):
+            flash("Nom, Responsable et Email du responsable sont obligatoires.", "warning")
+            return redirect(url_for('services'))
+
+        if nom != service.nom:
+            existing_service_nom = Service.query.filter(Service.nom == nom, Service.id != service_id).first()
+            if existing_service_nom:
+                flash(f"Un autre service nommé '{nom}' existe déjà.", "warning")
+                return redirect(url_for('services'))
+        
+        service.nom = nom
+        service.responsable = responsable
+        service.email_responsable = email_responsable
+        service.couleur = couleur
+        db.session.commit()
+        cache.delete_memoized(get_all_services_with_participants)
+        cache.delete('dashboard_essential_data')
+        add_activity('modification_service', f'Modification service: {service.nom}', user=current_user)
+        flash(f"Service '{service.nom}' mis à jour avec succès.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"Erreur d'intégrité lors de la mise à jour du service '{service.nom}'.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB màj service {service_id}: {e}", exc_info=True)
+        flash("Erreur de base de données lors de la mise à jour.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue màj service {service_id}: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+    return redirect(url_for('services'))
+
+# --- Route pour attribuer une salle à une session ---
+@app.route('/admin/session/attribuer_salle', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def attribuer_salle():
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    try:
+        session_id_str = request.form.get('session_id')
+        salle_id_str = request.form.get('salle_id')
+
+        if not session_id_str:
+            flash("ID de session manquant.", "warning")
+            return redirect(request.referrer or url_for('sessions'))
+        
+        session_id = int(session_id_str)
+        session_obj = db.session.get(Session, session_id)
+
+        if not session_obj:
+            flash("Session introuvable.", "danger")
+            return redirect(request.referrer or url_for('sessions'))
+
+        salle_id = int(salle_id_str) if salle_id_str else None # salle_id can be None to remove attribution
+        
+        salle_obj = None
+        if salle_id:
+            salle_obj = db.session.get(Salle, salle_id)
+            if not salle_obj:
+                flash("Salle introuvable.", "danger")
+                return redirect(request.referrer or url_for('sessions'))
+        
+        session_obj.salle_id = salle_id
+        db.session.commit()
+        
+        # Invalidate caches that might be affected
+        cache.delete(f'session_counts_{session_id}') # If single session details are cached
+        cache.delete_memoized(get_all_salles) # If salle details include session counts
+        cache.delete('dashboard_essential_data') # Dashboard shows session salles
+
+        action_desc = f"Salle '{salle_obj.nom if salle_obj else 'Aucune'}' attribuée à la session '{session_obj.theme.nom} du {session_obj.formatage_date}'"
+        add_activity('attribution_salle', action_desc, user=current_user)
+        flash(action_desc, "success")
+
+    except ValueError:
+        flash("ID de session ou de salle invalide.", "danger")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur DB attribution salle: {e}", exc_info=True)
+        flash("Erreur de base de données lors de l'attribution de la salle.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue attribution salle: {e}", exc_info=True)
+        flash("Une erreur inattendue est survenue.", "danger")
+    
+    return redirect(request.referrer or url_for('sessions'))
 
 @app.route('/themes')
 @login_required
