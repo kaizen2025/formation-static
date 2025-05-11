@@ -1,24 +1,23 @@
 /*
- * modal-fix.js - Simple, robust fix for Bootstrap modals
- * v1.0.2 - Added dynamic content initialization (tooltips, badges) on shown.bs.modal
+ * modal-fix.js - Robuste fix for Bootstrap modals and dynamic content initialization.
+ * v1.0.3 - Centralized dynamic content init, improved focus, robust event handling.
  */
 document.addEventListener('DOMContentLoaded', function() {
     const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
-    if (DASH_CONFIG.debugMode) console.log('ModalFix: Initializing (v1.0.2)');
+    if (DASH_CONFIG.debugMode) console.log('ModalFix: Initializing (v1.0.3)');
 
+    // Fonction pour initialiser le contenu dynamique à l'intérieur d'une modale
     function initializeModalDynamicContent(modalElement) {
         if (!modalElement) return;
+        if (DASH_CONFIG.debugMode) console.log('ModalFix: Initializing dynamic content for modal:', modalElement.id);
 
-        // Améliorer les badges de thème à l'intérieur de la modale affichée
+        // Améliorer les badges de thème
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-            // Ciblez uniquement les badges à l'intérieur de CETTE modale
-            // La fonction globale devrait être capable de gérer cela si elle itère sur tous les .theme-badge
-            // ou vous pouvez passer modalElement à une version modifiée de enhanceThemeBadgesGlobally.
-            // Pour l'instant, on suppose que l'appel global fonctionne.
-            window.enhanceThemeBadgesGlobally(); 
+            // Passe l'élément modal comme parent pour cibler uniquement les badges à l'intérieur
+            window.enhanceThemeBadgesGlobally(modalElement);
         }
 
-        // Initialiser/Réinitialiser les tooltips Bootstrap à l'intérieur de la modale
+        // Initialiser/Réinitialiser les tooltips Bootstrap
         if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
             const tooltipTriggerList = [].slice.call(modalElement.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.forEach(function (tooltipTriggerEl) {
@@ -26,17 +25,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (existingTooltip) {
                     existingTooltip.dispose(); 
                 }
-                new bootstrap.Tooltip(tooltipTriggerEl);
+                new bootstrap.Tooltip(tooltipTriggerEl); // Créer une nouvelle instance
             });
             if (DASH_CONFIG.debugMode && tooltipTriggerList.length > 0) {
-                 console.log('ModalFix: Tooltips re-initialized in modal:', modalElement.id);
+                 console.log(`ModalFix: ${tooltipTriggerList.length} tooltips re-initialized in modal: ${modalElement.id}`);
             }
         }
     }
 
-    function applyModalStylingFixes(modalElement) {
+    // Fonction pour appliquer les corrections de style et gérer le focus
+    function applyModalStylingAndFocus(modalElement) {
         if (!modalElement) return;
-        if (DASH_CONFIG.debugMode) console.log('ModalFix: Applying styling fixes to modal:', modalElement.id);
+        if (DASH_CONFIG.debugMode) console.log('ModalFix: Applying styling and focus to modal:', modalElement.id);
 
         modalElement.style.zIndex = '1055'; 
 
@@ -52,58 +52,68 @@ document.addEventListener('DOMContentLoaded', function() {
         
         modalElement.querySelectorAll('.btn-close').forEach(closeBtn => {
             closeBtn.style.position = 'relative';
-            closeBtn.style.zIndex = '1060';
+            closeBtn.style.zIndex = '1060'; // Assurer qu'il est au-dessus de tout
             closeBtn.style.pointerEvents = 'auto';
         });
 
-        const firstFocusable = modalElement.querySelector(
-            'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled):not(.btn-close), [href], [tabindex]:not([tabindex="-1"])'
-        );
-        if (firstFocusable && typeof firstFocusable.focus === 'function') {
-            try {
-                firstFocusable.focus({ preventScroll: true });
-                if (DASH_CONFIG.debugMode) console.log('ModalFix: Focused on:', firstFocusable, 'in modal', modalElement.id);
-            } catch (e) {
-                if (DASH_CONFIG.debugMode) console.warn('ModalFix: Error focusing on element:', e, firstFocusable);
-            }
+        // Gestion du focus améliorée
+        // Tenter de focus sur un élément avec autofocus, sinon le premier focusable
+        let focusTarget = modalElement.querySelector('[autofocus]:not(:disabled)');
+        if (!focusTarget) {
+            focusTarget = modalElement.querySelector(
+                'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled):not(.btn-close), [href], [tabindex]:not([tabindex="-1"])'
+            );
+        }
+        
+        if (focusTarget && typeof focusTarget.focus === 'function') {
+            // Léger délai pour s'assurer que la modale est complètement prête pour le focus
+            setTimeout(() => {
+                try {
+                    focusTarget.focus({ preventScroll: true });
+                    if (DASH_CONFIG.debugMode) console.log('ModalFix: Focused on:', focusTarget, 'in modal', modalElement.id);
+                } catch (e) {
+                    if (DASH_CONFIG.debugMode) console.warn('ModalFix: Error focusing on element:', e, focusTarget);
+                }
+            }, 100); // Un délai un peu plus long peut parfois aider avec les transitions CSS
         }
     }
 
-    document.addEventListener('shown.bs.modal', function(event) {
-        if (DASH_CONFIG.debugMode) console.log('ModalFix: shown.bs.modal triggered for', event.target.id);
-        const modal = event.target;
-        if (modal && modal.classList.contains('modal')) {
-            setTimeout(() => { 
-                if (!modal.classList.contains('show')) modal.classList.add('show');
-                if (modal.style.display !== 'block' && modal.classList.contains('show')) modal.style.display = 'block';
-                
-                if (modal.classList.contains('show') && !document.querySelector('.modal-backdrop.show')) {
-                    let backdrop = document.querySelector('.modal-backdrop');
-                    if (!backdrop) {
-                        backdrop = document.createElement('div');
-                        backdrop.className = 'modal-backdrop fade'; 
-                        document.body.appendChild(backdrop);
-                        backdrop.offsetHeight; 
+    // Écouteur d'événement global pour 'shown.bs.modal'
+    // Utiliser la délégation d'événement si les modales sont ajoutées dynamiquement,
+    // mais document.addEventListener est généralement suffisant pour les modales Bootstrap.
+    if (!document.body.dataset.modalFixListenerAttached) { // Empêcher l'attachement multiple
+        document.addEventListener('shown.bs.modal', function(event) {
+            if (DASH_CONFIG.debugMode) console.log('ModalFix: Global shown.bs.modal triggered for', event.target.id);
+            const modal = event.target;
+            if (modal && modal.classList.contains('modal')) {
+                // Léger délai pour s'assurer que la modale est complètement rendue par Bootstrap
+                // et que les transitions CSS sont terminées.
+                setTimeout(() => {
+                    // S'assurer que la modale est toujours visible (au cas où elle aurait été fermée rapidement)
+                    if (modal.classList.contains('show')) { 
+                        applyModalStylingAndFocus(modal);
+                        initializeModalDynamicContent(modal);
                     }
-                    backdrop.classList.add('show');
-                    document.body.classList.add('modal-open');
-                }
-                applyModalStylingFixes(modal);
-                initializeModalDynamicContent(modal); // NOUVEL APPEL ICI
-            }, 70); // Augmenter légèrement le délai si nécessaire
-        }
-    });
+                }, 100); // Ajustez ce délai si nécessaire (50-150ms est généralement bon)
+            }
+        });
+        document.body.dataset.modalFixListenerAttached = 'true';
+    }
 
-    // ... (le reste de modal-fix.js, comme le MutationObserver, peut rester si utile)
+
+    // Optionnel: MutationObserver pour les modales ajoutées dynamiquement APRÈS le chargement initial de la page.
+    // Si toutes vos modales sont dans le HTML initial, ce n'est peut-être pas nécessaire.
     if (window.MutationObserver) {
         const observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
                 if (mutation.addedNodes && mutation.addedNodes.length > 0) {
                     for (let i = 0; i < mutation.addedNodes.length; i++) {
                         const node = mutation.addedNodes[i];
+                        // Si un nœud modal est ajouté, Bootstrap devrait déclencher 'shown.bs.modal'
+                        // lorsqu'il est affiché, donc les fixes s'appliqueront.
                         if (node.nodeType === 1 && node.classList && node.classList.contains('modal')) {
-                            // On se fie maintenant à 'shown.bs.modal' pour l'initialisation principale
-                            if (DASH_CONFIG.debugMode) console.log('ModalFix: New modal added to DOM:', node.id);
+                            if (DASH_CONFIG.debugMode) console.log('ModalFix: New modal detected in DOM by MutationObserver:', node.id);
+                            // Pas besoin d'appeler les fixes ici directement, on se fie à 'shown.bs.modal'
                         }
                     }
                 }
@@ -112,5 +122,5 @@ document.addEventListener('DOMContentLoaded', function() {
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    if (DASH_CONFIG.debugMode) console.log('ModalFix: Initialization complete (v1.0.2).');
+    if (DASH_CONFIG.debugMode) console.log('ModalFix: Initialization complete (v1.0.3).');
 });
