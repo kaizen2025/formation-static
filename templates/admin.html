@@ -1,289 +1,266 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+{% extends "layout.html" %}
 
-    <title>{% block title %}{{ app_name | default('Gestion Formation') }}{% endblock %}</title>
+{% block title %}Panel Administration - {{ app_name }}{% endblock %}
 
-    <!-- Favicon (Remplacez par votre chemin) -->
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+{% block head_extra %}
+<style>
+    .admin-stat-card .card-body {
+        padding: 1rem;
+    }
+    .admin-stat-card .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.6;
+    }
+    .admin-section-header {
+        border-bottom: 2px solid var(--bs-primary);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--bs-primary);
+    }
+    .list-group-item-action:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
 
-    <!-- Bootstrap CSS (Version 5.3.x recommandée) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-
-    <!-- Font Awesome (Version 6.x recommandée) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-
-    <!-- Styles personnalisés consolidés -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}"> <!-- Inclut les styles des graphiques -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}"> <!-- Inclut les correctifs modales -->
-
-    {% block head_extra %}{% endblock %} {# Pour CSS spécifique à une page #}
-
-    <style>
-        /* Style pour le spinner de chargement global */
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.85);
-            z-index: 10000; /* Au-dessus de tout */
-            display: flex; /* Affiché par défaut, caché par JS */
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            transition: opacity 0.3s ease-out;
-        }
-        #loading-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
-        }
-        .loading-text {
-            margin-top: 1rem;
-            font-size: 1.1rem;
-            color: var(--bs-primary, #0d6efd);
-        }
-        /* Structure Flex pour pousser le footer en bas */
-        body {
-            padding-top: 70px; /* Ajuster selon la hauteur de votre navbar fixe */
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        .content-wrapper {
-            flex: 1; /* Le contenu principal prend l'espace disponible */
-        }
-        /* Style pour les toasts */
-        .toast-container {
-             z-index: 1100 !important; /* S'assurer que les toasts sont au-dessus des modales */
-        }
-    </style>
-</head>
-<body>
-    <!-- Spinner de chargement global -->
-    <div id="loading-overlay">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Chargement...</span>
-        </div>
-        <p class="loading-text">Chargement...</p>
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-shield-alt me-2"></i>Panel d'Administration</h1>
     </div>
 
-    <!-- ==================== Barre de navigation ==================== -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top shadow-sm">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">
-                <i class="fas fa-users-cog me-2"></i>{{ app_name | default('Gestion Formation') }}
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt me-1"></i>Tableau de bord</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'sessions' %}active{% endif %}" href="{{ url_for('sessions') }}"><i class="fas fa-calendar-alt me-1"></i>Sessions</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'participants' %}active{% endif %}" href="{{ url_for('participants') }}"><i class="fas fa-users me-1"></i>Participants</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}"><i class="fas fa-concierge-bell me-1"></i>Services</a>
-                    </li>
-                    <li class="nav-item"> {# === LIEN DOCUMENTS AJOUTÉ === #}
-                        <a class="nav-link {% if request.endpoint == 'documents' %}active{% endif %}" href="{{ url_for('documents') }}"><i class="fas fa-folder-open me-1"></i>Documents</a>
-                    </li>
-                    {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['admin', 'salles', 'themes', 'activites'] %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-shield-alt me-1"></i>Administration
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                            <li><a class="dropdown-item {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}">Panel Admin</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'salles' %}active{% endif %}" href="{{ url_for('salles') }}">Gérer les Salles</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'themes' %}active{% endif %}" href="{{ url_for('themes') }}">Gérer les Thèmes</a></li>
-                            <li><a class="dropdown-item {% if request.endpoint == 'activites' %}active{% endif %}" href="{{ url_for('activites') }}">Journal d'Activités</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-                </ul>
-                <ul class="navbar-nav ms-auto">
-                    {% if current_user.is_authenticated %}
-                        <li class="nav-item">
-                            <span class="navbar-text me-3">
-                                <i class="fas fa-user-circle me-1"></i>Connecté: {{ current_user.username }} ({{ current_user.role }})
-                            </span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i>Déconnexion</a>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt me-1"></i>Connexion</a>
-                        </li>
-                    {% endif %}
-                </ul>
+    <!-- Statistiques Globales Admin -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow-sm h-100 admin-stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sessions Totales</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_sessions_count|default(0) }}</div>
+                        </div>
+                        <div class="col-auto stat-icon"><i class="fas fa-calendar-alt text-gray-300"></i></div>
+                    </div>
+                </div>
             </div>
         </div>
-    </nav>
-    <!-- ==================== Fin Barre de navigation ==================== -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow-sm h-100 admin-stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Inscriptions Confirmées</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_inscriptions|default(0) }}</div>
+                        </div>
+                        <div class="col-auto stat-icon"><i class="fas fa-users text-gray-300"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow-sm h-100 admin-stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Participants Uniques</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ participants|length|default(0) }}</div>
+                        </div>
+                        <div class="col-auto stat-icon"><i class="fas fa-user-friends text-gray-300"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow-sm h-100 admin-stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">En Liste d'Attente</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_en_attente|default(0) }}</div>
+                        </div>
+                        <div class="col-auto stat-icon"><i class="fas fa-user-clock text-gray-300"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- Sections de Gestion -->
+    <div class="row">
+        <!-- Colonne de gauche : Gestion Thèmes, Salles, Services -->
+        <div class="col-lg-6 mb-4">
+            <!-- Gestion des Thèmes -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h5>
+                </div>
+                <div class="card-body">
+                    <p>Gérer les thèmes de formation, leurs descriptions et les sessions associées.</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        {% for theme in themes|sort(attribute='nom') %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ theme.nom }}
+                            <span class="badge bg-primary rounded-pill">{{ theme_session_counts.get(theme.id, 0) }} session(s)</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">Aucun thème configuré.</li>
+                        {% endfor %}
+                    </ul>
+                    <a href="{{ url_for('themes_page') }}" class="btn btn-primary btn-sm"><i class="fas fa-edit me-1"></i>Gérer les Thèmes</a>
+                </div>
+            </div>
 
-    <!-- Contenu principal -->
-    <div class="container-fluid mt-4 content-wrapper" id="main-content">
-        {# Affichage des messages Flash #}
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="row justify-content-center mb-3">
-                    <div class="col-md-10 col-lg-8">
-                        {% for category, message in messages %}
-                            {# Utiliser 'warning' pour 'info' pour une meilleure visibilité #}
-                            {% set alert_category = 'warning' if category == 'info' else category %}
-                            <div class="alert alert-{{ alert_category }} alert-dismissible fade show shadow-sm" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <!-- Gestion des Salles -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-building me-2"></i>Gestion des Salles</h5>
+                </div>
+                <div class="card-body">
+                    <p>Ajouter, modifier ou supprimer des salles de formation.</p>
+                     <ul class="list-group list-group-flush mb-3">
+                        {% for salle in salles|sort(attribute='nom') %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ salle.nom }}
+                            <span class="badge bg-info rounded-pill">{{ salle.capacite }} places</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">Aucune salle configurée.</li>
+                        {% endfor %}
+                    </ul>
+                    <a href="{{ url_for('salles_page') }}" class="btn btn-primary btn-sm"><i class="fas fa-door-open me-1"></i>Gérer les Salles</a>
+                </div>
+            </div>
+            
+            <!-- Gestion des Services -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-concierge-bell me-2"></i>Gestion des Services</h5>
+                </div>
+                <div class="card-body">
+                    <p>Gérer les services de l'entreprise et leurs responsables.</p>
+                     <ul class="list-group list-group-flush mb-3">
+                        {% for service in services|sort(attribute='nom') %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span style="color: {{ service.couleur }}; font-weight: bold;">{{ service.nom }}</span>
+                            <span class="text-muted small">{{ service.responsable }}</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">Aucun service configuré.</li>
+                        {% endfor %}
+                    </ul>
+                    <a href="{{ url_for('services') }}" class="btn btn-primary btn-sm"><i class="fas fa-cogs me-1"></i>Gérer les Services</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Colonne de droite : Gestion Documents, Participants, Activités -->
+        <div class="col-lg-6 mb-4">
+            <!-- Gestion des Documents -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-folder-open me-2"></i>Gestion des Documents</h5>
+                </div>
+                <div class="card-body">
+                    <p>Uploader, organiser et supprimer les documents de support pour les formations.</p>
+                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr><th>Nom du Fichier</th><th>Thème</th><th>Date d'Upload</th></tr>
+                            </thead>
+                            <tbody>
+                            {% for doc in existing_documents|sort(attribute='upload_date', reverse=True)|slice(0, 5) %} {# Affiche les 5 plus récents #}
+                                <tr>
+                                    <td class="text-truncate" style="max-width: 150px;">{{ doc.original_filename }}</td>
+                                    <td><span class="badge bg-secondary">{{ doc.theme.nom if doc.theme else 'Général' }}</span></td>
+                                    <td><small>{{ doc.upload_date.strftime('%d/%m/%y') }}</small></td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="3" class="text-muted text-center">Aucun document uploadé.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <a href="{{ url_for('documents') }}" class="btn btn-info btn-sm mt-2"><i class="fas fa-file-alt me-1"></i>Voir/Gérer les Documents</a>
+                    {# Le formulaire d'upload est maintenant sur la page documents, mais on pourrait ajouter un raccourci ici si besoin #}
+                </div>
+            </div>
+
+            <!-- Gestion des Participants -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-users me-2"></i>Gestion des Participants</h5>
+                </div>
+                <div class="card-body">
+                    <p>Consulter, ajouter, modifier ou supprimer des participants.</p>
+                    <a href="{{ url_for('participants_page') }}" class="btn btn-primary btn-sm"><i class="fas fa-address-book me-1"></i>Gérer les Participants</a>
+                </div>
+            </div>
+
+            <!-- Journal d'Activités Récentes -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light py-3">
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-2"></i>Journal d'Activités Récentes</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                        {% for activite in activites_recentes %}
+                        <a href="{{ url_for('activites_journal', type=activite.type) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 small">
+                                    <i class="{{ getActivityIcon(activite.type) }} me-1"></i> {# Utilisation d'une fonction helper si définie, sinon à adapter #}
+                                    {{ activite.description }}
+                                </h6>
+                                <small class="text-muted">{{ activite.date_relative }}</small>
                             </div>
+                            {% if activite.details %}<p class="mb-1 small text-muted">{{ activite.details }}</p>{% endif %}
+                            {% if activite.utilisateur %}<small class="text-muted">Par: {{ activite.utilisateur.username }}</small>{% endif %}
+                        </a>
+                        {% else %}
+                        <div class="list-group-item text-muted text-center">Aucune activité récente.</div>
                         {% endfor %}
                     </div>
                 </div>
-            {% endif %}
-        {% endwith %}
-
-        {# Bloc de contenu spécifique à la page #}
-        {% block content %}{% endblock %}
-    </div>
-
-    <!-- ==================== Pied de page ==================== -->
-    <footer class="py-3 mt-auto bg-light border-top">
-        <div class="container-fluid text-center">
-            <small class="text-muted">
-                © {{ now.year }} {{ app_name | default('Votre Entreprise') }}. Tous droits réservés.
-                {% if debug_mode %}
-                 | Mode Debug Actif
-                {% endif %}
-            </small>
+                <div class="card-footer text-center">
+                    <a href="{{ url_for('activites_journal') }}" class="btn btn-outline-secondary btn-sm">Voir tout le journal</a>
+                </div>
+            </div>
         </div>
-    </footer>
-    <!-- ==================== Fin Pied de page ==================== -->
-
-    <!-- Modales communes (si elles sont utilisées sur plusieurs pages) -->
-    {% block modals %}
-        {# Inclure les modales ici si nécessaire, ex: #}
-        {# {% include 'modals/_inscription_modal.html' ignore missing %} #}
-    {% endblock %}
-
-    <!-- Conteneur pour les Toasts/Notifications -->
-    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3">
-        <!-- Les toasts seront ajoutés ici par JavaScript -->
     </div>
+</div>
+{% endblock %}
 
-    <!-- Scripts JavaScript -->
-    <!-- Bootstrap JS Bundle (inclut Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-
-    <!-- Chart.js (Décommentez si vous utilisez des graphiques dynamiques Chart.js) -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script> -->
-
-    <!-- Scripts personnalisés (l'ordre est important) -->
-    <script src="{{ url_for('static', filename='js/api-error-handler.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/modal-fix.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/modal-fix-patch.js') }}" defer></script>
-
-    <!-- Configuration JS (si nécessaire, avant dashboard-init) -->
-    <script>
-        window.dashboardConfig = window.dashboardConfig || {}; // Assure que l'objet existe
-        // Passer des variables Flask à JS (exemple)
-        window.dashboardConfig.debugMode = {{ debug_mode | default(false) | tojson }};
-        // Ajoutez d'autres configurations si nécessaire
-        // window.dashboardConfig.baseApiUrl = "{{ url_for('index') }}api";
-
-        // Données globales pour les graphiques (utilisées par dashboard-core.js)
-        window.themesDataForChart = {
-            'Communiquer avec Teams': { color: 'var(--theme-teams, #0078d4)', description: 'Apprenez à utiliser Microsoft Teams pour communiquer efficacement.' },
-            'Gérer les tâches (Planner)': { color: 'var(--theme-planner, #7719aa)', description: 'Maîtrisez la gestion des tâches d\'équipe avec Planner et To Do.' },
-            'Gérer mes fichiers (OneDrive/SharePoint)': { color: 'var(--theme-onedrive, #0364b8)', description: 'Organisez et partagez vos fichiers avec OneDrive et SharePoint.' },
-            'Collaborer avec Teams': { color: 'var(--theme-sharepoint, #038387)', description: 'Découvrez comment collaborer sur des documents via Microsoft Teams.' }
+{% block scripts_extra %}
+<script>
+    // Fonction helper pour les icônes d'activité (similaire à celle dans dashboard-core.js)
+    // Vous pourriez la mettre dans un fichier JS global si elle est utilisée ailleurs.
+    function getActivityIcon(type) {
+        const iconMap = {
+            'connexion': 'fas fa-sign-in-alt text-success',
+            'deconnexion': 'fas fa-sign-out-alt text-warning',
+            'inscription': 'fas fa-user-plus text-primary',
+            'validation': 'fas fa-check-circle text-success',
+            'refus': 'fas fa-times-circle text-danger',
+            'annulation': 'fas fa-ban text-danger',
+            'ajout_participant': 'fas fa-user-plus text-primary',
+            'suppression_participant': 'fas fa-user-minus text-danger',
+            'modification_participant': 'fas fa-user-edit text-warning',
+            'ajout_theme': 'fas fa-folder-plus text-primary',
+            'ajout_salle': 'fas fa-door-open text-primary',
+            'systeme': 'fas fa-cog text-secondary',
+            'notification': 'fas fa-bell text-warning',
+            'ajout_document': 'fas fa-file-upload text-info',
+            'suppression_document': 'fas fa-file-excel text-danger',
+            'default': 'fas fa-info-circle text-secondary'
         };
-        window.servicesDataForChart = { // Utilisé pour obtenir la couleur dans le graphique service
-             'Commerce Anecoop-Solagora': { color: 'var(--service-commerce, #FFC107)' },
-             'Comptabilité': { color: 'var(--service-comptabilite, #2196F3)' },
-             'Florensud': { color: 'var(--service-florensud, #4CAF50)' },
-             'Informatique': { color: 'var(--service-informatique, #607D8B)' },
-             'Marketing': { color: 'var(--service-marketing, #9C27B0)' },
-             'Qualité': { color: 'var(--service-qualite, #F44336)' },
-             'RH': { color: 'var(--service-rh, #FF9800)' }
-        };
-    </script>
-
-    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}" defer></script>
-    {# dashboard-core-fix.js n'est plus inclus #}
-
-    {% block scripts_extra %}{% endblock %} {# Pour JS spécifique à une page #}
-
-    <!-- Script final pour gérer le loader et initialiser les tooltips -->
-    <script>
-        function hideGlobalLoader() {
-            const overlay = document.getElementById('loading-overlay');
-            if (overlay && !overlay.classList.contains('hidden')) {
-                overlay.classList.add('hidden');
-                // Optionnel: supprimer après transition
-                // setTimeout(() => { overlay.remove(); }, 300);
-            }
-        }
-
-        // Cacher le loader une fois que le DOM est prêt et les scripts defer exécutés
-        // ou après un timeout de sécurité.
-        let loaderHidden = false;
-        const hideLoaderTimeout = setTimeout(() => {
-            if (!loaderHidden) {
-                hideGlobalLoader();
-                console.warn("Layout.html: Forcing loading overlay hide (fallback timeout).");
-                loaderHidden = true;
-            }
-        }, 7000); // 7 secondes
-
-        // Essayer de cacher plus tôt si possible
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const isUpdating = window.dashboardCore && window.dashboardCore.getState && window.dashboardCore.getState().updating;
-                if (!isUpdating && !loaderHidden) {
-                    hideGlobalLoader();
-                    loaderHidden = true;
-                    clearTimeout(hideLoaderTimeout);
-                }
-            }, 200);
+        return iconMap[type] || iconMap.default;
+    }
+    // Appliquer les icônes après le chargement du DOM
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.list-group-item-action i[class*="getActivityIcon"]').forEach(iconElement => {
+            // Si l'icône est déjà définie par une classe getActivityIcon, on la remplace par le résultat de la fonction
+            // Ceci est un exemple, il faudrait adapter en fonction de comment vous passez le type à l'icône
+            // L'idéal est de générer la classe directement dans la boucle Jinja comme fait ci-dessus.
         });
-        // Si dashboard-core finit son chargement initial avant 'window.load'
-        document.addEventListener('dashboardDataRefreshed', () => {
-             if (!loaderHidden) {
-                 hideGlobalLoader();
-                 loaderHidden = true;
-                 clearTimeout(hideLoaderTimeout);
-             }
-        }, { once: true });
-
-        // Initialiser les tooltips Bootstrap après le chargement du DOM
-        document.addEventListener('DOMContentLoaded', function () {
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl)
-                }
-                return bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-            })
-        });
-    </script>
-
-</body>
-</html>
+    });
+</script>
+{% endblock %}
