@@ -540,12 +540,12 @@ def update_theme_names():
         except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error standardizing theme names: {e}"); print("Erreur DB lors de la standardisation des thèmes.")
         except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error standardizing theme names: {e}"); print("Erreur inattendue lors de la standardisation des thèmes.")
 
-# Cached helper functions
 @cache.memoize(timeout=300)
 @db_operation_with_retry(max_retries=3)
 def get_all_themes():
-    app.logger.debug("Cache miss or expired: Fetching all themes from DB.")
-    return Theme.query.order_by(Theme.nom).all()
+    app.logger.debug("Cache miss or expired: Fetching all themes with sessions from DB.")
+    # ICI L'IMPORTANT : selectinload(Theme.sessions)
+    return Theme.query.options(selectinload(Theme.sessions)).order_by(Theme.nom).all()
 
 @cache.memoize(timeout=300)
 @db_operation_with_retry(max_retries=3)
