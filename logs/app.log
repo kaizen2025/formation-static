@@ -4601,3 +4601,122 @@ sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to serve
 2025-05-06 18:22:37,819 INFO: User 'Anonymous' accessing /dashboard. [in C:\formation-static\app.py:772]
 2025-05-06 18:22:38,112 INFO: Fetched 16 sessions with eager loading for dashboard. [in C:\formation-static\app.py:790]
 2025-05-06 18:22:56,643 INFO: Application logging initialized for production [in C:\formation-static\app.py:142]
+2025-05-09 01:42:56,518 INFO: Logging de production initialisé (fichiers). [in C:\formation-static\app.py:174]
+2025-05-09 01:42:58,237 INFO: Logging de production initialisé (fichiers). [in C:\formation-static\app.py:174]
+2025-05-09 01:43:04,221 INFO: Logging de production initialisé (fichiers). [in C:\formation-static\app.py:174]
+2025-05-11 15:29:37,142 INFO: Logging de production initialisé (fichiers). [in c:\formation-static\app.py:174]
+2025-05-11 15:29:37,173 INFO: Logging de production initialisé (fichiers). [in c:\formation-static\app.py:174]
+2025-05-11 15:29:37,173 INFO: Application context entered for startup DB checks. [in c:\formation-static\app.py:1781]
+2025-05-11 15:29:37,795 INFO: Connexion DB OK. [in c:\formation-static\app.py:1787]
+2025-05-11 15:29:37,795 INFO: Vérification/Création des tables DB (db.create_all())... [in c:\formation-static\app.py:1790]
+2025-05-11 15:29:47,809 ERROR: ⚠️ Erreur lors de db.create_all(): QueuePool limit of size 1 overflow 0 reached, connection timed out, timeout 10.00 (Background on this error at: https://sqlalche.me/e/20/3o7r) [in c:\formation-static\app.py:1798]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1792, in <module>
+    db.create_all() # Creates tables defined in models if they don't exist
+    ~~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_sqlalchemy\extension.py", line 900, in create_all
+    self._call_for_binds(bind_key, "create_all")
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_sqlalchemy\extension.py", line 881, in _call_for_binds
+    getattr(metadata, op_name)(bind=engine)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\sql\schema.py", line 5925, in create_all
+    bind._run_ddl_visitor(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        ddl.SchemaGenerator, self, checkfirst=checkfirst, tables=tables
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3248, in _run_ddl_visitor
+    with self.begin() as conn:
+         ~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3238, in begin
+    with self.connect() as conn:
+         ~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3274, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1264, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 713, in checkout
+    rec = pool._do_get()
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 168, in _do_get
+    raise exc.TimeoutError(
+    ...<4 lines>...
+    )
+sqlalchemy.exc.TimeoutError: QueuePool limit of size 1 overflow 0 reached, connection timed out, timeout 10.00 (Background on this error at: https://sqlalche.me/e/20/3o7r)
+2025-05-11 15:29:47,941 WARNING: Skipping data seeding (init_db) because table creation failed or was uncertain. [in c:\formation-static\app.py:1810]
+2025-05-11 15:29:47,942 INFO: Démarrage serveur en MODE DÉVELOPPEMENT avec gevent sur http://0.0.0.0:5000 (Debug: True) [in c:\formation-static\app.py:1834]
+2025-05-11 15:29:49,430 INFO: Logging de production initialisé (fichiers). [in c:\formation-static\app.py:174]
+2025-05-11 15:29:49,452 INFO: Logging de production initialisé (fichiers). [in c:\formation-static\app.py:174]
+2025-05-11 15:29:49,452 INFO: Application context entered for startup DB checks. [in c:\formation-static\app.py:1781]
+2025-05-11 15:29:50,082 INFO: Connexion DB OK. [in c:\formation-static\app.py:1787]
+2025-05-11 15:29:50,082 INFO: Vérification/Création des tables DB (db.create_all())... [in c:\formation-static\app.py:1790]
+2025-05-11 15:30:00,085 ERROR: ⚠️ Erreur lors de db.create_all(): QueuePool limit of size 1 overflow 0 reached, connection timed out, timeout 10.00 (Background on this error at: https://sqlalche.me/e/20/3o7r) [in c:\formation-static\app.py:1798]
+Traceback (most recent call last):
+  File "c:\formation-static\app.py", line 1792, in <module>
+    db.create_all() # Creates tables defined in models if they don't exist
+    ~~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_sqlalchemy\extension.py", line 900, in create_all
+    self._call_for_binds(bind_key, "create_all")
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_sqlalchemy\extension.py", line 881, in _call_for_binds
+    getattr(metadata, op_name)(bind=engine)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\sql\schema.py", line 5925, in create_all
+    bind._run_ddl_visitor(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        ddl.SchemaGenerator, self, checkfirst=checkfirst, tables=tables
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3248, in _run_ddl_visitor
+    with self.begin() as conn:
+         ~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3238, in begin
+    with self.connect() as conn:
+         ~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3274, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 3298, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 1264, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\pool\base.py", line 713, in checkout
+    rec = pool._do_get()
+  File "C:\Users\klmh6\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\pool\impl.py", line 168, in _do_get
+    raise exc.TimeoutError(
+    ...<4 lines>...
+    )
+sqlalchemy.exc.TimeoutError: QueuePool limit of size 1 overflow 0 reached, connection timed out, timeout 10.00 (Background on this error at: https://sqlalche.me/e/20/3o7r)
+2025-05-11 15:30:00,124 WARNING: Skipping data seeding (init_db) because table creation failed or was uncertain. [in c:\formation-static\app.py:1810]
+2025-05-11 15:30:00,124 INFO: Démarrage serveur en MODE DÉVELOPPEMENT avec gevent sur http://0.0.0.0:5000 (Debug: True) [in c:\formation-static\app.py:1834]
+2025-05-11 15:30:00,157 INFO: User 'Anonymous' accessing /dashboard. [in c:\formation-static\app.py:696]
+2025-05-11 15:30:00,611 INFO: Fetched 16 sessions with eager loading for dashboard. [in c:\formation-static\app.py:704]
+2025-05-11 15:31:57,775 INFO: Utilisateur 'Anonymous' accède à la page /participants. [in c:\formation-static\app.py:1106]
+2025-05-11 15:31:59,331 INFO: User 'Anonymous' accessing /sessions. [in c:\formation-static\app.py:754]
+2025-05-11 15:31:59,600 INFO: Fetched 16 sessions from DB after base filters. [in c:\formation-static\app.py:769]
+2025-05-11 15:31:59,601 INFO: Prepared 16 sessions for template after all filters. [in c:\formation-static\app.py:778]
+2025-05-11 15:32:01,360 INFO: User 'Anonymous' accessing /dashboard. [in c:\formation-static\app.py:696]
+2025-05-11 15:32:01,639 INFO: Fetched 16 sessions with eager loading for dashboard. [in c:\formation-static\app.py:704]
