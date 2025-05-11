@@ -4,17 +4,16 @@
 
 {% block head_extra %}
 <style>
-    /* Styles spécifiques si besoin pour cette page */
     #participants-table th, #participants-table td {
         vertical-align: middle;
     }
     .participant-email {
-        word-break: break-all; /* Pour les emails longs */
+        word-break: break-all; 
     }
     .table-hover tbody tr:hover {
-        background-color: #f8f9fa; /* Léger surlignage au survol */
+        background-color: #f8f9fa;
     }
-    .badge.fs-6 { /* Assurer une taille de badge cohérente */
+    .badge.fs-6 {
         font-size: 0.85rem !important; 
     }
 </style>
@@ -105,7 +104,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for p_data in participants_data|sort(attribute='obj.prenom')|sort(attribute='obj.nom') %} {# Tri par nom puis prénom #}
+                        {% for p_data in participants_data|sort(attribute='obj.prenom')|sort(attribute='obj.nom') %}
                         {% set participant = p_data.obj %}
                         <tr data-participant-id="{{ participant.id }}" class="participant-row">
                             <td>
@@ -244,18 +243,17 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-            console.log('Participants Page JS: Initializing (v_complete).');
+            console.log('Participants Page JS: Initializing (v_complete_final).');
         }
 
         const searchInput = document.getElementById('searchParticipant');
         const participantsTableBody = document.getElementById('participants-table')?.querySelector('tbody');
-        const noParticipantsRow = document.getElementById('no-participants-row'); // Récupérer la ligne "aucun participant"
+        const noParticipantsRow = document.getElementById('no-participants-row');
         const participantCountFooter = document.getElementById('participant-count-footer');
         const searchResultsInfo = document.getElementById('search-results-info');
 
         function filterParticipants() {
             if (!searchInput || !participantsTableBody) return;
-
             const searchValue = searchInput.value.toLowerCase().trim();
             const rows = participantsTableBody.querySelectorAll('tr.participant-row');
             let visibleCount = 0;
@@ -264,27 +262,20 @@
                 const nameCell = row.querySelector('td:nth-child(1)');
                 const serviceCell = row.querySelector('td:nth-child(2) span.badge');
                 const emailCell = row.querySelector('td:nth-child(3) a');
-
                 const nameText = nameCell ? nameCell.textContent.toLowerCase() : '';
                 const serviceText = serviceCell ? serviceCell.textContent.toLowerCase() : '';
                 const emailText = emailCell ? emailCell.textContent.toLowerCase() : '';
-
-                const isVisible = nameText.includes(searchValue) || 
-                                  serviceText.includes(searchValue) || 
-                                  emailText.includes(searchValue);
+                const isVisible = nameText.includes(searchValue) || serviceText.includes(searchValue) || emailText.includes(searchValue);
                 row.style.display = isVisible ? '' : 'none';
-                if (isVisible) {
-                    visibleCount++;
-                }
+                if (isVisible) visibleCount++;
             });
 
-            // Gérer l'affichage de la ligne "aucun participant" en fonction de la recherche
             const hasVisibleRows = Array.from(rows).some(row => row.style.display !== 'none');
             if (noParticipantsRow) {
-                if (!hasVisibleRows && rows.length > 0) { // Si aucune ligne n'est visible MAIS il y a des lignes au total
-                    noParticipantsRow.style.display = ''; // Afficher "aucun résultat"
+                if (!hasVisibleRows && rows.length > 0) {
+                    noParticipantsRow.style.display = '';
                     noParticipantsRow.querySelector('td').innerHTML = `<i class="fas fa-search fa-2x mb-2 d-block"></i> Aucun participant ne correspond à votre recherche.`;
-                } else if (rows.length === 0 && searchValue === '') { // Si la table est initialement vide
+                } else if (rows.length === 0 && searchValue === '') {
                      noParticipantsRow.style.display = '';
                      noParticipantsRow.querySelector('td').innerHTML = `<i class="fas fa-info-circle fa-2x mb-2 d-block"></i> Aucun participant trouvé. {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}<a href="#" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal" class="d-block mt-2">Ajouter un participant</a>{% endif %}`;
                 } else {
@@ -299,29 +290,28 @@
 
         if (searchInput) {
             searchInput.addEventListener('input', filterParticipants);
-            filterParticipants(); // Appel initial pour gérer l'état de la table au chargement
+            filterParticipants(); 
         }
         
         // La logique d'initialisation des tooltips/badges DANS LES MODALES
-        // est maintenant gérée par le script global modal-fix.js (v1.0.2+)
-        // via l'événement 'shown.bs.modal'.
+        // est gérée par le script global modal-fix.js (v1.0.3+) via 'shown.bs.modal'.
 
         // Appel initial pour les badges sur la page principale (hors modales)
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-            setTimeout(window.enhanceThemeBadgesGlobally, 150); 
+            setTimeout(() => window.enhanceThemeBadgesGlobally(document.getElementById('participants-page-content')), 150); 
         }
         // Initialisation des tooltips pour la page principale (hors modales)
         if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
              const tooltipTriggerList = [].slice.call(document.querySelectorAll('#participants-page-content [data-bs-toggle="tooltip"]'));
              tooltipTriggerList.map(function (tooltipTriggerEl) {
+                if (tooltipTriggerEl.closest('.modal')) return null; // Géré par modal-fix.js
                 const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-                if (existingTooltip) return existingTooltip; // Ne pas réinitialiser si déjà fait
+                if (existingTooltip) return existingTooltip;
                 return new bootstrap.Tooltip(tooltipTriggerEl);
              });
         }
         
         // Validation Bootstrap pour les formulaires dans les modales de cette page
-        // (Modale globale d'ajout et modales d'édition)
         document.querySelectorAll('#participants-page-content .modal').forEach(modal => {
             const formsInModal = modal.querySelectorAll('form.needs-validation');
             formsInModal.forEach(form => {
