@@ -960,34 +960,39 @@ def validation_inscription_ajax():
     except Exception as e: db.session.rollback(); app.logger.error(f"Validation AJAX: Erreur inattendue - {e}", exc_info=True); return jsonify({'success': False, 'message': 'Erreur interne du serveur.'}), 500
 
 # --- Document Routes ---
-@app.route('/documents')
-@login_required # Assurez-vous que la page documents nécessite une connexion
+@app.route('/documents') # RETRAIT DE @login_required ICI
 @db_operation_with_retry(max_retries=3)
 def documents():
     try:
+        # Charger les documents pour tous les visiteurs
         themes_with_docs = Theme.query.options(
             selectinload(Theme.documents).joinedload(Document.uploader)
         ).order_by(Theme.nom).all()
         
-        # Récupérer tous les thèmes pour le formulaire d'upload si l'utilisateur est admin
         themes_for_upload_form = []
+        # Vérifier si l'utilisateur est un admin connecté pour les fonctionnalités d'upload
         if current_user.is_authenticated and current_user.role == 'admin':
-            themes_for_upload_form = get_all_themes() # Utilise votre fonction cachée
+            themes_for_upload_form = get_all_themes()
+
+        # Déterminer si on doit afficher le bouton d'upload et les options de suppression
+        # Cette variable sera utilisée dans le template pour conditionner l'affichage
+        show_admin_features = current_user.is_authenticated and current_user.role == 'admin'
 
         return render_template('documents.html', 
                                themes_with_docs=themes_with_docs,
-                               themes_for_upload=themes_for_upload_form) # Nouvelle variable pour le template
+                               themes_for_upload=themes_for_upload_form,
+                               show_admin_features=show_admin_features, # Passer cette variable
+                               ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS) # Assurez-vous de passer ALLOWED_EXTENSIONS
     except SQLAlchemyError as e:
         db.session.rollback()
         app.logger.error(f"DB error loading documents page: {e}", exc_info=True)
         flash("Erreur de base de données lors du chargement des documents.", "danger")
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard')) # Ou une page d'erreur publique si dashboard nécessite login
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Unexpected error loading documents page: {e}", exc_info=True)
         flash("Une erreur interne est survenue.", "danger")
-        return redirect(url_for('dashboard'))
-
+        return redirect(url_for('dashboard')) # Ou une page d'erreur publique
 @app.route('/download_document/<path:filename>')
 @db_operation_with_retry(max_retries=2)
 def download_document(filename):
