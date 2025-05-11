@@ -961,13 +961,32 @@ def validation_inscription_ajax():
 
 # --- Document Routes ---
 @app.route('/documents')
+@login_required # Assurez-vous que la page documents nécessite une connexion
 @db_operation_with_retry(max_retries=3)
 def documents():
     try:
-        themes_with_docs = Theme.query.options(selectinload(Theme.documents).joinedload(Document.uploader)).order_by(Theme.nom).all()
-        return render_template('documents.html', themes_with_docs=themes_with_docs)
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"DB error loading documents page: {e}", exc_info=True); flash("Erreur de base de données lors du chargement des documents.", "danger"); return redirect(url_for('dashboard'))
-    except Exception as e: db.session.rollback(); app.logger.error(f"Unexpected error loading documents page: {e}", exc_info=True); flash("Une erreur interne est survenue.", "danger"); return redirect(url_for('dashboard'))
+        themes_with_docs = Theme.query.options(
+            selectinload(Theme.documents).joinedload(Document.uploader)
+        ).order_by(Theme.nom).all()
+        
+        # Récupérer tous les thèmes pour le formulaire d'upload si l'utilisateur est admin
+        themes_for_upload_form = []
+        if current_user.is_authenticated and current_user.role == 'admin':
+            themes_for_upload_form = get_all_themes() # Utilise votre fonction cachée
+
+        return render_template('documents.html', 
+                               themes_with_docs=themes_with_docs,
+                               themes_for_upload=themes_for_upload_form) # Nouvelle variable pour le template
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        app.logger.error(f"DB error loading documents page: {e}", exc_info=True)
+        flash("Erreur de base de données lors du chargement des documents.", "danger")
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Unexpected error loading documents page: {e}", exc_info=True)
+        flash("Une erreur interne est survenue.", "danger")
+        return redirect(url_for('dashboard'))
 
 @app.route('/download_document/<path:filename>')
 @db_operation_with_retry(max_retries=2)
