@@ -1,31 +1,20 @@
 <!-- templates/modals/_inscription_modal.html -->
-{#
-    Modale pour inscrire un participant (existant ou nouveau) à une session.
-
-    Attend dans le contexte (passé via {% with ... %}):
-    - session: L'objet Session SQLAlchemy.
-    - session_data: Le dictionnaire contenant les comptes pré-calculés (ex: places_restantes).
-    Attend dans le contexte global (passé par render_template):
-    - participants: Liste de tous les objets Participant (pour le dropdown).
-    - services: Liste de tous les objets Service (pour le dropdown).
-    - request: L'objet request de Flask (pour request.endpoint).
-#}
 <div class="modal fade" id="inscriptionModal_{{ session.id }}" tabindex="-1" 
      aria-labelledby="inscriptionModalLabel_{{ session.id }}" aria-hidden="true" 
-     data-bs-backdrop="static" data-bs-keyboard="false"> {# Empêche la fermeture en cliquant à l'extérieur ou avec Echap #}
+     data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <div class="modal-header bg-primary text-white"> {# En-tête coloré #}
+      <div class="modal-header bg-primary text-white">
         <h5 class="modal-title" id="inscriptionModalLabel_{{ session.id }}">
           <i class="fas fa-user-plus me-2"></i>Inscription: {{ session.theme.nom }}
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
-      <div class="modal-body p-4"> {# Plus de padding #}
+      <div class="modal-body p-4">
         <!-- Informations sur la session -->
-        <div class="alert alert-light border mb-4 p-3 shadow-sm"> {# Alerte plus discrète #}
+        <div class="alert alert-light border mb-4 p-3 shadow-sm">
           <div class="d-flex align-items-center">
-             <i class="fas fa-calendar-check fa-2x me-3 text-primary-emphasis"></i> {# Icône plus thématique #}
+             <i class="fas fa-calendar-check fa-2x me-3 text-primary-emphasis"></i>
              <div>
                 <h6 class="mb-1 fw-bold text-primary-emphasis">Session du {{ session.formatage_date }}</h6>
                 <p class="mb-1 small text-body-secondary">
@@ -46,7 +35,7 @@
         </div>
 
         <!-- Navigation par onglets -->
-        <ul class="nav nav-tabs nav-fill mb-3" id="inscriptionTabs_{{ session.id }}" role="tablist"> {# nav-fill pour occuper toute la largeur #}
+        <ul class="nav nav-tabs nav-fill mb-3" id="inscriptionTabs_{{ session.id }}" role="tablist">
           <li class="nav-item" role="presentation">
             <button class="nav-link active" id="participant-existant-tab_{{ session.id }}" data-bs-toggle="tab" data-bs-target="#participant-existant_{{ session.id }}" type="button" role="tab" aria-controls="participant-existant-{{ session.id }}" aria-selected="true">
               <i class="fas fa-user me-1"></i> Participant existant
@@ -66,12 +55,12 @@
           <div class="tab-pane fade show active" id="participant-existant_{{ session.id }}" role="tabpanel" aria-labelledby="participant-existant-tab-{{ session.id }}">
             <form action="{{ url_for('inscription') }}" method="post" id="inscription-form-{{ session.id }}" class="needs-validation" novalidate>
               <input type="hidden" name="session_id" value="{{ session.id }}">
-              {# 'from_page' est utile pour la redirection dans la route 'inscription' #}
-              <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}"> 
+              <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}">
               
               <div class="mb-3">
                 <label for="participant_id_{{ session.id }}" class="form-label">Sélectionner un participant*</label>
-                <select class="form-select" id="participant_id_{{ session.id }}" name="participant_id" required>
+                <select class="form-select form-select-lg" id="participant_id_{{ session.id }}" name="participant_id" required
+                       style="display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1001 !important; position: relative !important; pointer-events: auto !important;">
                   <option value="" selected disabled>-- Choisir dans la liste --</option>
                   {% for participant in participants|sort(attribute='prenom')|sort(attribute='nom') %} 
                   <option value="{{ participant.id }}">{{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})</option>
@@ -83,7 +72,7 @@
               </div>
               
               <div class="d-grid gap-2 mt-4">
-                <button type="submit" class="btn btn-primary btn-lg"> {# Bouton plus grand #}
+                <button type="submit" class="btn btn-primary btn-lg">
                   <i class="fas fa-check-circle me-2"></i>Confirmer l'inscription
                 </button>
               </div>
@@ -97,27 +86,27 @@
               <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}"> 
               <input type="hidden" name="redirect_session_id" value="{{ session.id }}">
               <input type="hidden" name="action_after_add" value="inscription">
-              <input type="hidden" name="from_modal" value="true"> 
               
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label for="nom_nouveau_{{ session.id }}" class="form-label">Nom*</label> {# ID unique #}
+                  <label for="nom_nouveau_{{ session.id }}" class="form-label">Nom*</label>
                   <input type="text" class="form-control" id="nom_nouveau_{{ session.id }}" name="nom" required>
                   <div class="invalid-feedback">Le nom est obligatoire.</div>
                 </div>
                 <div class="col-md-6">
-                  <label for="prenom_nouveau_{{ session.id }}" class="form-label">Prénom*</label> {# ID unique #}
+                  <label for="prenom_nouveau_{{ session.id }}" class="form-label">Prénom*</label>
                   <input type="text" class="form-control" id="prenom_nouveau_{{ session.id }}" name="prenom" required>
                    <div class="invalid-feedback">Le prénom est obligatoire.</div>
                 </div>
                 <div class="col-12">
-                  <label for="email_nouveau_{{ session.id }}" class="form-label">Email*</label> {# ID unique #}
+                  <label for="email_nouveau_{{ session.id }}" class="form-label">Email*</label>
                   <input type="email" class="form-control" id="email_nouveau_{{ session.id }}" name="email" required>
                    <div class="invalid-feedback">Une adresse email valide est obligatoire.</div>
                 </div>
                 <div class="col-12">
-                  <label for="service_id_nouveau_{{ session.id }}" class="form-label">Service*</label> {# ID unique #}
-                  <select class="form-select" id="service_id_nouveau_{{ session.id }}" name="service_id" required>
+                  <label for="service_id_nouveau_{{ session.id }}" class="form-label">Service*</label>
+                  <select class="form-select" id="service_id_nouveau_{{ session.id }}" name="service_id" required
+                         style="display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1001 !important; position: relative !important; pointer-events: auto !important;">
                     <option value="" selected disabled>-- Choisir un service --</option>
                     {% for service_item in services|sort(attribute='nom') %}
                     <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
@@ -128,17 +117,17 @@
               </div>
               
               <div class="d-grid gap-2 mt-4">
-                <button type="submit" class="btn btn-success btn-lg"> {# Bouton plus grand #}
+                <button type="submit" class="btn btn-success btn-lg">
                   <i class="fas fa-user-plus me-2"></i>Ajouter et Inscrire
                 </button>
               </div>
             </form>
           </div>
-        </div> {# Fin tab-content #}
-      </div> {# Fin modal-body #}
+        </div>
+      </div>
       
-      <div class="modal-footer bg-light justify-content-between"> {# Pied de page coloré et boutons alignés #}
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"> {# Bouton plus discret #}
+      <div class="modal-footer bg-light justify-content-between">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
           <i class="fas fa-times me-1"></i> Annuler
         </button>
         {% if session_data.places_restantes == 0 %}
@@ -151,14 +140,13 @@
   </div>
 </div>
 
-{# Script spécifique pour cette instance de modale #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const modalId = 'inscriptionModal_{{ session.id }}';
     const modalElement = document.getElementById(modalId);
     if (!modalElement) return;
 
-    // Fonction pour réappliquer les styles aux éléments de formulaire (si nécessaire après des manipulations JS)
+    // Fonction pour réappliquer les styles aux éléments de formulaire (très important)
     function applyFormElementStyles(modalEl) {
         modalEl.querySelectorAll('select, .form-select').forEach(select => {
             select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
@@ -172,57 +160,67 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Appliquer les styles au chargement du DOM (au cas où la modale est déjà visible)
+    // Appliquer les styles au chargement du DOM et quand la modale est affichée
     applyFormElementStyles(modalElement);
-
-    // Réappliquer les styles quand la modale est montrée (pour s'assurer qu'ils sont corrects)
+    
     modalElement.addEventListener('shown.bs.modal', function () {
         applyFormElementStyles(this);
+        
+        // Focus sur le premier select visible
+        const activeTabPane = this.querySelector('.tab-pane.active');
+        if (activeTabPane) {
+            const firstInput = activeTabPane.querySelector('select, input');
+            if (firstInput) setTimeout(() => firstInput.focus(), 200);
+        }
     });
 
-    // Validation Bootstrap spécifique aux formulaires dans les onglets de CETTE modale
+    // Validation Bootstrap améliorée pour les formulaires
     const formsInThisModal = modalElement.querySelectorAll('form.needs-validation');
     formsInThisModal.forEach(form => {
         form.addEventListener('submit', function(event) {
             const parentTabPane = form.closest('.tab-pane');
-            // Valider uniquement si le formulaire est dans l'onglet actif
             if (parentTabPane && !parentTabPane.classList.contains('active')) {
                 event.preventDefault();
                 event.stopPropagation();
-                if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-                    console.warn(`Soumission bloquée pour le formulaire inactif: ${form.id}`);
-                }
                 return; 
             }
 
             if (!form.checkValidity()) {
                 event.preventDefault();
                 event.stopPropagation();
+                
+                // Amélioration: Trouver et mettre en évidence le premier champ invalide
+                const firstInvalid = form.querySelector(':invalid');
+                if (firstInvalid) {
+                    firstInvalid.focus();
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             }
             form.classList.add('was-validated');
         }, false);
     });
 
-    // Réinitialiser l'état de validation lors du changement d'onglet pour CETTE modale
+    // Réinitialiser la validation lors du changement d'onglet
     const tabButtonsInThisModal = modalElement.querySelectorAll('button[data-bs-toggle="tab"]');
     tabButtonsInThisModal.forEach(tabButton => {
         tabButton.addEventListener('shown.bs.tab', function (event) {
-            // Onglet précédent (s'il existe)
-            const previousTabTarget = event.relatedTarget ? event.relatedTarget.getAttribute('data-bs-target') : null;
-            if (previousTabTarget) {
-                const previousForm = modalElement.querySelector(previousTabTarget + ' form.needs-validation');
-                if (previousForm) {
-                    previousForm.classList.remove('was-validated');
-                    previousForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                }
-            }
-            // Nouvel onglet actif
-            const currentTabTarget = event.target.getAttribute('data-bs-target');
-            if (currentTabTarget) {
-                const currentForm = modalElement.querySelector(currentTabTarget + ' form.needs-validation');
-                if (currentForm) {
-                    currentForm.classList.remove('was-validated');
-                    currentForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            // Réinitialiser les formulaires lorsqu'on change d'onglet
+            modalElement.querySelectorAll('form.needs-validation').forEach(form => {
+                form.classList.remove('was-validated');
+                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+                form.reset();
+            });
+            
+            // Réappliquer les styles aux formulaires dans le nouvel onglet actif
+            const targetId = event.target.getAttribute('data-bs-target');
+            if (targetId) {
+                const activePane = modalElement.querySelector(targetId);
+                if (activePane) {
+                    applyFormElementStyles(activePane);
+                    
+                    // Focus sur le premier champ du nouvel onglet
+                    const firstField = activePane.querySelector('select, input');
+                    if (firstField) setTimeout(() => firstField.focus(), 200);
                 }
             }
         });
