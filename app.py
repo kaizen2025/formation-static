@@ -347,21 +347,27 @@ class Theme(db.Model):
     sessions = db.relationship('Session', backref='theme', lazy='select') # 'select' is fine if num sessions per theme is small
     documents = db.relationship('Document', backref='theme', lazy='select', cascade="all, delete-orphan")
     def __repr__(self): return f'<Theme {self.id}: {self.nom}>'
-
+        
 class Document(db.Model):
     __tablename__ = 'document'
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255), nullable=False, unique=True) # Nom de fichier stocké sur le serveur (sécurisé et unique)
-    original_filename = db.Column(db.String(255), nullable=False) # Nom de fichier original
+    filename = db.Column(db.String(255), nullable=False, unique=True)  # Nom de fichier stocké sur le serveur (sécurisé et unique)
+    original_filename = db.Column(db.String(255), nullable=False)  # Nom de fichier original
     description = db.Column(db.Text, nullable=True)
     upload_date = db.Column(db.DateTime, default=lambda: datetime.now(UTC), nullable=False)
-    theme_id = db.Column(db.Integer, db.ForeignKey('theme.id'), nullable=True, index=True) # Peut être null pour les docs généraux
+    theme_id = db.Column(db.Integer, db.ForeignKey('theme.id'), nullable=True, index=True)  # Peut être null pour les docs généraux
     uploader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    file_type = db.Column(db.String(50), nullable=True) # e.g., 'pdf', 'docx'
+    file_type = db.Column(db.String(50), nullable=True)  # e.g., 'pdf', 'docx'
+    
+    # Nouveau champ pour stocker le contenu binaire du fichier
+    file_content = db.Column(db.LargeBinary, nullable=True)  # Stocke le contenu binaire du fichier
+    
+    # Relations
     uploader = db.relationship('User', backref=db.backref('uploaded_documents', lazy='dynamic'))
-    # 'theme' est défini par le backref dans Theme
-    def __repr__(self): return f'<Document {self.id}: {self.original_filename}>'
-
+    theme = db.relationship('Theme', backref=db.backref('documents', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<Document {self.id}: {self.original_filename}>'
 class Session(db.Model):
     __tablename__ = 'session'
     id = db.Column(db.Integer, primary_key=True)
@@ -1546,31 +1552,27 @@ def validation_inscription_ajax():
         app.logger.error(f"Validation AJAX: Erreur inattendue - {e}", exc_info=True)
         return jsonify({'success': False, 'message': 'Erreur interne du serveur.'}), 500
 
-# --- Document Routes ---
 @app.route('/documents')
 @db_operation_with_retry(max_retries=3)
 def documents():
+    """
+    Affiche tous les documents regroupés par thème.
+    """
     try:
         themes_with_docs_query = Theme.query.options(
-            selectinload(Theme.documents).joinedload(Document.uploader)
+            db.orm.selectinload(Theme.documents).joinedload(Document.uploader)
         ).order_by(Theme.nom)
         
         # Ajouter une section pour les documents sans thème (theme_id IS NULL)
         general_docs = Document.query.filter(Document.theme_id.is_(None)).options(
-            joinedload(Document.uploader)
+            db.orm.joinedload(Document.uploader)
         ).order_by(Document.original_filename).all()
 
         themes_with_docs_list = themes_with_docs_query.all()
         
         # Créer une structure pour les documents généraux si nécessaire
-        # On peut les ajouter comme un "thème" spécial ou les traiter séparément dans le template
         # Pour simplifier, on peut les passer comme une liste séparée.
-        # Ou, si on veut les intégrer dans la boucle des thèmes, on crée un objet factice:
         
-        # Structure pour le template:
-        # themes_with_docs: liste d'objets Theme (avec leurs documents)
-        # general_docs_list: liste d'objets Document (ceux sans thème)
-
         themes_for_upload_form = []
         if current_user.is_authenticated and current_user.role == 'admin':
             themes_for_upload_form = get_all_themes()
@@ -1579,7 +1581,7 @@ def documents():
 
         return render_template('documents.html', 
                                themes_with_docs=themes_with_docs_list,
-                               general_docs_list=general_docs, # Passer les documents généraux
+                               general_docs_list=general_docs,
                                themes_for_upload=themes_for_upload_form,
                                show_admin_features=show_admin_features,
                                ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS)
@@ -1594,33 +1596,170 @@ def documents():
         flash("Une erreur interne est survenue.", "danger")
         return redirect(url_for('dashboard'))
 
-@app.route('/download_document/<path:filename>')
+@app.route('/download_document/<int:doc_id>')
 @db_operation_with_retry(max_retries=2)
-def download_document(filename):
+def download_document(doc_id):
+    """
+    Télécharger un document directement depuis la base de données.
+    """
     try:
-        safe_filename = secure_filename(filename)
-        if safe_filename != filename:
-            app.logger.warning(f"Tentative de téléchargement avec nom de fichier potentiellement dangereux: {filename}")
-            flash("Nom de fichier invalide.", "danger")
+        # Récupérer le document par son ID
+        doc = Document.query.get_or_404(doc_id)
+        
+        if not doc.file_content:
+            app.logger.error(f"Document {doc_id} n'a pas de contenu binaire")
+            flash("Erreur : le document n'a pas de contenu.", "danger")
             return redirect(url_for('documents'))
-
-        doc = Document.query.filter_by(filename=safe_filename).first()
-        if not doc:
-            app.logger.warning(f"Tentative de téléchargement d'un document inexistant: {safe_filename}")
-            flash("Document non trouvé.", "danger")
-            return redirect(url_for('documents'))
-
-        app.logger.info(f"Téléchargement du document '{doc.original_filename}' (fichier: {safe_filename}) demandé.")
-        return send_from_directory(app.config['UPLOAD_FOLDER'], safe_filename, as_attachment=True, download_name=doc.original_filename)
+        
+        # Créer un BytesIO object à partir du contenu binaire
+        file_data = BytesIO(doc.file_content)
+        file_data.seek(0)
+        
+        app.logger.info(f"Téléchargement du document '{doc.original_filename}' (ID: {doc_id}) demandé.")
+        
+        # Envoyer le fichier en tant que pièce jointe
+        return send_file(
+            file_data, 
+            download_name=doc.original_filename,
+            as_attachment=True, 
+            mimetype=f'application/{doc.file_type}' if doc.file_type else 'application/octet-stream'
+        )
     
-    except FileNotFoundError:
-        app.logger.error(f"Fichier non trouvé sur le disque pour le document: {safe_filename}", exc_info=True)
-        flash("Erreur : le fichier demandé n'existe plus sur le serveur.", "danger")
-        return redirect(url_for('documents'))
     except Exception as e:
-        app.logger.error(f"Erreur lors du téléchargement du document {safe_filename}: {e}", exc_info=True)
+        app.logger.error(f"Erreur lors du téléchargement du document {doc_id}: {e}", exc_info=True)
         flash("Erreur lors du téléchargement du document.", "danger")
         return redirect(url_for('documents'))
+
+@app.route('/admin/upload_document', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def upload_document():
+    """
+    Télécharger un document et le stocker dans la base de données.
+    """
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    from_page = request.form.get('from_page', 'admin')
+    redirect_url = url_for('admin')
+    if from_page == 'documents':
+        redirect_url = url_for('documents')
+    
+    try:
+        if 'document_file' not in request.files:
+            flash('Aucun fichier sélectionné.', 'warning')
+            return redirect(redirect_url)
+        
+        file = request.files['document_file']
+        theme_id_str = request.form.get('theme_id')
+        description = request.form.get('description', '').strip()
+
+        if file.filename == '':
+            flash('Aucun fichier sélectionné.', 'warning')
+            return redirect(redirect_url)
+
+        if file and allowed_file(file.filename, ALLOWED_EXTENSIONS):
+            original_filename = file.filename
+            filename_base = secure_filename(original_filename) 
+            filename_ext = ''
+            if '.' in filename_base:
+                filename_base, filename_ext = filename_base.rsplit('.', 1)
+                filename_ext = '.' + filename_ext.lower()
+
+            unique_id = str(int(time.time())) + "_" + str(random.randint(1000, 9999))
+            filename = f"{filename_base}_{unique_id}{filename_ext}"
+
+            # Lire le contenu du fichier
+            file_content = file.read()
+            
+            # Extraire le type de fichier à partir de l'extension
+            theme_id = int(theme_id_str) if theme_id_str and theme_id_str.isdigit() else None
+            file_type_from_ext = filename_ext[1:] if filename_ext else None
+
+            # Créer un nouvel enregistrement Document avec le contenu du fichier
+            new_doc = Document(
+                filename=filename, 
+                original_filename=original_filename, 
+                description=description or None, 
+                theme_id=theme_id, 
+                uploader_id=current_user.id, 
+                file_type=file_type_from_ext,
+                file_content=file_content  # Stockage du contenu binaire
+            )
+            
+            db.session.add(new_doc)
+            db.session.commit()
+            
+            if theme_id:
+                cache.delete_memoized(get_all_themes)
+            cache.delete('dashboard_essential_data')
+
+            add_activity('ajout_document', f'Upload: {original_filename}', f'Thème: {new_doc.theme.nom if new_doc.theme else "Général"}', user=current_user)
+            flash('Document uploadé avec succès.', 'success')
+        else:
+            flash('Type de fichier non autorisé ou nom de fichier problématique.', 'warning')
+            
+    except RequestEntityTooLarge:
+        flash('Le fichier est trop volumineux (limite: 16MB).', 'danger')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash("Erreur base de données lors de l'upload.", "danger")
+        app.logger.error(f"DB error during document upload: {e}", exc_info=True)
+    except Exception as e:
+        db.session.rollback()
+        flash("Erreur inattendue lors de l'upload.", "danger")
+        app.logger.error(f"Unexpected error during document upload: {e}", exc_info=True)
+    
+    return redirect(redirect_url)
+
+@app.route('/admin/delete_document/<int:doc_id>', methods=['POST'])
+@login_required
+@db_operation_with_retry(max_retries=2)
+def delete_document(doc_id):
+    """
+    Supprimer un document de la base de données.
+    """
+    if current_user.role != 'admin':
+        flash("Action réservée aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+
+    from_page = request.form.get('from_page', 'admin')
+    redirect_url = url_for('admin')
+    if from_page == 'documents':
+        redirect_url = url_for('documents')
+    
+    try:
+        doc = db.session.get(Document, doc_id)
+        if not doc:
+            flash("Document non trouvé.", "warning")
+            return redirect(redirect_url)
+        
+        filename = doc.filename
+        original_filename = doc.original_filename
+        theme_id_of_doc = doc.theme_id
+        
+        # Supprimer l'enregistrement de la base de données
+        db.session.delete(doc)
+        db.session.commit()
+
+        if theme_id_of_doc:
+            cache.delete_memoized(get_all_themes)
+        cache.delete('dashboard_essential_data')
+
+        add_activity('suppression_document', f'Suppression: {original_filename}', user=current_user)
+        flash(f'Document "{original_filename}" supprimé avec succès.', 'success')
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash("Erreur base de données lors de la suppression.", "danger")
+        app.logger.error(f"DB error during document delete (ID: {doc_id}): {e}", exc_info=True)
+    except Exception as e:
+        db.session.rollback()
+        flash("Erreur inattendue lors de la suppression.", "danger")
+        app.logger.error(f"Unexpected error during document delete (ID: {doc_id}): {e}", exc_info=True)
+    
+    return redirect(redirect_url)
 
 # --- Admin Routes ---
 @app.route('/admin')
@@ -1690,135 +1829,6 @@ def admin():
         app.logger.error(f"Unexpected error loading admin page: {e}", exc_info=True)
         flash("Une erreur interne est survenue.", "danger")
         return render_template('error.html', error_message="Erreur interne du serveur."), 500
-
-@app.route('/admin/upload_document', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=2)
-def upload_document():
-    if current_user.role != 'admin':
-        flash("Action réservée aux administrateurs.", "danger")
-        return redirect(url_for('dashboard'))
-    
-    from_page = request.form.get('from_page', 'admin')
-    redirect_url = url_for('admin')
-    if from_page == 'documents':
-        redirect_url = url_for('documents')
-    
-    try:
-        if 'document_file' not in request.files:
-            flash('Aucun fichier sélectionné.', 'warning')
-            return redirect(redirect_url)
-        
-        file = request.files['document_file']
-        theme_id_str = request.form.get('theme_id')
-        description = request.form.get('description', '').strip()
-
-        if file.filename == '':
-            flash('Aucun fichier sélectionné.', 'warning')
-            return redirect(redirect_url)
-
-        if file and allowed_file(file.filename):
-            original_filename = file.filename
-            filename_base = secure_filename(original_filename) 
-            filename_ext = ''
-            if '.' in filename_base:
-                filename_base, filename_ext = filename_base.rsplit('.', 1)
-                filename_ext = '.' + filename_ext.lower()
-
-            unique_id = str(int(time.time())) + "_" + str(random.randint(1000, 9999))
-            filename = f"{filename_base}_{unique_id}{filename_ext}"
-
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
-            app.logger.info(f"Fichier '{original_filename}' uploadé comme '{filename}' par {current_user.username}.")
-
-            theme_id = int(theme_id_str) if theme_id_str and theme_id_str.isdigit() else None
-            file_type_from_ext = filename_ext[1:] if filename_ext else None
-
-            new_doc = Document(
-                filename=filename, 
-                original_filename=original_filename, 
-                description=description or None, 
-                theme_id=theme_id, 
-                uploader_id=current_user.id, 
-                file_type=file_type_from_ext
-            )
-            db.session.add(new_doc)
-            db.session.commit()
-            
-            if theme_id:
-                cache.delete_memoized(get_all_themes)
-            cache.delete('dashboard_essential_data')
-
-            add_activity('ajout_document', f'Upload: {original_filename}', f'Thème: {new_doc.theme.nom if new_doc.theme else "Général"}', user=current_user)
-            flash('Document uploadé avec succès.', 'success')
-        else:
-            flash('Type de fichier non autorisé ou nom de fichier problématique.', 'warning')
-            
-    except RequestEntityTooLarge:
-        flash('Le fichier est trop volumineux (limite: 16MB).', 'danger')
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        flash("Erreur base de données lors de l'upload.", "danger")
-        app.logger.error(f"DB error during document upload: {e}", exc_info=True)
-    except Exception as e:
-        db.session.rollback()
-        flash("Erreur inattendue lors de l'upload.", "danger")
-        app.logger.error(f"Unexpected error during document upload: {e}", exc_info=True)
-    
-    return redirect(redirect_url)
-
-@app.route('/admin/delete_document/<int:doc_id>', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=2)
-def delete_document(doc_id):
-    if current_user.role != 'admin':
-        flash("Action réservée aux administrateurs.", "danger")
-        return redirect(url_for('dashboard'))
-
-    from_page = request.form.get('from_page', 'admin')
-    redirect_url = url_for('admin')
-    if from_page == 'documents':
-        redirect_url = url_for('documents')
-    
-    try:
-        doc = db.session.get(Document, doc_id)
-        if not doc:
-            flash("Document non trouvé.", "warning")
-            return redirect(redirect_url)
-        
-        filename = doc.filename
-        original_filename = doc.original_filename
-        theme_id_of_doc = doc.theme_id
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-                app.logger.info(f"Fichier physique '{filename}' supprimé.")
-            except OSError as e:
-                app.logger.error(f"Erreur suppression fichier physique {filename}: {e}", exc_info=True)
-        else:
-            app.logger.warning(f"Fichier physique '{filename}' non trouvé pour suppression (Doc ID: {doc_id}).")
-        
-        db.session.delete(doc)
-        db.session.commit()
-
-        if theme_id_of_doc:
-            cache.delete_memoized(get_all_themes)
-        cache.delete('dashboard_essential_data')
-
-        add_activity('suppression_document', f'Suppression: {original_filename}', user=current_user)
-        flash(f'Document "{original_filename}" supprimé avec succès.', 'success')
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        flash("Erreur base de données lors de la suppression.", "danger")
-        app.logger.error(f"DB error during document delete (ID: {doc_id}): {e}", exc_info=True)
-    except Exception as e:
-        db.session.rollback()
-        flash("Erreur inattendue lors de la suppression.", "danger")
-        app.logger.error(f"Unexpected error during document delete (ID: {doc_id}): {e}", exc_info=True)
-    return redirect(redirect_url)
     
 @app.route('/api/dashboard_essential')
 @db_operation_with_retry(max_retries=2)
