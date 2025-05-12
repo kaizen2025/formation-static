@@ -1,14 +1,15 @@
+// --- START OF FILE static/js/dashboard-core.js ---
 /**
  * dashboard-core.js
- * Version: 1.6.7 - Corrected escapeHtml, robust initialization and data handling.
+ * Version: 1.6.8 - Corrected SyntaxError in renderThemeDistributionChartJS, robust initialization and data handling.
  */
 document.addEventListener('DOMContentLoaded', function() {
     if (window.dashboardCoreInitialized) {
-        console.warn('Dashboard Core (v1.6.7): Already initialized. Skipping.');
+        console.warn('Dashboard Core (v1.6.8): Already initialized. Skipping.');
         return;
     }
     window.dashboardCoreInitialized = true;
-    console.log('Dashboard Core (v1.6.7): Initializing...');
+    console.log('Dashboard Core (v1.6.8): Initializing...');
 
     const globalLoadingOverlay = document.getElementById('loading-overlay');
     const dashInitConfig = window.dashboardConfig || {};
@@ -51,11 +52,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!config.usingDashboardInit) {
             setupEventListeners(); startPolling();
         } else {
-            window.forcePollingUpdate = (force) => debouncedFetchDashboardData(force);
+            // Ensure these are available for dashboard-init.js
+            if (typeof window.forcePollingUpdate !== 'function') window.forcePollingUpdate = (force) => debouncedFetchDashboardData(force);
             if (typeof window.updateStatsCounters !== 'function') window.updateStatsCounters = updateStatisticsCounters;
             if (typeof window.refreshRecentActivity !== 'function') window.refreshRecentActivity = () => updateActivityFeed(null);
             if (typeof window.chartModule !== 'object' || typeof window.chartModule.initialize !== 'function') {
-                window.chartModule = { initialize: initializeChartsFallback, update: updateChartsFallback };
+                 window.chartModule = { 
+                    initialize: initializeChartsFallback, 
+                    update: updateChartsFallback 
+                };
             }
         }
         debouncedFetchDashboardData(true);
@@ -63,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function startPolling() {
-        if (config.usingDashboardInit && config.preferredMode !== 'polling') return;
+        if (config.usingDashboardInit && config.preferredMode !== 'polling' && DASH_CONFIG.activeMode !== 'polling') return;
         if (dashboardState.pollingTimeout) clearTimeout(dashboardState.pollingTimeout);
         dashboardState.pollingTimeoutScheduled = false;
         function scheduleNextPoll() {
@@ -164,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateChartsFallback(data.sessions, data.participants);
                  }
                  dashboardState.dataHashes.participants = pH;
-                 if (pH !== dashboardState.dataHashes.participants && !hasChanged) hasChanged = true; // Marquer si seulement les participants ont changé
+                 if (pH !== dashboardState.dataHashes.participants && !hasChanged) hasChanged = true; 
              }
         } else if (forceRefresh) { /* Optionally clear charts */ }
         
@@ -187,11 +192,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateSessionTable(sessions) {
         if (!sessions || !Array.isArray(sessions)) return;
         const sTB = document.querySelector('.session-table tbody, #sessions-table tbody'); if (!sTB) return;
-        sTB.innerHTML = ''; if (sessions.length === 0) { const c = sTB.closest('table')?.querySelectorAll('thead th').length || 5; sTB.innerHTML = `<tr class="no-data-row"><td colspan="${c}" class="text-center p-4 text-muted">Aucune session.</td></tr>`; return; }
+        sTB.innerHTML = ''; if (sessions.length === 0) { const c = sTB.closest('table')?.querySelectorAll('thead th').length || 6; sTB.innerHTML = `<tr class="no-data-row"><td colspan="${c}" class="text-center p-4 text-muted">Aucune session.</td></tr>`; return; }
         sessions.forEach(s => {
             const mP=parseInt(s.max_participants)||0; const pR=parseInt(s.places_restantes); let pC='text-secondary',pI='fa-question-circle';
             if(typeof pR==='number'&&!isNaN(pR)){if(pR<=0){pC='text-danger';pI='fa-times-circle';}else if(pR<=Math.floor(mP*0.3)){pC='text-warning';pI='fa-exclamation-triangle';}else{pC='text-success';pI='fa-check-circle';}}
-            const rH=`<tr class="session-row" data-session-id="${s.id}" data-theme="${s.theme||'N/A'}" data-full="${pR<=0?'1':'0'}"><td><span class="fw-bold d-block">${s.date||'N/A'}</span><small class="text-secondary">${s.horaire||'N/A'}</small></td><td class="theme-cell"><span class="theme-badge" data-theme="${s.theme||'N/A'}" title="${(window.themesDataForChart&&window.themesDataForChart[s.theme])?escapeHtml(window.themesDataForChart[s.theme].description):''}" data-bs-toggle="tooltip">${s.theme||'N/A'}</span></td><td class="places-dispo text-nowrap ${pC}"><i class="fas ${pI} me-1"></i> ${typeof pR==='number'&&!isNaN(pR)?pR:'?'} / ${mP}</td><td class="js-salle-cell">${s.salle||'<span class="badge bg-secondary">Non définie</span>'}</td><td class="text-nowrap text-center"><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#participantsModal_${s.id}" title="Voir participants"><i class="fas fa-users"></i> <span class="badge bg-secondary ms-1">${parseInt(s.inscrits)||0}</span></button><button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal_${s.id}" title="Inscrire"><i class="fas fa-plus"></i></button></td></tr>`;
+            const pendingCount = parseInt(s.pending_count) || 0;
+            const pendingBadge = pendingCount > 0 ? `<span class="validation-badge bg-warning text-dark"><i class="fas fa-exclamation-circle"></i>${pendingCount}</span>` : `<span class="text-muted">-</span>`;
+            const rH=`<tr class="session-row" data-session-id="${s.id}" data-theme="${s.theme||'N/A'}" data-full="${pR<=0?'1':'0'}"><td><span class="fw-bold d-block">${s.date||'N/A'}</span><small class="text-secondary">${s.horaire||'N/A'}</small></td><td class="theme-cell"><span class="theme-badge" data-theme="${s.theme||'N/A'}" title="${(window.themesDataForChart&&window.themesDataForChart[s.theme])?escapeHtml(window.themesDataForChart[s.theme].description):''}" data-bs-toggle="tooltip">${s.theme||'N/A'}</span></td><td class="places-dispo text-nowrap ${pC}"><i class="fas ${pI} me-1"></i> ${typeof pR==='number'&&!isNaN(pR)?pR:'?'} / ${mP}</td><td>${pendingBadge}</td><td class="js-salle-cell">${s.salle||'<span class="badge bg-light text-dark">Non définie</span>'}</td><td class="text-nowrap text-center"><div class="btn-group btn-group-sm" role="group"><button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewParticipantsModal${s.id}" title="Voir participants"><i class="fas fa-users"></i></button><button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#inscriptionModal_${s.id}" title="Inscrire"><i class="fas fa-plus-circle"></i></button>${(typeof current_user !== 'undefined' && current_user.is_authenticated && current_user.role === 'admin') ? `<button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#attribuerSalleModal${s.id}" title="Attribuer salle"><i class="fas fa-door-open"></i></button>` : ''}</div></td></tr>`;
             sTB.insertAdjacentHTML('beforeend',rH);
         });
         enhanceBadgesAndLabels(); initTooltips();
@@ -201,7 +208,14 @@ document.addEventListener('DOMContentLoaded', function() {
         let stats={totalInscriptions:0,totalEnAttente:0,totalSessions:0,totalSessionsCompletes:0};
         if(!sessions||!Array.isArray(sessions)){updateCounter('total-inscriptions',0);updateCounter('total-en-attente',0);updateCounter('total-sessions',0);updateCounter('total-sessions-completes',0);return stats;}
         stats.totalSessions=sessions.length;
-        sessions.forEach(sess=>{const i=parseInt(sess.inscrits)||0;const lA=parseInt(sess.liste_attente)||0;const pR=parseInt(sess.places_restantes);stats.totalInscriptions+=i;stats.totalEnAttente+=lA;if((!isNaN(pR)&&pR<=0)||(isNaN(pR)&&(parseInt(sess.max_participants)||0)-i<=0))stats.totalSessionsCompletes++;});
+        sessions.forEach(sess=>{
+            const i=parseInt(sess.inscrits)||0;
+            const pR=parseInt(sess.places_restantes);
+            const pending = parseInt(sess.pending_count) || 0; // Utiliser pending_count pour totalEnAttente
+            stats.totalInscriptions+=i;
+            stats.totalEnAttente+=pending; // Mettre à jour ici
+            if((!isNaN(pR)&&pR<=0)||(isNaN(pR)&&(parseInt(sess.max_participants)||0)-i<=0))stats.totalSessionsCompletes++;
+        });
         updateCounter('total-inscriptions',stats.totalInscriptions);updateCounter('total-en-attente',stats.totalEnAttente);updateCounter('total-sessions',stats.totalSessions);updateCounter('total-sessions-completes',stats.totalSessionsCompletes);
         return stats;
     }
@@ -209,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateCounter(id,val){const el=document.getElementById(id);if(!el)return;const cV=parseInt(el.textContent.replace(/[^\d-]/g,''))||0;const nV=parseInt(val)||0;if(cV!==nV||el.textContent==='—'||el.textContent.trim()===''){el.textContent=nV.toLocaleString();el.classList.remove('text-muted');el.classList.add('updated');setTimeout(()=>el.classList.remove('updated'),500);}}
     
     function escapeHtml(unsafe){
-        if(typeof unsafe !== 'string') return unsafe;
+        if(typeof unsafe !== 'string') return unsafe === null || typeof unsafe === 'undefined' ? '' : String(unsafe);
         return unsafe
              .replace(/&/g, "&")
              .replace(/</g, "<")
@@ -218,11 +232,11 @@ document.addEventListener('DOMContentLoaded', function() {
              .replace(/'/g, "'");
     }
 
-    function updateActivityFeed(activities){if(activities===null){fetch(`${config.baseApiUrl}/activites?limit=5`).then(r=>r.ok?r.json():Promise.reject(r)).then(d=>updateActivityFeed(d)).catch(e=>{const c=document.getElementById('recent-activity');if(c)c.innerHTML='<div class="list-group-item text-center p-3 text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Err load activités.</div>';});return Promise.reject("Fetching");} const c=document.getElementById('recent-activity');if(!c)return Promise.resolve(false); const s=c.querySelector('.loading-spinner');if(s)s.remove(); if(!activities||!Array.isArray(activities)||activities.length===0){c.innerHTML='<div class="list-group-item text-center p-3 text-muted">Aucune activité.</div>';return Promise.resolve(true);} let h='';activities.forEach(a=>{const i=getActivityIcon(a.type);const u=a.user?`<span class="text-primary fw-bold">${escapeHtml(a.user)}</span>`:'';const d=escapeHtml(a.description||'Activité');const dt=a.details?`<p class="mb-1 activity-details"><small>${escapeHtml(a.details)}</small></p>`:'';h+=`<a href="#" class="list-group-item list-group-item-action activity-item type-${a.type||'default'}" data-activity-id="${a.id}"><div class="d-flex w-100 justify-content-between"><h6 class="mb-1 activity-title"><i class="${i} me-2"></i>${d} ${u}</h6><small class="text-muted activity-time">${a.date_relative||''}</small></div>${dt}</a>`;});c.innerHTML=h;return Promise.resolve(true);}
+    function updateActivityFeed(activities){if(activities===null){fetch(`${config.baseApiUrl}/activites?limit=5`).then(r=>r.ok?r.json():Promise.reject(r)).then(d=>updateActivityFeed(d)).catch(e=>{const c=document.getElementById('recent-activity');if(c)c.innerHTML='<div class="list-group-item text-center p-3 text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Err load activités.</div>';});return Promise.reject("Fetching");} const c=document.getElementById('recent-activity');if(!c)return Promise.resolve(false); const s=c.querySelector('.loading-spinner');if(s)s.remove(); if(!activities||!Array.isArray(activities)||activities.length===0){c.innerHTML='<div class="list-group-item text-center p-3 text-muted">Aucune activité.</div>';return Promise.resolve(true);} let h='';activities.forEach(a=>{const i=getActivityIcon(a.type);const u=a.user?`<span class="text-primary fw-bold ms-1">(${escapeHtml(a.user)})</span>`:'';const d=escapeHtml(a.description||'Activité');const dt=a.details?`<p class="mb-1 activity-details"><small>${escapeHtml(a.details)}</small></p>`:'';h+=`<a href="${config.baseApiUrl}/../activites_journal?type=${encodeURIComponent(a.type||'default')}" class="list-group-item list-group-item-action activity-item type-${a.type||'default'}" data-activity-id="${a.id}"><div class="d-flex w-100 justify-content-between"><h6 class="mb-1 activity-title"><i class="${i} me-2 activity-icon"></i>${d} ${u}</h6><small class="text-muted activity-time">${a.date_relative||''}</small></div>${dt}</a>`;});c.innerHTML=h;return Promise.resolve(true);}
     function getActivityIcon(type){const m={'connexion':'fas fa-sign-in-alt text-success','deconnexion':'fas fa-sign-out-alt text-warning','inscription':'fas fa-user-plus text-primary','validation':'fas fa-check-circle text-success','refus':'fas fa-times-circle text-danger','annulation':'fas fa-ban text-danger','ajout_participant':'fas fa-user-plus text-primary','suppression_participant':'fas fa-user-minus text-danger','modification_participant':'fas fa-user-edit text-warning','reinscription':'fas fa-redo text-info','liste_attente':'fas fa-clock text-warning','ajout_theme':'fas fa-folder-plus text-primary','ajout_service':'fas fa-building text-primary','ajout_salle':'fas fa-door-open text-primary','attribution_salle':'fas fa-map-marker-alt text-info','systeme':'fas fa-cog text-secondary','notification':'fas fa-bell text-warning','telecharger_invitation':'fas fa-file-download text-info','ajout_document':'fas fa-file-upload text-info','suppression_document':'fas fa-file-excel text-danger','default':'fas fa-info-circle text-secondary'};return m[type]||m.default;}
     function enhanceUI(){initTooltips();enhanceBadgesAndLabels();fixDataIssues();enhanceAccessibility();}
     function initTooltips(){if(typeof bootstrap==='undefined'||typeof bootstrap.Tooltip!=='function')return;document.querySelectorAll('.tooltip').forEach(t=>t.remove());[...document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not(iframe):not(script):not(style)')].map(el=>{const i=bootstrap.Tooltip.getInstance(el);if(i)i.dispose();try{return new bootstrap.Tooltip(el,{container:'body',boundary:document.body});}catch(e){return null;}});}
-    function enhanceBadgesAndLabels(){if(typeof window.enhanceThemeBadgesGlobally==='function')window.enhanceThemeBadgesGlobally();else{document.querySelectorAll('.theme-badge').forEach(b=>{if(b.dataset.enhanced==='true')return;const tN=b.dataset.theme||b.textContent.trim();b.textContent=tN;b.classList.remove('theme-comm','theme-planner','theme-onedrive','theme-sharepoint','bg-secondary');let iC='fa-tag';if(tN.includes('Teams')&&tN.includes('Communiquer')){b.classList.add('theme-comm');iC='fa-comments';}else if(tN.includes('Planner')){b.classList.add('theme-planner');iC='fa-tasks';}else if(tN.includes('OneDrive')||tN.includes('fichiers')){b.classList.add('theme-onedrive');iC='fa-file-alt';}else if(tN.includes('Collaborer')){b.classList.add('theme-sharepoint');iC='fa-users';}else b.classList.add('bg-secondary');if(!b.querySelector('i.fas')&&iC)b.insertAdjacentHTML('afterbegin',`<i class="fas ${iC} me-1"></i>`);b.dataset.enhanced='true';});}document.querySelectorAll('.js-salle-cell').forEach(c=>{const tC=c.textContent.trim();if(!c.querySelector('.salle-badge')&&tC)c.innerHTML=(tC==='Non définie'||tC==='N/A'||tC==='')?'<span class="badge bg-secondary salle-badge">Non définie</span>':`<span class="badge bg-info text-dark salle-badge">${escapeHtml(tC)}</span>`;});}
+    function enhanceBadgesAndLabels(){if(typeof window.enhanceThemeBadgesGlobally==='function')window.enhanceThemeBadgesGlobally();else{document.querySelectorAll('.theme-badge').forEach(b=>{if(b.dataset.enhanced==='true')return;const tN=b.dataset.theme||b.textContent.trim();b.textContent=tN;b.classList.remove('theme-comm','theme-planner','theme-onedrive','theme-sharepoint','bg-secondary');let iC='fa-tag';if(tN.includes('Teams')&&tN.includes('Communiquer')){b.classList.add('theme-comm');iC='fa-comments';}else if(tN.includes('Planner')){b.classList.add('theme-planner');iC='fa-tasks';}else if(tN.includes('OneDrive')||tN.includes('fichiers')){b.classList.add('theme-onedrive');iC='fa-file-alt';}else if(tN.includes('Collaborer')){b.classList.add('theme-sharepoint');iC='fa-users';}else b.classList.add('bg-secondary');if(!b.querySelector('i.fas')&&iC)b.insertAdjacentHTML('afterbegin',`<i class="fas ${iC} me-1"></i>`);b.dataset.enhanced='true';});}document.querySelectorAll('.js-salle-cell').forEach(c=>{const tC=c.textContent.trim();if(!c.querySelector('.salle-badge')&&tC)c.innerHTML=(tC==='Non définie'||tC==='N/A'||tC==='')?'<span class="badge bg-light text-dark salle-badge">Non définie</span>':`<span class="badge bg-info text-dark salle-badge">${escapeHtml(tC)}</span>`;});}
     function fixDataIssues(){document.querySelectorAll('.places-dispo').forEach(el=>{const txt=el.textContent.trim();if(txt.includes('/')){const p=txt.split('/');const a=parseInt(p[0].trim()),t=parseInt(p[1].trim());if(isNaN(a)||isNaN(t)){el.className='places-dispo text-nowrap text-secondary';el.innerHTML='<i class="fas fa-question-circle me-1"></i> ? / ?';el.title='Données indisponibles';return;}let i,c;if(a<=0){i='fa-times-circle';c='text-danger';}else if(a<=0.2*t){i='fa-exclamation-circle';c='text-danger';}else if(a<=0.4*t){i='fa-exclamation-triangle';c='text-warning';}else{i='fa-check-circle';c='text-success';}const cI=el.querySelector('.fas');if(!cI||!cI.classList.contains(i)||!el.classList.contains(c)){el.className=`places-dispo text-nowrap ${c}`;el.innerHTML=`<i class="fas ${i} me-1"></i> ${a} / ${t}`;}}else if(txt==='NaN / NaN'||txt.includes('undefined')||txt==='/ '||txt===' / '||txt.includes('null')||txt==='? / ?'||txt.trim()===''){if(!el.innerHTML.includes('fa-question-circle')){el.className='places-dispo text-nowrap text-secondary';el.innerHTML='<i class="fas fa-question-circle me-1"></i> ? / ?';el.title='Données indisponibles';}}});document.querySelectorAll('.counter-value, .badge-count').forEach(c=>{const t=c.textContent.trim();if(t===''||t==='undefined'||t==='null'||t==='NaN'||t==='—'){c.textContent='—';c.classList.add('text-muted');c.title='Valeur indisponible';}else if(c.classList.contains('counter-value')&&!isNaN(parseInt(t)))c.textContent=(parseInt(t)).toLocaleString();});document.querySelectorAll('table tbody').forEach(tb=>{if(!tb.querySelector('tr')||(tb.children.length===1&&tb.firstElementChild.classList.contains('no-data-row'))){if(!tb.querySelector('tr.no-data-row')){const co=tb.closest('table')?.querySelectorAll('thead th').length||5;tb.innerHTML=`<tr class="no-data-row"><td colspan="${co}" class="text-center p-3 text-muted"><i class="fas fa-info-circle me-2"></i>Aucune donnée.`+(typeof window.forcePollingUpdate==='function'?'<button class="btn btn-sm btn-outline-secondary ms-3" onclick="window.forcePollingUpdate(true);"><i class="fas fa-sync me-1"></i>Actualiser</button>':'')+'</td></tr>';}}else if(tb.querySelector('tr.no-data-row')&&tb.children.length>1){const ndr=tb.querySelector('tr.no-data-row');if(ndr)ndr.remove();}});checkAndFixHangingModals();}
     function checkAndFixHangingModals(){const b=document.querySelector('.modal-backdrop.show, .portal-backdrop[style*="display: block"]'),vM=document.querySelector('.modal.show, .portal-modal[style*="display: block"]');if(b&&!vM){b.remove();document.body.classList.remove('modal-open');document.body.style.overflow='';document.body.style.paddingRight='';}const vMs=document.querySelectorAll('.modal.show');if(vMs.length>0&&!document.querySelector('.modal-backdrop.show')){}}
     function enhanceAccessibility(){document.querySelectorAll('img:not([alt])').forEach(i=>{const fN=i.src.split('/').pop().split('?')[0],n=fN.split('.')[0].replace(/[_-]/g,' ');i.setAttribute('alt',n||'Image');});document.querySelectorAll('button:not([type])').forEach(b=>b.setAttribute('type',b.closest('form')?'submit':'button'));}
@@ -232,13 +246,105 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeChartsFallback(){if(config.chartRendering==='none')return Promise.resolve();renderStaticChartsJS(null,null);return Promise.resolve();}
     function updateChartsFallback(sessions,participants){if(config.chartRendering==='none')return Promise.resolve();const vS=sessions||dashboardState.rawData.sessions||[];const vP=participants||dashboardState.rawData.participants||[];renderStaticChartsJS(vS,vP);return Promise.resolve();}
     function renderStaticChartsJS(sessions,participants){const tC=document.getElementById('themeChartStatic'),sC=document.getElementById('serviceChartStatic');if(tC){if(sessions&&Array.isArray(sessions)&&sessions.length>0)renderThemeDistributionChartJS(sessions);else if(!tC.querySelector('.static-chart-legend')&&!tC.querySelector('.no-data-message'))tC.innerHTML='<div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div><p>Chargement données thèmes...</p></div>';}if(sC){if(participants&&Array.isArray(participants)&&participants.length>0)renderParticipantByServiceChartJS(participants);else if(!sC.querySelector('.static-chart-bars')&&!sC.querySelector('.no-data-message'))sC.innerHTML='<div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div><p>Chargement données services...</p></div>';}}
-    function renderThemeDistributionChartJS(sessionsData){const c=document.getElementById('themeChartStatic');if(!c)return;const tIC=sessionsData.reduce((acc,s)=>{const tN=s.theme||'Non défini',ins=parseInt(s.inscrits)||0;acc[tN]=(acc[tN]||0)+ins;return acc;},{});const totI=Object.values(tIC).reduce((s,ct)=>s+ct,0);if(totI===0){c.innerHTML='<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucune inscription.</div>';return;}let lH='';const tCFG=window.themesDataForChart||{};const sT=Object.entries(tIC).sort(([,cA],[,cB])=>cB-cA);sT.forEach(([t,cnt],idx)=>{if(cnt===0)return;const tI=tCFG[t]||{};const clr=tI.color||getRandomColor(idx);lH+=`<div class="legend-item" title="${escapeHtml(tI.description||t)}"><span class="legend-color" style="background-color:${clr};"></span><span class="legend-label">${escapeHtml(t)}</span><span class="legend-value">${cnt}</span></div>`;});c.innerHTML=`<div class="static-chart-title">Inscriptions par Thème</div><div class="static-chart-donut-svg-container"><svg viewBox="0 0 36 36" class="donut-svg" width="160" height="160"><circle cx="18" cy="18" r="15.9154943092" fill="transparent" stroke="#e6e6e6" stroke-width="3.8"></circle>{% set offset = 0 %}{% for theme_name, count in chart_theme_data %}{% if count > 0 %}{% set percentage = (count / total_inscriptions_theme) * 100 %}{% set theme_config = themes_config.get(theme_name, {}) %}{% set color = theme_config.color or '#6c757d' %}<circle class="donut-svg-segment" cx="18" cy="18" r="15.9154943092" fill="transparent" stroke="${color}" stroke-width="4" stroke-dasharray="${percentage}, 100" stroke-dashoffset="-${offset}"><title>${escapeHtml(theme_name)}: ${count}</title></circle>{% set offset = offset + percentage %}{% endif %}{% endfor %}<g class="donut-svg-center-text" transform="rotate(90 18 18)"><text x="18" y="18" style="font-size:7px;"><tspan class="donut-total" x="18" dy="-0.1em">${totI}</tspan><tspan class="donut-label" x="18" dy="1.0em">INSCRITS</tspan></text></g></svg></div><div class="static-chart-legend">${lH}</div>`;}
+    
+    function renderThemeDistributionChartJS(sessionsData) {
+        const chartContainer = document.getElementById('themeChartStatic');
+        if (!chartContainer) return;
+
+        const themeInscriptionCounts = sessionsData.reduce((acc, session) => {
+            const themeName = session.theme || 'Non défini';
+            const inscrits = parseInt(session.inscrits) || 0;
+            acc[themeName] = (acc[themeName] || 0) + inscrits;
+            return acc;
+        }, {});
+
+        const totalInscriptionsTheme = Object.values(themeInscriptionCounts).reduce((sum, count) => sum + count, 0);
+
+        if (totalInscriptionsTheme === 0) {
+            chartContainer.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucune inscription pour afficher la répartition.</div>';
+            return;
+        }
+
+        let legendHtml = '';
+        let svgSegmentsHtml = '';
+        const themesConfig = window.themesDataForChart || {};
+        const sortedThemes = Object.entries(themeInscriptionCounts).sort(([, countA], [, countB]) => countB - countA);
+        
+        const radius = 15.9154943092; // Pour une circonférence de 100
+        const strokeWidth = 5; // Épaisseur du segment du donut
+        let currentOffsetAngle = 0; // En degrés, pour la rotation des segments
+
+        sortedThemes.forEach(([themeName, count], index) => {
+            if (count === 0) return;
+
+            const percentage = (count / totalInscriptionsTheme) * 100;
+            const themeConfig = themesConfig[themeName] || {};
+            const color = themeConfig.color || getRandomColor(index);
+            const description = themeConfig.description || themeName;
+
+            // Segment SVG
+            // stroke-dashoffset est calculé pour commencer chaque segment là où le précédent s'est terminé.
+            // La rotation est appliquée pour que le premier segment commence à "midi".
+            // L'offset pour stroke-dashoffset doit être en pourcentage de la circonférence (100).
+            // L'angle de rotation est en degrés.
+            const strokeDashoffsetValue = currentOffsetAngle * 100 / 360; // Convertir l'angle en % de la circonférence
+            svgSegmentsHtml += `
+                <circle class="donut-svg-segment"
+                        cx="21" cy="21" r="${radius}"
+                        fill="transparent"
+                        stroke="${color}"
+                        stroke-width="${strokeWidth}"
+                        stroke-dasharray="${percentage} ${100 - percentage}"
+                        stroke-dashoffset="${-strokeDashoffsetValue}"
+                        transform="rotate(${currentOffsetAngle} 21 21)">
+                    <title>${escapeHtml(themeName)}: ${count} (${percentage.toFixed(1)}%)</title>
+                </circle>`;
+            currentOffsetAngle += (percentage * 3.6); // Mettre à jour l'angle pour le prochain segment (percentage * 360 / 100)
+
+            // Item de légende
+            legendHtml += `
+                <div class="legend-item" title="${escapeHtml(description)}">
+                    <span class="legend-color" style="background-color: ${color};"></span>
+                    <span class="legend-label">${escapeHtml(themeName)}</span>
+                    <span class="legend-value">${count}</span>
+                </div>`;
+        });
+        
+        const svgHtml = `
+            <svg viewBox="0 0 42 42" class="donut-svg" width="160" height="160" aria-labelledby="chartTitle_themes_static_js" role="img">
+                <title id="chartTitle_themes_static_js">Répartition des inscriptions par thème</title>
+                ${svgSegmentsHtml}
+                <g class="donut-svg-center-text" transform="rotate(90 21 21)">
+                    <text x="21" y="21" style="font-size:7px;">
+                        <tspan class="donut-total" x="21" dy="-0.2em">${totalInscriptionsTheme}</tspan>
+                        <tspan class="donut-label" x="21" dy="1.2em">INSCRITS</tspan>
+                    </text>
+                </g>
+            </svg>`;
+
+        chartContainer.innerHTML = `
+            <div class="static-chart-title">INSCRIPTIONS PAR THÈME</div>
+            <div class="static-chart-donut-svg-container">${svgHtml}</div>
+            <div class="static-chart-legend">${legendHtml}</div>`;
+    }
+
     function renderParticipantByServiceChartJS(participantsData){const c=document.getElementById('serviceChartStatic');if(!c)return;if(!participantsData||!Array.isArray(participantsData)){c.innerHTML='<div class="no-data-message text-center p-3"><i class="fas fa-exclamation-triangle me-2"></i>Données participants invalides.</div>';return;}const sC=participantsData.reduce((acc,p)=>{const sN=p.service||'Non défini';const sClr=(window.servicesDataForChart&&window.servicesDataForChart[sN]&&window.servicesDataForChart[sN].color)?window.servicesDataForChart[sN].color:(p.service_color||'#6c757d');if(!acc[sN])acc[sN]={count:0,color:sClr};acc[sN].count++;return acc;},{});const totP=participantsData.length;if(totP===0){c.innerHTML='<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucun participant.</div>';return;}const sS=Object.entries(sC).sort(([,dA],[,dB])=>dB.count-dA.count);let bH='';const mC=Math.max(1,...sS.map(([,d])=>d.count));sS.forEach(([s,d],idx)=>{if(d.count===0)return;const pc=(d.count/mC)*100;const sCls=s.toLowerCase().replace(/[^a-z0-9]/g,'-')||'non-defini';bH+=`<div class="bar-item animate" style="--index:${idx};"><div class="bar-header"><span class="bar-label" title="${escapeHtml(s)} (${d.count} participant(s))"><span class="service-badge me-2" style="background-color:${d.color};"></span>${escapeHtml(s)}</span><span class="bar-total">${d.count}</span></div><div class="bar-container"><div class="bar-value ${sCls}" style="width:${pc}%; background-color:${d.color}; --percent:${pc}%;"></div></div></div>`;});c.innerHTML=`<div class="static-chart-title">Distribution par Service</div><div class="static-chart-bars">${bH}</div>`;}
     function simpleHash(o){const s=JSON.stringify(o);let h=0;if(s.length===0)return h;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h=((h<<5)-h)+c;h|=0;}return h;}
     function getCsrfToken(){const m=document.querySelector('meta[name="csrf-token"]');if(m)return m.content;const i=document.querySelector('input[name="csrf_token"]');if(i)return i.value;return '';}
     function getRandomColor(idx){const c=['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69','#fd7e14','#6f42c1','#d63384'];return c[idx%c.length];}
 
     window.dashboardCore={initialize:initializeDashboard,fetchData:debouncedFetchDashboardData,updateCharts:updateChartsFallback,updateStatistics:updateStatisticsCounters,updateActivity:updateActivityFeed,getState:()=>JSON.parse(JSON.stringify(dashboardState)),getConfig:()=>JSON.parse(JSON.stringify(config)),renderThemeChart:renderThemeDistributionChartJS,renderServiceChart:renderParticipantByServiceChartJS,initializeCharts:initializeChartsFallback,startPolling:startPolling,stopPolling:()=>{dashboardState.pollingActive=false;if(dashboardState.pollingTimeout)clearTimeout(dashboardState.pollingTimeout);dashboardState.pollingTimeoutScheduled=false;}};
-    window.forcePollingUpdate=debouncedFetchDashboardData;window.updateStatsCounters=updateStatisticsCounters;window.refreshRecentActivity=()=>updateActivityFeed(null);window.chartModule={initialize:initializeChartsFallback,update:updateChartsFallback};
+    
+    // S'assurer que les fonctions sont bien exposées globalement AVANT que dashboard-init.js ne s'exécute
+    if (typeof window.forcePollingUpdate === 'undefined') window.forcePollingUpdate = debouncedFetchDashboardData;
+    if (typeof window.updateStatsCounters === 'undefined') window.updateStatsCounters = updateStatisticsCounters;
+    if (typeof window.refreshRecentActivity === 'undefined') window.refreshRecentActivity = () => updateActivityFeed(null);
+    if (typeof window.chartModule === 'undefined' || typeof window.chartModule.initialize !== 'function') {
+        window.chartModule = { 
+            initialize: initializeChartsFallback, 
+            update: updateChartsFallback 
+        };
+    }
+    
     initializeDashboard();
 });
