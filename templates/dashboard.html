@@ -223,64 +223,71 @@
                         </thead>
                         <tbody>
                             {% for session_item in sessions_data %}
-                            <tr>
-                                <td>
-                                    <div class="fw-bold">{{ session_item.obj.formatage_date }}</div>
-                                    <small class="text-muted">{{ session_item.obj.formatage_horaire }}</small>
-                                </td>
-                                <td class="theme-cell">
-                                    <span class="badge theme-badge" data-theme="{{ session_item.obj.theme.nom }}">
-                                        {{ session_item.obj.theme.nom }}
-                                    </span>
-                                </td>
-                                <td class="places-dispo">
-                                    {% if session_item.places_restantes > 0 %}
-                                        <span class="text-success fw-bold">
-                                            <i class="fas fa-circle me-1"></i>{{ session_item.inscrits_confirmes_count }}/{{ session_item.obj.max_participants }}
-                                        </span>
-                                        <div class="small text-muted">{{ session_item.places_restantes }} place(s) disponible(s)</div>
-                                    {% else %}
-                                        <span class="text-danger fw-bold">
-                                            <i class="fas fa-times-circle me-1"></i>Complet
-                                        </span>
-                                        <div class="small text-danger">{{ session_item.liste_attente_count }} en liste d'attente</div>
-                                    {% endif %}
-                                </td>
-                                <!-- Nouvelle cellule pour les demandes en attente -->
-                                <td>
-                                    {% if session_item.pending_count > 0 %}
-                                        <span class="validation-badge bg-warning text-dark">
-                                            <i class="fas fa-exclamation-circle"></i>{{ session_item.pending_count }}
-                                        </span>
-                                    {% else %}
-                                        <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if session_item.obj.salle %}
-                                        <span class="badge bg-light text-dark">{{ session_item.obj.salle.nom }}</span>
-                                    {% else %}
-                                        <span class="text-muted">Non définie</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-primary" onclick="showParticipantsModal({{ session_item.obj.id }})">
-                                            <i class="fas fa-users"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-success" onclick="showInscriptionModal({{ session_item.obj.id }})">
-                                            <i class="fas fa-plus-circle"></i>
-                                        </button>
-                                        {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                        <button type="button" class="btn btn-outline-secondary" onclick="showAttribuerSalleModal({{ session_item.obj.id }})">
-                                            <i class="fas fa-door-open"></i>
-                                        </button>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
+                            <!-- Dans dashboard.html, boucle des sessions_data -->
+<tr>
+    <td>
+        <div class="fw-bold">{{ session_item.obj.formatage_date }}</div>
+        <small class="text-muted">{{ session_item.obj.formatage_horaire }}</small>
+    </td>
+    <td class="theme-cell">
+        <span class="theme-badge" data-theme="{{ session_item.obj.theme.nom }}">
+            {{ session_item.obj.theme.nom }}
+        </span>
+    </td>
+    <td class="places-dispo">
+        {% if session_item.places_restantes > 0 %}
+            <span class="text-success fw-bold">
+                <i class="fas fa-circle me-1"></i>{{ session_item.inscrits_confirmes_count }}/{{ session_item.obj.max_participants }}
+            </span>
+            <div class="small text-muted">{{ session_item.places_restantes }} place(s) disponible(s)</div>
+        {% else %}
+            <span class="text-danger fw-bold">
+                <i class="fas fa-times-circle me-1"></i>Complet
+            </span>
+            <div class="small text-danger">{{ session_item.liste_attente_count }} en liste d'attente</div>
+        {% endif %}
+    </td>
+    <td>
+        {% if session_item.pending_count > 0 %}
+            <span class="validation-badge bg-warning text-dark">
+                <i class="fas fa-exclamation-circle"></i>{{ session_item.pending_count }}
+            </span>
+        {% else %}
+            <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if session_item.obj.salle %}
+            <span class="badge bg-light text-dark">{{ session_item.obj.salle.nom }}</span>
+        {% else %}
+            <span class="text-muted">Non définie</span>
+        {% endif %}
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-primary" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#participantsModal_{{ session_item.obj.id }}" 
+                    title="Voir participants">
+                <i class="fas fa-users"></i>
+            </button>
+            <button type="button" class="btn btn-outline-success" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#inscriptionModal_{{ session_item.obj.id }}" 
+                    title="Inscrire">
+                <i class="fas fa-plus-circle"></i>
+            </button>
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            <button type="button" class="btn btn-outline-secondary" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#attribuerSalleModal_{{ session_item.obj.id }}" 
+                    title="Attribuer salle">
+                <i class="fas fa-door-open"></i>
+            </button>
+            {% endif %}
+        </div>
+    </td>
+</tr>
                                 <td colspan="6" class="text-center py-4">
                                     <i class="fas fa-calendar-times fa-2x mb-2 d-block text-muted"></i>
                                     <p class="mb-0 text-muted">Aucune session à venir</p>
