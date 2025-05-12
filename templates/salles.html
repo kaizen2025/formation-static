@@ -180,13 +180,9 @@
 
 {% block scripts_extra %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/universal-modal-fix.js') }}"></script>
+<script src="{{ url_for('static', filename='js/stable-modal-fix.js') }}"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Si vous avez besoin d'activer le débogage
-        if (window.universalModalFix) {
-            window.universalModalFix.debug = true;
-        }
-    });
+    // Activer le mode debug si nécessaire
+    // window.stableModal.setDebug(true);
 </script>
 {% endblock %}
