@@ -4,6 +4,7 @@
 
 {% block head_extra %}
 <style>
+    /* Styles des cartes salle */
     .salle-card {
         transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     }
@@ -17,6 +18,8 @@
         text-overflow: ellipsis;
         max-width: calc(100% - 80px);
     }
+    
+    /* Styles de la liste des sessions */
     .session-list {
         max-height: 150px;
         overflow-y: auto;
@@ -29,8 +32,9 @@
         background-color: rgba(0, 0, 0, 0.2);
         border-radius: 3px;
     }
-    /* Style pour la boîte de dialogue de confirmation */
-    #deleteConfirmDialog {
+    
+    /* Styles des formulaires et dialogues */
+    .modal-overlay {
         display: none;
         position: fixed;
         top: 0;
@@ -41,32 +45,7 @@
         z-index: 9999;
         animation: fadeIn 0.2s ease-out;
     }
-    #deleteConfirmContent {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        padding: 25px;
-        border-radius: 8px;
-        width: 400px;
-        max-width: 90%;
-        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
-        animation: scaleIn 0.3s ease-out;
-    }
-    /* Style pour les formulaires en ligne */
-    .inline-form-container {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 9999;
-        animation: fadeIn 0.2s ease-out;
-    }
-    .inline-form {
+    .modal-content {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -79,6 +58,8 @@
         box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
         animation: scaleIn 0.3s ease-out;
     }
+    
+    /* Animations */
     @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -86,6 +67,24 @@
     @keyframes scaleIn {
         from { transform: translate(-50%, -50%) scale(0.9); opacity: 0; }
         to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    
+    /* Feedback visuel */
+    .form-feedback {
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
+    }
+    .is-invalid {
+        border-color: #dc3545 !important;
+    }
+    .invalid-feedback {
+        display: none;
+        color: #dc3545;
+    }
+    input.is-invalid ~ .invalid-feedback,
+    textarea.is-invalid ~ .invalid-feedback,
+    select.is-invalid ~ .invalid-feedback {
+        display: block;
     }
 </style>
 {% endblock %}
@@ -158,8 +157,7 @@
                                 {% for session in sessions_associees %}
                                 <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
                                     <span class="small text-truncate" title="{{ session.theme.nom }} - {{ session.formatage_date }}">
-                                        <span class="badge theme-badge {% if session.theme.nom == 'Communiquer avec Teams' %}bg-primary{% elif session.theme.nom == 'Gérer les tâches (Planner)' %}bg-purple{% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}bg-info{% elif session.theme.nom == 'Collaborer avec Teams' %}bg-success{% else %}bg-secondary{% endif %} text-white me-1">
-                                            <i class="fas {% if session.theme.nom == 'Communiquer avec Teams' %}fa-comments{% elif session.theme.nom == 'Gérer les tâches (Planner)' %}fa-tasks{% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}fa-file-alt{% elif session.theme.nom == 'Collaborer avec Teams' %}fa-users{% else %}fa-tag{% endif %} me-1"></i>
+                                        <span class="badge theme-badge" data-theme="{{ session.theme.nom }}">
                                             {{ session.theme.nom|truncate(15) }}
                                         </span>
                                         {{ session.formatage_date }}
@@ -178,10 +176,14 @@
                     {% if current_user.role == 'admin' %}
                     <div class="card-footer bg-light">
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="showEditForm({{ salle.id }}, '{{ salle.nom }}', {{ salle.capacite }}, '{{ salle.lieu|default('') }}', '{{ salle.description|default('') }}')">
+                            <button type="button" class="btn btn-outline-secondary btn-sm btn-modifier" 
+                                    data-salle-id="{{ salle.id }}" 
+                                    onclick="showEditForm({{ salle.id }}, '{{ salle.nom }}', {{ salle.capacite }}, '{{ salle.lieu|default('') }}', '{{ salle.description|default('') }}')">
                                 <i class="fas fa-edit me-1"></i>Modifier
                             </button>
-                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmDelete({{ salle.id }}, '{{ salle.nom }}')">
+                            <button type="button" class="btn btn-outline-danger btn-sm btn-delete-salle" 
+                                    data-salle-id="{{ salle.id }}" 
+                                    onclick="confirmDelete({{ salle.id }}, '{{ salle.nom }}')">
                                 <i class="fas fa-trash me-1"></i>Supprimer
                             </button>
                         </div>
@@ -207,8 +209,8 @@
 </div>
 
 <!-- Boîte de dialogue de confirmation de suppression -->
-<div id="deleteConfirmDialog">
-    <div id="deleteConfirmContent">
+<div id="deleteConfirmDialog" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
         <h4 class="text-danger mb-3">
             <i class="fas fa-exclamation-triangle me-2"></i>Confirmer la suppression
         </h4>
@@ -225,21 +227,23 @@
     </div>
 </div>
 
-<!-- Formulaire d'ajout de salle inline -->
-<div id="addFormContainer" class="inline-form-container">
-    <div class="inline-form">
+<!-- Formulaire d'ajout de salle -->
+<div id="addFormContainer" class="modal-overlay">
+    <div class="modal-content">
         <h4 class="mb-3 d-flex justify-content-between align-items-center">
             <span><i class="fas fa-plus-circle me-2"></i>Ajouter une nouvelle salle</span>
             <button type="button" class="btn-close" onclick="hideAddForm()"></button>
         </h4>
-        <form id="addSalleForm" action="{{ url_for('add_salle') }}" method="post">
+        <form id="addSalleForm" action="{{ url_for('add_salle') }}" method="post" onsubmit="return validateForm(this)">
             <div class="mb-3">
                 <label for="add_nom" class="form-label">Nom*</label>
                 <input type="text" class="form-control" id="add_nom" name="nom" required>
+                <div class="invalid-feedback">Veuillez saisir un nom pour la salle.</div>
             </div>
             <div class="mb-3">
                 <label for="add_capacite" class="form-label">Capacité*</label>
                 <input type="number" class="form-control" id="add_capacite" name="capacite" value="15" min="1" required>
+                <div class="invalid-feedback">La capacité doit être un nombre entier positif.</div>
             </div>
             <div class="mb-3">
                 <label for="add_lieu" class="form-label">Emplacement</label>
@@ -261,21 +265,23 @@
     </div>
 </div>
 
-<!-- Formulaire de modification de salle inline -->
-<div id="editFormContainer" class="inline-form-container">
-    <div class="inline-form">
+<!-- Formulaire de modification de salle -->
+<div id="editFormContainer" class="modal-overlay">
+    <div class="modal-content">
         <h4 class="mb-3 d-flex justify-content-between align-items-center">
             <span><i class="fas fa-edit me-2"></i>Modifier <span id="editRoomTitle"></span></span>
             <button type="button" class="btn-close" onclick="hideEditForm()"></button>
         </h4>
-        <form id="editSalleForm" action="{{ url_for('update_salle', id=0) }}" method="post">
+        <form id="editSalleForm" action="" method="post" onsubmit="return validateForm(this)">
             <div class="mb-3">
                 <label for="edit_nom" class="form-label">Nom*</label>
                 <input type="text" class="form-control" id="edit_nom" name="nom" required>
+                <div class="invalid-feedback">Veuillez saisir un nom pour la salle.</div>
             </div>
             <div class="mb-3">
                 <label for="edit_capacite" class="form-label">Capacité*</label>
                 <input type="number" class="form-control" id="edit_capacite" name="capacite" min="1" required>
+                <div class="invalid-feedback">La capacité doit être un nombre entier positif.</div>
             </div>
             <div class="mb-3">
                 <label for="edit_lieu" class="form-label">Emplacement</label>
@@ -299,7 +305,6 @@
 {% endblock %}
 
 {% block scripts_extra %}
-{{ super() }}
 <script>
     // Variables globales
     let deleteRoomId = null;
@@ -316,7 +321,8 @@
                 // Créer un formulaire dynamique pour la suppression
                 const form = document.createElement('form');
                 form.method = 'POST';
-                form.action = '{{ url_for("delete_salle", id="__id__") }}'.replace('__id__', deleteRoomId);
+                // CORRECTION: Utiliser un ID valide (0) puis le remplacer par l'ID réel
+                form.action = '{{ url_for("delete_salle", id=0) }}'.replace('/0', '/' + deleteRoomId);
                 document.body.appendChild(form);
                 form.submit();
             }
@@ -333,6 +339,33 @@
         // Ajouter des gestionnaires pour la touche Echap
         setupEscKeyListeners();
     });
+    
+    // Validation des formulaires côté client
+    function validateForm(form) {
+        let isValid = true;
+        const inputs = form.querySelectorAll('input[required], textarea[required], select[required]');
+        
+        // Réinitialiser l'état des champs
+        inputs.forEach(input => {
+            input.classList.remove('is-invalid');
+        });
+        
+        // Vérifier chaque champ requis
+        inputs.forEach(input => {
+            if (!input.value.trim()) {
+                input.classList.add('is-invalid');
+                isValid = false;
+            } else if (input.type === 'number') {
+                const value = parseInt(input.value);
+                if (isNaN(value) || value < parseInt(input.min) || value > parseInt(input.max || Number.MAX_SAFE_INTEGER)) {
+                    input.classList.add('is-invalid');
+                    isValid = false;
+                }
+            }
+        });
+        
+        return isValid;
+    }
     
     // Configurer les écouteurs pour fermer les formulaires en cliquant à l'extérieur
     function setupOutsideClickListeners() {
@@ -369,33 +402,37 @@
     // Fonctions pour le formulaire d'ajout
     function showAddForm() {
         document.getElementById('addFormContainer').style.display = 'block';
-        document.getElementById('add_nom').focus();
+        setTimeout(() => document.getElementById('add_nom').focus(), 100);
     }
     
     function hideAddForm() {
         document.getElementById('addFormContainer').style.display = 'none';
+        document.getElementById('addSalleForm').reset();
+        document.querySelectorAll('#addSalleForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
     }
     
     // Fonctions pour le formulaire de modification
     function showEditForm(id, nom, capacite, lieu, description) {
         // Mettre à jour l'action du formulaire avec l'ID correct
         const form = document.getElementById('editSalleForm');
-        form.action = '{{ url_for("update_salle", id=0) }}'.replace('0', id);
+        form.action = '{{ url_for("update_salle", id=0) }}'.replace('/0', '/' + id);
         
         // Remplir les champs
         document.getElementById('editRoomTitle').textContent = nom;
         document.getElementById('edit_nom').value = nom;
         document.getElementById('edit_capacite').value = capacite;
-        document.getElementById('edit_lieu').value = lieu;
-        document.getElementById('edit_description').value = description;
+        document.getElementById('edit_lieu').value = lieu || '';
+        document.getElementById('edit_description').value = description || '';
         
         // Afficher le formulaire
         document.getElementById('editFormContainer').style.display = 'block';
-        document.getElementById('edit_nom').focus();
+        setTimeout(() => document.getElementById('edit_nom').focus(), 100);
     }
     
     function hideEditForm() {
         document.getElementById('editFormContainer').style.display = 'none';
+        document.getElementById('editSalleForm').reset();
+        document.querySelectorAll('#editSalleForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
     }
     
     // Gérer la confirmation de suppression
@@ -407,6 +444,8 @@
     
     function closeDeleteDialog() {
         document.getElementById('deleteConfirmDialog').style.display = 'none';
+        document.getElementById('confirmDeleteBtn').disabled = false;
+        document.getElementById('confirmDeleteBtn').innerHTML = '<i class="fas fa-trash-alt me-1"></i>Supprimer définitivement';
     }
 </script>
 {% endblock %}
