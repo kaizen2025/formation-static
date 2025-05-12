@@ -237,41 +237,53 @@
 </div>
 
 <script>
-// Cette fonction montre la modale d'inscription après avoir fermé la modale de participants
+// Fonction pour afficher la modale d'inscription après avoir fermé la modale de participants
 function showInscriptionModal(sessionId) {
-    // Fermer la modale participants
-    const participantsModal = document.getElementById(`participantsModal_${sessionId}`);
-    const bsParticipantsModal = bootstrap.Modal.getInstance(participantsModal);
+    const participantsModalElement = document.getElementById(`participantsModal_${sessionId}`);
+    const inscriptionModalElement = document.getElementById(`inscriptionModal_${sessionId}`);
+
+    if (!participantsModalElement) {
+        console.error(`Participants modal with ID participantsModal_${sessionId} not found.`);
+        return;
+    }
+    if (!inscriptionModalElement) {
+        console.error(`Inscription modal with ID inscriptionModal_${sessionId} not found.`);
+        return;
+    }
+
+    const bsParticipantsModal = bootstrap.Modal.getInstance(participantsModalElement);
+    let bsInscriptionModal = bootstrap.Modal.getInstance(inscriptionModalElement);
+
+    if (!bsInscriptionModal) {
+        bsInscriptionModal = new bootstrap.Modal(inscriptionModalElement);
+    }
+
     if (bsParticipantsModal) {
-        // Détruire les événements Bootstrap pour éviter les conflits
-        bsParticipantsModal.hide();
-        // Attendre la fin de l'animation de fermeture
-        participantsModal.addEventListener('hidden.bs.modal', function () {
-            // Ouvrir la modale d'inscription
-            const inscriptionModal = document.getElementById(`inscriptionModal_${sessionId}`);
-            if (inscriptionModal) {
-                const bsInscriptionModal = new bootstrap.Modal(inscriptionModal);
-                bsInscriptionModal.show();
-            }
-        }, { once: true }); // once: true pour ne déclencher l'événement qu'une seule fois
-    } else {
-        // Fallback si bootstrap.Modal n'est pas disponible
-        participantsModal.style.display = 'none';
-        participantsModal.classList.remove('show');
-        document.body.classList.remove('modal-open');
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        backdrops.forEach(backdrop => backdrop.remove());
+        // Utiliser un dataset pour éviter les déclenchements multiples si l'utilisateur clique rapidement
+        if (participantsModalElement.dataset.isHidingForNextModal === 'true') return;
+        participantsModalElement.dataset.isHidingForNextModal = 'true';
+
+        participantsModalElement.addEventListener('hidden.bs.modal', function onHidden() {
+            bsInscriptionModal.show();
+            // Nettoyer le dataset et l'écouteur
+            delete participantsModalElement.dataset.isHidingForNextModal;
+            participantsModalElement.removeEventListener('hidden.bs.modal', onHidden); // Suppression explicite
+        }, { once: true });
         
-        // Ouvrir la modale d'inscription
-        const inscriptionModal = document.getElementById(`inscriptionModal_${sessionId}`);
-        if (inscriptionModal) {
-            inscriptionModal.style.display = 'block';
-            inscriptionModal.classList.add('show');
-            document.body.classList.add('modal-open');
-            const newBackdrop = document.createElement('div');
-            newBackdrop.className = 'modal-backdrop fade show';
-            document.body.appendChild(newBackdrop);
-        }
+        bsParticipantsModal.hide();
+    } else {
+        // Fallback si l'instance de la modale des participants n'est pas trouvée (moins probable)
+        // Cacher manuellement la modale actuelle
+        participantsModalElement.classList.remove('show');
+        participantsModalElement.style.display = 'none';
+        // Retirer le backdrop s'il y en a un
+        const backdrop = document.querySelector('.modal-backdrop.fade.show');
+        if (backdrop) backdrop.remove();
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = ''; // Restaurer le scroll
+
+        // Afficher la nouvelle modale
+        bsInscriptionModal.show();
     }
 }
 
@@ -283,39 +295,15 @@ document.addEventListener('DOMContentLoaded', function () {
             if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
                 const tooltipTriggerList = [].slice.call(modalParticipantsEl_{{ session.id }}.querySelectorAll('[data-bs-toggle="tooltip"]'));
                 tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                    const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-                    if (existingTooltip) {
-                        existingTooltip.dispose();
+                    let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                    if (!tooltipInstance) {
+                        tooltipInstance = new bootstrap.Tooltip(tooltipTriggerEl);
                     }
-                    new bootstrap.Tooltip(tooltipTriggerEl);
                 });
             }
             
-            // Assurer que les onglets fonctionnent correctement
-            const tabButtons = this.querySelectorAll('[data-bs-toggle="tab"]');
-            tabButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    // Désactiver tous les onglets et contenus
-                    modalParticipantsEl_{{ session.id }}.querySelectorAll('.nav-link').forEach(link => {
-                        link.classList.remove('active');
-                        link.setAttribute('aria-selected', 'false');
-                    });
-                    modalParticipantsEl_{{ session.id }}.querySelectorAll('.tab-pane').forEach(pane => {
-                        pane.classList.remove('show', 'active');
-                    });
-                    
-                    // Activer l'onglet et le contenu cliqués
-                    this.classList.add('active');
-                    this.setAttribute('aria-selected', 'true');
-                    const targetId = this.getAttribute('data-bs-target');
-                    if (targetId) {
-                        const targetPane = modalParticipantsEl_{{ session.id }}.querySelector(targetId);
-                        if (targetPane) {
-                            targetPane.classList.add('show', 'active');
-                        }
-                    }
-                });
-            });
+            // La gestion des onglets est normalement prise en charge par Bootstrap via data-bs-toggle="tab"
+            // Pas besoin de code JS manuel pour changer les classes active/show des onglets ici.
         });
         
         // Assurer que les boutons d'action AJAX fonctionnent
@@ -323,22 +311,32 @@ document.addEventListener('DOMContentLoaded', function () {
             button.addEventListener('click', function() {
                 this.disabled = true;
                 const originalText = this.innerHTML;
-                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Traitement...';
                 
                 const inscriptionId = this.getAttribute('data-inscription-id');
                 const action = this.getAttribute('data-action');
                 
-                fetch('/validation_inscription_ajax', {
+                fetch('/validation_inscription_ajax', { // Assurez-vous que cette URL est correcte
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        // Ajoutez un token CSRF si nécessaire pour votre application Flask
+                        // 'X-CSRFToken': '{{ csrf_token() }}' 
                     },
                     body: JSON.stringify({
                         inscription_id: inscriptionId,
                         action: action
                     })
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        // Gérer les erreurs HTTP (ex: 404, 500)
+                        return response.json().then(errData => {
+                            throw new Error(errData.message || `Erreur HTTP ${response.status}`);
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         if (typeof window.showToast === 'function') {
@@ -347,30 +345,33 @@ document.addEventListener('DOMContentLoaded', function () {
                             alert(data.message);
                         }
                         
-                        // Recharger la modale ou la page après un court délai
+                        // Recharger les données ou la page après un court délai
                         setTimeout(() => {
                             if (typeof window.forcePollingUpdate === 'function') {
-                                window.forcePollingUpdate(true);
+                                window.forcePollingUpdate(true); // Si vous avez un système de polling
                             } else {
-                                location.reload();
+                                location.reload(); // Fallback simple
                             }
-                        }, 1000);
+                            // Il peut être nécessaire de fermer la modale actuelle si elle n'est plus pertinente
+                            // const currentModalInstance = bootstrap.Modal.getInstance(modalParticipantsEl_{{ session.id }});
+                            // if (currentModalInstance) currentModalInstance.hide();
+                        }, 1200);
                     } else {
                         if (typeof window.showToast === 'function') {
-                            window.showToast(data.message || 'Erreur lors de la validation', 'danger');
+                            window.showToast(data.message || 'Erreur lors de la validation.', 'danger');
                         } else {
-                            alert(data.message || 'Erreur lors de la validation');
+                            alert(data.message || 'Erreur lors de la validation.');
                         }
                         this.disabled = false;
                         this.innerHTML = originalText;
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    console.error('Erreur AJAX:', error);
                     if (typeof window.showToast === 'function') {
-                        window.showToast('Erreur de communication avec le serveur', 'danger');
+                        window.showToast(error.message || 'Erreur de communication avec le serveur.', 'danger');
                     } else {
-                        alert('Erreur de communication avec le serveur');
+                        alert(error.message || 'Erreur de communication avec le serveur.');
                     }
                     this.disabled = false;
                     this.innerHTML = originalText;
