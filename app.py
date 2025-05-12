@@ -995,42 +995,42 @@ def dashboard():
             app.logger.debug(f"Fetched {len(pending_validations_list)} pending validation(s) for user '{current_user.username}'.")
 
         # Initialisation des compteurs globaux et de la liste des sessions pour le template
-total_inscriptions_confirmees_global = 0
-    total_en_attente_global_pending = 0  # Compteur pour les inscriptions en attente
-    total_sessions_completes_global = 0
-    sessions_data_for_template = []
+        total_inscriptions_confirmees_global = 0
+        total_en_attente_global_pending = 0  # Modification: compter les inscriptions en attente
+        total_sessions_completes_global = 0
+        sessions_data_for_template = [] # Pour la table des sessions à venir
 
-for s_obj in sessions_from_db:
-    try:
-        # Utiliser les listes préchargées par selectinload
-        inscrits_confirmes_list = [i for i in s_obj.inscriptions if i.statut == 'confirmé']
-        pending_inscriptions_list = [i for i in s_obj.inscriptions if i.statut == 'en attente']
-        liste_attente_entries_list = s_obj.liste_attente # C'est déjà une liste d'objets
+        for s_obj in sessions_from_db:
+            try:
+                # Utiliser les listes préchargées par selectinload
+                inscrits_confirmes_list = [i for i in s_obj.inscriptions if i.statut == 'confirmé']
+                pending_inscriptions_list = [i for i in s_obj.inscriptions if i.statut == 'en attente']
+                liste_attente_entries_list = s_obj.liste_attente # C'est déjà une liste d'objets
 
-        inscrits_count = len(inscrits_confirmes_list)
-        attente_count = len(liste_attente_entries_list)
-        pending_valid_count = len(pending_inscriptions_list)
-        
-        # Utiliser la méthode get_places_restantes qui peut utiliser le compte précalculé
-        places_rest = s_obj.get_places_restantes(confirmed_count=inscrits_count)
+                inscrits_count = len(inscrits_confirmes_list)
+                attente_count = len(liste_attente_entries_list)
+                pending_valid_count = len(pending_inscriptions_list)
+                
+                # Utiliser la méthode get_places_restantes qui peut utiliser le compte précalculé
+                places_rest = s_obj.get_places_restantes(confirmed_count=inscrits_count)
 
-        # Mettre à jour les totaux globaux
-        total_inscriptions_confirmees_global += inscrits_count
-        total_en_attente_global_pending += pending_valid_count  # Modifié: compte les inscriptions en attente de validation
-        if places_rest == 0:
-            total_sessions_completes_global += 1
-        
-        # Préparer les données pour la table des sessions dans le template
-        sessions_data_for_template.append({
-            'obj': s_obj,
-            'places_restantes': places_rest,
-            'inscrits_confirmes_count': inscrits_count,
-            'liste_attente_count': attente_count,
-            'pending_count': pending_valid_count,
-            'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.date_inscription, reverse=True),
-            'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.date_inscription, reverse=True),
-            'loaded_liste_attente': sorted(liste_attente_entries_list, key=lambda la: la.position)
-        })
+                # Mettre à jour les totaux globaux
+                total_inscriptions_confirmees_global += inscrits_count
+                total_en_attente_global_pending += pending_valid_count  # Modifié: compte les inscriptions en attente
+                if places_rest == 0:
+                    total_sessions_completes_global += 1
+                
+                # Préparer les données pour la table des sessions dans le template
+                sessions_data_for_template.append({
+                    'obj': s_obj,
+                    'places_restantes': places_rest,
+                    'inscrits_confirmes_count': inscrits_count,
+                    'liste_attente_count': attente_count,
+                    'pending_count': pending_valid_count,
+                    'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.date_inscription, reverse=True),
+                    'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.date_inscription, reverse=True),
+                    'loaded_liste_attente': sorted(liste_attente_entries_list, key=lambda la: la.position)
+                })
             except Exception as sess_error:
                 app.logger.error(f"Error processing session {s_obj.id} for dashboard: {sess_error}", exc_info=True)
                 # Ajouter une entrée d'erreur pour ne pas casser la boucle
@@ -1065,26 +1065,26 @@ for s_obj in sessions_from_db:
         # Récupérer les activités récentes pour le rendu initial
         activites_recentes_initiales = get_recent_activities(limit=5) # Utilise la fonction mise en cache
 
-        app.logger.debug(f"Dashboard Render Data: TotalInscrits={total_inscriptions_confirmees_global}, TotalAttente={total_en_attente_global_liste_attente}, SessionsCompletes={total_sessions_completes_global}, TotalSessions={len(sessions_from_db)}")
+        app.logger.debug(f"Dashboard Render Data: TotalInscrits={total_inscriptions_confirmees_global}, TotalAttente={total_en_attente_global_pending}, SessionsCompletes={total_sessions_completes_global}, TotalSessions={len(sessions_from_db)}")
 
         return render_template('dashboard.html',
-                      themes=themes_for_dropdown,
-                      sessions_data=sessions_data_for_template,
-                      services=services_for_modal_dropdown,
-                      participants=participants_for_modal_dropdown,
-                      salles=salles_for_modal_dropdown,
-                      total_inscriptions=total_inscriptions_confirmees_global,
-                      total_en_attente=total_en_attente_global_pending,  # Modifié: utilise la nouvelle variable
-                      total_sessions_completes=total_sessions_completes_global,
-                      pending_validations=pending_validations_list,
-                      Inscription=Inscription,
-                      ListeAttente=ListeAttente,
-                      chart_theme_data=sorted_themes_for_chart,
-                      chart_service_data=sorted_services_for_chart,
-                      initial_activities=activites_recentes_initiales,
-                      themes_config=app.config.get('THEMES_DATA_FOR_CHART', {}),
-                      services_config=app.config.get('SERVICES_DATA_FOR_CHART', {})
-                      )
+                              themes=themes_for_dropdown,
+                              sessions_data=sessions_data_for_template,
+                              services=services_for_modal_dropdown,
+                              participants=participants_for_modal_dropdown,
+                              salles=salles_for_modal_dropdown,
+                              total_inscriptions=total_inscriptions_confirmees_global,
+                              total_en_attente=total_en_attente_global_pending,  # Modifié: utilise les inscriptions en attente
+                              total_sessions_completes=total_sessions_completes_global,
+                              pending_validations=pending_validations_list,
+                              Inscription=Inscription,
+                              ListeAttente=ListeAttente,
+                              chart_theme_data=sorted_themes_for_chart,
+                              chart_service_data=sorted_services_for_chart,
+                              initial_activities=activites_recentes_initiales,
+                              themes_config=app.config.get('THEMES_DATA_FOR_CHART', {}),
+                              services_config=app.config.get('SERVICES_DATA_FOR_CHART', {})
+                              )
 
     except SQLAlchemyError as e:
         db.session.rollback()
