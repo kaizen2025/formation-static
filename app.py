@@ -1553,6 +1553,9 @@ def validation_inscription_ajax():
         app.logger.error(f"Validation AJAX: Erreur inattendue - {e}", exc_info=True)
         return jsonify({'success': False, 'message': 'Erreur interne du serveur.'}), 500
 
+# Routes adaptées pour document - compatible avec table existante
+# Remplacez les routes existantes dans votre app.py par ces versions
+
 @app.route('/documents')
 @db_operation_with_retry(max_retries=3)
 def documents():
@@ -1560,20 +1563,86 @@ def documents():
     Affiche tous les documents regroupés par thème.
     """
     try:
-        themes_with_docs_query = Theme.query.options(
-            db.orm.selectinload(Theme.documents).joinedload(Document.uploader)
-        ).order_by(Theme.nom)
+        # Pour éviter l'erreur avec file_content qui n'existe peut-être pas encore
+        # Utiliser une requête qui ne sélectionne pas explicitement file_content
+        conn = db.engine.connect()
         
-        # Ajouter une section pour les documents sans thème (theme_id IS NULL)
-        general_docs = Document.query.filter(Document.theme_id.is_(None)).options(
-            db.orm.joinedload(Document.uploader)
-        ).order_by(Document.original_filename).all()
-
-        themes_with_docs_list = themes_with_docs_query.all()
+        # Requête pour les thèmes avec documents
+        themes_query = """
+        SELECT t.id, t.nom, t.description 
+        FROM theme t
+        WHERE EXISTS (SELECT 1 FROM document d WHERE d.theme_id = t.id)
+        ORDER BY t.nom
+        """
+        themes_result = conn.execute(db.text(themes_query))
+        themes_with_docs_list = []
         
-        # Créer une structure pour les documents généraux si nécessaire
-        # Pour simplifier, on peut les passer comme une liste séparée.
+        # Pour chaque thème, récupérer ses documents
+        for theme_row in themes_result:
+            theme_id = theme_row[0]
+            theme_obj = {
+                'id': theme_id,
+                'nom': theme_row[1],
+                'description': theme_row[2],
+                'documents': []
+            }
+            
+            # Récupérer les documents du thème
+            docs_query = """
+            SELECT d.id, d.filename, d.original_filename, d.description, 
+                   d.upload_date, d.uploader_id, d.file_type,
+                   u.username
+            FROM document d
+            LEFT JOIN "user" u ON d.uploader_id = u.id
+            WHERE d.theme_id = :theme_id
+            ORDER BY d.original_filename
+            """
+            docs_result = conn.execute(db.text(docs_query), {'theme_id': theme_id})
+            
+            for doc_row in docs_result:
+                uploader = {'username': doc_row[7]} if doc_row[7] else None
+                doc_obj = {
+                    'id': doc_row[0],
+                    'filename': doc_row[1],
+                    'original_filename': doc_row[2],
+                    'description': doc_row[3],
+                    'upload_date': doc_row[4],
+                    'uploader_id': doc_row[5],
+                    'file_type': doc_row[6],
+                    'uploader': uploader
+                }
+                theme_obj['documents'].append(doc_obj)
+            
+            themes_with_docs_list.append(theme_obj)
         
+        # Documents sans thème (theme_id IS NULL)
+        general_docs_query = """
+        SELECT d.id, d.filename, d.original_filename, d.description, 
+               d.upload_date, d.uploader_id, d.file_type,
+               u.username
+        FROM document d
+        LEFT JOIN "user" u ON d.uploader_id = u.id
+        WHERE d.theme_id IS NULL
+        ORDER BY d.original_filename
+        """
+        general_docs_result = conn.execute(db.text(general_docs_query))
+        general_docs = []
+        
+        for doc_row in general_docs_result:
+            uploader = {'username': doc_row[7]} if doc_row[7] else None
+            doc_obj = {
+                'id': doc_row[0],
+                'filename': doc_row[1],
+                'original_filename': doc_row[2],
+                'description': doc_row[3],
+                'upload_date': doc_row[4],
+                'uploader_id': doc_row[5],
+                'file_type': doc_row[6],
+                'uploader': uploader
+            }
+            general_docs.append(doc_obj)
+        
+        # Options pour le formulaire d'upload
         themes_for_upload_form = []
         if current_user.is_authenticated and current_user.role == 'admin':
             themes_for_upload_form = get_all_themes()
@@ -1586,45 +1655,88 @@ def documents():
                                themes_for_upload=themes_for_upload_form,
                                show_admin_features=show_admin_features,
                                ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS)
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        app.logger.error(f"DB error loading documents page: {e}", exc_info=True)
-        flash("Erreur de base de données lors du chargement des documents.", "danger")
-        return redirect(url_for('dashboard'))
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Unexpected error loading documents page: {e}", exc_info=True)
-        flash("Une erreur interne est survenue.", "danger")
+        app.logger.error(f"Error loading documents page: {e}", exc_info=True)
+        flash("Une erreur est survenue lors du chargement des documents.", "danger")
         return redirect(url_for('dashboard'))
 
 @app.route('/download_document/<int:doc_id>')
 @db_operation_with_retry(max_retries=2)
 def download_document(doc_id):
     """
-    Télécharger un document directement depuis la base de données.
+    Télécharger un document - compatible avec docs existants et nouveaux.
     """
     try:
-        # Récupérer le document par son ID
-        doc = Document.query.get_or_404(doc_id)
+        # Récupérer les informations sur le document
+        conn = db.engine.connect()
+        doc_query = """
+        SELECT id, filename, original_filename, file_type 
+        FROM document 
+        WHERE id = :doc_id
+        """
+        doc_result = conn.execute(db.text(doc_query), {'doc_id': doc_id}).fetchone()
         
-        if not doc.file_content:
-            app.logger.error(f"Document {doc_id} n'a pas de contenu binaire")
-            flash("Erreur : le document n'a pas de contenu.", "danger")
+        if not doc_result:
+            flash("Document non trouvé.", "danger")
             return redirect(url_for('documents'))
         
-        # Créer un BytesIO object à partir du contenu binaire
-        file_data = BytesIO(doc.file_content)
-        file_data.seek(0)
+        doc_id, filename, original_filename, file_type = doc_result
         
-        app.logger.info(f"Téléchargement du document '{doc.original_filename}' (ID: {doc_id}) demandé.")
+        # Vérifier si file_content existe dans la table
+        has_file_content = False
+        try:
+            # Vérifier si la colonne existe
+            check_query = """
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'document' AND column_name = 'file_content'
+            """
+            check_result = conn.execute(db.text(check_query)).fetchone()
+            
+            if check_result:
+                # Vérifier si ce document a un contenu
+                content_query = "SELECT file_content FROM document WHERE id = :doc_id"
+                content_result = conn.execute(db.text(content_query), {'doc_id': doc_id}).fetchone()
+                
+                if content_result and content_result[0]:
+                    has_file_content = True
+                    file_content = content_result[0]
+        except Exception as e:
+            app.logger.warning(f"Erreur lors de la vérification de file_content: {e}")
         
-        # Envoyer le fichier en tant que pièce jointe
-        return send_file(
-            file_data, 
-            download_name=doc.original_filename,
-            as_attachment=True, 
-            mimetype=f'application/{doc.file_type}' if doc.file_type else 'application/octet-stream'
-        )
+        if has_file_content:
+            # Servir le contenu depuis la base de données
+            file_data = BytesIO(file_content)
+            file_data.seek(0)
+            
+            app.logger.info(f"Téléchargement du document '{original_filename}' (ID: {doc_id}) depuis la base de données.")
+            
+            return send_file(
+                file_data, 
+                download_name=original_filename,
+                as_attachment=True, 
+                mimetype=f'application/{file_type}' if file_type else 'application/octet-stream'
+            )
+        else:
+            # Essayer de servir depuis le système de fichiers (pour les documents existants)
+            try:
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                
+                if os.path.exists(file_path):
+                    app.logger.info(f"Téléchargement du document '{original_filename}' (fichier: {filename}) depuis le système de fichiers.")
+                    return send_from_directory(
+                        app.config['UPLOAD_FOLDER'],
+                        filename,
+                        as_attachment=True,
+                        download_name=original_filename
+                    )
+                else:
+                    flash("Erreur : le fichier n'existe pas sur le serveur.", "danger")
+                    return redirect(url_for('documents'))
+            except Exception as e:
+                app.logger.error(f"Erreur lors de l'accès au fichier {filename}: {e}", exc_info=True)
+                flash("Erreur lors du téléchargement du document.", "danger")
+                return redirect(url_for('documents'))
     
     except Exception as e:
         app.logger.error(f"Erreur lors du téléchargement du document {doc_id}: {e}", exc_info=True)
@@ -1678,25 +1790,60 @@ def upload_document():
             theme_id = int(theme_id_str) if theme_id_str and theme_id_str.isdigit() else None
             file_type_from_ext = filename_ext[1:] if filename_ext else None
 
-            # Créer un nouvel enregistrement Document avec le contenu du fichier
-            new_doc = Document(
-                filename=filename, 
-                original_filename=original_filename, 
-                description=description or None, 
-                theme_id=theme_id, 
-                uploader_id=current_user.id, 
-                file_type=file_type_from_ext,
-                file_content=file_content  # Stockage du contenu binaire
-            )
+            conn = db.engine.connect()
             
-            db.session.add(new_doc)
-            db.session.commit()
+            # Vérifier si la colonne file_content existe
+            check_query = """
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'document' AND column_name = 'file_content'
+            """
+            has_file_content = conn.execute(db.text(check_query)).fetchone() is not None
+            
+            if has_file_content:
+                # Insérer avec le contenu binaire
+                insert_query = """
+                INSERT INTO document 
+                (filename, original_filename, description, theme_id, uploader_id, file_type, upload_date, file_content)
+                VALUES (:filename, :original_filename, :description, :theme_id, :uploader_id, :file_type, CURRENT_TIMESTAMP, :file_content)
+                """
+                conn.execute(db.text(insert_query), {
+                    'filename': filename,
+                    'original_filename': original_filename,
+                    'description': description,
+                    'theme_id': theme_id,
+                    'uploader_id': current_user.id,
+                    'file_type': file_type_from_ext,
+                    'file_content': file_content
+                })
+            else:
+                # Insérer sans le contenu binaire
+                insert_query = """
+                INSERT INTO document 
+                (filename, original_filename, description, theme_id, uploader_id, file_type, upload_date)
+                VALUES (:filename, :original_filename, :description, :theme_id, :uploader_id, :file_type, CURRENT_TIMESTAMP)
+                """
+                conn.execute(db.text(insert_query), {
+                    'filename': filename,
+                    'original_filename': original_filename,
+                    'description': description,
+                    'theme_id': theme_id,
+                    'uploader_id': current_user.id,
+                    'file_type': file_type_from_ext
+                })
+                
+                # Si pas de file_content, enregistrer sur le système de fichiers
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                with open(file_path, 'wb') as f:
+                    f.write(file_content)
+                app.logger.info(f"Fichier '{original_filename}' uploadé comme '{filename}' sur le système de fichiers.")
+            
+            conn.commit()
             
             if theme_id:
                 cache.delete_memoized(get_all_themes)
             cache.delete('dashboard_essential_data')
 
-            add_activity('ajout_document', f'Upload: {original_filename}', f'Thème: {new_doc.theme.nom if new_doc.theme else "Général"}', user=current_user)
+            add_activity('ajout_document', f'Upload: {original_filename}', f'Thème: {Theme.query.get(theme_id).nom if theme_id else "Général"}', user=current_user)
             flash('Document uploadé avec succès.', 'success')
         else:
             flash('Type de fichier non autorisé ou nom de fichier problématique.', 'warning')
@@ -1719,7 +1866,7 @@ def upload_document():
 @db_operation_with_retry(max_retries=2)
 def delete_document(doc_id):
     """
-    Supprimer un document de la base de données.
+    Supprimer un document - compatible avec docs existants et nouveaux.
     """
     if current_user.role != 'admin':
         flash("Action réservée aux administrateurs.", "danger")
@@ -1731,26 +1878,41 @@ def delete_document(doc_id):
         redirect_url = url_for('documents')
     
     try:
-        doc = db.session.get(Document, doc_id)
-        if not doc:
+        # Récupérer les informations sur le document
+        conn = db.engine.connect()
+        doc_query = """
+        SELECT filename, original_filename, theme_id
+        FROM document 
+        WHERE id = :doc_id
+        """
+        doc_result = conn.execute(db.text(doc_query), {'doc_id': doc_id}).fetchone()
+        
+        if not doc_result:
             flash("Document non trouvé.", "warning")
             return redirect(redirect_url)
         
-        filename = doc.filename
-        original_filename = doc.original_filename
-        theme_id_of_doc = doc.theme_id
+        filename, original_filename, theme_id = doc_result
+        
+        # Tenter de supprimer le fichier physique (pour les anciens documents)
+        try:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                app.logger.info(f"Fichier physique '{filename}' supprimé.")
+        except OSError as e:
+            app.logger.warning(f"Erreur suppression fichier physique {filename}: {e}")
         
         # Supprimer l'enregistrement de la base de données
-        db.session.delete(doc)
-        db.session.commit()
+        delete_query = "DELETE FROM document WHERE id = :doc_id"
+        conn.execute(db.text(delete_query), {'doc_id': doc_id})
+        conn.commit()
 
-        if theme_id_of_doc:
+        if theme_id:
             cache.delete_memoized(get_all_themes)
         cache.delete('dashboard_essential_data')
 
         add_activity('suppression_document', f'Suppression: {original_filename}', user=current_user)
         flash(f'Document "{original_filename}" supprimé avec succès.', 'success')
-        
     except SQLAlchemyError as e:
         db.session.rollback()
         flash("Erreur base de données lors de la suppression.", "danger")
@@ -1761,7 +1923,6 @@ def delete_document(doc_id):
         app.logger.error(f"Unexpected error during document delete (ID: {doc_id}): {e}", exc_info=True)
     
     return redirect(redirect_url)
-
 # --- Admin Routes ---
 @app.route('/admin')
 @login_required
