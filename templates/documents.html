@@ -139,7 +139,7 @@
                             </div>
                         </div>
                         <div class="btn-group">
-                            <a href="{{ url_for('download_document', filename=doc.filename) }}" 
+                            <a href="{{ url_for('download_document', doc_id=doc.id) }}" 
                                class="btn btn-outline-primary btn-sm" title="Télécharger">
                                 <i class="fas fa-download"></i>
                             </a>
@@ -186,14 +186,6 @@
     {% endif %}
 
     {# Section pour les documents généraux (non associés à un thème) #}
-    {# ... (logique similaire pour les documents généraux, en utilisant show_admin_features pour le bouton supprimer) ... #}
-    {% set general_docs_list = [] %}
-    {% for theme in themes_with_docs if theme.id is none %}
-        {% for doc in theme.documents %}
-            {% set general_docs_list = general_docs_list.append(doc) %}
-        {% endfor %}
-    {% endfor %}
-
     {% if general_docs_list %}
     <div class="theme-section mb-4">
         <h4 class="mb-3 pb-2 border-bottom">
@@ -228,7 +220,7 @@
                     </div>
                 </div>
                 <div class="btn-group">
-                    <a href="{{ url_for('download_document', filename=doc.filename) }}" 
+                    <a href="{{ url_for('download_document', doc_id=doc.id) }}" 
                        class="btn btn-outline-primary btn-sm" title="Télécharger">
                         <i class="fas fa-download"></i>
                     </a>
