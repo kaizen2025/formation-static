@@ -179,12 +179,14 @@
 {% endblock %}
 
 {% block scripts_extra %}
-{{ super() }} <!-- Include scripts from layout.html -->
+{{ super() }}
+<script src="{{ url_for('static', filename='js/universal-modal-fix.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Salles JS loaded');
+        // Si vous avez besoin d'activer le débogage
+        if (window.universalModalFix) {
+            window.universalModalFix.debug = true;
+        }
     });
 </script>
-<!-- Inclure le script de correction spécifique pour cette page -->
-<script src="{{ url_for('static', filename='js/page-specific-modal-fix.js') }}"></script>
 {% endblock %}
