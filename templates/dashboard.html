@@ -222,78 +222,81 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for session_item in sessions_data %}
-                            <!-- Dans dashboard.html, boucle des sessions_data -->
-<tr>
-    <td>
-        <div class="fw-bold">{{ session_item.obj.formatage_date }}</div>
-        <small class="text-muted">{{ session_item.obj.formatage_horaire }}</small>
-    </td>
-    <td class="theme-cell">
-        <span class="theme-badge" data-theme="{{ session_item.obj.theme.nom }}">
-            {{ session_item.obj.theme.nom }}
-        </span>
-    </td>
-    <td class="places-dispo">
-        {% if session_item.places_restantes > 0 %}
-            <span class="text-success fw-bold">
-                <i class="fas fa-circle me-1"></i>{{ session_item.inscrits_confirmes_count }}/{{ session_item.obj.max_participants }}
-            </span>
-            <div class="small text-muted">{{ session_item.places_restantes }} place(s) disponible(s)</div>
-        {% else %}
-            <span class="text-danger fw-bold">
-                <i class="fas fa-times-circle me-1"></i>Complet
-            </span>
-            <div class="small text-danger">{{ session_item.liste_attente_count }} en liste d'attente</div>
-        {% endif %}
-    </td>
-    <td>
-        {% if session_item.pending_count > 0 %}
-            <span class="validation-badge bg-warning text-dark">
-                <i class="fas fa-exclamation-circle"></i>{{ session_item.pending_count }}
-            </span>
-        {% else %}
-            <span class="text-muted">-</span>
-        {% endif %}
-    </td>
-    <td>
-        {% if session_item.obj.salle %}
-            <span class="badge bg-light text-dark">{{ session_item.obj.salle.nom }}</span>
-        {% else %}
-            <span class="text-muted">Non définie</span>
-        {% endif %}
-    </td>
-    <td>
-        <div class="btn-group btn-group-sm" role="group">
-            <button type="button" class="btn btn-outline-primary" 
-                    data-bs-toggle="modal" 
-                    data-bs-target="#participantsModal_{{ session_item.obj.id }}" 
-                    title="Voir participants">
-                <i class="fas fa-users"></i>
-            </button>
-            <button type="button" class="btn btn-outline-success" 
-                    data-bs-toggle="modal" 
-                    data-bs-target="#inscriptionModal_{{ session_item.obj.id }}" 
-                    title="Inscrire">
-                <i class="fas fa-plus-circle"></i>
-            </button>
-            {% if current_user.is_authenticated and current_user.role == 'admin' %}
-            <button type="button" class="btn btn-outline-secondary" 
-                    data-bs-toggle="modal" 
-                    data-bs-target="#attribuerSalleModal_{{ session_item.obj.id }}" 
-                    title="Attribuer salle">
-                <i class="fas fa-door-open"></i>
-            </button>
-            {% endif %}
-        </div>
-    </td>
-</tr>
-                                <td colspan="6" class="text-center py-4">
-                                    <i class="fas fa-calendar-times fa-2x mb-2 d-block text-muted"></i>
-                                    <p class="mb-0 text-muted">Aucune session à venir</p>
-                                </td>
-                            </tr>
-                            {% endfor %}
+                            {% if sessions_data and sessions_data|length > 0 %}
+                                {% for session_item in sessions_data %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ session_item.obj.formatage_date }}</div>
+                                        <small class="text-muted">{{ session_item.obj.formatage_horaire }}</small>
+                                    </td>
+                                    <td class="theme-cell">
+                                        <span class="theme-badge" data-theme="{{ session_item.obj.theme.nom }}">
+                                            {{ session_item.obj.theme.nom }}
+                                        </span>
+                                    </td>
+                                    <td class="places-dispo">
+                                        {% if session_item.places_restantes > 0 %}
+                                            <span class="text-success fw-bold">
+                                                <i class="fas fa-circle me-1"></i>{{ session_item.inscrits_confirmes_count }}/{{ session_item.obj.max_participants }}
+                                            </span>
+                                            <div class="small text-muted">{{ session_item.places_restantes }} place(s) disponible(s)</div>
+                                        {% else %}
+                                            <span class="text-danger fw-bold">
+                                                <i class="fas fa-times-circle me-1"></i>Complet
+                                            </span>
+                                            <div class="small text-danger">{{ session_item.liste_attente_count }} en liste d'attente</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if session_item.pending_count > 0 %}
+                                            <span class="validation-badge bg-warning text-dark">
+                                                <i class="fas fa-exclamation-circle"></i>{{ session_item.pending_count }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if session_item.obj.salle %}
+                                            <span class="badge bg-light text-dark">{{ session_item.obj.salle.nom }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Non définie</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#participantsModal_{{ session_item.obj.id }}" 
+                                                    title="Voir participants">
+                                                <i class="fas fa-users"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#inscriptionModal_{{ session_item.obj.id }}" 
+                                                    title="Inscrire">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </button>
+                                            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                            <button type="button" class="btn btn-outline-secondary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#attribuerSalleModal_{{ session_item.obj.id }}" 
+                                                    title="Attribuer salle">
+                                                <i class="fas fa-door-open"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <i class="fas fa-calendar-times fa-2x mb-2 d-block text-muted"></i>
+                                        <p class="mb-0 text-muted">Aucune session à venir</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
@@ -349,7 +352,6 @@
                                                 stroke="{{ color }}"
                                                 stroke-width="{{ stroke_width }}"
                                                 stroke-dasharray="{{ percentage }} {{ 100 - percentage }}"
-                                                stroke-dashoffset="{{ -current_offset_angle * 100 / 360 }}"
                                                 transform="rotate({{ current_offset_angle }} 21 21)">
                                             <title>{{ theme_name|escape }}: {{ count }} ({{ "%.1f"|format(percentage) }}%)</title>
                                         </circle>
@@ -466,38 +468,487 @@
 
 {% block modals %}
     {# S'assurer que sessions_data est la bonne variable ici, ou celle qui contient les objets Session #}
-    {% if sessions_data %} {# Ou la variable appropriée qui contient la liste des sessions #}
-        {% for session_item_modal_data in sessions_data %} {# Ajuster si la structure de sessions_data est différente #}
+    {% if sessions_data and sessions_data|length > 0 %}
+        {% for session_item_modal_data in sessions_data %}
             {% set session_obj_for_modal = session_item_modal_data.obj %}
-            {% set session_data_for_modal_dict = session_item_modal_data %} {# Renommer pour éviter confusion avec la variable de boucle #}
+            {% set session_data_for_modal_dict = session_item_modal_data %}
             
             {# Modal Inscription #}
-            {% with session=session_obj_for_modal, session_data=session_data_for_modal_dict, participants=participants, services=services %}
-                {% include 'modals/_inscription_modal_simple.html' %}
-            {% endwith %}
+            <div class="modal fade modal-fix" id="inscriptionModal_{{ session_obj_for_modal.id }}" tabindex="-1" 
+                aria-labelledby="inscriptionModalLabel_{{ session_obj_for_modal.id }}" aria-hidden="true" 
+                data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="inscriptionModalLabel_{{ session_obj_for_modal.id }}">
+                            <i class="fas fa-user-plus me-2"></i>Inscription: {{ session_obj_for_modal.theme.nom }}
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <!-- Informations sur la session -->
+                            <div class="alert alert-light border mb-4 p-3 shadow-sm">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-check fa-2x me-3 text-primary-emphasis"></i>
+                                <div>
+                                    <h6 class="mb-1 fw-bold text-primary-emphasis">Session du {{ session_obj_for_modal.formatage_date }}</h6>
+                                    <p class="mb-1 small text-body-secondary">
+                                        <i class="far fa-clock fa-fw me-1"></i>Horaire: {{ session_obj_for_modal.formatage_horaire }}
+                                    </p>
+                                    <p class="mb-1 small text-body-secondary">
+                                        <i class="fas fa-chair fa-fw me-1"></i>Places disponibles: 
+                                        <strong class="badge {% if session_data_for_modal_dict.places_restantes == 0 %}bg-danger{% elif session_data_for_modal_dict.places_restantes <= 3 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                            {{ session_data_for_modal_dict.places_restantes }} / {{ session_obj_for_modal.max_participants }}
+                                        </strong>
+                                    </p>
+                                    <p class="mb-0 small text-body-secondary">
+                                        <i class="fas fa-building fa-fw me-1"></i>Salle: 
+                                        <span class="badge bg-light text-dark border">{{ session_obj_for_modal.salle.nom if session_obj_for_modal.salle else "Non définie" }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            </div>
+
+                            <!-- Navigation par onglets -->
+                            <ul class="nav nav-pills nav-fill mb-3" id="inscriptionTabs_{{ session_obj_for_modal.id }}" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="participant-existant-tab_{{ session_obj_for_modal.id }}" data-bs-toggle="tab" data-bs-target="#participant-existant_{{ session_obj_for_modal.id }}" type="button" role="tab" aria-controls="participant-existant_{{ session_obj_for_modal.id }}" aria-selected="true">
+                                <i class="fas fa-user me-1"></i> Participant existant
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="nouveau-participant-tab_{{ session_obj_for_modal.id }}" data-bs-toggle="tab" data-bs-target="#nouveau-participant_{{ session_obj_for_modal.id }}" type="button" role="tab" aria-controls="nouveau-participant_{{ session_obj_for_modal.id }}" aria-selected="false">
+                                <i class="fas fa-user-plus me-1"></i> Nouveau participant
+                                </button>
+                            </li>
+                            </ul>
+
+                            <!-- Contenu des onglets -->
+                            <div class="tab-content pt-3" id="inscriptionTabsContent_{{ session_obj_for_modal.id }}">
+                            
+                            <!-- Onglet participant existant -->
+                            <div class="tab-pane fade show active" id="participant-existant_{{ session_obj_for_modal.id }}" role="tabpanel" aria-labelledby="participant-existant-tab_{{ session_obj_for_modal.id }}">
+                                <form action="{{ url_for('inscription') }}" method="post" id="inscription-form-{{ session_obj_for_modal.id }}" class="needs-validation" novalidate>
+                                <input type="hidden" name="session_id" value="{{ session_obj_for_modal.id }}">
+                                <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}">
+                                
+                                <div class="mb-3">
+                                    <label for="participant_id_{{ session_obj_for_modal.id }}" class="form-label">Sélectionner un participant*</label>
+                                    <select class="form-select form-select-lg" id="participant_id_{{ session_obj_for_modal.id }}" name="participant_id" required>
+                                    <option value="" selected disabled>-- Choisir dans la liste --</option>
+                                    {% for participant in participants|sort(attribute='prenom')|sort(attribute='nom') %} 
+                                    <option value="{{ participant.id }}">{{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})</option>
+                                    {% endfor %}
+                                    </select>
+                                    <div class="invalid-feedback">
+                                    Veuillez sélectionner un participant.
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid gap-2 mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-check-circle me-2"></i>Confirmer l'inscription
+                                    </button>
+                                </div>
+                                </form>
+                            </div>
+                            
+                            <!-- Onglet nouveau participant -->
+                            <div class="tab-pane fade" id="nouveau-participant_{{ session_obj_for_modal.id }}" role="tabpanel" aria-labelledby="nouveau-participant-tab_{{ session_obj_for_modal.id }}">
+                                <p class="small text-muted mb-3">Ajoutez un nouveau participant. Il sera automatiquement inscrit à cette session (en attente de validation par son responsable ou un admin).</p>
+                                <form action="{{ url_for('add_participant') }}" method="post" id="new-participant-form-{{ session_obj_for_modal.id }}" class="needs-validation" novalidate>
+                                <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}"> 
+                                <input type="hidden" name="redirect_session_id" value="{{ session_obj_for_modal.id }}">
+                                <input type="hidden" name="action_after_add" value="inscription">
+                                
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                    <label for="nom_nouveau_{{ session_obj_for_modal.id }}" class="form-label">Nom*</label>
+                                    <input type="text" class="form-control" id="nom_nouveau_{{ session_obj_for_modal.id }}" name="nom" required>
+                                    <div class="invalid-feedback">Le nom est obligatoire.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                    <label for="prenom_nouveau_{{ session_obj_for_modal.id }}" class="form-label">Prénom*</label>
+                                    <input type="text" class="form-control" id="prenom_nouveau_{{ session_obj_for_modal.id }}" name="prenom" required>
+                                    <div class="invalid-feedback">Le prénom est obligatoire.</div>
+                                    </div>
+                                    <div class="col-12">
+                                    <label for="email_nouveau_{{ session_obj_for_modal.id }}" class="form-label">Email*</label>
+                                    <input type="email" class="form-control" id="email_nouveau_{{ session_obj_for_modal.id }}" name="email" required>
+                                    <div class="invalid-feedback">Une adresse email valide est obligatoire.</div>
+                                    </div>
+                                    <div class="col-12">
+                                    <label for="service_id_nouveau_{{ session_obj_for_modal.id }}" class="form-label">Service*</label>
+                                    <select class="form-select" id="service_id_nouveau_{{ session_obj_for_modal.id }}" name="service_id" required>
+                                        <option value="" selected disabled>-- Choisir un service --</option>
+                                        {% for service_item in services|sort(attribute='nom') %}
+                                        <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="invalid-feedback">Le service est obligatoire.</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid gap-2 mt-4">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-user-plus me-2"></i>Ajouter et Inscrire
+                                    </button>
+                                </div>
+                                </form>
+                            </div>
+                            </div>
+                        </div>
+                        
+                        <div class="modal-footer bg-light justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i> Annuler
+                            </button>
+                            {% if session_data_for_modal_dict.places_restantes == 0 %}
+                            <a href="{{ url_for('liste_attente', session_id=session_obj_for_modal.id) }}" class="btn btn-warning">
+                            <i class="fas fa-clock me-1"></i> S'inscrire en liste d'attente
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {# Modal Participants #}
-            {% with session=session_obj_for_modal, session_data=session_data_for_modal_dict, services_config=services_config %} {# Passer services_config #}
-                {% include 'modals/_participants_modal_simple.html' %}
-            {% endwith %}
+            <div class="modal fade modal-fix" id="participantsModal_{{ session_obj_for_modal.id }}" tabindex="-1" aria-labelledby="participantsModalLabel_{{ session_obj_for_modal.id }}" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                    <!-- En-tête du modal -->
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title" id="participantsModalLabel_{{ session_obj_for_modal.id }}">
+                        <i class="fas fa-users me-2"></i>Participants: {{ session_obj_for_modal.theme.nom }}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                    
+                    <!-- Corps du modal -->
+                    <div class="modal-body">
+                        <!-- Informations session -->
+                        <div class="alert alert-light border mb-4">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <h6 class="mb-1 fw-bold text-info me-3">Session du {{ session_obj_for_modal.formatage_date }} ({{ session_obj_for_modal.formatage_horaire }})</h6>
+                            <span class="badge {% if session_data_for_modal_dict.places_restantes|default(session_obj_for_modal.max_participants) == 0 %}bg-danger{% elif session_data_for_modal_dict.places_restantes|default(session_obj_for_modal.max_participants) <= 3 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                            {{ session_data_for_modal_dict.places_restantes|default(0) }} / {{ session_obj_for_modal.max_participants|default(0) }} places dispo.
+                            </span>
+                        </div>
+                        <hr class="my-2">
+                        <p class="mb-0 small text-muted">
+                            <i class="fas fa-building fa-fw me-1"></i><strong>Salle:</strong> 
+                            <span class="badge bg-light text-dark border">{{ session_obj_for_modal.salle.nom if session_obj_for_modal.salle else "Non définie" }}</span>
+                        </p>
+                        </div>
+
+                        <!-- Navigation par onglets simplifiée -->
+                        <ul class="nav nav-tabs" id="participantsTabs_{{ session_obj_for_modal.id }}" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link active" id="confirmes-tab-{{ session_obj_for_modal.id }}" data-bs-toggle="tab" href="#confirmes-{{ session_obj_for_modal.id }}" role="tab" aria-selected="true">
+                            <i class="fas fa-check-circle text-success me-1"></i> Confirmés 
+                            <span class="badge bg-success">{{ session_data_for_modal_dict.inscrits_confirmes_count|default(0) }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="en-attente-tab-{{ session_obj_for_modal.id }}" data-bs-toggle="tab" href="#en-attente-{{ session_obj_for_modal.id }}" role="tab" aria-selected="false">
+                            <i class="fas fa-clock text-warning me-1"></i> En attente 
+                            <span class="badge bg-warning text-dark">{{ session_data_for_modal_dict.pending_count|default(0) }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="liste-attente-tab-{{ session_obj_for_modal.id }}" data-bs-toggle="tab" href="#liste-attente-{{ session_obj_for_modal.id }}" role="tab" aria-selected="false">
+                            <i class="fas fa-hourglass-half text-info me-1"></i> Liste d'attente 
+                            <span class="badge bg-info text-dark">{{ session_data_for_modal_dict.liste_attente_count|default(0) }}</span>
+                            </a>
+                        </li>
+                        </ul>
+
+                        <!-- Contenu des onglets -->
+                        <div class="tab-content py-3" id="participantsTabsContent_{{ session_obj_for_modal.id }}">
+                        
+                        <!-- Tab 1: Participants confirmés -->
+                        <div class="tab-pane fade show active" id="confirmes-{{ session_obj_for_modal.id }}" role="tabpanel">
+                            {% set inscrits_list = session_data_for_modal_dict.loaded_inscrits_confirmes %}
+                            {% if inscrits_list and inscrits_list|length > 0 %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                    <th>Participant</th>
+                                    <th>Service</th>
+                                    <th>Date Inscription</th>
+                                    <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for inscription in inscrits_list %}
+                                    <tr>
+                                        <td>{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
+                                        <td>
+                                        <span class="badge" style="background-color: {{ inscription.participant.service.couleur|default('#6c757d') }};">
+                                            {{ inscription.participant.service.nom|escape }}
+                                        </span>
+                                        </td>
+                                        <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td class="text-center">
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                            <i class="far fa-calendar-plus"></i>
+                                            </a>
+                                            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                            <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
+                                            <input type="hidden" name="action" value="annuler">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-light text-center py-4">
+                                <i class="fas fa-info-circle fa-2x text-muted mb-3 d-block"></i>
+                                <p class="mb-0">Aucun participant confirmé pour cette session.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Tab 2: Participants en attente -->
+                        <div class="tab-pane fade" id="en-attente-{{ session_obj_for_modal.id }}" role="tabpanel">
+                            {% set pending_list = session_data_for_modal_dict.loaded_pending_inscriptions %}
+                            {% if pending_list and pending_list|length > 0 %}
+                            <div class="alert alert-warning small mb-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Ces inscriptions sont en attente de validation par un responsable ou un administrateur.
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                    <th>Participant</th>
+                                    <th>Service</th>
+                                    <th>Date Demande</th>
+                                    <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for inscription in pending_list %}
+                                    <tr>
+                                        <td>{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
+                                        <td>
+                                        <span class="badge" style="background-color: {{ inscription.participant.service.couleur|default('#6c757d') }};">
+                                            {{ inscription.participant.service.nom|escape }}
+                                        </span>
+                                        </td>
+                                        <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td class="text-center">
+                                        {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
+                                            <div class="btn-group">
+                                            <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
+                                                <input type="hidden" name="action" value="valider">
+                                                <button type="submit" class="btn btn-sm btn-success" {{ 'disabled' if session_data_for_modal_dict.places_restantes|default(0) <= 0 else '' }}>
+                                                <i class="fas fa-check"></i> Valider
+                                                </button>
+                                            </form>
+                                            <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
+                                                <input type="hidden" name="action" value="refuser">
+                                                <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-times"></i> Refuser
+                                                </button>
+                                            </form>
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-light text-dark border">Validation requise</span>
+                                        {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-light text-center py-4">
+                                <i class="fas fa-info-circle fa-2x text-muted mb-3 d-block"></i>
+                                <p class="mb-0">Aucune inscription en attente de validation pour cette session.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Tab 3: Liste d'attente -->
+                        <div class="tab-pane fade" id="liste-attente-{{ session_obj_for_modal.id }}" role="tabpanel">
+                            {% set waitlist_list = session_data_for_modal_dict.loaded_liste_attente %}
+                            {% if waitlist_list and waitlist_list|length > 0 %}
+                            <div class="alert alert-info small mb-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Participants en liste d'attente car la session est/était complète.
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                    <th class="text-center">Pos.</th>
+                                    <th>Participant</th>
+                                    <th>Service</th>
+                                    <th>Date Inscription</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for attente in waitlist_list %}
+                                    <tr>
+                                        <td class="text-center"><span class="badge bg-secondary">{{ attente.position }}</span></td>
+                                        <td>{{ attente.participant.prenom|escape }} {{ attente.participant.nom|escape }}</td>
+                                        <td>
+                                        <span class="badge" style="background-color: {{ attente.participant.service.couleur|default('#6c757d') }};">
+                                            {{ attente.participant.service.nom|escape }}
+                                        </span>
+                                        </td>
+                                        <td>{{ attente.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-light text-center py-4">
+                                <i class="fas fa-info-circle fa-2x text-muted mb-3 d-block"></i>
+                                <p class="mb-0">Aucun participant en liste d'attente pour cette session.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pied du modal -->
+                    <div class="modal-footer bg-light justify-content-between">
+                        <div>
+                        {% if session_data_for_modal_dict.places_restantes|default(0) > 0 %}
+                            <button type="button" class="btn btn-primary"
+                                    onclick="showInscriptionModalTransition('{{ session_obj_for_modal.id }}')">
+                            <i class="fas fa-user-plus me-1"></i> Inscrire un participant
+                            </button>
+                        {% elif current_user.is_authenticated %}
+                            <a href="{{ url_for('liste_attente', session_id=session_obj_for_modal.id) }}" 
+                            class="btn btn-warning">
+                            <i class="fas fa-clock me-1"></i> Liste d'attente
+                            </a>
+                        {% else %}
+                            <span class="text-muted">Session complète.</span>
+                        {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Fermer
+                        </button>
+                    </div>
+                    </div>
+                </div>
+            </div>
 
             {# Modal Attribuer Salle (Admin) #}
             {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                 {% with session=session_obj_for_modal, salles_all=salles %} {# 'salles' doit être la liste de toutes les salles #}
-                     {% include 'modals/_attribuer_salle_modal.html' %}
-                 {% endwith %}
+                <div class="modal fade modal-fix" id="attribuerSalleModal_{{ session_obj_for_modal.id }}" tabindex="-1" aria-labelledby="attribuerSalleModalLabel_{{ session_obj_for_modal.id }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-secondary text-white">
+                                <h5 class="modal-title" id="attribuerSalleModalLabel_{{ session_obj_for_modal.id }}">
+                                    <i class="fas fa-door-open me-2"></i>Attribuer une Salle
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-3">Session du <strong>{{ session_obj_for_modal.formatage_date }}</strong> à <strong>{{ session_obj_for_modal.formatage_horaire }}</strong>.</p>
+                                
+                                <form action="{{ url_for('attribuer_salle', session_id=session_obj_for_modal.id) }}" method="post" class="needs-validation" novalidate>
+                                    <div class="mb-3">
+                                        <label for="salle_id_{{ session_obj_for_modal.id }}" class="form-label">Salle*</label>
+                                        <select class="form-select" id="salle_id_{{ session_obj_for_modal.id }}" name="salle_id" required>
+                                            <option value="" disabled {% if not session_obj_for_modal.salle %}selected{% endif %}>Sélectionner une salle</option>
+                                            {% for salle in salles %}
+                                                <option value="{{ salle.id }}" {% if session_obj_for_modal.salle and session_obj_for_modal.salle.id == salle.id %}selected{% endif %}>
+                                                    {{ salle.nom }} ({{ salle.capacite }} places)
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="invalid-feedback">
+                                            Veuillez sélectionner une salle.
+                                        </div>
+                                        <div class="form-text">
+                                            Note: La capacité de la salle devrait être suffisante pour accueillir le nombre d'inscrits.
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mt-4">
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-save me-1"></i>Enregistrer
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             {% endif %}
         {% endfor %}
     {% endif %}
     
     {# Modal global pour ajouter un participant (si utilisé depuis le dashboard) #}
     {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-        {% with services_list=services %} {# 'services' doit être la liste de tous les services #}
-            {% include 'modals/_add_participant_modal.html' %}
-        {% endwith %}
+        <div class="modal fade modal-fix" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="addParticipantModalGlobalLabel"><i class="fas fa-user-plus me-2"></i>Ajouter un Nouveau Participant</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <form action="{{ url_for('add_participant') }}" method="post" class="needs-validation" novalidate>
+                            <input type="hidden" name="from_page" value="participants_page">
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label for="add_nom_global" class="form-label">Nom*</label>
+                                    <input type="text" class="form-control" id="add_nom_global" name="nom" required>
+                                    <div class="invalid-feedback">Le nom est requis.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="add_prenom_global" class="form-label">Prénom*</label>
+                                    <input type="text" class="form-control" id="add_prenom_global" name="prenom" required>
+                                    <div class="invalid-feedback">Le prénom est requis.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="add_email_global" class="form-label">Email*</label>
+                                    <input type="email" class="form-control" id="add_email_global" name="email" required>
+                                    <div class="invalid-feedback">Un email valide est requis.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="add_service_id_global" class="form-label">Service*</label>
+                                    <select class="form-select" id="add_service_id_global" name="service_id" required>
+                                        <option value="" disabled selected>-- Choisir un service --</option>
+                                        {% for service in services|sort(attribute='nom') %} 
+                                        <option value="{{ service.id }}">{{ service.nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="invalid-feedback">Le service est requis.</div>
+                                </div>
+                            </div>
+                            <div class="d-grid mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-plus-circle me-2"></i>Ajouter le Participant</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     {% endif %}
 {% endblock %}
-
 
 {% block scripts_extra %}
 <script>
@@ -506,177 +957,174 @@
     if (typeof window.themesDataForChart !== 'object' || window.themesDataForChart === null) { console.warn("themesDataForChart n'est pas un objet valide"); window.themesDataForChart = {}; }
     if (typeof window.servicesDataForChart !== 'object' || window.servicesDataForChart === null) { console.warn("servicesDataForChart n'est pas un objet valide"); window.servicesDataForChart = {}; }
 
-    // Gestionnaire des modales pour le dashboard
-    const dashboardModals = {
-        // Stocke les instances de modales
-        instances: {},
-        
-        // Crée ou récupère une instance de modale
-        getInstance: function(id) {
-            if (!this.instances[id]) {
-                const modalElement = document.getElementById(id);
-                if (modalElement) {
-                    // Ajouter les classes de correction
-                    modalElement.classList.add('modal-fix');
-                    
-                    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                        this.instances[id] = new bootstrap.Modal(modalElement);
-                    }
-                }
-            }
-            return this.instances[id];
-        },
-        
-        // Affiche une modale par son ID
-        show: function(id) {
-            const instance = this.getInstance(id);
-            if (instance) {
-                instance.show();
-                
-                // Améliorer les éléments de la modale après affichage
-                const modalElement = document.getElementById(id);
-                if (modalElement) {
-                    setTimeout(() => {
-                        this.enhanceModalElements(modalElement);
-                    }, 300);
-                }
-            } else {
-                console.error(`Modale avec ID ${id} non trouvée.`);
-            }
-        },
-        
-        // Ferme une modale par son ID
-        hide: function(id) {
-            const instance = this.instances[id];
-            if (instance) {
-                instance.hide();
-            }
-        },
-        
-        // Améliore les éléments à l'intérieur d'une modale
-        enhanceModalElements: function(modalElement) {
-            if (!modalElement) return;
-            
-            // Améliorer les selects
-            modalElement.querySelectorAll('select, .form-select').forEach(select => {
-                select.style.display = 'block';
-                select.style.visibility = 'visible';
-                select.style.opacity = '1';
-                select.style.position = 'relative';
-                select.style.zIndex = '1060';
-                select.style.appearance = 'menulist';
-                select.style.webkitAppearance = 'menulist';
-            });
-            
-            // Améliorer les badges de thème
-            if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-                window.enhanceThemeBadgesGlobally(modalElement);
-            }
-            
-            // Initialiser les tooltips
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-                modalElement.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not([title=""])').forEach(el => {
-                    const tooltipInstance = bootstrap.Tooltip.getInstance(el);
-                    if (tooltipInstance) {
-                        tooltipInstance.dispose();
-                    }
-                    new bootstrap.Tooltip(el);
-                });
-            }
-            
-            // Activer le premier onglet si des onglets sont présents
-            const tabNavs = modalElement.querySelectorAll('.nav-tabs, .nav-pills');
-            tabNavs.forEach(tabNav => {
-                const firstTab = tabNav.querySelector('.nav-link');
-                if (firstTab && !tabNav.querySelector('.nav-link.active')) {
-                    firstTab.classList.add('active');
-                    const targetSelector = firstTab.getAttribute('data-bs-target');
-                    if (targetSelector) {
-                        const targetPane = modalElement.querySelector(targetSelector);
-                        if (targetPane) {
-                            targetPane.classList.add('show', 'active');
-                        }
-                    }
-                }
-            });
-            
-            // Fixer la navigation par onglets
-            modalElement.querySelectorAll('[data-bs-toggle="tab"]').forEach(tabLink => {
-                tabLink.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    const targetSelector = this.getAttribute('data-bs-target');
-                    if (!targetSelector) return;
-                    
-                    // Désactiver tous les onglets
-                    const tabContainer = this.closest('.nav-tabs, .nav-pills');
-                    if (tabContainer) {
-                        tabContainer.querySelectorAll('.nav-link').forEach(link => {
-                            link.classList.remove('active');
-                            link.setAttribute('aria-selected', 'false');
-                        });
-                    }
-                    
-                    // Activer cet onglet
-                    this.classList.add('active');
-                    this.setAttribute('aria-selected', 'true');
-                    
-                    // Désactiver tous les contenus d'onglets
-                    const tabContentContainer = modalElement.querySelector('.tab-content');
-                    if (tabContentContainer) {
-                        tabContentContainer.querySelectorAll('.tab-pane').forEach(pane => {
-                            pane.classList.remove('show', 'active');
-                        });
-                    }
-                    
-                    // Activer le contenu de cet onglet
-                    const targetPane = modalElement.querySelector(targetSelector);
-                    if (targetPane) {
-                        targetPane.classList.add('show', 'active');
-                        
-                        // Focus sur le premier champ
-                        setTimeout(() => {
-                            const firstInput = targetPane.querySelector('select, input:not([type="hidden"]), textarea');
-                            if (firstInput) {
-                                try {
-                                    firstInput.focus();
-                                } catch (e) {
-                                    console.error('Erreur de focus:', e);
-                                }
-                            }
-                        }, 100);
-                    }
-                });
-            });
-            
-            // Donner le focus au premier champ de formulaire
-            setTimeout(() => {
-                const firstField = modalElement.querySelector('select, input:not([type="hidden"]), textarea');
-                if (firstField) {
-                    try {
-                        firstField.focus();
-                    } catch (e) {
-                        console.error('Erreur de focus:', e);
-                    }
-                }
-            }, 100);
-        }
-    };
-
-    // Fonctions pour afficher les modales
-    function showParticipantsModal(sessionId) {
-        dashboardModals.show(`participantsModal_${sessionId}`);
-    }
-    
-    function showInscriptionModal(sessionId) {
-        dashboardModals.show(`inscriptionModal_${sessionId}`);
-    }
-    
-    function showAttribuerSalleModal(sessionId) {
-        dashboardModals.show(`attribuerSalleModal_${sessionId}`);
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
+        // Fonction pour afficher la modale d'inscription après avoir fermé la modale de participants
+        window.showInscriptionModalTransition = function(sessionId) {
+            const debugMode = window.dashboardConfig && window.dashboardConfig.debugMode;
+            if (debugMode) console.log(`ModalTransition: Attempting to show inscriptionModal_${sessionId} from participantsModal_${sessionId}`);
+
+            const participantsModalElement = document.getElementById(`participantsModal_${sessionId}`);
+            const inscriptionModalElement = document.getElementById(`inscriptionModal_${sessionId}`);
+
+            if (!participantsModalElement || !inscriptionModalElement) {
+                console.error("ModalTransition: Critical Error - One or both modals not found in DOM for transition.");
+                if (typeof window.showToast === 'function') {
+                    window.showToast("Erreur: Impossible d'ouvrir le formulaire d'inscription.", "danger");
+                }
+                return;
+            }
+
+            let bsParticipantsModal = bootstrap.Modal.getInstance(participantsModalElement);
+            if (!bsParticipantsModal) {
+                if (debugMode) console.warn(`ModalTransition: Participants modal ${sessionId} instance not found, creating new.`);
+                bsParticipantsModal = new bootstrap.Modal(participantsModalElement);
+            }
+
+            let bsInscriptionModal = bootstrap.Modal.getInstance(inscriptionModalElement);
+            if (!bsInscriptionModal) {
+                if (debugMode) console.warn(`ModalTransition: Inscription modal ${sessionId} instance not found, creating new.`);
+                bsInscriptionModal = new bootstrap.Modal(inscriptionModalElement);
+            }
+            
+            participantsModalElement.addEventListener('hidden.bs.modal', function onParticipantsModalHidden() {
+                if (debugMode) console.log(`ModalTransition: participantsModal_${sessionId} is now hidden. Preparing to show inscriptionModal_${sessionId}.`);
+                
+                // Léger délai pour s'assurer que le DOM est stable et que Bootstrap a nettoyé
+                setTimeout(() => {
+                    bsInscriptionModal.show();
+                    if (debugMode) console.log(`ModalTransition: inscriptionModal_${sessionId} show() command issued.`);
+                }, 50); // Un délai très court, 50ms est souvent suffisant.
+                
+            }, { once: true });
+
+            bsParticipantsModal.hide();
+            if (debugMode) console.log(`ModalTransition: participantsModal_${sessionId} hide() command issued.`);
+        };
+
+        // Ajouter une fonction pour initialiser les formulaires modaux
+        function initializeModalForms() {
+            document.querySelectorAll('.modal form.needs-validation').forEach(form => {
+                form.addEventListener('submit', function(event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                });
+            });
+        }
+
+        // Ajouter une fonction pour initialiser les modaux
+        function initializeModals() {
+            document.querySelectorAll('.modal').forEach(modalElement => {
+                // Ajouter la classe modal-fix pour les correctifs CSS
+                modalElement.classList.add('modal-fix');
+                
+                // Gérer l'événement d'affichage pour appliquer les correctifs spécifiques
+                modalElement.addEventListener('shown.bs.modal', function() {
+                    // Assurer la visibilité des éléments de formulaire
+                    const formElements = this.querySelectorAll('input, select, textarea, .form-select, .form-control, button:not(.btn-close)');
+                    formElements.forEach(el => {
+                        el.style.display = 'block';
+                        el.style.visibility = 'visible';
+                        el.style.opacity = '1';
+                        el.style.position = 'relative';
+                        el.style.zIndex = '1060';
+                        
+                        // Si c'est un select, assurer qu'il est visible et utilisable
+                        if (el.tagName === 'SELECT' || el.classList.contains('form-select')) {
+                            el.style.appearance = 'menulist';
+                            el.style.webkitAppearance = 'menulist';
+                            el.style.mozAppearance = 'menulist';
+                        }
+                        
+                        // Pour les boutons, garder le display inline-block
+                        if (el.tagName === 'BUTTON' || el.classList.contains('btn')) {
+                            el.style.display = 'inline-block';
+                        }
+                    });
+                    
+                    // Assurer que les onglets fonctionnent
+                    const tabPanes = this.querySelectorAll('.tab-pane');
+                    tabPanes.forEach(pane => {
+                        if (pane.classList.contains('active')) {
+                            pane.style.display = 'block';
+                            pane.style.visibility = 'visible';
+                            pane.style.opacity = '1';
+                        } else {
+                            pane.style.display = 'none';
+                        }
+                    });
+                    
+                    // Focus sur le premier champ du formulaire après affichage
+                    setTimeout(() => {
+                        const firstField = this.querySelector('select, input:not([type="hidden"]), textarea, button:not([type="hidden"]):not(.btn-close)');
+                        if (firstField) {
+                            try {
+                                firstField.focus();
+                            } catch (e) {
+                                console.warn("Couldn't focus first field in modal", e);
+                            }
+                        }
+                    }, 100);
+                });
+                
+                // Gérer correctement les validations AJAX
+                const ajaxButtons = modalElement.querySelectorAll('.validation-ajax');
+                ajaxButtons.forEach(button => {
+                    if (button.dataset.ajaxListenerAttached === 'true') return;
+                    button.dataset.ajaxListenerAttached = 'true';
+                    
+                    button.addEventListener('click', function() {
+                        this.disabled = true;
+                        const originalHTML = this.innerHTML;
+                        this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                        
+                        const inscriptionId = this.getAttribute('data-inscription-id');
+                        const action = this.getAttribute('data-action');
+                        
+                        fetch('/validation_inscription_ajax', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({
+                                inscription_id: inscriptionId,
+                                action: action
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                if (typeof window.showToast === 'function') window.showToast(data.message, 'success');
+                                setTimeout(() => {
+                                    // Rafraîchir les données et fermer le modal
+                                    if (typeof window.forcePollingUpdate === 'function') {
+                                        window.forcePollingUpdate(true);
+                                    } else {
+                                        window.location.reload();
+                                    }
+                                    const modal = bootstrap.Modal.getInstance(modalElement);
+                                    if (modal) modal.hide();
+                                }, 1000);
+                            } else {
+                                if (typeof window.showToast === 'function') window.showToast(data.message || 'Erreur.', 'danger');
+                                this.disabled = false;
+                                this.innerHTML = originalHTML;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erreur AJAX validation:', error);
+                            if (typeof window.showToast === 'function') window.showToast(error.message || 'Erreur serveur.', 'danger');
+                            this.disabled = false;
+                            this.innerHTML = originalHTML;
+                        });
+                    });
+                });
+            });
+        }
+
         // Initialiser les tooltips
         if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
             const tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -690,77 +1138,9 @@
             window.enhanceThemeBadgesGlobally(); 
         }
         
-        // Initialiser toutes les modales pour le dashboard
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.classList.add('modal-fix');
-            dashboardModals.getInstance(modal.id);
-            
-            // Gestionnaire d'événement pour l'affichage de la modale
-            modal.addEventListener('shown.bs.modal', function() {
-                dashboardModals.enhanceModalElements(this);
-            });
-        });
-        
-        // Correction de la validation AJAX sur les validations-inscriptions
-        document.querySelectorAll('.validation-ajax').forEach(button => {
-            button.addEventListener('click', function() {
-                // Désactiver le bouton pour éviter les doubles clics
-                this.disabled = true;
-                const originalHTML = this.innerHTML;
-                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-                
-                // Récupérer les données
-                const inscriptionId = this.getAttribute('data-inscription-id');
-                const action = this.getAttribute('data-action');
-                
-                // Faire la requête AJAX
-                fetch('/validation_inscription_ajax', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({
-                        inscription_id: inscriptionId,
-                        action: action
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // Gérer la réponse
-                    if (data.success) {
-                        if (typeof window.showToast === 'function') {
-                            window.showToast(data.message, 'success');
-                        } else {
-                            alert(data.message);
-                        }
-                        
-                        // Rafraîchir la page après un court délai
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
-                    } else {
-                        if (typeof window.showToast === 'function') {
-                            window.showToast(data.message || 'Erreur lors de la validation', 'danger');
-                        } else {
-                            alert(data.message || 'Erreur lors de la validation');
-                        }
-                        this.disabled = false;
-                        this.innerHTML = originalHTML;
-                    }
-                })
-                .catch(error => {
-                    console.error('Erreur AJAX:', error);
-                    if (typeof window.showToast === 'function') {
-                        window.showToast('Erreur de communication', 'danger');
-                    } else {
-                        alert('Erreur de communication');
-                    }
-                    this.disabled = false;
-                    this.innerHTML = originalHTML;
-                });
-            });
-        });
+        // Initialiser les modaux et les formulaires
+        initializeModals();
+        initializeModalForms();
     });
 
     // Fonction pour afficher des toasts de notification
