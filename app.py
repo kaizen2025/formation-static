@@ -119,16 +119,24 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False # Mettre à True pour débug SQL détaillé
 
-# SQLAlchemy Pool Config (Ajusté pour Render Free Tier)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "client_encoding": "UTF8",
-    "connect_args": { "options": "-c client_encoding=utf8" },
-    'pool_size': 1,
-    'max_overflow': 0,
-    'pool_timeout': 30, # Augmenté pour donner plus de temps
-    'pool_recycle': 180, # Recycler plus fréquemment
-    'pool_pre_ping': True
+    'pool_size': 1,           # Taille minimale du pool pour Render gratuit
+    'pool_timeout': 30,       # Timeout en secondes
+    'pool_recycle': 1800,     # Recycler les connexions après 30 minutes
+    'max_overflow': 2,        # Autoriser jusqu'à 2 connexions supplémentaires en cas de besoin
+    'pool_pre_ping': True,    # Vérifier que les connexions sont valides avant de les utiliser
+    'connect_args': {
+        'connect_timeout': 10 # Timeout de connexion PostgreSQL en secondes 
+    }
 }
+
+# Fonction utilitaire pour fermer explicitement les connexions
+def close_db_connection(exception=None):
+    """Ferme explicitement la connexion à la base de données à la fin de chaque requête."""
+    db.session.close()
+
+# Enregistrer la fonction pour qu'elle s'exécute après chaque requête
+app.teardown_appcontext(close_db_connection)
 
 # Cache Config
 app.config.from_mapping({
