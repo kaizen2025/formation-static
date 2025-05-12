@@ -668,21 +668,33 @@ def check_waitlist(session_id):
     return False
 
 @db_operation_with_retry(max_retries=3)
-def add_activity(type, description, details=None, user=None):
+def add_activity(type, description, details=None, user=None): # user peut être current_user
     try:
-        log_user = user if user else current_user
+        log_user_for_activity = user # Utiliser l'utilisateur passé en argument
         user_id_for_db = None
-        if log_user and hasattr(log_user, 'is_authenticated') and log_user.is_authenticated:
-            user_id_for_db = log_user.id
         
+        # Vérifier si l'utilisateur est authentifié ET n'est pas anonyme
+        if log_user_for_activity and hasattr(log_user_for_activity, 'is_authenticated') and log_user_for_activity.is_authenticated:
+            # S'il est authentifié, on peut essayer d'obtenir son ID
+            if hasattr(log_user_for_activity, 'id'):
+                user_id_for_db = log_user_for_activity.id
+            else:
+                # Cas étrange où is_authenticated est True mais pas d'ID (ne devrait pas arriver avec UserMixin standard)
+                app.logger.warning(f"add_activity: User is_authenticated but no id attribute for user: {log_user_for_activity}")
+        else:
+            # L'utilisateur est anonyme ou non fourni, donc pas d'ID utilisateur pour l'activité
+            app.logger.debug(f"add_activity: Action par utilisateur anonyme ou non spécifié.")
+
         activite = Activite(type=type, description=description, details=details, utilisateur_id=user_id_for_db)
         db.session.add(activite)
         db.session.commit()
-        db.session.refresh(activite) # Pour obtenir l'ID et les valeurs par défaut comme la date
+        db.session.refresh(activite) 
 
-        # Préparer les données pour SocketIO
-        user_username = activite.utilisateur.username if activite.utilisateur else None
-        date_rel = activite.date_relative # Utiliser la propriété pour le format relatif
+        user_username_for_socket = None
+        if activite.utilisateur and hasattr(activite.utilisateur, 'username'): # Vérifier si activite.utilisateur existe et a un username
+            user_username_for_socket = activite.utilisateur.username
+        
+        date_rel = activite.date_relative 
 
         try:
             socketio.emit('nouvelle_activite', {
@@ -691,15 +703,14 @@ def add_activity(type, description, details=None, user=None):
                 'description': activite.description,
                 'details': activite.details,
                 'date_relative': date_rel,
-                'user': user_username
+                'user': user_username_for_socket # Sera None si utilisateur anonyme
             }, room='general')
         except Exception as socket_err:
             app.logger.warning(f"SocketIO emit failed in add_activity: {socket_err}")
 
-        app.logger.debug(f"Activity logged: {type} - {description}")
-        # Invalider les caches pertinents
-        cache.delete_memoized(get_recent_activities) # Si cette fonction est mise en cache
-        cache.delete('dashboard_essential_data') # Si les activités récentes font partie de ce cache
+        app.logger.debug(f"Activity logged: {type} - {description} (User ID: {user_id_for_db})")
+        cache.delete_memoized(get_recent_activities) 
+        cache.delete('dashboard_essential_data') 
         return True
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -2154,22 +2165,29 @@ def participants_page():
         return redirect(url_for('dashboard'))
 
 @app.route('/participant/add', methods=['POST'])
+# PAS DE @login_required ici si c'est public
 @db_operation_with_retry(max_retries=2)
 def add_participant():
-    if not (current_user.role == 'admin' or current_user.role == 'responsable'):
-         flash("Action non autorisée.", "danger")
-         return redirect(request.referrer or url_for('dashboard'))
+    # PAS DE VÉRIFICATION DE RÔLE current_user ici si c'est public
 
     nom = request.form.get('nom')
     prenom = request.form.get('prenom')
     email = request.form.get('email')
     service_id = request.form.get('service_id')
-    from_page = request.form.get('from_page', 'dashboard')
-    redirect_session_id = request.form.get('redirect_session_id', type=int)
+    from_page = request.form.get('from_page', 'dashboard') # Ou une page publique par défaut si dashboard nécessite login
+    
+    redirect_session_id_str = request.form.get('redirect_session_id')
+    redirect_session_id = int(redirect_session_id_str) if redirect_session_id_str and redirect_session_id_str.isdigit() else None
     action_after_add = request.form.get('action_after_add')
     
-    valid_from_pages = ['dashboard', 'services', 'participants_page', 'admin']
-    default_redirect_url = url_for(from_page) if from_page in valid_from_pages else url_for('dashboard')
+    # Ajuster les pages valides si nécessaire, 'dashboard' pourrait ne pas être accessible
+    valid_from_pages = ['dashboard', 'services', 'participants_page', 'admin', 'sessions', 'index'] # 'index' pourrait être la page publique
+    
+    # Déterminer une URL de redirection par défaut qui est publiquement accessible
+    # Si 'from_page' est une page protégée et que l'utilisateur n'est pas connecté,
+    # il faut rediriger vers une page publique (par exemple, la page d'accueil des sessions).
+    # Pour l'instant, on garde la logique existante, mais il faudra peut-être l'affiner.
+    default_redirect_url = url_for(from_page) if from_page in valid_from_pages else url_for('sessions') # 'sessions' comme fallback public
 
     if not all([nom, prenom, email, service_id]):
         flash('Tous les champs marqués * sont obligatoires.', 'warning')
@@ -2188,33 +2206,49 @@ def add_participant():
         participant_name = f"{new_participant.prenom} {new_participant.nom}"
         db.session.commit()
 
+        service_obj_for_log = db.session.get(Service, new_participant.service_id)
+        service_nom_for_log = service_obj_for_log.nom if service_obj_for_log else "ID Service Inconnu"
+
         cache.delete_memoized(get_all_participants_with_service)
         cache.delete_memoized(get_all_services_with_participants)
         cache.delete('dashboard_essential_data')
 
-        add_activity('ajout_participant', f'Ajout: {participant_name}', f'Service: {new_participant.service.nom}', user=current_user)
+        # Pour add_activity, current_user sera AnonymousUserMixin si personne n'est connecté.
+        # La fonction add_activity doit gérer cela (voir modification ci-dessous).
+        add_activity('ajout_participant', f'Ajout: {participant_name}', f'Service: {service_nom_for_log}', user=current_user) # current_user sera l'utilisateur anonyme si non connecté
         flash(f'Participant "{participant_name}" ajouté avec succès.', 'success')
 
-        if action_after_add == 'inscription' and redirect_session_id:
+        if action_after_add == 'inscription' and redirect_session_id is not None:
             app.logger.info(f"Participant {participant_id} ajouté, tentative d'inscription à la session {redirect_session_id}")
             session_obj = db.session.get(Session, redirect_session_id)
             if not session_obj:
                  flash(f'Session {redirect_session_id} introuvable pour l\'inscription automatique.', 'warning')
             else:
-                existing_active = Inscription.query.filter_by(participant_id=participant_id, session_id=redirect_session_id).first()
+                existing_active = Inscription.query.filter(
+                    Inscription.participant_id == participant_id,
+                    Inscription.session_id == redirect_session_id,
+                    Inscription.statut.in_(['confirmé', 'en attente'])
+                ).first()
+
                 if existing_active:
-                     flash(f'{participant_name} a déjà une inscription pour cette session.', 'warning')
+                     flash(f'{participant_name} a déjà une inscription "{existing_active.statut}" pour cette session.', 'warning')
                 elif session_obj.get_places_restantes() <= 0:
-                     position = db.session.query(func.count(ListeAttente.id)).filter(ListeAttente.session_id == redirect_session_id).scalar() + 1
-                     attente = ListeAttente(participant_id=participant_id, session_id=redirect_session_id, position=position)
-                     db.session.add(attente); db.session.commit()
-                     add_activity('liste_attente', f'Ajout liste attente (auto): {participant_name}', f'Session: {session_obj.theme.nom} - Pos: {position}', user=current_user)
-                     flash(f'{participant_name} ajouté et mis en liste d\'attente (position {position}) car la session est complète.', 'info')
+                     existing_waitlist = ListeAttente.query.filter_by(participant_id=participant_id, session_id=redirect_session_id).first()
+                     if existing_waitlist:
+                         flash(f'{participant_name} est déjà en liste d\'attente pour cette session.', 'warning')
+                     else:
+                         position = db.session.query(func.count(ListeAttente.id)).filter(ListeAttente.session_id == redirect_session_id).scalar() + 1
+                         attente = ListeAttente(participant_id=participant_id, session_id=redirect_session_id, position=position)
+                         db.session.add(attente); db.session.commit()
+                         add_activity('liste_attente', f'Ajout liste attente (auto): {participant_name}', f'Session: {session_obj.theme.nom} - Pos: {position}', user=current_user)
+                         flash(f'{participant_name} ajouté et mis en liste d\'attente (position {position}) car la session est complète.', 'info')
                 else:
+                     # Pour une inscription publique, le statut initial devrait toujours être 'en attente'
+                     # La validation par un responsable/admin sera nécessaire.
                      new_inscription = Inscription(participant_id=participant_id, session_id=redirect_session_id, statut='en attente')
                      db.session.add(new_inscription); db.session.commit()
                      add_activity('inscription', f'Demande inscription (auto): {participant_name}', f'Session: {session_obj.theme.nom}', user=current_user)
-                     flash(f'{participant_name} ajouté et inscrit (en attente de validation) à la session "{session_obj.theme.nom}".', 'success')
+                     flash(f'{participant_name} ajouté et sa demande d\'inscription à la session "{session_obj.theme.nom}" est en attente de validation.', 'success')
                      socketio.emit('inscription_nouvelle', {'session_id': redirect_session_id, 'participant_id': participant_id, 'statut': 'en attente'}, room='general')
         
         return redirect(default_redirect_url)
@@ -2222,7 +2256,7 @@ def add_participant():
     except IntegrityError as e:
         db.session.rollback()
         app.logger.error(f"Erreur d'intégrité ajout participant: {e}", exc_info=True)
-        flash('Erreur : Cet email existe peut-être déjà.', 'danger')
+        flash('Erreur : Cet email existe peut-être déjà ou une autre contrainte de base de données a été violée.', 'danger')
     except SQLAlchemyError as e:
         db.session.rollback()
         app.logger.error(f"Erreur DB ajout participant: {e}", exc_info=True)
@@ -2232,7 +2266,6 @@ def add_participant():
         app.logger.error(f"Erreur inattendue ajout participant: {e}", exc_info=True)
         flash('Une erreur inattendue est survenue.', 'danger')
     return redirect(default_redirect_url)
-
 @app.route('/participant/update/<int:id>', methods=['POST'])
 @login_required
 @db_operation_with_retry(max_retries=2)
