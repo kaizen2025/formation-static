@@ -35,14 +35,14 @@
         </div>
 
         <!-- Navigation par onglets -->
-        <ul class="nav nav-tabs nav-fill mb-3" id="inscriptionTabs_{{ session.id }}" role="tablist">
+        <ul class="nav nav-pills nav-fill mb-3" id="inscriptionTabs_{{ session.id }}" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="participant-existant-tab_{{ session.id }}" data-bs-toggle="tab" data-bs-target="#participant-existant_{{ session.id }}" type="button" role="tab" aria-controls="participant-existant-{{ session.id }}" aria-selected="true">
+            <button class="nav-link active" id="participant-existant-tab_{{ session.id }}" data-bs-toggle="tab" data-bs-target="#participant-existant_{{ session.id }}" type="button" role="tab" aria-controls="participant-existant_{{ session.id }}" aria-selected="true">
               <i class="fas fa-user me-1"></i> Participant existant
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link" id="nouveau-participant-tab_{{ session.id }}" data-bs-toggle="tab" data-bs-target="#nouveau-participant_{{ session.id }}" type="button" role="tab" aria-controls="nouveau-participant-{{ session.id }}" aria-selected="false">
+            <button class="nav-link" id="nouveau-participant-tab_{{ session.id }}" data-bs-toggle="tab" data-bs-target="#nouveau-participant_{{ session.id }}" type="button" role="tab" aria-controls="nouveau-participant_{{ session.id }}" aria-selected="false">
               <i class="fas fa-user-plus me-1"></i> Nouveau participant
             </button>
           </li>
@@ -52,7 +52,7 @@
         <div class="tab-content pt-3" id="inscriptionTabsContent_{{ session.id }}">
           
           <!-- Onglet participant existant -->
-          <div class="tab-pane fade show active" id="participant-existant_{{ session.id }}" role="tabpanel" aria-labelledby="participant-existant-tab-{{ session.id }}">
+          <div class="tab-pane fade show active" id="participant-existant_{{ session.id }}" role="tabpanel" aria-labelledby="participant-existant-tab_{{ session.id }}">
             <form action="{{ url_for('inscription') }}" method="post" id="inscription-form-{{ session.id }}" class="needs-validation" novalidate>
               <input type="hidden" name="session_id" value="{{ session.id }}">
               <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}">
@@ -80,7 +80,7 @@
           </div>
           
           <!-- Onglet nouveau participant -->
-          <div class="tab-pane fade" id="nouveau-participant_{{ session.id }}" role="tabpanel" aria-labelledby="nouveau-participant-tab-{{ session.id }}">
+          <div class="tab-pane fade" id="nouveau-participant_{{ session.id }}" role="tabpanel" aria-labelledby="nouveau-participant-tab_{{ session.id }}">
             <p class="small text-muted mb-3">Ajoutez un nouveau participant. Il sera automatiquement inscrit à cette session (en attente de validation par son responsable ou un admin).</p>
             <form action="{{ url_for('add_participant') }}" method="post" id="new-participant-form-{{ session.id }}" class="needs-validation" novalidate>
               <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}"> 
@@ -151,12 +151,10 @@ document.addEventListener('DOMContentLoaded', function() {
         modalEl.querySelectorAll('select, .form-select').forEach(select => {
             select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
         });
-        modalEl.querySelectorAll('button, .btn, input, textarea').forEach(el => {
-            if (!el.classList.contains('btn-close')) {
-                el.style.position = 'relative';
-                el.style.zIndex = (el.tagName === 'BUTTON' || el.classList.contains('btn')) ? '2001' : '1999';
-                el.style.pointerEvents = 'auto';
-            }
+        modalEl.querySelectorAll('button:not(.btn-close), .btn:not(.btn-close), input, textarea').forEach(el => {
+            el.style.position = 'relative';
+            el.style.zIndex = (el.tagName === 'BUTTON' || el.classList.contains('btn')) ? '2001' : '1999';
+            el.style.pointerEvents = 'auto';
         });
     }
     
@@ -166,12 +164,14 @@ document.addEventListener('DOMContentLoaded', function() {
     modalElement.addEventListener('shown.bs.modal', function () {
         applyFormElementStyles(this);
         
-        // Focus sur le premier select visible
-        const activeTabPane = this.querySelector('.tab-pane.active');
-        if (activeTabPane) {
-            const firstInput = activeTabPane.querySelector('select, input');
-            if (firstInput) setTimeout(() => firstInput.focus(), 200);
-        }
+        // Focus sur le premier select visible après un délai
+        setTimeout(() => {
+            const activeTabPane = this.querySelector('.tab-pane.active');
+            if (activeTabPane) {
+                const firstInput = activeTabPane.querySelector('select, input');
+                if (firstInput) firstInput.focus();
+            }
+        }, 300);
     });
 
     // Validation Bootstrap améliorée pour les formulaires
@@ -179,6 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
     formsInThisModal.forEach(form => {
         form.addEventListener('submit', function(event) {
             const parentTabPane = form.closest('.tab-pane');
+            // Valider uniquement si le formulaire est dans l'onglet actif
             if (parentTabPane && !parentTabPane.classList.contains('active')) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -203,24 +204,41 @@ document.addEventListener('DOMContentLoaded', function() {
     // Réinitialiser la validation lors du changement d'onglet
     const tabButtonsInThisModal = modalElement.querySelectorAll('button[data-bs-toggle="tab"]');
     tabButtonsInThisModal.forEach(tabButton => {
-        tabButton.addEventListener('shown.bs.tab', function (event) {
-            // Réinitialiser les formulaires lorsqu'on change d'onglet
-            modalElement.querySelectorAll('form.needs-validation').forEach(form => {
-                form.classList.remove('was-validated');
-                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                form.reset();
-            });
-            
-            // Réappliquer les styles aux formulaires dans le nouvel onglet actif
-            const targetId = event.target.getAttribute('data-bs-target');
+        tabButton.addEventListener('click', function (event) {
+            // S'assurer que les onglets fonctionnent correctement
+            const targetId = this.getAttribute('data-bs-target');
             if (targetId) {
-                const activePane = modalElement.querySelector(targetId);
-                if (activePane) {
-                    applyFormElementStyles(activePane);
+                // Désactiver tous les onglets et cacher tous les contenus
+                modalElement.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    link.setAttribute('aria-selected', 'false');
+                });
+                modalElement.querySelectorAll('.tab-pane').forEach(pane => {
+                    pane.classList.remove('show', 'active');
+                });
+                
+                // Activer l'onglet et le contenu cliqués
+                this.classList.add('active');
+                this.setAttribute('aria-selected', 'true');
+                const targetPane = modalElement.querySelector(targetId);
+                if (targetPane) {
+                    targetPane.classList.add('show', 'active');
+                    
+                    // Réinitialiser le formulaire dans ce panneau
+                    const form = targetPane.querySelector('form');
+                    if (form) {
+                        form.classList.remove('was-validated');
+                        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+                    }
+                    
+                    // Appliquer les styles aux formulaires dans le nouvel onglet actif
+                    applyFormElementStyles(targetPane);
                     
                     // Focus sur le premier champ du nouvel onglet
-                    const firstField = activePane.querySelector('select, input');
-                    if (firstField) setTimeout(() => firstField.focus(), 200);
+                    setTimeout(() => {
+                        const firstField = targetPane.querySelector('select, input');
+                        if (firstField) firstField.focus();
+                    }, 300);
                 }
             }
         });
