@@ -246,92 +246,151 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeChartsFallback(){if(config.chartRendering==='none')return Promise.resolve();renderStaticChartsJS(null,null);return Promise.resolve();}
     function updateChartsFallback(sessions,participants){if(config.chartRendering==='none')return Promise.resolve();const vS=sessions||dashboardState.rawData.sessions||[];const vP=participants||dashboardState.rawData.participants||[];renderStaticChartsJS(vS,vP);return Promise.resolve();}
     function renderStaticChartsJS(sessions,participants){const tC=document.getElementById('themeChartStatic'),sC=document.getElementById('serviceChartStatic');if(tC){if(sessions&&Array.isArray(sessions)&&sessions.length>0)renderThemeDistributionChartJS(sessions);else if(!tC.querySelector('.static-chart-legend')&&!tC.querySelector('.no-data-message'))tC.innerHTML='<div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div><p>Chargement données thèmes...</p></div>';}if(sC){if(participants&&Array.isArray(participants)&&participants.length>0)renderParticipantByServiceChartJS(participants);else if(!sC.querySelector('.static-chart-bars')&&!sC.querySelector('.no-data-message'))sC.innerHTML='<div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div><p>Chargement données services...</p></div>';}}
-    
     function renderThemeDistributionChartJS(sessionsData) {
-        const chartContainer = document.getElementById('themeChartStatic');
-        if (!chartContainer) return;
+    const chartContainer = document.getElementById('themeChartStatic');
+    if (!chartContainer) return;
 
-        const themeInscriptionCounts = sessionsData.reduce((acc, session) => {
-            const themeName = session.theme || 'Non défini';
-            const inscrits = parseInt(session.inscrits) || 0;
-            acc[themeName] = (acc[themeName] || 0) + inscrits;
-            return acc;
-        }, {});
-
-        const totalInscriptionsTheme = Object.values(themeInscriptionCounts).reduce((sum, count) => sum + count, 0);
-
-        if (totalInscriptionsTheme === 0) {
-            chartContainer.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucune inscription pour afficher la répartition.</div>';
-            return;
-        }
-
-        let legendHtml = '';
-        let svgSegmentsHtml = '';
-        const themesConfig = window.themesDataForChart || {};
-        const sortedThemes = Object.entries(themeInscriptionCounts).sort(([, countA], [, countB]) => countB - countA);
-        
-        const radius = 15.9154943092; // Pour une circonférence de 100
-        const strokeWidth = 5; // Épaisseur du segment du donut
-        let currentOffsetAngle = 0; // En degrés, pour la rotation des segments
-
-        sortedThemes.forEach(([themeName, count], index) => {
-            if (count === 0) return;
-
-            const percentage = (count / totalInscriptionsTheme) * 100;
-            const themeConfig = themesConfig[themeName] || {};
-            const color = themeConfig.color || getRandomColor(index);
-            const description = themeConfig.description || themeName;
-
-            // Segment SVG
-            // stroke-dashoffset est calculé pour commencer chaque segment là où le précédent s'est terminé.
-            // La rotation est appliquée pour que le premier segment commence à "midi".
-            // L'offset pour stroke-dashoffset doit être en pourcentage de la circonférence (100).
-            // L'angle de rotation est en degrés.
-            const strokeDashoffsetValue = currentOffsetAngle * 100 / 360; // Convertir l'angle en % de la circonférence
-            svgSegmentsHtml += `
-                <circle class="donut-svg-segment"
-                        cx="21" cy="21" r="${radius}"
-                        fill="transparent"
-                        stroke="${color}"
-                        stroke-width="${strokeWidth}"
-                        stroke-dasharray="${percentage} ${100 - percentage}"
-                        stroke-dashoffset="${-strokeDashoffsetValue}"
-                        transform="rotate(${currentOffsetAngle} 21 21)">
-                    <title>${escapeHtml(themeName)}: ${count} (${percentage.toFixed(1)}%)</title>
-                </circle>`;
-            currentOffsetAngle += (percentage * 3.6); // Mettre à jour l'angle pour le prochain segment (percentage * 360 / 100)
-
-            // Item de légende
-            legendHtml += `
-                <div class="legend-item" title="${escapeHtml(description)}">
-                    <span class="legend-color" style="background-color: ${color};"></span>
-                    <span class="legend-label">${escapeHtml(themeName)}</span>
-                    <span class="legend-value">${count}</span>
-                </div>`;
-        });
-        
-        const svgHtml = `
-            <svg viewBox="0 0 42 42" class="donut-svg" width="160" height="160" aria-labelledby="chartTitle_themes_static_js" role="img">
-                <title id="chartTitle_themes_static_js">Répartition des inscriptions par thème</title>
-                ${svgSegmentsHtml}
-                <g class="donut-svg-center-text" transform="rotate(90 21 21)">
-                    <text x="21" y="21" style="font-size:7px;">
-                        <tspan class="donut-total" x="21" dy="-0.2em">${totalInscriptionsTheme}</tspan>
-                        <tspan class="donut-label" x="21" dy="1.2em">INSCRITS</tspan>
-                    </text>
-                </g>
-            </svg>`;
-
-        chartContainer.innerHTML = `
-            <div class="static-chart-title">INSCRIPTIONS PAR THÈME</div>
-            <div class="static-chart-donut-svg-container">${svgHtml}</div>
-            <div class="static-chart-legend">${legendHtml}</div>`;
+    if (!sessionsData || !Array.isArray(sessionsData)) {
+        chartContainer.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-exclamation-triangle me-2"></i>Données de session invalides pour le graphique.</div>';
+        return;
     }
 
-    function renderParticipantByServiceChartJS(participantsData){const c=document.getElementById('serviceChartStatic');if(!c)return;if(!participantsData||!Array.isArray(participantsData)){c.innerHTML='<div class="no-data-message text-center p-3"><i class="fas fa-exclamation-triangle me-2"></i>Données participants invalides.</div>';return;}const sC=participantsData.reduce((acc,p)=>{const sN=p.service||'Non défini';const sClr=(window.servicesDataForChart&&window.servicesDataForChart[sN]&&window.servicesDataForChart[sN].color)?window.servicesDataForChart[sN].color:(p.service_color||'#6c757d');if(!acc[sN])acc[sN]={count:0,color:sClr};acc[sN].count++;return acc;},{});const totP=participantsData.length;if(totP===0){c.innerHTML='<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucun participant.</div>';return;}const sS=Object.entries(sC).sort(([,dA],[,dB])=>dB.count-dA.count);let bH='';const mC=Math.max(1,...sS.map(([,d])=>d.count));sS.forEach(([s,d],idx)=>{if(d.count===0)return;const pc=(d.count/mC)*100;const sCls=s.toLowerCase().replace(/[^a-z0-9]/g,'-')||'non-defini';bH+=`<div class="bar-item animate" style="--index:${idx};"><div class="bar-header"><span class="bar-label" title="${escapeHtml(s)} (${d.count} participant(s))"><span class="service-badge me-2" style="background-color:${d.color};"></span>${escapeHtml(s)}</span><span class="bar-total">${d.count}</span></div><div class="bar-container"><div class="bar-value ${sCls}" style="width:${pc}%; background-color:${d.color}; --percent:${pc}%;"></div></div></div>`;});c.innerHTML=`<div class="static-chart-title">Distribution par Service</div><div class="static-chart-bars">${bH}</div>`;}
-    function simpleHash(o){const s=JSON.stringify(o);let h=0;if(s.length===0)return h;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h=((h<<5)-h)+c;h|=0;}return h;}
-    function getCsrfToken(){const m=document.querySelector('meta[name="csrf-token"]');if(m)return m.content;const i=document.querySelector('input[name="csrf_token"]');if(i)return i.value;return '';}
-    function getRandomColor(idx){const c=['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69','#fd7e14','#6f42c1','#d63384'];return c[idx%c.length];}
+    const themeInscriptionCounts = sessionsData.reduce((acc, session) => {
+        const themeName = session.theme || 'Non défini';
+        const inscrits = parseInt(session.inscrits) || 0;
+        acc[themeName] = (acc[themeName] || 0) + inscrits;
+        return acc;
+    }, {});
+
+    const totalInscriptionsTheme = Object.values(themeInscriptionCounts).reduce((sum, count) => sum + count, 0);
+
+    if (totalInscriptionsTheme === 0) {
+        chartContainer.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucune inscription pour afficher la répartition par thème.</div>';
+        return;
+    }
+
+    let legendHtml = '';
+    let svgSegmentsHtml = '';
+    const themesConfig = window.themesDataForChart || {}; // S'assurer que c'est bien défini globalement
+    const sortedThemes = Object.entries(themeInscriptionCounts).sort(([, countA], [, countB]) => countB - countA);
+    
+    const radius = 15.9154943092; 
+    const strokeWidth = 5; 
+    let currentRotationAngle = 0; // Angle de rotation pour chaque segment
+
+    sortedThemes.forEach(([themeName, count], index) => {
+        if (count === 0) return;
+
+        const percentage = (count / totalInscriptionsTheme) * 100;
+        const themeConfig = themesConfig[themeName] || {};
+        const color = themeConfig.color || getRandomColor(index); // getRandomColor doit être définie
+        const description = themeConfig.description || themeName;
+
+        // Le stroke-dashoffset est toujours 0 pour cette méthode de dessin de segments avec rotation
+        // Chaque segment est un cercle complet, mais seulement une portion est visible grâce à stroke-dasharray
+        // et il est tourné pour se positionner correctement.
+        svgSegmentsHtml += `
+            <circle class="donut-svg-segment"
+                    cx="21" cy="21" r="${radius}"
+                    fill="transparent"
+                    stroke="${color}"
+                    stroke-width="${strokeWidth}"
+                    stroke-dasharray="${percentage} ${100 - percentage}"
+                    transform="rotate(${currentRotationAngle} 21 21)">
+                <title>${escapeHtml(themeName)}: ${count} (${percentage.toFixed(1)}%)</title>
+            </circle>`;
+        currentRotationAngle += (percentage * 3.6); // Mettre à jour l'angle pour le prochain segment
+
+        legendHtml += `
+            <div class="legend-item" title="${escapeHtml(description)}">
+                <span class="legend-color" style="background-color: ${color};"></span>
+                <span class="legend-label">${escapeHtml(themeName)}</span>
+                <span class="legend-value">${count}</span>
+            </div>`;
+    });
+    
+    const svgHtml = `
+        <svg viewBox="0 0 42 42" class="donut-svg" width="160" height="160" aria-labelledby="chartTitle_themes_static_js" role="img">
+            <title id="chartTitle_themes_static_js">Répartition des inscriptions par thème</title>
+            ${svgSegmentsHtml}
+            <g class="donut-svg-center-text" transform="rotate(90 21 21)">
+                <text x="21" y="21" style="font-size:7px;">
+                    <tspan class="donut-total" x="21" dy="-0.2em">${totalInscriptionsTheme}</tspan>
+                    <tspan class="donut-label" x="21" dy="1.2em">INSCRITS</tspan>
+                </text>
+            </g>
+        </svg>`;
+
+    chartContainer.innerHTML = `
+        <div class="static-chart-title">INSCRIPTIONS PAR THÈME</div>
+        <div class="static-chart-donut-svg-container">${svgHtml}</div>
+        <div class="static-chart-legend">${legendHtml}</div>`;
+}
+
+function renderParticipantByServiceChartJS(participantsData) {
+    const chartContainer = document.getElementById('serviceChartStatic');
+    if (!chartContainer) return;
+
+    if (!participantsData || !Array.isArray(participantsData)) {
+        chartContainer.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-exclamation-triangle me-2"></i>Données participants invalides pour le graphique.</div>';
+        return;
+    }
+    
+    const serviceCounts = participantsData.reduce((acc, participant) => {
+        const serviceName = participant.service || 'Non défini';
+        // Utiliser servicesDataForChart pour la couleur si disponible, sinon la couleur du participant, sinon gris
+        const serviceConfig = (window.servicesDataForChart && window.servicesDataForChart[serviceName]) ? window.servicesDataForChart[serviceName] : {};
+        const color = serviceConfig.color || participant.service_color || '#6c757d';
+
+        if (!acc[serviceName]) {
+            acc[serviceName] = { count: 0, color: color };
+        }
+        acc[serviceName].count++;
+        return acc;
+    }, {});
+
+    const totalParticipants = participantsData.length;
+
+    if (totalParticipants === 0) {
+        chartContainer.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucun participant pour afficher la distribution par service.</div>';
+        return;
+    }
+
+    const sortedServices = Object.entries(serviceCounts).sort(([, dataA], [, dataB]) => dataB.count - dataA.count);
+    let barsHtml = '';
+    const maxCount = Math.max(1, ...sortedServices.map(([, data]) => data.count)); // Eviter division par zéro
+
+    sortedServices.forEach(([serviceName, data], index) => {
+        if (data.count === 0) return;
+        const percentage = (data.count / maxCount) * 100;
+        const serviceClass = serviceName.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'non-defini';
+        
+        barsHtml += `
+            <div class="bar-item animate" style="--index:${index};">
+                <div class="bar-header">
+                    <span class="bar-label" title="${escapeHtml(serviceName)} (${data.count} participant(s))">
+                       <span class="service-badge me-2" style="background-color:${data.color};"></span>
+                       ${escapeHtml(serviceName)}
+                    </span>
+                    <span class="bar-total">${data.count}</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-value ${serviceClass}" style="width:${percentage}%; background-color:${data.color}; --percent:${percentage}%;"></div>
+                </div>
+            </div>`;
+    });
+
+    chartContainer.innerHTML = `
+        <div class="static-chart-title">PARTICIPANTS PAR SERVICE</div>
+        <div class="static-chart-bars">${barsHtml}</div>`;
+}
+
+// S'assurer que getRandomColor et escapeHtml sont définies si elles sont utilisées
+function getRandomColor(index) {
+    const colors = ['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69','#fd7e14','#6f42c1','#d63384'];
+    return colors[index % colors.length];
+}
+
 
     window.dashboardCore={initialize:initializeDashboard,fetchData:debouncedFetchDashboardData,updateCharts:updateChartsFallback,updateStatistics:updateStatisticsCounters,updateActivity:updateActivityFeed,getState:()=>JSON.parse(JSON.stringify(dashboardState)),getConfig:()=>JSON.parse(JSON.stringify(config)),renderThemeChart:renderThemeDistributionChartJS,renderServiceChart:renderParticipantByServiceChartJS,initializeCharts:initializeChartsFallback,startPolling:startPolling,stopPolling:()=>{dashboardState.pollingActive=false;if(dashboardState.pollingTimeout)clearTimeout(dashboardState.pollingTimeout);dashboardState.pollingTimeoutScheduled=false;}};
     
