@@ -4,6 +4,7 @@
 
 {% block head_extra %}
 <style>
+    /* Styles pour les cartes de statistiques */
     .admin-stat-card .card-body {
         padding: 1rem;
         display: flex; 
@@ -25,6 +26,8 @@
         color: var(--bs-primary);
         font-weight: 600;
     }
+
+    /* Styles pour les listes et tableaux */
     .list-group-item-action:hover {
         background-color: #f8f9fa;
         transform: translateX(2px);
@@ -42,13 +45,64 @@
     .card-body p:last-of-type {
         margin-bottom: 0.5rem;
     }
+    
+    /* Styles pour l'animation des statistiques */
+    .counter-animate {
+        transition: opacity 0.3s ease-out;
+    }
+    .counter-animate.updating {
+        opacity: 0.5;
+    }
+    
+    /* Styles pour les activités récentes */
+    .activity-list {
+        max-height: 330px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    .activity-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    .activity-list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    .activity-list::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 3px;
+    }
+    .activity-item {
+        transition: background-color 0.2s ease;
+    }
+    .activity-item:hover {
+        background-color: rgba(0, 120, 212, 0.03);
+    }
+    
+    /* Animation pour les rafraîchissements */
+    @keyframes fadeInUp {
+        from { 
+            opacity: 0;
+            transform: translateY(5px);
+        }
+        to { 
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .fade-in-up {
+        animation: fadeInUp 0.4s ease forwards;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
+<div class="container-fluid px-4" id="admin-panel-content">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-shield-alt me-2"></i>Panel d'Administration</h1>
+        <div>
+            <button id="refresh-admin-data" class="btn btn-sm btn-primary shadow-sm">
+                <i class="fas fa-sync-alt me-1"></i>Actualiser
+            </button>
+        </div>
     </div>
 
     <!-- Statistiques Globales Admin -->
@@ -59,7 +113,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sessions Totales</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_sessions_count|default(0) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800 counter-animate" id="stat-sessions">{{ total_sessions_count|default(0) }}</div>
                         </div>
                         <div class="col-auto stat-icon"><i class="fas fa-calendar-check text-gray-300"></i></div>
                     </div>
@@ -72,7 +126,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Inscriptions Confirmées</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_inscriptions|default(0) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800 counter-animate" id="stat-inscriptions">{{ total_inscriptions|default(0) }}</div>
                         </div>
                         <div class="col-auto stat-icon"><i class="fas fa-user-check text-gray-300"></i></div>
                     </div>
@@ -85,7 +139,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Participants Uniques</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ participants|length|default(0) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800 counter-animate" id="stat-participants">{{ participants|length|default(0) }}</div>
                         </div>
                         <div class="col-auto stat-icon"><i class="fas fa-users text-gray-300"></i></div>
                     </div>
@@ -98,7 +152,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">En Liste d'Attente</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_en_attente|default(0) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800 counter-animate" id="stat-attente">{{ total_en_attente|default(0) }}</div>
                         </div>
                         <div class="col-auto stat-icon"><i class="fas fa-user-clock text-gray-300"></i></div>
                     </div>
@@ -113,7 +167,7 @@
             <!-- Gestion des Thèmes -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h5>
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h5>
                 </div>
                 <div class="card-body">
                     <p>Gérer les thèmes de formation, leurs descriptions et les sessions associées.</p>
@@ -136,7 +190,7 @@
             <!-- Gestion des Salles -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-building me-2"></i>Gestion des Salles</h5>
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-building me-2"></i>Gestion des Salles</h5>
                 </div>
                 <div class="card-body">
                     <p>Ajouter, modifier ou supprimer des salles de formation.</p>
@@ -159,7 +213,7 @@
             <!-- Gestion des Services -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-concierge-bell me-2"></i>Gestion des Services</h5>
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-concierge-bell me-2"></i>Gestion des Services</h5>
                 </div>
                 <div class="card-body">
                     <p>Gérer les services de l'entreprise et leurs responsables.</p>
@@ -184,16 +238,16 @@
             <!-- Gestion des Documents -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-folder-open me-2"></i>Gestion des Documents</h5>
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-folder-open me-2"></i>Gestion des Documents</h5>
                 </div>
                 <div class="card-body">
                     <p>Uploader, organiser et supprimer les documents de support pour les formations.</p>
                     <div class="table-responsive-admin-docs">
                         <table class="table table-sm table-hover table-striped">
-                            <thead class="table-light">
+                            <thead class="table-light sticky-top">
                                 <tr><th scope="col">Nom du Fichier</th><th scope="col">Thème</th><th scope="col">Date d'Upload</th></tr>
                             </thead>
-                            <tbody>
+                            <tbody id="docs-table-body">
                             {% if existing_documents is defined and existing_documents %}
                                 {% for doc in existing_documents|sort(attribute='upload_date', reverse=True)|slice(5) %}
                                     {# Vérifier si doc est bien un objet avec les attributs attendus #}
@@ -232,25 +286,37 @@
             <!-- Gestion des Participants -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-users me-2"></i>Gestion des Participants</h5>
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-users me-2"></i>Gestion des Participants</h5>
                 </div>
                 <div class="card-body">
                     <p>Consulter, ajouter, modifier ou supprimer des participants.</p>
-                    <p>Nombre total de participants enregistrés : <strong>{{ participants|length|default(0) }}</strong></p>
-                    <a href="{{ url_for('participants_page') }}" class="btn btn-primary btn-sm mt-2"><i class="fas fa-address-book me-1"></i>Gérer les Participants</a>
+                    <p>Nombre total de participants enregistrés : <strong id="total-participant-count">{{ participants|length|default(0) }}</strong></p>
+                    
+                    <!-- Boutons d'action -->
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('participants_page') }}" class="btn btn-primary btn-sm"><i class="fas fa-address-book me-1"></i>Gérer les Participants</a>
+                        {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+                        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addParticipantModalAdmin">
+                            <i class="fas fa-user-plus me-1"></i>Ajouter
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
             <!-- Journal d'Activités Récentes -->
             <div class="card shadow-sm">
-                <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-history me-2"></i>Journal d'Activités Récentes</h5>
+                <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-2"></i>Journal d'Activités Récentes</h5>
+                    <button id="refresh-activity" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-sync-alt me-1"></i>Actualiser
+                    </button>
                 </div>
                 <div class="card-body p-0">
-                    <div class="list-group list-group-flush" style="max-height: 330px; overflow-y: auto;">
+                    <div class="list-group list-group-flush activity-list" id="activity-list">
                         {% if activites_recentes is defined and activites_recentes %}
                             {% for activite in activites_recentes %}
-                            <a href="{{ url_for('activites_journal', type=activite.type) }}" class="list-group-item list-group-item-action px-3 py-2">
+                            <a href="{{ url_for('activites_journal', type=activite.type) }}" class="list-group-item list-group-item-action px-3 py-2 activity-item">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1 small fw-normal">
                                         <i class="{{ getActivityIcon(activite.type) }} me-2 fa-fw"></i>
@@ -276,19 +342,431 @@
 </div>
 {% endblock %}
 
+{% block modals %}
+<!-- Modal Ajouter Participant -->
+{% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+<div class="modal fade modal-fix" id="addParticipantModalAdmin" tabindex="-1" aria-labelledby="addParticipantModalAdminLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addParticipantModalAdminLabel"><i class="fas fa-user-plus me-2"></i>Ajouter un Nouveau Participant</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                 <form action="{{ url_for('add_participant') }}" method="post" class="needs-validation" novalidate>
+                    <input type="hidden" name="from_page" value="admin">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="add_nom_admin" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="add_nom_admin" name="nom" required>
+                            <div class="invalid-feedback">Le nom est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_prenom_admin" class="form-label">Prénom*</label>
+                            <input type="text" class="form-control" id="add_prenom_admin" name="prenom" required>
+                            <div class="invalid-feedback">Le prénom est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_email_admin" class="form-label">Email*</label>
+                            <input type="email" class="form-control" id="add_email_admin" name="email" required>
+                            <div class="invalid-feedback">Un email valide est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_service_id_admin" class="form-label">Service*</label>
+                            <select class="form-select" id="add_service_id_admin" name="service_id" required>
+                                <option value="" disabled selected>-- Choisir un service --</option>
+                                {% for service in services|sort(attribute='nom') %} 
+                                <option value="{{ service.id }}">{{ service.nom }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">Le service est requis.</div>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-plus-circle me-2"></i>Ajouter le Participant</button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block scripts_extra %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-        setTimeout(function() { 
-             window.enhanceThemeBadgesGlobally(document.getElementById('admin-panel-content'));
-        }, 100);
-    }
+    const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
+    
+    // Initialiser les tooltips
     if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
+        tooltipTriggerList.forEach(tooltipTriggerEl => {
+            try {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            } catch (e) {
+                if (DASH_CONFIG.debugMode) console.warn("Erreur initialisation tooltip:", e);
+            }
         });
+    }
+    
+    // Améliorer les badges de thème
+    if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+        setTimeout(() => { 
+            window.enhanceThemeBadgesGlobally(document.getElementById('admin-panel-content'));
+        }, 100);
+    }
+    
+    // Initialiser les modaux
+    function initializeModals() {
+        document.querySelectorAll('.modal').forEach(modalElement => {
+            // Ajouter la classe modal-fix pour les correctifs CSS
+            modalElement.classList.add('modal-fix');
+            
+            // Configurer les écouteurs d'événements
+            modalElement.addEventListener('shown.bs.modal', function() {
+                // Assurer la visibilité des éléments de formulaire
+                const formElements = this.querySelectorAll('input, select, textarea, .form-select, .form-control, button:not(.btn-close)');
+                formElements.forEach(el => {
+                    el.style.display = el.tagName === 'BUTTON' || el.classList.contains('btn') ? 'inline-block' : 'block';
+                    el.style.visibility = 'visible';
+                    el.style.opacity = '1';
+                    el.style.position = 'relative';
+                    el.style.zIndex = '1060';
+                    
+                    if (el.tagName === 'SELECT' || el.classList.contains('form-select')) {
+                        el.style.appearance = 'menulist';
+                        el.style.webkitAppearance = 'menulist';
+                        el.style.mozAppearance = 'menulist';
+                        el.style.width = '100%';
+                    }
+                });
+                
+                // Focus sur le premier champ du formulaire après affichage
+                setTimeout(() => {
+                    const firstField = this.querySelector('select, input:not([type="hidden"]), textarea, button:not([type="hidden"]):not(.btn-close)');
+                    if (firstField) {
+                        try {
+                            firstField.focus();
+                        } catch (e) {
+                            if (DASH_CONFIG.debugMode) console.warn("Couldn't focus first field in modal", e);
+                        }
+                    }
+                }, 100);
+            });
+        });
+    }
+    
+    // Initialiser la validation des formulaires
+    function initializeFormValidation() {
+        document.querySelectorAll('.needs-validation').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }
+    
+    // Fonction pour actualiser les statistiques
+    function refreshStatistics() {
+        // Animation de chargement
+        document.querySelectorAll('.counter-animate').forEach(counter => {
+            counter.classList.add('updating');
+        });
+        
+        // Requête AJAX
+        fetch('/api/admin_stats', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Erreur réseau');
+            return response.json();
+        })
+        .then(data => {
+            // Mise à jour des compteurs
+            if (data.success) {
+                updateCounter('stat-sessions', data.stats.sessions_count);
+                updateCounter('stat-inscriptions', data.stats.inscriptions_count);
+                updateCounter('stat-participants', data.stats.participants_count);
+                updateCounter('stat-attente', data.stats.attente_count);
+                updateCounter('total-participant-count', data.stats.participants_count);
+                
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Statistiques actualisées', 'success');
+                }
+            } else {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Erreur d\'actualisation des statistiques', 'danger');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erreur actualisation stats:', error);
+            if (typeof window.showToast === 'function') {
+                window.showToast('Erreur de connexion au serveur', 'danger');
+            }
+        })
+        .finally(() => {
+            // Retirer l'animation de chargement
+            document.querySelectorAll('.counter-animate').forEach(counter => {
+                setTimeout(() => {
+                    counter.classList.remove('updating');
+                }, 300);
+            });
+        });
+    }
+    
+    // Fonction pour actualiser le journal d'activités
+    function refreshActivityLog() {
+        const activityList = document.getElementById('activity-list');
+        if (!activityList) return;
+        
+        // Afficher un spinner de chargement
+        activityList.innerHTML = `
+            <div class="list-group-item text-center p-3">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+                <span class="ms-2">Actualisation...</span>
+            </div>
+        `;
+        
+        // Requête AJAX
+        fetch('/api/recent_activities', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Erreur réseau');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.activities) {
+                updateActivityList(data.activities);
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Journal d\'activités actualisé', 'success');
+                }
+            } else {
+                activityList.innerHTML = `
+                    <div class="list-group-item text-center p-3 text-danger">
+                        <i class="fas fa-exclamation-circle me-1"></i>
+                        Erreur d'actualisation des activités
+                    </div>
+                `;
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Erreur d\'actualisation du journal', 'danger');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erreur actualisation journal:', error);
+            activityList.innerHTML = `
+                <div class="list-group-item text-center p-3 text-danger">
+                    <i class="fas fa-exclamation-circle me-1"></i>
+                    Erreur de connexion au serveur
+                </div>
+            `;
+            if (typeof window.showToast === 'function') {
+                window.showToast('Erreur de connexion au serveur', 'danger');
+            }
+        });
+    }
+    
+    // Fonction pour actualiser la liste d'activités
+    function updateActivityList(activities) {
+        const activityList = document.getElementById('activity-list');
+        if (!activityList) return;
+        
+        if (!activities || activities.length === 0) {
+            activityList.innerHTML = `
+                <div class="list-group-item text-muted text-center p-3">
+                    Aucune activité récente.
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        activities.forEach(activity => {
+            // Fonction pour échapper les caractères spéciaux HTML
+            const escapeHtml = (text) => {
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                };
+                return text.replace(/[&<>"']/g, m => map[m]);
+            };
+            
+            // Fonction pour obtenir la bonne icône d'activité
+            const getActivityIcon = (type) => {
+                const mapping = {
+                    'connexion': 'fas fa-sign-in-alt text-success',
+                    'deconnexion': 'fas fa-sign-out-alt text-warning',
+                    'inscription': 'fas fa-user-plus text-primary',
+                    'validation': 'fas fa-check-circle text-success',
+                    'refus': 'fas fa-times-circle text-danger',
+                    'annulation': 'fas fa-ban text-danger',
+                    'default': 'fas fa-info-circle text-secondary'
+                };
+                return mapping[type] || mapping.default;
+            };
+            
+            html += `
+                <a href="${activity.url || '#'}" class="list-group-item list-group-item-action px-3 py-2 activity-item fade-in-up">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1 small fw-normal">
+                            <i class="${getActivityIcon(activity.type)} me-2 fa-fw"></i>
+                            ${escapeHtml(activity.description || 'Activité')}
+                        </h6>
+                        <small class="text-muted text-nowrap ms-2">${activity.date_relative || ''}</small>
+                    </div>
+                    ${activity.details ? `<p class="mb-1 small text-muted ps-4">${escapeHtml(activity.details).substring(0, 80)}${activity.details.length > 80 ? '...' : ''}</p>` : ''}
+                    ${activity.utilisateur ? `<small class="text-muted ps-4">Par: ${escapeHtml(activity.utilisateur)}</small>` : ''}
+                </a>
+            `;
+        });
+        
+        activityList.innerHTML = html;
+    }
+    
+    // Fonction pour mettre à jour un compteur
+    function updateCounter(id, value) {
+        const counterElement = document.getElementById(id);
+        if (!counterElement) return;
+        
+        const currentValue = parseInt(counterElement.textContent.replace(/\D/g, '')) || 0;
+        const newValue = parseInt(value) || 0;
+        
+        if (currentValue !== newValue) {
+            // Ajouter une petite animation
+            counterElement.classList.add('updating');
+            setTimeout(() => {
+                counterElement.textContent = newValue;
+                counterElement.classList.remove('updating');
+            }, 300);
+        }
+    }
+    
+    // Fonction pour créer un toast
+    function showToast(message, type = 'info') {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+            return;
+        }
+        
+        if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
+            alert(message);
+            return;
+        }
+        
+        // Créer le conteneur de toast s'il n'existe pas
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '11000';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Créer l'élément toast
+        const toastElement = document.createElement('div');
+        toastElement.className = `toast bg-${type} text-white`;
+        toastElement.setAttribute('role', 'alert');
+        toastElement.setAttribute('aria-live', 'assertive');
+        toastElement.setAttribute('aria-atomic', 'true');
+        
+        // Contenu du toast
+        toastElement.innerHTML = `
+            <div class="toast-header bg-${type} text-white">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'danger' ? 'fa-exclamation-circle' : 'fa-info-circle'} me-2"></i>
+                <strong class="me-auto">Notification</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        `;
+        
+        // Ajouter au conteneur
+        toastContainer.appendChild(toastElement);
+        
+        // Initialiser et afficher le toast
+        const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+        toast.show();
+        
+        // Supprimer l'élément une fois caché
+        toastElement.addEventListener('hidden.bs.toast', function() {
+            this.remove();
+        });
+    }
+    
+    // Écouteurs d'événements pour les boutons de rafraîchissement
+    const refreshAdminDataButton = document.getElementById('refresh-admin-data');
+    if (refreshAdminDataButton) {
+        refreshAdminDataButton.addEventListener('click', function() {
+            this.disabled = true;
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
+            
+            // Simuler le chargement des statistiques
+            refreshStatistics();
+            refreshActivityLog();
+            
+            // Réactiver le bouton après un délai
+            setTimeout(() => {
+                this.disabled = false;
+                this.innerHTML = originalText;
+            }, 1500);
+        });
+    }
+    
+    const refreshActivityButton = document.getElementById('refresh-activity');
+    if (refreshActivityButton) {
+        refreshActivityButton.addEventListener('click', function() {
+            this.disabled = true;
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
+            
+            // Actualiser uniquement le journal d'activités
+            refreshActivityLog();
+            
+            // Réactiver le bouton après un délai
+            setTimeout(() => {
+                this.disabled = false;
+                this.innerHTML = originalText;
+            }, 1500);
+        });
+    }
+    
+    // Initialiser les composants
+    initializeModals();
+    initializeFormValidation();
+    
+    // Exposer des fonctions au scope global pour d'autres scripts
+    window.adminFunctions = {
+        refreshStatistics,
+        refreshActivityLog,
+        showToast
+    };
+    
+    if (DASH_CONFIG.debugMode) {
+        console.log('Admin page: Initialization complete');
     }
 });
 </script>
