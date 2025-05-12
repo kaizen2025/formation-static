@@ -351,23 +351,24 @@ class Theme(db.Model):
 class Document(db.Model):
     __tablename__ = 'document'
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255), nullable=False, unique=True)  # Nom de fichier stocké sur le serveur (sécurisé et unique)
-    original_filename = db.Column(db.String(255), nullable=False)  # Nom de fichier original
+    filename = db.Column(db.String(255), nullable=False, unique=True)
+    original_filename = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
     upload_date = db.Column(db.DateTime, default=lambda: datetime.now(UTC), nullable=False)
-    theme_id = db.Column(db.Integer, db.ForeignKey('theme.id'), nullable=True, index=True)  # Peut être null pour les docs généraux
+    theme_id = db.Column(db.Integer, db.ForeignKey('theme.id'), nullable=True, index=True)
     uploader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    file_type = db.Column(db.String(50), nullable=True)  # e.g., 'pdf', 'docx'
+    file_type = db.Column(db.String(50), nullable=True)
     
     # Nouveau champ pour stocker le contenu binaire du fichier
-    file_content = db.Column(db.LargeBinary, nullable=True)  # Stocke le contenu binaire du fichier
+    file_content = db.Column(db.LargeBinary, nullable=True)
     
-    # Relations
+    # Relations - REMARQUE: PAS de backref supplémentaire pour theme
     uploader = db.relationship('User', backref=db.backref('uploaded_documents', lazy='dynamic'))
-    theme = db.relationship('Theme', backref=db.backref('documents', lazy='dynamic'))
+    # Ne pas redéfinir la relation theme ici, elle est déjà définie dans le modèle Theme
     
     def __repr__(self):
         return f'<Document {self.id}: {self.original_filename}>'
+        
 class Session(db.Model):
     __tablename__ = 'session'
     id = db.Column(db.Integer, primary_key=True)
