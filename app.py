@@ -345,14 +345,16 @@ class Theme(db.Model):
 class Document(db.Model):
     __tablename__ = 'document'
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255), nullable=False, unique=True) # Nom de fichier sécurisé et unique sur le serveur/stockage
-    original_filename = db.Column(db.String(255), nullable=False) # Nom de fichier original
+    filename = db.Column(db.String(255), nullable=False, unique=True) # Nom de fichier sécurisé et unique
+    original_filename = db.Column(db.String(255), nullable=False)    # Nom de fichier original
     description = db.Column(db.Text, nullable=True)
     upload_date = db.Column(db.DateTime, default=lambda: datetime.now(UTC), nullable=False)
     theme_id = db.Column(db.Integer, db.ForeignKey('theme.id'), nullable=True, index=True)
     uploader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     file_type = db.Column(db.String(50), nullable=True) # e.g., 'pdf', 'docx'
-    file_content = db.Column(db.LargeBinary, nullable=True) # Pour stocker le contenu du fichier en DB
+    
+    # Champ pour stocker le contenu binaire du fichier directement dans la base de données
+    file_content = db.Column(db.LargeBinary, nullable=True) 
     
     uploader = db.relationship('User', backref=db.backref('uploaded_documents', lazy='dynamic'))
     # La relation 'theme' est déjà définie par le backref dans le modèle Theme.
@@ -1305,63 +1307,53 @@ def validation_inscription_ajax():
     except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"Validation AJAX: Erreur DB - {e}", exc_info=True); return jsonify({'success': False, 'message': 'Erreur de base de données.'}), 500
     except Exception as e: db.session.rollback(); app.logger.error(f"Validation AJAX: Erreur inattendue - {e}", exc_info=True); return jsonify({'success': False, 'message': 'Erreur interne du serveur.'}), 500
 
-# --- Routes pour les Documents (Optimisées pour Render Free Tier) ---
 @app.route('/documents')
+@db_operation_with_retry(max_retries=3) # Garder le retry pour la robustesse
 def documents():
     themes_with_docs_list = []
     general_docs_list = []
     themes_for_upload_form = []
     
+    # Utiliser une session SQLAlchemy standard ici, car db.engine.connect()
+    # peut être plus complexe à gérer avec les transactions pour les opérations mixtes.
+    # Le décorateur db_operation_with_retry et le teardown_appcontext gèrent la session.
     try:
-        with db.engine.connect() as conn: # Utilise une connexion unique pour cette route
-            # 1. Récupérer tous les documents avec leurs thèmes et uploaders
-            doc_query_sql = text("""
-                SELECT 
-                    d.id as doc_id, d.filename as doc_filename, d.original_filename as doc_original_filename,
-                    d.description as doc_description, d.upload_date as doc_upload_date,
-                    d.uploader_id as doc_uploader_id, d.file_type as doc_file_type,
-                    t.id as theme_id, t.nom as theme_nom, t.description as theme_description,
-                    u.username as uploader_username
-                FROM document d
-                LEFT JOIN theme t ON d.theme_id = t.id
-                LEFT JOIN "user" u ON d.uploader_id = u.id
-                ORDER BY t.nom NULLS LAST, d.original_filename ASC
-            """)
-            result = conn.execute(doc_query_sql)
-            
-            themes_data_temp = {}
-            for row in result:
-                doc_data = {
-                    'id': row.doc_id, 'filename': row.doc_filename, 'original_filename': row.doc_original_filename,
-                    'description': row.doc_description, 'upload_date': row.doc_upload_date,
-                    'uploader_id': row.doc_uploader_id, 'file_type': row.doc_file_type,
-                    'uploader': {'username': row.uploader_username} if row.uploader_username else None
-                }
-                if row.theme_id:
-                    if row.theme_id not in themes_data_temp:
-                        themes_data_temp[row.theme_id] = {
-                            'id': row.theme_id, 'nom': row.theme_nom, 
-                            'description': row.theme_description, 'documents': []
-                        }
-                    themes_data_temp[row.theme_id]['documents'].append(doc_data)
-                else:
-                    general_docs_list.append(doc_data)
-            
-            themes_with_docs_list = list(themes_data_temp.values())
+        # Récupérer tous les documents avec leurs thèmes et uploaders
+        # On ne charge PAS file_content ici pour ne pas surcharger la mémoire/requête
+        all_docs_query = db.session.query(Document).options(
+            joinedload(Document.theme),
+            joinedload(Document.uploader)
+        ).order_by(Document.theme_id.nullslast(), Document.original_filename.asc())
+        
+        all_documents = all_docs_query.all()
+        
+        themes_data_temp = {}
+        for doc in all_documents:
+            doc_data = {
+                'id': doc.id, 'filename': doc.filename, 'original_filename': doc.original_filename,
+                'description': doc.description, 'upload_date': doc.upload_date,
+                'uploader_id': doc.uploader_id, 'file_type': doc.file_type,
+                'uploader': {'username': doc.uploader.username} if doc.uploader else None
+            }
+            if doc.theme_id and doc.theme:
+                if doc.theme_id not in themes_data_temp:
+                    themes_data_temp[doc.theme_id] = {
+                        'id': doc.theme_id, 'nom': doc.theme.nom, 
+                        'description': doc.theme.description, 'documents': []
+                    }
+                themes_data_temp[doc.theme_id]['documents'].append(doc_data)
+            else:
+                general_docs_list.append(doc_data)
+        
+        themes_with_docs_list = list(themes_data_temp.values())
 
-            # 2. Récupérer les thèmes pour le formulaire d'upload (si admin)
-            if current_user.is_authenticated and current_user.role == 'admin':
-                theme_form_query_sql = text("SELECT id, nom FROM theme ORDER BY nom")
-                theme_results_form = conn.execute(theme_form_query_sql)
-                themes_for_upload_form = [{'id': row.id, 'nom': row.nom} for row in theme_results_form]
+        if current_user.is_authenticated and current_user.role == 'admin':
+            themes_for_upload_form = Theme.query.order_by(Theme.nom).all()
             
-            # Pas besoin de commit ici car ce sont des SELECT
-            # La connexion est automatiquement fermée à la sortie du bloc `with`
-            
-    except OperationalError as op_e: # Erreur de connexion spécifique
+    except OperationalError as op_e:
         app.logger.error(f"DB OperationalError loading documents page: {op_e}", exc_info=True)
         flash("Erreur de connexion à la base de données lors du chargement des documents.", "danger")
-        return redirect(url_for('dashboard')) # Rediriger vers une page sûre
+        return redirect(url_for('dashboard'))
     except SQLAlchemyError as e:
         app.logger.error(f"DB SQLAlchemyError loading documents page: {e}", exc_info=True)
         flash("Erreur de base de données lors du chargement des documents.", "danger")
@@ -1375,50 +1367,33 @@ def documents():
     return render_template('documents.html', 
                            themes_with_docs=themes_with_docs_list,
                            general_docs_list=general_docs_list,
-                           themes_for_upload=themes_for_upload_form,
+                           themes_for_upload=themes_for_upload_form, # Passer les objets Theme directement
                            show_admin_features=show_admin_features,
                            ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS)
 
 
 @app.route('/download_document/<int:doc_id>')
+@db_operation_with_retry(max_retries=2) # Garder le retry
 def download_document(doc_id):
     try:
-        with db.engine.connect() as conn:
-            # Vérifier d'abord si la colonne file_content existe
-            # Cette requête est légère et ne devrait pas causer de timeout
-            check_column_sql = text("""
-                SELECT 1 FROM information_schema.columns 
-                WHERE table_name = 'document' AND column_name = 'file_content'
-            """)
-            column_exists_result = conn.execute(check_column_sql).fetchone()
-            has_file_content_column = bool(column_exists_result)
+        # Utiliser la session SQLAlchemy pour récupérer l'objet Document complet
+        # y compris potentiellement file_content.
+        # defer(Document.file_content) pourrait être utilisé si on ne veut le charger que si nécessaire,
+        # mais pour un téléchargement, on le veut probablement.
+        doc = db.session.query(Document.original_filename, Document.file_type, Document.file_content, Document.filename)\
+                        .filter(Document.id == doc_id).first()
 
-            # Récupérer les métadonnées du document et le contenu si la colonne existe
-            if has_file_content_column:
-                doc_query_sql = text("""
-                    SELECT filename, original_filename, file_type, file_content 
-                    FROM document WHERE id = :doc_id
-                """)
-            else:
-                doc_query_sql = text("""
-                    SELECT filename, original_filename, file_type, NULL as file_content
-                    FROM document WHERE id = :doc_id
-                """)
-            
-            doc_result = conn.execute(doc_query_sql, {'doc_id': doc_id}).fetchone()
-
-        if not doc_result:
+        if not doc:
             flash("Document non trouvé.", "danger")
             return redirect(url_for('documents'))
 
-        # doc_result est un tuple (RowProxy), accéder par index ou nom
-        filename_secure = doc_result.filename
-        original_filename = doc_result.original_filename
-        file_type = doc_result.file_type
-        file_content_db = doc_result.file_content if has_file_content_column else None
+        original_filename = doc.original_filename
+        file_type = doc.file_type
+        file_content_db = doc.file_content
+        filename_secure = doc.filename # Pour le fallback filesystem
 
         if file_content_db:
-            app.logger.info(f"Serving document '{original_filename}' (ID: {doc_id}) from database.")
+            app.logger.info(f"Serving document '{original_filename}' (ID: {doc_id}) from database content.")
             return send_file(
                 BytesIO(file_content_db),
                 download_name=original_filename,
@@ -1426,10 +1401,14 @@ def download_document(doc_id):
                 mimetype=f'application/{file_type}' if file_type else 'application/octet-stream'
             )
         else:
-            # Fallback: servir depuis le système de fichiers (pour les anciens documents ou si file_content est NULL)
-            app.logger.info(f"Serving document '{original_filename}' (ID: {doc_id}, Filename: {filename_secure}) from filesystem.")
+            # Fallback: si file_content est NULL, essayer de servir depuis le système de fichiers
+            # Cela est utile pour les documents uploadés avant l'implémentation de file_content
+            # ou si l'upload vers la DB a échoué mais le fichier a été sauvegardé localement.
+            app.logger.warning(f"Document '{original_filename}' (ID: {doc_id}) has no DB content. Attempting filesystem fallback.")
             file_path_on_server = os.path.join(app.config['UPLOAD_FOLDER'], filename_secure)
+            
             if os.path.exists(file_path_on_server):
+                app.logger.info(f"Serving document '{original_filename}' (ID: {doc_id}, Filename: {filename_secure}) from filesystem.")
                 return send_from_directory(
                     app.config['UPLOAD_FOLDER'],
                     filename_secure,
@@ -1437,17 +1416,20 @@ def download_document(doc_id):
                     download_name=original_filename
                 )
             else:
-                app.logger.error(f"File not found on filesystem for doc ID {doc_id}: {file_path_on_server}")
-                flash("Fichier non trouvé sur le serveur.", "danger")
+                app.logger.error(f"File not found in DB content AND not on filesystem for doc ID {doc_id}: {file_path_on_server}")
+                flash("Fichier non trouvé (ni en base de données, ni sur le serveur). Veuillez contacter l'administrateur.", "danger")
                 return redirect(url_for('documents'))
 
     except OperationalError as op_e:
+        db.session.rollback()
         app.logger.error(f"DB OperationalError downloading document {doc_id}: {op_e}", exc_info=True)
         flash("Erreur de connexion à la base de données lors du téléchargement.", "danger")
     except SQLAlchemyError as e:
+        db.session.rollback()
         app.logger.error(f"DB SQLAlchemyError downloading document {doc_id}: {e}", exc_info=True)
         flash("Erreur de base de données lors du téléchargement.", "danger")
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f"Unexpected error downloading document {doc_id}: {e}", exc_info=True)
         flash("Erreur inattendue lors du téléchargement du document.", "danger")
     return redirect(url_for('documents'))
@@ -1455,12 +1437,13 @@ def download_document(doc_id):
 
 @app.route('/admin/upload_document', methods=['POST'])
 @login_required
+@db_operation_with_retry(max_retries=2) # Garder le retry
 def upload_document():
     if current_user.role != 'admin':
         flash("Action réservée aux administrateurs.", "danger")
         return redirect(url_for('dashboard'))
     
-    from_page = request.form.get('from_page', 'documents') # Default to 'documents' page
+    from_page = request.form.get('from_page', 'documents')
     redirect_url = url_for(from_page) if from_page in ['documents', 'admin'] else url_for('documents')
 
     try:
@@ -1476,74 +1459,51 @@ def upload_document():
 
         if file and allowed_file(file.filename):
             original_filename = file.filename
-            # Générer un nom de fichier unique pour le stockage
             filename_base, filename_ext_with_dot = os.path.splitext(secure_filename(original_filename))
             filename_ext = filename_ext_with_dot.lower().lstrip('.')
             unique_id = f"{int(time.time())}_{random.randint(1000,9999)}"
             filename_secure = f"{filename_base}_{unique_id}{filename_ext_with_dot.lower()}"
             
-            file_content_bytes = file.read() # Lire le contenu une seule fois
-            file.seek(0) # Rembobiner si besoin de relire (pas le cas ici)
+            file_content_bytes = file.read() # Lire le contenu du fichier en bytes
 
             theme_id = int(theme_id_str) if theme_id_str and theme_id_str.isdigit() else None
             
-            with db.engine.connect() as conn:
-                trans = conn.begin() # Démarrer une transaction explicite
-                try:
-                    # Vérifier si la colonne file_content existe
-                    check_column_sql = text("SELECT 1 FROM information_schema.columns WHERE table_name = 'document' AND column_name = 'file_content'")
-                    has_file_content_column = bool(conn.execute(check_column_sql).fetchone())
+            new_document = Document(
+                filename=filename_secure,
+                original_filename=original_filename,
+                description=description,
+                theme_id=theme_id,
+                uploader_id=current_user.id,
+                file_type=filename_ext,
+                file_content=file_content_bytes # Stocker le contenu binaire
+            )
+            db.session.add(new_document)
+            db.session.commit()
+            
+            app.logger.info(f"Document '{original_filename}' (as '{filename_secure}') uploaded and stored in database.")
 
-                    if has_file_content_column:
-                        insert_sql = text("""
-                            INSERT INTO document (filename, original_filename, description, theme_id, uploader_id, file_type, upload_date, file_content)
-                            VALUES (:filename, :original_filename, :description, :theme_id, :uploader_id, :file_type, CURRENT_TIMESTAMP, :file_content)
-                        """)
-                        conn.execute(insert_sql, {
-                            'filename': filename_secure, 'original_filename': original_filename,
-                            'description': description, 'theme_id': theme_id, 'uploader_id': current_user.id,
-                            'file_type': filename_ext, 'file_content': file_content_bytes
-                        })
-                        app.logger.info(f"Document '{original_filename}' (as '{filename_secure}') uploaded to DB with content.")
-                    else:
-                        # Fallback: enregistrer sur le système de fichiers et insérer sans file_content
-                        file_path_on_server = os.path.join(app.config['UPLOAD_FOLDER'], filename_secure)
-                        with open(file_path_on_server, 'wb') as f_out:
-                            f_out.write(file_content_bytes)
-                        
-                        insert_sql_no_content = text("""
-                            INSERT INTO document (filename, original_filename, description, theme_id, uploader_id, file_type, upload_date)
-                            VALUES (:filename, :original_filename, :description, :theme_id, :uploader_id, :file_type, CURRENT_TIMESTAMP)
-                        """)
-                        conn.execute(insert_sql_no_content, {
-                            'filename': filename_secure, 'original_filename': original_filename,
-                            'description': description, 'theme_id': theme_id, 'uploader_id': current_user.id,
-                            'file_type': filename_ext
-                        })
-                        app.logger.info(f"Document '{original_filename}' (as '{filename_secure}') uploaded to filesystem (no file_content column).")
-                    
-                    trans.commit() # Valider la transaction
-                except Exception as e_inner:
-                    trans.rollback() # Annuler en cas d'erreur interne
-                    raise e_inner # Propager l'erreur pour le handler externe
-
-            if theme_id: cache.delete_memoized(get_all_themes)
-            cache.delete('dashboard_essential_data')
-            theme_name_for_log = db.session.get(Theme, theme_id).nom if theme_id else "Général"
+            if theme_id: cache.delete_memoized(get_all_themes) # Invalider cache si lié à un thème
+            cache.delete('dashboard_essential_data') # Invalider cache dashboard
+            
+            theme_obj_for_log = db.session.get(Theme, theme_id) if theme_id else None
+            theme_name_for_log = theme_obj_for_log.nom if theme_obj_for_log else "Général"
             add_activity('ajout_document', f'Upload: {original_filename}', f'Thème: {theme_name_for_log}', user=current_user)
-            flash('Document uploadé avec succès.', 'success')
+            flash('Document uploadé et sauvegardé en base de données avec succès.', 'success')
         else:
             flash('Type de fichier non autorisé ou nom de fichier problématique.', 'warning')
             
     except RequestEntityTooLarge:
         flash('Le fichier est trop volumineux (limite: 16MB).', 'danger')
     except OperationalError as op_e:
+        db.session.rollback()
         app.logger.error(f"DB OperationalError during document upload: {op_e}", exc_info=True)
         flash("Erreur de connexion à la base de données lors de l'upload.", "danger")
     except SQLAlchemyError as e:
+        db.session.rollback()
         app.logger.error(f"DB SQLAlchemyError during document upload: {e}", exc_info=True)
         flash("Erreur base de données lors de l'upload.", "danger")
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f"Unexpected error during document upload: {e}", exc_info=True)
         flash("Erreur inattendue lors de l'upload.", "danger")
     
@@ -1552,6 +1512,7 @@ def upload_document():
 
 @app.route('/admin/delete_document/<int:doc_id>', methods=['POST'])
 @login_required
+@db_operation_with_retry(max_retries=2) # Garder le retry
 def delete_document(doc_id):
     if current_user.role != 'admin':
         flash("Action réservée aux administrateurs.", "danger")
@@ -1561,54 +1522,48 @@ def delete_document(doc_id):
     redirect_url = url_for(from_page) if from_page in ['documents', 'admin'] else url_for('documents')
     
     try:
-        with db.engine.connect() as conn:
-            trans = conn.begin()
-            try:
-                # Récupérer filename et original_filename avant suppression pour logging et suppression fichier
-                doc_info_sql = text("SELECT filename, original_filename, theme_id FROM document WHERE id = :doc_id")
-                doc_info = conn.execute(doc_info_sql, {'doc_id': doc_id}).fetchone()
+        doc_to_delete = db.session.get(Document, doc_id)
 
-                if not doc_info:
-                    flash("Document non trouvé.", "warning")
-                    trans.rollback() # Pas besoin si rien n'a été fait, mais par sécurité
-                    return redirect(redirect_url)
+        if not doc_to_delete:
+            flash("Document non trouvé.", "warning")
+            return redirect(redirect_url)
 
-                filename_secure = doc_info.filename
-                original_filename = doc_info.original_filename
-                theme_id = doc_info.theme_id
+        original_filename = doc_to_delete.original_filename
+        theme_id = doc_to_delete.theme_id # Pour l'invalidation du cache
 
-                # Supprimer l'enregistrement de la base de données
-                delete_sql = text("DELETE FROM document WHERE id = :doc_id")
-                conn.execute(delete_sql, {'doc_id': doc_id})
-                
-                trans.commit() # Valider la suppression de la DB
-            except Exception as e_inner:
-                trans.rollback()
-                raise e_inner
+        # Supprimer l'enregistrement de la base de données
+        # Le contenu file_content sera supprimé avec l'enregistrement.
+        db.session.delete(doc_to_delete)
+        db.session.commit()
+        
+        app.logger.info(f"Document '{original_filename}' (ID: {doc_id}) deleted from database.")
 
-        # Tenter de supprimer le fichier physique (pour les anciens documents ou si file_content n'est pas utilisé)
-        # Cela se fait en dehors de la transaction DB
-        try:
-            file_path_on_server = os.path.join(app.config['UPLOAD_FOLDER'], filename_secure)
-            if os.path.exists(file_path_on_server):
-                os.remove(file_path_on_server)
-                app.logger.info(f"Fichier physique '{filename_secure}' supprimé du serveur.")
-        except OSError as os_err:
-            app.logger.warning(f"Erreur lors de la suppression du fichier physique {filename_secure}: {os_err}")
-            # Ne pas bloquer si le fichier n'existe pas ou ne peut être supprimé, la DB est prioritaire
+        # Si vous aviez un fallback sur le système de fichiers, vous pourriez aussi tenter de le supprimer ici,
+        # mais avec le stockage en DB, ce n'est plus strictement nécessaire pour les nouveaux fichiers.
+        # filename_secure = doc_to_delete.filename 
+        # try:
+        #     file_path_on_server = os.path.join(app.config['UPLOAD_FOLDER'], filename_secure)
+        #     if os.path.exists(file_path_on_server):
+        #         os.remove(file_path_on_server)
+        #         app.logger.info(f"Fichier physique '{filename_secure}' (fallback) supprimé du serveur.")
+        # except OSError as os_err:
+        #     app.logger.warning(f"Erreur lors de la suppression du fichier physique fallback {filename_secure}: {os_err}")
 
         if theme_id: cache.delete_memoized(get_all_themes)
         cache.delete('dashboard_essential_data')
         add_activity('suppression_document', f'Suppression: {original_filename}', user=current_user)
-        flash(f'Document "{original_filename}" supprimé avec succès.', 'success')
+        flash(f'Document "{original_filename}" supprimé avec succès de la base de données.', 'success')
 
     except OperationalError as op_e:
+        db.session.rollback()
         app.logger.error(f"DB OperationalError deleting document {doc_id}: {op_e}", exc_info=True)
         flash("Erreur de connexion à la base de données lors de la suppression.", "danger")
     except SQLAlchemyError as e:
+        db.session.rollback()
         app.logger.error(f"DB SQLAlchemyError deleting document {doc_id}: {e}", exc_info=True)
         flash("Erreur base de données lors de la suppression.", "danger")
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f"Unexpected error deleting document {doc_id}: {e}", exc_info=True)
         flash("Erreur inattendue lors de la suppression.", "danger")
     
