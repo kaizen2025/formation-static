@@ -1,3 +1,4 @@
+--- START OF FILE layout.html ---
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -19,7 +20,7 @@
     <!-- Styles personnalisés consolidés -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-    <!-- Solution optimisée pour les modaux -->
+    <!-- Solution CSS optimisée pour les modaux -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-modal-fixes.css') }}">
 
     {% block head_extra %}{% endblock %}
@@ -202,28 +203,13 @@
         window.dashboardConfig = window.dashboardConfig || {};
         window.dashboardConfig.debugMode = {{ debug_mode | default(false) | tojson }};
         window.dashboardConfig.socketEnabled = true; 
-        window.dashboardConfig.pollingEnabled = true; // Important pour que le polling puisse s'activer
-        window.dashboardConfig.autoRefreshInterval = 30000; // 30 secondes
-        window.dashboardConfig.preferredMode = 'auto'; // 'auto', 'socket', ou 'polling'
+        window.dashboardConfig.pollingEnabled = true; 
+        window.dashboardConfig.autoRefreshInterval = 30000; 
+        window.dashboardConfig.preferredMode = 'auto'; 
         window.dashboardConfig.errorResilience = true;
-        // window.dashboardConfig.baseApiUrl = "{{ url_for('index') }}api"; // Décommentez et ajustez si besoin
-
-        // Données globales pour les graphiques (utilisées par dashboard-core.js)
-        window.themesDataForChart = {
-            'Communiquer avec Teams': { color: 'var(--theme-teams, #0078d4)', description: 'Apprenez à utiliser Microsoft Teams pour communiquer efficacement.' },
-            'Gérer les tâches (Planner)': { color: 'var(--theme-planner, #7719aa)', description: 'Maîtrisez la gestion des tâches d\'équipe avec Planner et To Do.' },
-            'Gérer mes fichiers (OneDrive/SharePoint)': { color: 'var(--theme-onedrive, #0364b8)', description: 'Organisez et partagez vos fichiers avec OneDrive et SharePoint.' },
-            'Collaborer avec Teams': { color: 'var(--theme-sharepoint, #038387)', description: 'Découvrez comment collaborer sur des documents via Microsoft Teams.' }
-        };
-        window.servicesDataForChart = { 
-             'Commerce Anecoop-Solagora': { color: 'var(--service-commerce, #FFC107)' },
-             'Comptabilité': { color: 'var(--service-comptabilite, #2196F3)' },
-             'Florensud': { color: 'var(--service-florensud, #4CAF50)' },
-             'Informatique': { color: 'var(--service-informatique, #607D8B)' },
-             'Marketing': { color: 'var(--service-marketing, #9C27B0)' },
-             'Qualité': { color: 'var(--service-qualite, #F44336)' },
-             'RH': { color: 'var(--service-rh, #FF9800)' }
-        };
+        
+        window.themesDataForChart = {{ themes_config|tojson|safe }};
+        window.servicesDataForChart = {{ services_config|tojson|safe }};
     </script>
 
     <!-- Scripts personnalisés (l'ordre est important) -->
@@ -234,51 +220,10 @@
     <script src="{{ url_for('static', filename='js/dashboard-init.js') }}"></script>
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 
-    <!-- Solution simplifiée pour les modaux -->
-    <script src="{{ url_for('static', filename='js/modal-simple.js') }}"></script>
+    <!-- Solution JS globale pour les modaux (simplifiée) -->
+    <script src="{{ url_for('static', filename='js/global-modal-fix.js') }}"></script>
 
     {% block scripts_extra %}{% endblock %}
-
-    <!-- Script d'initialisation des modaux -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialisation des tooltips
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                    new bootstrap.Tooltip(tooltipTriggerEl);
-                });
-            }
-            
-            // Initialisation des modaux
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Modal === 'function') {
-                document.querySelectorAll('.modal').forEach(function(modalEl) {
-                    // Forcer la visibilité des éléments dans les modaux
-                    modalEl.querySelectorAll('select, input:not([type="hidden"]), textarea').forEach(function(el) {
-                        el.style.display = 'block';
-                        el.style.visibility = 'visible';
-                        el.style.opacity = '1';
-                    });
-                    
-                    // Assurer le bon fonctionnement des onglets
-                    modalEl.addEventListener('shown.bs.modal', function() {
-                        const activePane = this.querySelector('.tab-pane.active');
-                        if (activePane) {
-                            activePane.style.display = 'block';
-                        }
-                        
-                        // Focus sur le premier élément
-                        const firstInput = this.querySelector('select, input:not([type="hidden"])');
-                        if (firstInput) {
-                            setTimeout(function() {
-                                firstInput.focus();
-                            }, 100);
-                        }
-                    });
-                });
-            }
-        });
-    </script>
 
     <!-- Script final pour gérer le loader, les tooltips globaux et les badges de thème -->
     <script>
@@ -320,30 +265,28 @@
 
         // Fonction globale pour améliorer les badges de thème
         window.enhanceThemeBadgesGlobally = function(parentElement = document) {
-            // Si parentElement n'est pas document, on cible les badges à l'intérieur de cet élément.
-            // Sinon, on cible tous les badges du document.
             const badgesToEnhance = parentElement.querySelectorAll('.theme-badge');
 
             badgesToEnhance.forEach(badge => {
-                if (badge.dataset.enhanced === 'true' && parentElement === document) return; // Éviter le double traitement global, mais permettre pour les modales
+                if (badge.dataset.enhanced === 'true' && parentElement === document) return; 
 
                 const themeName = badge.dataset.theme || badge.textContent.trim();
-                badge.textContent = ''; // Vider pour reconstruire avec icône
+                badge.textContent = ''; 
                 badge.classList.remove('theme-comm', 'theme-planner', 'theme-onedrive', 'theme-sharepoint', 'bg-secondary');
 
                 let iconClass = 'fa-info-circle'; 
                 let themeClass = 'bg-secondary'; 
                 let themeDescription = 'Information sur le thème.';
+                const themesConfig = window.themesDataForChart || {};
 
-                if (window.themesDataForChart && window.themesDataForChart[themeName]) {
-                    const themeConfig = window.themesDataForChart[themeName];
+                if (themesConfig[themeName]) {
+                    const themeConfig = themesConfig[themeName];
                     themeDescription = themeConfig.description || themeDescription;
-                    // Déterminer la classe de couleur et l'icône à partir du nom ou d'une config
                     if (themeName.includes('Communiquer avec Teams')) { themeClass = 'theme-comm'; iconClass = 'fa-comments'; }
                     else if (themeName.includes('Gérer les tâches')) { themeClass = 'theme-planner'; iconClass = 'fa-tasks'; }
                     else if (themeName.includes('Gérer mes fichiers')) { themeClass = 'theme-onedrive'; iconClass = 'fa-file-alt'; }
                     else if (themeName.includes('Collaborer avec Teams')) { themeClass = 'theme-sharepoint'; iconClass = 'fa-users'; }
-                } else { // Fallback si themeName n'est pas dans themesDataForChart
+                } else { 
                     if (themeName.includes('Communiquer avec Teams')) { themeClass = 'theme-comm'; iconClass = 'fa-comments'; }
                     else if (themeName.includes('Gérer les tâches')) { themeClass = 'theme-planner'; iconClass = 'fa-tasks'; }
                     else if (themeName.includes('Gérer mes fichiers')) { themeClass = 'theme-onedrive'; iconClass = 'fa-file-alt'; }
@@ -351,7 +294,7 @@
                 }
                 
                 badge.classList.add(themeClass);
-                badge.innerHTML = `<i class="fas ${iconClass} me-1"></i>${themeName}`; // Ajouter icône et texte
+                badge.innerHTML = `<i class="fas ${iconClass} me-1"></i>${themeName}`; 
 
                 badge.setAttribute('data-bs-toggle', 'tooltip');
                 badge.setAttribute('data-bs-placement', 'top');
@@ -367,19 +310,16 @@
 
         // Initialiser les tooltips Bootstrap et les badges de thème après le chargement du DOM
         document.addEventListener('DOMContentLoaded', function () {
-            // Tooltips globaux (hors modales, qui sont gérés par notre global-modal-fix.js)
             if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
                 const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
                 tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                    // Ne pas réinitialiser si c'est à l'intérieur d'une modale
-                    if (!tooltipTriggerEl.closest('.modal')) {
+                    if (!tooltipTriggerEl.closest('.modal')) { // Ne pas réinitialiser les tooltips des modales ici
                         const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
                         if (existingTooltip) existingTooltip.dispose();
                         new bootstrap.Tooltip(tooltipTriggerEl);
                     }
                 });
             }
-            // Badges de thème globaux
             window.enhanceThemeBadgesGlobally();
         });
     </script>
