@@ -1,184 +1,291 @@
 /**
- * modal-simple.js - Solution ultra-simplifiée pour les modaux Bootstrap
- * Ce script remplace toutes les approches complexes précédentes
+ * modal-simple.js - Solution optimisée pour les modaux Bootstrap
+ * Version finale avec correctifs pour tous les problèmes d'affichage
  */
 (function() {
     'use strict';
     
-    // Configuration de base
+    // Configuration
     const config = {
         debug: true,
         log: function(message) {
             if (this.debug) console.log("ModalSimple:", message);
-        },
-        selectors: {
-            modals: '.modal',
-            formElements: 'select, input:not([type="hidden"]), textarea, button:not(.btn-close)',
-            tabPanes: '.tab-pane',
-            tabButtons: '[data-bs-toggle="tab"]',
-            selectElements: 'select, .form-select'
         }
     };
     
-    // Fonction pour initialiser les modaux
-    function initializeModal(modal) {
+    /**
+     * Fonction principale qui applique tous les correctifs nécessaires aux modaux
+     */
+    function fixModal(modal) {
         if (!modal) return;
         
         const modalId = modal.id || 'unknownModal';
-        config.log(`Initializing modal: ${modalId}`);
+        config.log(`Fixing modal: ${modalId}`);
         
-        // S'assurer que les éléments de formulaire sont visibles et utilisables
-        const formElements = modal.querySelectorAll(config.selectors.formElements);
-        formElements.forEach(element => {
-            element.style.display = element.tagName === 'SELECT' ? 'block' : 
-                                   (element.tagName === 'BUTTON' || element.classList.contains('btn')) ? 'inline-block' : 'block';
-            element.style.visibility = 'visible';
-            element.style.opacity = '1';
-            element.style.zIndex = 'auto';
+        // Correction des sélecteurs
+        fixSelects(modal);
+        
+        // Correction des champs de formulaire
+        fixFormFields(modal);
+        
+        // Correction des onglets
+        fixTabs(modal);
+        
+        // Correction des badges
+        fixBadges(modal);
+        
+        // Correction des boutons
+        fixButtons(modal);
+    }
+    
+    /**
+     * Correction spécifique pour les sélecteurs
+     */
+    function fixSelects(modal) {
+        const selects = modal.querySelectorAll('select, .form-select');
+        
+        selects.forEach(select => {
+            // Appliquer des styles spécifiques pour garantir la visibilité
+            select.style.display = 'block';
+            select.style.visibility = 'visible';
+            select.style.opacity = '1';
+            select.style.color = '#212529';
+            select.style.backgroundColor = '#ffffff';
+            select.style.appearance = 'menulist';
+            select.style.WebkitAppearance = 'menulist';
+            select.style.MozAppearance = 'menulist';
             
-            // Styles spécifiques pour les selects qui sont souvent problématiques
-            if (element.tagName === 'SELECT') {
-                element.style.webkitAppearance = 'menulist';
-                element.style.mozAppearance = 'menulist';
-                element.style.appearance = 'menulist';
-            }
-        });
-        
-        // S'assurer que l'onglet actif est visible
-        const activeTabPane = modal.querySelector(`${config.selectors.tabPanes}.active`);
-        if (activeTabPane) {
-            activeTabPane.style.display = 'block';
-            activeTabPane.style.visibility = 'visible';
-            activeTabPane.style.opacity = '1';
-        }
-        
-        // Gérer les boutons d'onglets
-        const tabButtons = modal.querySelectorAll(config.selectors.tabButtons);
-        tabButtons.forEach(button => {
-            button.addEventListener('click', function(event) {
-                // Empêcher le comportement par défaut si nécessaire
-                if (button.classList.contains('nav-link') && !button.hasAttribute('href')) {
-                    event.preventDefault();
+            // Corriger chaque option aussi
+            const options = select.querySelectorAll('option');
+            options.forEach(option => {
+                option.style.color = '#212529';
+                option.style.backgroundColor = '#ffffff';
+            });
+            
+            // Ajouter un gestionnaire d'événements pour la validation
+            select.addEventListener('change', function() {
+                if (this.value) {
+                    this.classList.remove('is-invalid');
+                    const errorEl = this.parentNode.querySelector('.invalid-feedback, .text-danger');
+                    if (errorEl) errorEl.style.display = 'none';
                 }
+            });
+            
+            // Force repaint pour s'assurer que le select est bien rendu
+            select.style.display = 'none';
+            select.offsetHeight; // Force reflow
+            select.style.display = 'block';
+            
+            // Marquer comme corrigé
+            select.dataset.fixed = 'true';
+        });
+    }
+    
+    /**
+     * Correction des champs de formulaire
+     */
+    function fixFormFields(modal) {
+        const inputs = modal.querySelectorAll('input:not([type="hidden"]), textarea');
+        
+        inputs.forEach(input => {
+            input.style.display = 'block';
+            input.style.visibility = 'visible';
+            input.style.opacity = '1';
+            input.style.color = '#212529';
+            input.style.backgroundColor = '#ffffff';
+            
+            // Marquer comme corrigé
+            input.dataset.fixed = 'true';
+        });
+    }
+    
+    /**
+     * Correction des onglets
+     */
+    function fixTabs(modal) {
+        const tabs = modal.querySelectorAll('.nav-tabs .nav-link');
+        
+        tabs.forEach(tab => {
+            // Style de base
+            tab.style.display = 'block';
+            tab.style.visibility = 'visible';
+            tab.style.opacity = '1';
+            
+            // Gérer le clic sur l'onglet
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
                 
-                // Récupérer la cible de l'onglet
-                const targetSelector = button.getAttribute('data-bs-target') || button.getAttribute('href');
-                if (!targetSelector) return;
+                // Récupérer la cible
+                const target = this.getAttribute('data-bs-target');
+                if (!target) return;
                 
                 // Désactiver tous les onglets
-                modal.querySelectorAll('.nav-link').forEach(tab => {
-                    tab.classList.remove('active');
-                    tab.setAttribute('aria-selected', 'false');
+                tabs.forEach(t => {
+                    t.classList.remove('active');
+                    t.setAttribute('aria-selected', 'false');
                 });
                 
-                // Activer l'onglet cliqué
-                button.classList.add('active');
-                button.setAttribute('aria-selected', 'true');
+                // Activer cet onglet
+                this.classList.add('active');
+                this.setAttribute('aria-selected', 'true');
                 
-                // Masquer tous les panneaux d'onglets
-                modal.querySelectorAll(config.selectors.tabPanes).forEach(pane => {
-                    pane.classList.remove('active', 'show');
+                // Masquer tous les panneaux
+                const panes = modal.querySelectorAll('.tab-pane');
+                panes.forEach(pane => {
+                    pane.classList.remove('show', 'active');
                     pane.style.display = 'none';
-                    pane.style.opacity = '0';
-                    pane.style.visibility = 'hidden';
                 });
                 
-                // Afficher le panneau ciblé
-                const targetPane = document.querySelector(targetSelector);
+                // Afficher le panneau cible
+                const targetPane = modal.querySelector(target);
                 if (targetPane) {
-                    targetPane.classList.add('active', 'show');
+                    targetPane.classList.add('show', 'active');
                     targetPane.style.display = 'block';
-                    targetPane.style.opacity = '1';
-                    targetPane.style.visibility = 'visible';
                     
-                    // Focus sur le premier champ de l'onglet
+                    // Corriger les éléments du panneau
+                    fixFormFields(targetPane);
+                    fixSelects(targetPane);
+                    
+                    // Focus sur le premier champ
                     setTimeout(() => {
-                        const firstField = targetPane.querySelector(config.selectors.formElements);
-                        if (firstField) {
+                        const firstInput = targetPane.querySelector('input:not([type="hidden"]), select, textarea');
+                        if (firstInput) {
                             try {
-                                firstField.focus();
+                                firstInput.focus();
                             } catch (e) {
-                                config.log(`Error focusing first field in tab: ${e.message}`);
+                                console.error('Error focusing:', e);
                             }
                         }
-                    }, 50);
+                    }, 100);
                 }
             });
+            
+            // Marquer comme corrigé
+            tab.dataset.fixed = 'true';
+        });
+        
+        // S'assurer que le panneau actif est visible
+        const activePane = modal.querySelector('.tab-pane.active');
+        if (activePane) {
+            activePane.style.display = 'block';
+            activePane.style.visibility = 'visible';
+            activePane.style.opacity = '1';
+        }
+    }
+    
+    /**
+     * Correction des badges
+     */
+    function fixBadges(modal) {
+        const badges = modal.querySelectorAll('.badge, .salle-field');
+        
+        badges.forEach(badge => {
+            badge.style.color = '#212529';
+            badge.style.backgroundColor = '#f8f9fa';
+            badge.style.border = '1px solid #dee2e6';
+            badge.dataset.fixed = 'true';
         });
     }
     
-    // Fonction pour gérer l'affichage d'un modal
-    function handleModalShow(modal) {
-        if (!modal) return;
+    /**
+     * Correction des boutons
+     */
+    function fixButtons(modal) {
+        const buttons = modal.querySelectorAll('.btn-primary, .btn-success');
         
+        buttons.forEach(button => {
+            // Style pour les boutons primaires
+            if (button.classList.contains('btn-primary')) {
+                button.style.backgroundColor = '#0d6efd';
+                button.style.borderColor = '#0d6efd';
+                button.style.color = 'white';
+            }
+            
+            // Style pour les boutons de succès
+            if (button.classList.contains('btn-success')) {
+                button.style.backgroundColor = '#198754';
+                button.style.borderColor = '#198754';
+                button.style.color = 'white';
+            }
+            
+            // S'assurer qu'ils sont visibles
+            button.style.display = 'inline-block';
+            button.style.visibility = 'visible';
+            button.style.opacity = '1';
+            
+            // Marquer comme corrigé
+            button.dataset.fixed = 'true';
+        });
+    }
+    
+    /**
+     * Gestionnaire d'affichage des modaux
+     */
+    function handleModalShow(event) {
+        const modal = event.target;
         config.log(`Modal ${modal.id} is being shown`);
         
-        // S'assurer que tous les éléments sont visibles
-        const formElements = modal.querySelectorAll(config.selectors.formElements);
-        formElements.forEach(element => {
-            element.style.display = element.tagName === 'SELECT' ? 'block' : 
-                                   (element.tagName === 'BUTTON' || element.classList.contains('btn')) ? 'inline-block' : 'block';
-            element.style.visibility = 'visible';
-            element.style.opacity = '1';
-        });
+        // Appliquer toutes les corrections
+        fixModal(modal);
         
-        // Focus sur le premier champ
+        // Focus sur le premier champ après l'affichage
         setTimeout(() => {
-            const firstField = modal.querySelector('select, input:not([type="hidden"]), textarea');
-            if (firstField) {
+            // Trouver le panneau actif
+            const activePane = modal.querySelector('.tab-pane.active');
+            const targetElement = activePane 
+                ? activePane.querySelector('select, input:not([type="hidden"]), textarea')
+                : modal.querySelector('select, input:not([type="hidden"]), textarea');
+                
+            if (targetElement) {
                 try {
-                    firstField.focus();
+                    targetElement.focus();
                 } catch (e) {
-                    config.log(`Error focusing first field: ${e.message}`);
+                    config.log(`Error focusing on first field: ${e.message}`);
                 }
             }
-        }, 100);
+        }, 300);
     }
     
-    // Fonction principale d'initialisation
+    /**
+     * Vérifier et corriger périodiquement les modaux
+     */
+    function periodicCheck() {
+        const modals = document.querySelectorAll('.modal.show');
+        modals.forEach(modal => {
+            // Vérifier les éléments qui pourraient avoir perdu leurs correctifs
+            const unfixedSelects = modal.querySelectorAll('select:not([data-fixed]), .form-select:not([data-fixed])');
+            if (unfixedSelects.length > 0) {
+                config.log(`Found ${unfixedSelects.length} unfixed selects in modal ${modal.id}, reapplying fixes`);
+                fixModal(modal);
+            }
+        });
+    }
+    
+    /**
+     * Initialisation
+     */
     function init() {
-        config.log("Initializing modal-simple.js");
+        config.log('Initializing modal-simple.js');
         
-        // Initialiser tous les modaux présents lors du chargement
-        document.querySelectorAll(config.selectors.modals).forEach(modal => {
-            initializeModal(modal);
-        });
+        // Correction initiale pour tous les modaux
+        document.querySelectorAll('.modal').forEach(fixModal);
         
-        // Surveiller l'ouverture des modaux
-        document.addEventListener('show.bs.modal', function(event) {
-            handleModalShow(event.target);
-        });
+        // Écouter les événements d'affichage de modal
+        document.addEventListener('show.bs.modal', handleModalShow);
         
-        // Un sélecteur efficace pour trouver le contenu caché et le rendre visible
-        document.addEventListener('shown.bs.modal', function(event) {
-            const modal = event.target;
-            
-            // Collecter tous les selects et s'assurer qu'ils sont bien visibles
-            const selectElements = modal.querySelectorAll(config.selectors.selectElements);
-            selectElements.forEach(select => {
-                select.style.display = 'block !important';
-                select.style.visibility = 'visible !important';
-                select.style.opacity = '1 !important';
-                select.style.appearance = 'menulist !important';
-                select.style.webkitAppearance = 'menulist !important';
-                select.style.mozAppearance = 'menulist !important';
-                select.style.position = 'static !important';
-                select.style.zIndex = 'auto !important';
-                
-                // Parfois, forcer un recalcul des dimensions aide
-                select.offsetHeight;
-            });
-            
-            // Vérifier et corriger les onglets
-            const activeTabPane = modal.querySelector(`${config.selectors.tabPanes}.active`);
-            if (activeTabPane) {
-                activeTabPane.style.display = 'block !important';
-                activeTabPane.style.visibility = 'visible !important';
-                activeTabPane.style.opacity = '1 !important';
+        // Écouter les événements d'onglets
+        document.addEventListener('shown.bs.tab', function(event) {
+            const tabPane = document.querySelector(event.target.getAttribute('data-bs-target'));
+            if (tabPane) {
+                config.log(`Tab pane ${tabPane.id} shown, applying fixes`);
+                fixModal(tabPane.closest('.modal'));
             }
         });
         
-        config.log("Initialization complete");
+        // Vérification périodique des modaux
+        setInterval(periodicCheck, 1000);
+        
+        config.log('Initialization complete');
     }
     
     // Démarrer lorsque le DOM est prêt
