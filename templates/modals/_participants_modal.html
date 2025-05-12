@@ -244,119 +244,219 @@ function showInscriptionModal(sessionId) {
     const inscriptionModalElement = document.getElementById(`inscriptionModal_${sessionId}`);
 
     if (!participantsModalElement || !inscriptionModalElement) {
-        console.error("Erreur critique: Une ou les deux modales n'ont pas été trouvées dans le DOM.", `participantsModal_${sessionId}`, `inscriptionModal_${sessionId}`);
+        console.error("Erreur critique: Une ou les deux modales n'ont pas été trouvées dans le DOM.", 
+            participantsModalElement ? "✓ Participants Modal trouvé" : "✗ Participants Modal non trouvé", 
+            inscriptionModalElement ? "✓ Inscription Modal trouvé" : "✗ Inscription Modal non trouvé");
         return;
     }
 
-    const bsParticipantsModal = bootstrap.Modal.getOrCreateInstance(participantsModalElement);
-    const bsInscriptionModal = bootstrap.Modal.getOrCreateInstance(inscriptionModalElement);
+    const bsParticipantsModal = bootstrap.Modal.getInstance(participantsModalElement) || new bootstrap.Modal(participantsModalElement);
+    const bsInscriptionModal = bootstrap.Modal.getInstance(inscriptionModalElement) || new bootstrap.Modal(inscriptionModalElement);
 
     if (participantsModalElement.dataset.isTransitioning === 'true') {
         console.log("Transition déjà en cours, annulation.");
         return;
     }
     participantsModalElement.dataset.isTransitioning = 'true';
-    console.log("Participants modal instance:", bsParticipantsModal);
-    console.log("Inscription modal instance:", bsInscriptionModal);
 
+    // Forcer la fermeture de la modale participants
+    bsParticipantsModal.hide();
+    
+    // Attendre que la modale participants soit cachée avant d'ouvrir la modale d'inscription
     participantsModalElement.addEventListener('hidden.bs.modal', function onHidden() {
         console.log(`Participants modal ${sessionId} is hidden. Now showing inscription modal.`);
         
-        // Forcer le body à ne plus être en mode modal-open pour que la nouvelle modale puisse le remettre correctement
-        // Cela peut aider si le backdrop de la première modale n'est pas correctement retiré.
-        // document.body.classList.remove('modal-open');
-        // document.body.style.overflow = '';
-        // document.body.style.paddingRight = '';
-        // const existingBackdrops = document.querySelectorAll('.modal-backdrop');
-        // existingBackdrops.forEach(b => b.remove()); // Un peu agressif, mais peut aider
-
-        bsInscriptionModal.show();
+        // Réinitialiser l'état du body entre les modales
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
         
-        delete participantsModalElement.dataset.isTransitioning;
-        // L'écouteur est déjà { once: true }, donc pas besoin de le retirer manuellement ici.
-        console.log(`Inscription modal ${sessionId} should be visible now.`);
-    }, { once: true });
-    
-    console.log(`Hiding participants modal ${sessionId}`);
-    bsParticipantsModal.hide();
+        // Supprimer les backdrops restants
+        const existingBackdrops = document.querySelectorAll('.modal-backdrop');
+        existingBackdrops.forEach(b => b.remove());
+        
+        // Ouvrir la nouvelle modale après un court délai
+        setTimeout(() => {
+            bsInscriptionModal.show();
+            delete participantsModalElement.dataset.isTransitioning;
+            console.log(`Inscription modal ${sessionId} should be visible now.`);
+        }, 300);
+        
+        // Retirer cet écouteur d'événement après une utilisation
+        participantsModalElement.removeEventListener('hidden.bs.modal', onHidden);
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    const modalParticipantsEl_{{ session.id }} = document.getElementById('participantsModal_{{ session.id }}');
-    if (modalParticipantsEl_{{ session.id }}) {
-        console.log(`Initializing script for participants modal: participantsModal_{{ session.id }}`);
-        modalParticipantsEl_{{ session.id }}.addEventListener('shown.bs.modal', function () {
-            console.log(`Participants modal participantsModal_{{ session.id }} shown. Initializing tooltips.`);
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-                const tooltipTriggerList = [].slice.call(modalParticipantsEl_{{ session.id }}.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                    let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-                    if (tooltipInstance) { // Dispose old to re-init, or just ensure it exists
-                        tooltipInstance.dispose(); 
-                    }
-                    new bootstrap.Tooltip(tooltipTriggerEl);
-                });
-            }
+    const modalId = 'participantsModal_{{ session.id }}';
+    const modalElement = document.getElementById(modalId);
+    
+    if (!modalElement) {
+        console.warn(`Modal with ID ${modalId} not found.`);
+        return;
+    }
+
+    console.log(`Initializing script for participants modal: ${modalId}`);
+
+    // Force l'affichage et l'interaction avec tous les éléments du tableau dans tous les onglets
+    function enforceTabPaneVisibility(container) {
+        if (!container) return;
+        
+        // S'assurer que le conteneur lui-même est visible
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.opacity = '1';
+        
+        // Rendre les tableaux et leurs éléments visibles
+        const tableElements = container.querySelectorAll('table, tr, td, th, thead, tbody, .table-responsive');
+        tableElements.forEach(el => {
+            el.style.cssText = `
+                display: ${el.tagName === 'TABLE' ? 'table' : 
+                          el.tagName === 'TR' ? 'table-row' : 
+                          (el.tagName === 'TD' || el.tagName === 'TH') ? 'table-cell' : 
+                          el.tagName === 'THEAD' || el.tagName === 'TBODY' ? 'table-row-group' : 'block'} !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                position: relative !important;
+            `;
         });
         
-        modalParticipantsEl_{{ session.id }}.querySelectorAll('.validation-ajax').forEach(button => {
-            button.addEventListener('click', function() {
-                this.disabled = true;
-                const originalText = this.innerHTML;
-                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Traitement...';
-                
-                const inscriptionId = this.getAttribute('data-inscription-id');
-                const action = this.getAttribute('data-action');
-                
-                fetch('/validation_inscription_ajax', { 
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        inscription_id: inscriptionId,
-                        action: action
-                    })
+        // Assurer la visibilité des autres éléments (badges, boutons, etc.)
+        const otherElements = container.querySelectorAll('.btn, .badge, .alert, p, i, span, small');
+        otherElements.forEach(el => {
+            el.style.cssText = `
+                visibility: visible !important;
+                opacity: 1 !important;
+                display: ${el.tagName === 'BUTTON' || el.classList.contains('btn') ? 'inline-block' : 
+                          el.tagName === 'P' ? 'block' : 'inline'} !important;
+            `;
+        });
+        
+        console.log(`Tab pane visibility enforced for container:`, container);
+    }
+    
+    // Initialiser l'onglet actif lors de l'affichage du modal
+    modalElement.addEventListener('shown.bs.modal', function () {
+        console.log(`Participants modal ${modalId} shown, initializing tabs and content.`);
+        
+        // Initialiser les tooltips
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+            const tooltipTriggerList = Array.from(modalElement.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(tooltipTriggerEl => {
+                let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (tooltipInstance) {
+                    tooltipInstance.dispose();
+                }
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+        
+        // Appliquer les fixes à l'onglet actif
+        const activeTabPane = modalElement.querySelector('.tab-pane.active');
+        if (activeTabPane) {
+            enforceTabPaneVisibility(activeTabPane);
+        } else {
+            console.warn("No active tab pane found in the modal.");
+        }
+        
+        // Précharger tous les onglets pour éviter les problèmes lors du changement
+        const allTabPanes = modalElement.querySelectorAll('.tab-pane');
+        allTabPanes.forEach(pane => {
+            enforceTabPaneVisibility(pane);
+        });
+    });
+    
+    // Gérer le changement d'onglets
+    const tabButtons = modalElement.querySelectorAll('[data-bs-toggle="tab"]');
+    tabButtons.forEach(button => {
+        button.addEventListener('shown.bs.tab', function (event) {
+            console.log(`Tab changed in modal ${modalId}`);
+            const targetId = event.target.getAttribute('data-bs-target');
+            if (targetId) {
+                const targetPane = modalElement.querySelector(targetId);
+                if (targetPane) {
+                    enforceTabPaneVisibility(targetPane);
+                }
+            }
+        });
+    });
+    
+    // Améliorer la fonctionnalité des boutons de validation AJAX
+    modalElement.querySelectorAll('.validation-ajax').forEach(button => {
+        button.addEventListener('click', function() {
+            this.disabled = true;
+            const originalText = this.innerHTML;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Traitement...';
+            
+            const inscriptionId = this.getAttribute('data-inscription-id');
+            const action = this.getAttribute('data-action');
+            
+            fetch('/validation_inscription_ajax', { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    inscription_id: inscriptionId,
+                    action: action
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(errData => {
-                            throw new Error(errData.message || `Erreur HTTP ${response.status}`);
-                        });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        if (typeof window.showToast === 'function') {
-                            window.showToast(data.message, 'success');
-                        } else { alert(data.message); }
-                        
-                        setTimeout(() => {
-                            if (typeof window.forcePollingUpdate === 'function') {
-                                window.forcePollingUpdate(true); 
-                            } else { location.reload(); }
-                        }, 1200);
-                    } else {
-                        if (typeof window.showToast === 'function') {
-                            window.showToast(data.message || 'Erreur lors de la validation.', 'danger');
-                        } else { alert(data.message || 'Erreur lors de la validation.'); }
-                        this.disabled = false;
-                        this.innerHTML = originalText;
-                    }
-                })
-                .catch(error => {
-                    console.error('Erreur AJAX:', error);
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.message || `Erreur HTTP ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Afficher un toast de succès
                     if (typeof window.showToast === 'function') {
-                        window.showToast(error.message || 'Erreur de communication avec le serveur.', 'danger');
-                    } else { alert(error.message || 'Erreur de communication avec le serveur.'); }
+                        window.showToast(data.message, 'success');
+                    } else { 
+                        alert(data.message); 
+                    }
+                    
+                    // Recharger les données après un succès
+                    setTimeout(() => {
+                        if (typeof window.forcePollingUpdate === 'function') {
+                            window.forcePollingUpdate(true); 
+                        } else { 
+                            const bsModal = bootstrap.Modal.getInstance(modalElement);
+                            if (bsModal) {
+                                bsModal.hide();
+                                setTimeout(() => {
+                                    location.reload();
+                                }, 500);
+                            } else {
+                                location.reload();
+                            }
+                        }
+                    }, 1200);
+                } else {
+                    // Afficher un message d'erreur
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message || 'Erreur lors de la validation.', 'danger');
+                    } else { 
+                        alert(data.message || 'Erreur lors de la validation.'); 
+                    }
                     this.disabled = false;
                     this.innerHTML = originalText;
-                });
+                }
+            })
+            .catch(error => {
+                console.error('Erreur AJAX:', error);
+                if (typeof window.showToast === 'function') {
+                    window.showToast(error.message || 'Erreur de communication avec le serveur.', 'danger');
+                } else { 
+                    alert(error.message || 'Erreur de communication avec le serveur.'); 
+                }
+                this.disabled = false;
+                this.innerHTML = originalText;
             });
         });
-    } else {
-        console.warn(`Participants modal element not found: participantsModal_{{ session.id }}`);
-    }
+    });
+    
+    console.log(`Participants modal ${modalId} initialization complete.`);
 });
-</script>
