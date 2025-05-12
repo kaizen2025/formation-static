@@ -207,8 +207,9 @@
         window.dashboardConfig.preferredMode = 'auto'; 
         window.dashboardConfig.errorResilience = true;
         
-        window.themesDataForChart = {{ themes_config|tojson|safe }};
-        window.servicesDataForChart = {{ services_config|tojson|safe }};
+        // Accéder directement à la configuration de l'application Flask
+        window.themesDataForChart = {{ config.THEMES_DATA_FOR_CHART|default({})|tojson|safe }};
+        window.servicesDataForChart = {{ config.SERVICES_DATA_FOR_CHART|default({})|tojson|safe }};
     </script>
 
     <!-- Scripts personnalisés (l'ordre est important) -->
@@ -276,7 +277,7 @@
                 let iconClass = 'fa-info-circle'; 
                 let themeClass = 'bg-secondary'; 
                 let themeDescription = 'Information sur le thème.';
-                const themesConfig = window.themesDataForChart || {};
+                const themesConfig = window.themesDataForChart || {}; // Utiliser la variable JS globale
 
                 if (themesConfig[themeName]) {
                     const themeConfig = themesConfig[themeName];
@@ -312,7 +313,7 @@
             if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
                 const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
                 tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                    if (!tooltipTriggerEl.closest('.modal')) { // Ne pas réinitialiser les tooltips des modales ici
+                    if (!tooltipTriggerEl.closest('.modal')) { 
                         const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
                         if (existingTooltip) existingTooltip.dispose();
                         new bootstrap.Tooltip(tooltipTriggerEl);
