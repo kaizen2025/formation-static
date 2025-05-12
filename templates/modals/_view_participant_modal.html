@@ -2,66 +2,65 @@
 <div class="modal fade modal-fix" id="viewParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="viewParticipantModalLabel{{ participant.id }}" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="viewParticipantModalLabel{{ participant.id }}">
-                    <i class="fas fa-user-circle me-2"></i>Détails de {{ participant.prenom }} {{ participant.nom }}
+            <div class="modal-header bg-primary text-white py-2"> {# Padding réduit #}
+                <h5 class="modal-title fs-6" id="viewParticipantModalLabel{{ participant.id }}"> {# fs-6 pour titre plus petit #}
+                    <i class="fas fa-user-circle me-2"></i>Détails: {{ participant.prenom }} {{ participant.nom }}
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4">
-                <div class="row mb-3">
-                    <div class="col-md-6 mb-3 mb-md-0">
-                        <p class="mb-1"><strong class="text-primary"><i class="fas fa-envelope me-2"></i>Email:</strong> {{ participant.email }}</p>
-                        <p class="mb-0"><strong class="text-primary"><i class="fas fa-sitemap me-2"></i>Service:</strong>
-                            <span class="badge fs-6 ms-1" style="background-color: {{ participant.service.couleur or '#6c757d' }}; color: white;">
+            <div class="modal-body p-3"> {# Padding réduit #}
+                <div class="row mb-2 small"> {# mb-2 et small pour compacité #}
+                    <div class="col-md-6 mb-2 mb-md-0">
+                        <p class="mb-1"><strong class="text-primary"><i class="fas fa-envelope me-1"></i>Email:</strong> {{ participant.email }}</p>
+                        <p class="mb-0"><strong class="text-primary"><i class="fas fa-sitemap me-1"></i>Service:</strong>
+                            <span class="badge fs-7 ms-1" style="background-color: {{ participant.service.couleur or '#6c757d' }}; color: white;">
                                 {{ participant.service.nom }}
                             </span>
                         </p>
                     </div>
                     <div class="col-md-6">
-                        <p class="mb-0"><strong class="text-primary"><i class="fas fa-user-tie me-2"></i>Responsable Service:</strong> {{ participant.service.responsable }}
-                           (<a href="mailto:{{ participant.service.email_responsable }}" class="text-decoration-none">{{ participant.service.email_responsable }}</a>)
+                        <p class="mb-0"><strong class="text-primary"><i class="fas fa-user-tie me-1"></i>Resp.:</strong> {{ participant.service.responsable }}
+                           (<a href="mailto:{{ participant.service.email_responsable }}" class="text-decoration-none small">{{ participant.service.email_responsable }}</a>)
                         </p>
                     </div>
                 </div>
-                <hr>
-                <ul class="nav nav-tabs nav-fill mb-3" id="participantTabs{{ participant.id }}" role="tablist">
+                <hr class="my-2"> {# Marge réduite #}
+                <ul class="nav nav-pills nav-sm nav-fill mb-2" id="participantTabs{{ participant.id }}" role="tablist"> {# nav-sm et mb-2 #}
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="view-inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-inscriptions{{ participant.id }}" type="button" role="tab" aria-controls="view-inscriptions{{ participant.id }}" aria-selected="true">
-                            <i class="fas fa-check-circle text-success me-1"></i>Confirmées <span class="badge bg-success ms-1">{{ p_data.inscriptions_count }}</span>
+                        <button class="nav-link active small py-1 px-2" id="view-inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-inscriptions{{ participant.id }}" type="button" role="tab" aria-selected="true">
+                            <i class="fas fa-check-circle text-success me-1"></i>Confirmées <span class="badge bg-success rounded-pill ms-1 fs-7">{{ p_data.inscriptions_count }}</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="view-pending-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-pending{{ participant.id }}" type="button" role="tab" aria-controls="view-pending{{ participant.id }}" aria-selected="false">
-                            <i class="fas fa-hourglass-half text-secondary me-1"></i>En Attente <span class="badge bg-secondary ms-1">{{ p_data.pending_count }}</span>
+                        <button class="nav-link small py-1 px-2" id="view-pending-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-pending{{ participant.id }}" type="button" role="tab" aria-selected="false">
+                            <i class="fas fa-hourglass-half text-secondary me-1"></i>En Attente <span class="badge bg-secondary rounded-pill ms-1 fs-7">{{ p_data.pending_count }}</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="view-attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-attente{{ participant.id }}" type="button" role="tab" aria-controls="view-attente{{ participant.id }}" aria-selected="false">
-                            <i class="fas fa-clock text-warning me-1"></i>Liste d'attente <span class="badge bg-warning text-dark ms-1">{{ p_data.attente_count }}</span>
+                        <button class="nav-link small py-1 px-2" id="view-attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-attente{{ participant.id }}" type="button" role="tab" aria-selected="false">
+                            <i class="fas fa-clock text-warning me-1"></i>Liste d'attente <span class="badge bg-warning text-dark rounded-pill ms-1 fs-7">{{ p_data.attente_count }}</span>
                         </button>
                     </li>
                 </ul>
                 <div class="tab-content pt-2" id="participantTabsContent{{ participant.id }}">
-                    <!-- Onglet inscriptions confirmées -->
-                    <div class="tab-pane fade show active" id="view-inscriptions{{ participant.id }}" role="tabpanel" aria-labelledby="view-inscriptions-tab{{ participant.id }}">
+                    <div class="tab-pane fade show active" id="view-inscriptions{{ participant.id }}" role="tabpanel">
                         {% set confirmed_inscriptions = p_data.loaded_confirmed_inscriptions %}
                         {% if confirmed_inscriptions %}
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="max-height: 200px;"> {# Hauteur max réduite #}
                             <table class="table table-sm table-striped table-hover">
-                                <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
+                                <thead class="small sticky-top table-light"><tr><th>Session</th><th>Date & Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
                                 <tbody>
                                 {% for inscription in confirmed_inscriptions %}
                                     <tr>
-                                        <td><span class="theme-badge" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
-                                        <td>{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
-                                        <td><span class="badge bg-light text-dark border">{{ inscription.session.salle.nom if inscription.session.salle else '-' }}</span></td>
+                                        <td class="small"><span class="theme-badge fs-7" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
+                                        <td class="small">{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
+                                        <td class="small"><span class="badge bg-light text-dark border fs-7">{{ inscription.session.salle.nom if inscription.session.salle else '-' }}</span></td>
                                         <td>
-                                            <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation .ics"><i class="far fa-calendar-plus"></i></a>
+                                            <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary py-0 px-1" target="_blank" title="Invitation .ics"><i class="far fa-calendar-plus"></i></a>
                                              {% if current_user.is_authenticated and current_user.role == 'admin' %}
                                              <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
                                                  <input type="hidden" name="action" value="annuler">
-                                                 <button type="submit" class="btn btn-sm btn-outline-danger btn-cancel-inscription" title="Annuler l'inscription" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');">
+                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1 btn-cancel-inscription" title="Annuler" onclick="return confirm('Annuler cette inscription ?');">
                                                     <i class="fas fa-ban"></i>
                                                  </button>
                                              </form>
@@ -73,34 +72,33 @@
                             </table>
                         </div>
                         {% else %}
-                        <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription confirmée.</p>
+                        <p class="text-muted text-center fst-italic small py-2">Aucune inscription confirmée.</p>
                         {% endif %}
                     </div>
-                     <!-- Onglet inscriptions en attente -->
-                    <div class="tab-pane fade" id="view-pending{{ participant.id }}" role="tabpanel" aria-labelledby="view-pending-tab{{ participant.id }}">
+                    <div class="tab-pane fade" id="view-pending{{ participant.id }}" role="tabpanel">
                           {% set pending_inscriptions = p_data.loaded_pending_inscriptions %}
                         {% if pending_inscriptions %}
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="max-height: 200px;">
                             <table class="table table-sm table-striped table-hover">
-                                 <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Demandé le</th><th>Actions</th></tr></thead>
+                                 <thead class="small sticky-top table-light"><tr><th>Session</th><th>Date & Horaire</th><th>Demandé le</th><th>Actions</th></tr></thead>
                                 <tbody>
                                    {% for inscription in pending_inscriptions %}
                                     <tr>
-                                        <td><span class="theme-badge" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
-                                        <td>{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
-                                        <td>{{ inscription.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
+                                        <td class="small"><span class="theme-badge fs-7" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
+                                        <td class="small">{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
+                                        <td class="small">{{ inscription.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
                                         <td>
                                             {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
                                                 <div class="btn-group btn-group-sm">
-                                                    <button type="button" class="btn btn-outline-success validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="valider" title="Valider" {{ 'disabled' if inscription.session.get_places_restantes(p_data.inscriptions_count) <= 0 else '' }}>
+                                                    <button type="button" class="btn btn-outline-success py-0 px-1 validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="valider" title="Valider" {{ 'disabled' if inscription.session.get_places_restantes(p_data.inscriptions_count) <= 0 else '' }}>
                                                         <i class="fas fa-check"></i>
                                                     </button>
-                                                    <button type="button" class="btn btn-outline-danger validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="refuser" title="Refuser">
+                                                    <button type="button" class="btn btn-outline-danger py-0 px-1 validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="refuser" title="Refuser">
                                                         <i class="fas fa-times"></i>
                                                     </button>
                                                 </div>
                                             {% else %}
-                                                <span class="badge bg-light text-dark border">Validation requise</span>
+                                                <span class="badge bg-light text-dark border fs-7">Validation requise</span>
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -109,26 +107,25 @@
                             </table>
                         </div>
                         {% else %}
-                        <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription en attente de validation.</p>
+                        <p class="text-muted text-center fst-italic small py-2">Aucune inscription en attente.</p>
                         {% endif %}
                     </div>
-                    <!-- Onglet liste d'attente -->
-                    <div class="tab-pane fade" id="view-attente{{ participant.id }}" role="tabpanel" aria-labelledby="view-attente-tab{{ participant.id }}">
+                    <div class="tab-pane fade" id="view-attente{{ participant.id }}" role="tabpanel">
                         {% set waitlist_entries = p_data.loaded_waitlist %}
                         {% if waitlist_entries %}
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="max-height: 200px;">
                              <table class="table table-sm table-striped table-hover">
-                                <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Position</th><th>Inscrit le</th><th>Statut</th></tr></thead>
+                                <thead class="small sticky-top table-light"><tr><th>Session</th><th>Date & Horaire</th><th>Pos.</th><th>Inscrit le</th><th>Statut</th></tr></thead>
                                 <tbody>
                                    {% for attente in waitlist_entries %}
                                     <tr>
-                                        <td><span class="theme-badge" data-theme="{{ attente.session.theme.nom }}">{{ attente.session.theme.nom }}</span></td>
-                                        <td>{{ attente.session.formatage_date }} <small class="text-muted">({{ attente.session.formatage_horaire }})</small></td>
-                                        <td><span class="badge bg-secondary rounded-pill">{{ attente.position }}</span></td>
-                                        <td>{{ attente.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
-                                        <td>
-                                            {% if attente.notification_envoyee %}<span class="badge bg-info">Notifié</span>
-                                            {% else %}<span class="badge bg-light text-dark border">En attente</span>{% endif %}
+                                        <td class="small"><span class="theme-badge fs-7" data-theme="{{ attente.session.theme.nom }}">{{ attente.session.theme.nom }}</span></td>
+                                        <td class="small">{{ attente.session.formatage_date }} <small class="text-muted">({{ attente.session.formatage_horaire }})</small></td>
+                                        <td class="small text-center"><span class="badge bg-secondary rounded-pill fs-7">{{ attente.position }}</span></td>
+                                        <td class="small">{{ attente.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
+                                        <td class="small">
+                                            {% if attente.notification_envoyee %}<span class="badge bg-info fs-7">Notifié</span>
+                                            {% else %}<span class="badge bg-light text-dark border fs-7">En attente</span>{% endif %}
                                         </td>
                                     </tr>
                                    {% endfor %}
@@ -136,13 +133,13 @@
                              </table>
                         </div>
                         {% else %}
-                        <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription en liste d'attente.</p>
+                        <p class="text-muted text-center fst-italic small py-2">Aucune inscription en liste d'attente.</p>
                         {% endif %}
                     </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light border-top">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+            <div class="modal-footer bg-light border-top py-2"> {# Padding réduit #}
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
             </div>
         </div>
     </div>
@@ -150,76 +147,72 @@
 
 <script>
 // Ce script est spécifique au modal viewParticipantModal{{ participant.id }}
-// Il s'exécutera pour chaque instance de ce modal sur la page.
 document.addEventListener('DOMContentLoaded', function() {
     const viewModalElement_{{ participant.id }} = document.getElementById('viewParticipantModal{{ participant.id }}');
     const debugMode = window.dashboardConfig && window.dashboardConfig.debugMode;
 
     if (viewModalElement_{{ participant.id }}) {
-        // Utiliser ModalManager pour améliorer ce modal s'il n'a pas déjà été traité
-        if (window.ModalManager && !viewModalElement_{{ participant.id }}.dataset.modalManagerEnhanced) {
-            window.ModalManager.enhanceModal(viewModalElement_{{ participant.id }});
-        }
-
         viewModalElement_{{ participant.id }}.addEventListener('shown.bs.modal', function () {
             if (debugMode) console.log(`ModalManager (_view_participant_modal): viewParticipantModal{{ participant.id }} shown. Initializing internal components.`);
+            
+            // ModalManager a déjà appliqué les correctifs CSS et JS de base via enhanceModal et applyPostShowFixes.
+            // On s'assure ici que les composants spécifiques à CE modal sont bien initialisés.
 
-            // Le ModalManager devrait déjà avoir géré les tooltips et badges via enhanceModal et applyPostShowFixes.
-            // Si des initialisations spécifiques sont nécessaires APRÈS que ModalManager ait agi,
-            // elles peuvent être placées ici.
+            // 1. Tooltips (ModalManager le fait, mais redondance pour sûreté)
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                Array.from(this.querySelectorAll('[data-bs-toggle="tooltip"]')).forEach(el => {
+                    let instance = bootstrap.Tooltip.getInstance(el);
+                    if (instance) instance.dispose();
+                    new bootstrap.Tooltip(el);
+                });
+            }
 
-            // Exemple: si les boutons AJAX ont besoin d'une initialisation spécifique après que tout soit visible.
+            // 2. Badges de thème (ModalManager le fait, mais redondance pour sûreté)
+            if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+                window.enhanceThemeBadgesGlobally(this);
+            }
+            
+            // 3. Activer le premier onglet si aucun n'est actif
+            const firstTabLink = this.querySelector('.nav-tabs .nav-link');
+            const activeTabLink = this.querySelector('.nav-tabs .nav-link.active');
+            if (firstTabLink && !activeTabLink) {
+                try { new bootstrap.Tab(firstTabLink).show(); } catch(e) { console.error("Error showing tab:", e); }
+            }
+            
+            // 4. Initialiser les boutons AJAX
             this.querySelectorAll('.validation-ajax').forEach(button => {
                 if (button.dataset.ajaxListenerAttached === 'true') return;
                 button.dataset.ajaxListenerAttached = 'true';
-
                 button.addEventListener('click', function() {
                     this.disabled = true;
-                    const originalText = this.innerHTML;
+                    const originalHTML = this.innerHTML;
                     this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-                    
                     const inscriptionId = this.getAttribute('data-inscription-id');
                     const action = this.getAttribute('data-action');
                     
                     fetch("{{ url_for('validation_inscription_ajax') }}", { 
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify({
-                            inscription_id: inscriptionId,
-                            action: action
-                        })
+                        headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                        body: JSON.stringify({inscription_id: inscriptionId, action: action})
                     })
-                    .then(response => {
-                        if (!response.ok) {
-                            return response.json().then(errData => {
-                                throw new Error(errData.message || `Erreur HTTP ${response.status}`);
-                            });
-                        }
-                        return response.json();
-                    })
+                    .then(response => response.ok ? response.json() : response.json().then(err => Promise.reject(err)))
                     .then(data => {
                         if (data.success) {
                             if (typeof window.showToast === 'function') window.showToast(data.message, 'success');
-                            setTimeout(() => {
-                                window.location.reload(); // Ou une mise à jour plus ciblée des données
-                            }, 1200);
+                            setTimeout(() => { window.location.reload(); }, 1000);
                         } else {
                             if (typeof window.showToast === 'function') window.showToast(data.message || 'Erreur.', 'danger');
-                            this.disabled = false;
-                            this.innerHTML = originalText;
+                            this.disabled = false; this.innerHTML = originalHTML;
                         }
                     })
                     .catch(error => {
                         console.error('Erreur AJAX validation:', error);
                         if (typeof window.showToast === 'function') window.showToast(error.message || 'Erreur serveur.', 'danger');
-                        this.disabled = false;
-                        this.innerHTML = originalText;
+                        this.disabled = false; this.innerHTML = originalHTML;
                     });
                 });
             });
+            if (debugMode) console.log(`ModalManager (_view_participant_modal): Internal components for viewParticipantModal{{ participant.id }} initialized.`);
         });
     }
 });
