@@ -3,6 +3,7 @@
 {% block title %}Gestion des Participants - {{ app_name }}{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
 <style>
     /* Styles uniquement pour l'apparence du tableau, pas de styles modaux */
     #participants-table th, 
@@ -31,20 +32,20 @@
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <h1 class="h3 text-primary mb-0"><i class="fas fa-users me-2"></i>Gestion des Participants</h1>
         {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-        <button class="btn btn-primary shadow-sm" data-portal-target="#addParticipantModalGlobal">
+        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal">
             <i class="fas fa-user-plus me-2"></i>Ajouter un Participant
         </button>
         {% endif %}
     </div>
 
-    <!-- Add Participant Modal inclus mais sera géré par PortalModal -->
+    <!-- Add Participant Modal -->
     {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-    <div class="modal fade" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
+    <div class="modal fade modal-fix" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title" id="addParticipantModalGlobalLabel"><i class="fas fa-user-plus me-2"></i>Ajouter un Nouveau Participant</h5>
-                    <button type="button" class="btn-close btn-close-white" data-portal-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
                      <form action="{{ url_for('add_participant') }}" method="post" class="needs-validation" novalidate>
@@ -82,7 +83,7 @@
                     </form>
                 </div>
                 <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-outline-secondary" data-portal-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
                 </div>
             </div>
         </div>
@@ -135,31 +136,259 @@
                             <td class="text-center">
                                 <div class="btn-group btn-group-sm" role="group" aria-label="Actions pour {{ participant.prenom }} {{ participant.nom }}">
                                     <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewParticipantModal{{ participant.id }}" title="Voir détails">
-    <i class="fas fa-eye"></i>
-</button>
+                                        <i class="fas fa-eye"></i>
+                                    </button>
                                     {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
-                                    <button type="button" class="btn btn-outline-secondary" data-portal-target="#editParticipantModal{{ participant.id }}" title="Modifier">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editParticipantModal{{ participant.id }}" title="Modifier">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     {% endif %}
                                      {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                     <button type="button" class="btn btn-outline-danger" data-portal-target="#deleteParticipantModal{{ participant.id }}" title="Supprimer">
+                                     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteParticipantModal{{ participant.id }}" title="Supprimer">
                                          <i class="fas fa-trash"></i>
                                      </button>
                                      {% endif %}
                                 </div>
 
-                                {# Inclusion des modales avec les classes bootstrap normales (seront converties en portails) #}
+                                {# Inclusion des modales avec la classe modal-fix #}
                                 {% with participant=participant, p_data=p_data %}
-                                    {% include 'modals/_view_participant_modal.html' %}
+                                    <div class="modal fade modal-fix" id="viewParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="viewParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+                                        <div class="modal-dialog modal-xl">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-primary text-white">
+                                                    <h5 class="modal-title" id="viewParticipantModalLabel{{ participant.id }}">
+                                                        <i class="fas fa-user-circle me-2"></i>Détails de {{ participant.prenom }} {{ participant.nom }}
+                                                    </h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body p-4">
+                                                    <div class="row mb-3">
+                                                        <div class="col-md-6 mb-3 mb-md-0">
+                                                            <p class="mb-1"><strong class="text-primary"><i class="fas fa-envelope me-2"></i>Email:</strong> {{ participant.email }}</p>
+                                                            <p class="mb-0"><strong class="text-primary"><i class="fas fa-sitemap me-2"></i>Service:</strong>
+                                                                <span class="badge fs-6 ms-1" style="background-color: {{ participant.service.couleur or '#6c757d' }}; color: white;">
+                                                                    {{ participant.service.nom }}
+                                                                </span>
+                                                            </p>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <p class="mb-0"><strong class="text-primary"><i class="fas fa-user-tie me-2"></i>Responsable Service:</strong> {{ participant.service.responsable }}
+                                                               (<a href="mailto:{{ participant.service.email_responsable }}" class="text-decoration-none">{{ participant.service.email_responsable }}</a>)
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <hr>
+                                                    <ul class="nav nav-tabs nav-fill mb-3" id="participantTabs{{ participant.id }}" role="tablist">
+                                                        <li class="nav-item" role="presentation">
+                                                            <button class="nav-link active" id="view-inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-inscriptions{{ participant.id }}" type="button" role="tab" aria-controls="view-inscriptions{{ participant.id }}" aria-selected="true">
+                                                                <i class="fas fa-check-circle text-success me-1"></i>Confirmées <span class="badge bg-success ms-1">{{ p_data.inscriptions_count }}</span>
+                                                            </button>
+                                                        </li>
+                                                        <li class="nav-item" role="presentation">
+                                                            <button class="nav-link" id="view-pending-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-pending{{ participant.id }}" type="button" role="tab" aria-controls="view-pending{{ participant.id }}" aria-selected="false">
+                                                                <i class="fas fa-hourglass-half text-secondary me-1"></i>En Attente <span class="badge bg-secondary ms-1">{{ p_data.pending_count }}</span>
+                                                            </button>
+                                                        </li>
+                                                        <li class="nav-item" role="presentation">
+                                                            <button class="nav-link" id="view-attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-attente{{ participant.id }}" type="button" role="tab" aria-controls="view-attente{{ participant.id }}" aria-selected="false">
+                                                                <i class="fas fa-clock text-warning me-1"></i>Liste d'attente <span class="badge bg-warning text-dark ms-1">{{ p_data.attente_count }}</span>
+                                                            </button>
+                                                        </li>
+                                                    </ul>
+                                                    <div class="tab-content pt-2" id="participantTabsContent{{ participant.id }}">
+                                                        <!-- Onglet inscriptions confirmées -->
+                                                        <div class="tab-pane fade show active" id="view-inscriptions{{ participant.id }}" role="tabpanel" aria-labelledby="view-inscriptions-tab{{ participant.id }}">
+                                                            {% set confirmed_inscriptions = p_data.loaded_confirmed_inscriptions %}
+                                                            {% if confirmed_inscriptions %}
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm table-striped table-hover">
+                                                                    <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
+                                                                    <tbody>
+                                                                    {% for inscription in confirmed_inscriptions %}
+                                                                        <tr>
+                                                                            <td><span class="theme-badge" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
+                                                                            <td>{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
+                                                                            <td><span class="badge bg-light text-dark border">{{ inscription.session.salle.nom if inscription.session.salle else '-' }}</span></td>
+                                                                            <td>
+                                                                                <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation .ics"><i class="far fa-calendar-plus"></i></a>
+                                                                                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                                                                 <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
+                                                                                     <input type="hidden" name="action" value="annuler">
+                                                                                     <button type="submit" class="btn btn-sm btn-outline-danger btn-cancel-inscription" title="Annuler l'inscription" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');">
+                                                                                        <i class="fas fa-ban"></i>
+                                                                                     </button>
+                                                                                 </form>
+                                                                                 {% endif %}
+                                                                            </td>
+                                                                        </tr>
+                                                                    {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                            {% else %}
+                                                            <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription confirmée.</p>
+                                                            {% endif %}
+                                                        </div>
+                                                         <!-- Onglet inscriptions en attente -->
+                                                        <div class="tab-pane fade" id="view-pending{{ participant.id }}" role="tabpanel" aria-labelledby="view-pending-tab{{ participant.id }}">
+                                                              {% set pending_inscriptions = p_data.loaded_pending_inscriptions %}
+                                                            {% if pending_inscriptions %}
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm table-striped table-hover">
+                                                                     <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Demandé le</th><th>Actions</th></tr></thead>
+                                                                    <tbody>
+                                                                       {% for inscription in pending_inscriptions %}
+                                                                        <tr>
+                                                                            <td><span class="theme-badge" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
+                                                                            <td>{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
+                                                                            <td>{{ inscription.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
+                                                                            <td>
+                                                                                {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
+                                                                                    <div class="btn-group btn-group-sm">
+                                                                                        <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
+                                                                                            <input type="hidden" name="action" value="valider">
+                                                                                            <button type="submit" class="btn btn-sm btn-success" {{ 'disabled' if inscription.session.get_places_restantes(p_data.inscriptions_count) <= 0 else '' }}>
+                                                                                                <i class="fas fa-check"></i> Valider
+                                                                                            </button>
+                                                                                        </form>
+                                                                                        <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ml-1">
+                                                                                            <input type="hidden" name="action" value="refuser">
+                                                                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                                                                <i class="fas fa-times"></i> Refuser
+                                                                                            </button>
+                                                                                        </form>
+                                                                                    </div>
+                                                                                {% else %}
+                                                                                    <span class="badge bg-light text-dark border">Validation requise</span>
+                                                                                {% endif %}
+                                                                            </td>
+                                                                        </tr>
+                                                                       {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                            {% else %}
+                                                            <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription en attente de validation.</p>
+                                                            {% endif %}
+                                                        </div>
+                                                        <!-- Onglet liste d'attente -->
+                                                        <div class="tab-pane fade" id="view-attente{{ participant.id }}" role="tabpanel" aria-labelledby="view-attente-tab{{ participant.id }}">
+                                                            {% set waitlist_entries = p_data.loaded_waitlist %}
+                                                            {% if waitlist_entries %}
+                                                            <div class="table-responsive">
+                                                                 <table class="table table-sm table-striped table-hover">
+                                                                    <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Position</th><th>Inscrit le</th><th>Statut</th></tr></thead>
+                                                                    <tbody>
+                                                                       {% for attente in waitlist_entries %}
+                                                                        <tr>
+                                                                            <td><span class="theme-badge" data-theme="{{ attente.session.theme.nom }}">{{ attente.session.theme.nom }}</span></td>
+                                                                            <td>{{ attente.session.formatage_date }} <small class="text-muted">({{ attente.session.formatage_horaire }})</small></td>
+                                                                            <td><span class="badge bg-secondary rounded-pill">{{ attente.position }}</span></td>
+                                                                            <td>{{ attente.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
+                                                                            <td>
+                                                                                {% if attente.notification_envoyee %}<span class="badge bg-info">Notifié</span>
+                                                                                {% else %}<span class="badge bg-light text-dark border">En attente</span>{% endif %}
+                                                                            </td>
+                                                                        </tr>
+                                                                       {% endfor %}
+                                                                    </tbody>
+                                                                 </table>
+                                                            </div>
+                                                            {% else %}
+                                                            <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription en liste d'attente.</p>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer bg-light border-top">
+                                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 {% endwith %}
 
                                 {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
-                                    {% include 'modals/_edit_participant_modal.html' %}
+                                    <div class="modal fade modal-fix" id="editParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="editParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+                                        <div class="modal-dialog modal-lg">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-secondary text-white">
+                                                    <h5 class="modal-title" id="editParticipantModalLabel{{ participant.id }}">
+                                                        <i class="fas fa-user-edit me-2"></i>Modifier - {{ participant.prenom }} {{ participant.nom }}
+                                                    </h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body p-4">
+                                                    <form action="{{ url_for('update_participant', id=participant.id) }}" method="post" class="needs-validation" novalidate>
+                                                        <div class="row g-3 mb-3">
+                                                            <div class="col-md-6">
+                                                                <label for="edit_nom_{{ participant.id }}" class="form-label">Nom*</label>
+                                                                <input type="text" class="form-control" id="edit_nom_{{ participant.id }}" name="nom" value="{{ participant.nom }}" required>
+                                                                <div class="invalid-feedback">Le nom est requis.</div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label for="edit_prenom_{{ participant.id }}" class="form-label">Prénom*</label>
+                                                                <input type="text" class="form-control" id="edit_prenom_{{ participant.id }}" name="prenom" value="{{ participant.prenom }}" required>
+                                                                <div class="invalid-feedback">Le prénom est requis.</div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label for="edit_email_{{ participant.id }}" class="form-label">Email*</label>
+                                                                <input type="email" class="form-control" id="edit_email_{{ participant.id }}" name="email" value="{{ participant.email }}" required>
+                                                                <div class="invalid-feedback">Un email valide est requis.</div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label for="edit_service_id_{{ participant.id }}" class="form-label">Service*</label>
+                                                                <select class="form-select" id="edit_service_id_{{ participant.id }}" name="service_id" required>
+                                                                    {% for service_item in services|sort(attribute='nom') %}
+                                                                    <option value="{{ service_item.id }}" {% if service_item.id == participant.service_id %}selected{% endif %}>{{ service_item.nom }}</option>
+                                                                    {% endfor %}
+                                                                </select>
+                                                                <div class="invalid-feedback">Le service est requis.</div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d-grid mt-4">
+                                                            <button type="submit" class="btn btn-primary btn-lg">
+                                                                <i class="fas fa-save me-2"></i>Enregistrer les modifications
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                                <div class="modal-footer bg-light">
+                                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 {% endif %}
 
                                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                    {% include 'modals/_delete_participant_modal.html' %}
+                                    <div class="modal fade modal-fix" id="deleteParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="deleteParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-danger text-white">
+                                                    <h5 class="modal-title" id="deleteParticipantModalLabel{{ participant.id }}">
+                                                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmer la Suppression
+                                                    </h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body p-4">
+                                                    <div class="alert alert-warning">
+                                                        <i class="fas fa-exclamation-circle me-2"></i>Attention ! Cette action est irréversible.
+                                                    </div>
+                                                    <p>Êtes-vous sûr de vouloir supprimer le participant <strong>{{ participant.prenom }} {{ participant.nom }}</strong> ?</p>
+                                                    <p class="text-danger"><small>Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées.</small></p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                    <form action="{{ url_for('delete_participant', id=participant.id) }}" method="post" class="d-inline">
+                                                        <button type="submit" class="btn btn-danger">
+                                                            <i class="fas fa-trash-alt me-2"></i>Supprimer Définitivement
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 {% endif %}
                             </td>
                         </tr>
@@ -169,7 +398,7 @@
                                   <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
                                   Aucun participant trouvé. 
                                   {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-                                  <a href="#" data-portal-target="#addParticipantModalGlobal" class="d-block mt-2">Ajouter un participant</a>
+                                  <a href="#" data-bs-toggle="modal" data-bs-target="#addParticipantModalGlobal" class="d-block mt-2">Ajouter un participant</a>
                                   {% endif %}
                               </td>
                           </tr>
@@ -187,8 +416,7 @@
 {% endblock %}
 
 {% block scripts_extra %}
-<!-- Inclure notre système de modals par portail -->
-<script src="{{ url_for('static', filename='js/portal-modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modal-manager.js') }}"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -255,33 +483,29 @@
                 form.classList.add('was-validated');
             }, false);
         });
-
-        // Écouter les événements de notre système de portails modaux
-        document.addEventListener('portal-modal.shown', function(e) {
-            const modalId = e.detail.modalId;
-            console.log(`Modal ${modalId} shown via Portal system`);
-            
-            // Initialiser les tooltips
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-                const modal = document.querySelector(`#portal-modal-container .portal-modal#${modalId}`);
-                if (modal) {
-                    modal.querySelectorAll('[data-bs-toggle="tooltip"], [title]').forEach(el => {
-                        new bootstrap.Tooltip(el);
-                    });
-                }
-            }
-            
-            // Améliorer les badges de thème
-            if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-                const modal = document.querySelector(`#portal-modal-container .portal-modal#${modalId}`);
-                if (modal) {
-                    window.enhanceThemeBadgesGlobally(modal);
-                }
-            }
-        });
+        
+        // Initialiser le gestionnaire de modaux avec debug mode si nécessaire
+        if (window.ModalManager) {
+            window.ModalManager.init({
+                debugMode: DASH_CONFIG.debugMode || false
+            });
+        }
+        
+        // Améliorer les badges de thème s'ils existent
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            window.enhanceThemeBadgesGlobally();
+        }
+        
+        // Initialiser les tooltips
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
         
         if (DASH_CONFIG.debugMode) {
-            console.log('Participants Page: Initialized with Portal Modal system for robust modal handling.');
+            console.log('Participants Page: Initialized with Modal Manager for robust modal handling.');
         }
     });
 </script>
