@@ -3,9 +3,8 @@
 {% block title %}Gestion des Participants - {{ app_name }}{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
 <style>
-    /* Styles uniquement pour l'apparence du tableau, pas de styles modaux */
+    /* Styles pour l'apparence du tableau et des modals */
     #participants-table th, 
     #participants-table td {
         vertical-align: middle;
@@ -20,9 +19,69 @@
         font-size: 0.875rem !important;
         padding: 0.4em 0.65em !important;
     }
-    .modal-xl .table-sm td, 
-    .modal-xl .table-sm th {
-        padding: 0.4rem;
+    
+    /* Styles pour résoudre les problèmes de modaux */
+    .modal-fix {
+        z-index: 1055 !important;
+    }
+    .modal-fix .modal-dialog {
+        z-index: 1056 !important;
+    }
+    .modal-fix .modal-content {
+        z-index: 1057 !important;
+    }
+    
+    /* Styles pour les éléments de formulaire dans les modaux */
+    .modal-fix select, 
+    .modal-fix .form-select, 
+    .modal-fix input:not([type="hidden"]), 
+    .modal-fix textarea {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 1060 !important;
+        pointer-events: auto !important;
+    }
+    
+    .modal-fix .form-select,
+    .modal-fix select {
+        -webkit-appearance: menulist !important;
+        -moz-appearance: menulist !important;
+        appearance: menulist !important;
+        width: 100% !important;
+    }
+    
+    .modal-fix button, 
+    .modal-fix .btn {
+        position: relative !important;
+        z-index: 1060 !important;
+        display: inline-block !important;
+        pointer-events: auto !important;
+    }
+    
+    /* Styles pour les onglets */
+    .modal-fix .nav-tabs,
+    .modal-fix .tab-content,
+    .modal-fix .tab-pane {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    .modal-fix .tab-pane:not(.active) {
+        display: none !important;
+    }
+    
+    /* Éviter les scintillements */ 
+    .modal-backdrop {
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+    
+    .modal-open {
+        overflow: hidden;
     }
 </style>
 {% endblock %}
@@ -37,58 +96,6 @@
         </button>
         {% endif %}
     </div>
-
-    <!-- Add Participant Modal -->
-    {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-    <div class="modal fade modal-fix" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="addParticipantModalGlobalLabel"><i class="fas fa-user-plus me-2"></i>Ajouter un Nouveau Participant</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4">
-                     <form action="{{ url_for('add_participant') }}" method="post" class="needs-validation" novalidate>
-                        <input type="hidden" name="from_page" value="participants_page">
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label for="add_nom_global" class="form-label">Nom*</label>
-                                <input type="text" class="form-control" id="add_nom_global" name="nom" required>
-                                <div class="invalid-feedback">Le nom est requis.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="add_prenom_global" class="form-label">Prénom*</label>
-                                <input type="text" class="form-control" id="add_prenom_global" name="prenom" required>
-                                <div class="invalid-feedback">Le prénom est requis.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="add_email_global" class="form-label">Email*</label>
-                                <input type="email" class="form-control" id="add_email_global" name="email" required>
-                                <div class="invalid-feedback">Un email valide est requis.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="add_service_id_global" class="form-label">Service*</label>
-                                <select class="form-select" id="add_service_id_global" name="service_id" required>
-                                    <option value="" disabled selected>-- Choisir un service --</option>
-                                    {% for service in services|sort(attribute='nom') %} 
-                                    <option value="{{ service.id }}">{{ service.nom }}</option>
-                                    {% endfor %}
-                                </select>
-                                <div class="invalid-feedback">Le service est requis.</div>
-                            </div>
-                        </div>
-                        <div class="d-grid mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-plus-circle me-2"></i>Ajouter le Participant</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 
     <!-- Tableau des participants -->
     <div class="card shadow-sm mb-4">
@@ -143,256 +150,16 @@
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     {% endif %}
-                                     {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteParticipantModal{{ participant.id }}" title="Supprimer">
-                                         <i class="fas fa-trash"></i>
-                                     </button>
-                                     {% endif %}
+                                    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteParticipantModal{{ participant.id }}" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
                                 </div>
-
-                                {# Inclusion des modales avec la classe modal-fix #}
-                                {% with participant=participant, p_data=p_data %}
-                                    <div class="modal fade modal-fix" id="viewParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="viewParticipantModalLabel{{ participant.id }}" aria-hidden="true">
-                                        <div class="modal-dialog modal-xl">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-primary text-white">
-                                                    <h5 class="modal-title" id="viewParticipantModalLabel{{ participant.id }}">
-                                                        <i class="fas fa-user-circle me-2"></i>Détails de {{ participant.prenom }} {{ participant.nom }}
-                                                    </h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body p-4">
-                                                    <div class="row mb-3">
-                                                        <div class="col-md-6 mb-3 mb-md-0">
-                                                            <p class="mb-1"><strong class="text-primary"><i class="fas fa-envelope me-2"></i>Email:</strong> {{ participant.email }}</p>
-                                                            <p class="mb-0"><strong class="text-primary"><i class="fas fa-sitemap me-2"></i>Service:</strong>
-                                                                <span class="badge fs-6 ms-1" style="background-color: {{ participant.service.couleur or '#6c757d' }}; color: white;">
-                                                                    {{ participant.service.nom }}
-                                                                </span>
-                                                            </p>
-                                                        </div>
-                                                        <div class="col-md-6">
-                                                            <p class="mb-0"><strong class="text-primary"><i class="fas fa-user-tie me-2"></i>Responsable Service:</strong> {{ participant.service.responsable }}
-                                                               (<a href="mailto:{{ participant.service.email_responsable }}" class="text-decoration-none">{{ participant.service.email_responsable }}</a>)
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <hr>
-                                                    <ul class="nav nav-tabs nav-fill mb-3" id="participantTabs{{ participant.id }}" role="tablist">
-                                                        <li class="nav-item" role="presentation">
-                                                            <button class="nav-link active" id="view-inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-inscriptions{{ participant.id }}" type="button" role="tab" aria-controls="view-inscriptions{{ participant.id }}" aria-selected="true">
-                                                                <i class="fas fa-check-circle text-success me-1"></i>Confirmées <span class="badge bg-success ms-1">{{ p_data.inscriptions_count }}</span>
-                                                            </button>
-                                                        </li>
-                                                        <li class="nav-item" role="presentation">
-                                                            <button class="nav-link" id="view-pending-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-pending{{ participant.id }}" type="button" role="tab" aria-controls="view-pending{{ participant.id }}" aria-selected="false">
-                                                                <i class="fas fa-hourglass-half text-secondary me-1"></i>En Attente <span class="badge bg-secondary ms-1">{{ p_data.pending_count }}</span>
-                                                            </button>
-                                                        </li>
-                                                        <li class="nav-item" role="presentation">
-                                                            <button class="nav-link" id="view-attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-attente{{ participant.id }}" type="button" role="tab" aria-controls="view-attente{{ participant.id }}" aria-selected="false">
-                                                                <i class="fas fa-clock text-warning me-1"></i>Liste d'attente <span class="badge bg-warning text-dark ms-1">{{ p_data.attente_count }}</span>
-                                                            </button>
-                                                        </li>
-                                                    </ul>
-                                                    <div class="tab-content pt-2" id="participantTabsContent{{ participant.id }}">
-                                                        <!-- Onglet inscriptions confirmées -->
-                                                        <div class="tab-pane fade show active" id="view-inscriptions{{ participant.id }}" role="tabpanel" aria-labelledby="view-inscriptions-tab{{ participant.id }}">
-                                                            {% set confirmed_inscriptions = p_data.loaded_confirmed_inscriptions %}
-                                                            {% if confirmed_inscriptions %}
-                                                            <div class="table-responsive">
-                                                                <table class="table table-sm table-striped table-hover">
-                                                                    <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
-                                                                    <tbody>
-                                                                    {% for inscription in confirmed_inscriptions %}
-                                                                        <tr>
-                                                                            <td><span class="theme-badge" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
-                                                                            <td>{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
-                                                                            <td><span class="badge bg-light text-dark border">{{ inscription.session.salle.nom if inscription.session.salle else '-' }}</span></td>
-                                                                            <td>
-                                                                                <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation .ics"><i class="far fa-calendar-plus"></i></a>
-                                                                                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                                                                 <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
-                                                                                     <input type="hidden" name="action" value="annuler">
-                                                                                     <button type="submit" class="btn btn-sm btn-outline-danger btn-cancel-inscription" title="Annuler l'inscription" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');">
-                                                                                        <i class="fas fa-ban"></i>
-                                                                                     </button>
-                                                                                 </form>
-                                                                                 {% endif %}
-                                                                            </td>
-                                                                        </tr>
-                                                                    {% endfor %}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                            {% else %}
-                                                            <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription confirmée.</p>
-                                                            {% endif %}
-                                                        </div>
-                                                         <!-- Onglet inscriptions en attente -->
-                                                        <div class="tab-pane fade" id="view-pending{{ participant.id }}" role="tabpanel" aria-labelledby="view-pending-tab{{ participant.id }}">
-                                                              {% set pending_inscriptions = p_data.loaded_pending_inscriptions %}
-                                                            {% if pending_inscriptions %}
-                                                            <div class="table-responsive">
-                                                                <table class="table table-sm table-striped table-hover">
-                                                                     <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Demandé le</th><th>Actions</th></tr></thead>
-                                                                    <tbody>
-                                                                       {% for inscription in pending_inscriptions %}
-                                                                        <tr>
-                                                                            <td><span class="theme-badge" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
-                                                                            <td>{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
-                                                                            <td>{{ inscription.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
-                                                                            <td>
-                                                                                {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
-                                                                                    <div class="btn-group btn-group-sm">
-                                                                                        <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
-                                                                                            <input type="hidden" name="action" value="valider">
-                                                                                            <button type="submit" class="btn btn-sm btn-success" {{ 'disabled' if inscription.session.get_places_restantes(p_data.inscriptions_count) <= 0 else '' }}>
-                                                                                                <i class="fas fa-check"></i> Valider
-                                                                                            </button>
-                                                                                        </form>
-                                                                                        <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ml-1">
-                                                                                            <input type="hidden" name="action" value="refuser">
-                                                                                            <button type="submit" class="btn btn-sm btn-danger">
-                                                                                                <i class="fas fa-times"></i> Refuser
-                                                                                            </button>
-                                                                                        </form>
-                                                                                    </div>
-                                                                                {% else %}
-                                                                                    <span class="badge bg-light text-dark border">Validation requise</span>
-                                                                                {% endif %}
-                                                                            </td>
-                                                                        </tr>
-                                                                       {% endfor %}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                            {% else %}
-                                                            <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription en attente de validation.</p>
-                                                            {% endif %}
-                                                        </div>
-                                                        <!-- Onglet liste d'attente -->
-                                                        <div class="tab-pane fade" id="view-attente{{ participant.id }}" role="tabpanel" aria-labelledby="view-attente-tab{{ participant.id }}">
-                                                            {% set waitlist_entries = p_data.loaded_waitlist %}
-                                                            {% if waitlist_entries %}
-                                                            <div class="table-responsive">
-                                                                 <table class="table table-sm table-striped table-hover">
-                                                                    <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Position</th><th>Inscrit le</th><th>Statut</th></tr></thead>
-                                                                    <tbody>
-                                                                       {% for attente in waitlist_entries %}
-                                                                        <tr>
-                                                                            <td><span class="theme-badge" data-theme="{{ attente.session.theme.nom }}">{{ attente.session.theme.nom }}</span></td>
-                                                                            <td>{{ attente.session.formatage_date }} <small class="text-muted">({{ attente.session.formatage_horaire }})</small></td>
-                                                                            <td><span class="badge bg-secondary rounded-pill">{{ attente.position }}</span></td>
-                                                                            <td>{{ attente.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
-                                                                            <td>
-                                                                                {% if attente.notification_envoyee %}<span class="badge bg-info">Notifié</span>
-                                                                                {% else %}<span class="badge bg-light text-dark border">En attente</span>{% endif %}
-                                                                            </td>
-                                                                        </tr>
-                                                                       {% endfor %}
-                                                                    </tbody>
-                                                                 </table>
-                                                            </div>
-                                                            {% else %}
-                                                            <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription en liste d'attente.</p>
-                                                            {% endif %}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer bg-light border-top">
-                                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endwith %}
-
-                                {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
-                                    <div class="modal fade modal-fix" id="editParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="editParticipantModalLabel{{ participant.id }}" aria-hidden="true">
-                                        <div class="modal-dialog modal-lg">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-secondary text-white">
-                                                    <h5 class="modal-title" id="editParticipantModalLabel{{ participant.id }}">
-                                                        <i class="fas fa-user-edit me-2"></i>Modifier - {{ participant.prenom }} {{ participant.nom }}
-                                                    </h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body p-4">
-                                                    <form action="{{ url_for('update_participant', id=participant.id) }}" method="post" class="needs-validation" novalidate>
-                                                        <div class="row g-3 mb-3">
-                                                            <div class="col-md-6">
-                                                                <label for="edit_nom_{{ participant.id }}" class="form-label">Nom*</label>
-                                                                <input type="text" class="form-control" id="edit_nom_{{ participant.id }}" name="nom" value="{{ participant.nom }}" required>
-                                                                <div class="invalid-feedback">Le nom est requis.</div>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label for="edit_prenom_{{ participant.id }}" class="form-label">Prénom*</label>
-                                                                <input type="text" class="form-control" id="edit_prenom_{{ participant.id }}" name="prenom" value="{{ participant.prenom }}" required>
-                                                                <div class="invalid-feedback">Le prénom est requis.</div>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label for="edit_email_{{ participant.id }}" class="form-label">Email*</label>
-                                                                <input type="email" class="form-control" id="edit_email_{{ participant.id }}" name="email" value="{{ participant.email }}" required>
-                                                                <div class="invalid-feedback">Un email valide est requis.</div>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label for="edit_service_id_{{ participant.id }}" class="form-label">Service*</label>
-                                                                <select class="form-select" id="edit_service_id_{{ participant.id }}" name="service_id" required>
-                                                                    {% for service_item in services|sort(attribute='nom') %}
-                                                                    <option value="{{ service_item.id }}" {% if service_item.id == participant.service_id %}selected{% endif %}>{{ service_item.nom }}</option>
-                                                                    {% endfor %}
-                                                                </select>
-                                                                <div class="invalid-feedback">Le service est requis.</div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="d-grid mt-4">
-                                                            <button type="submit" class="btn btn-primary btn-lg">
-                                                                <i class="fas fa-save me-2"></i>Enregistrer les modifications
-                                                            </button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                                <div class="modal-footer bg-light">
-                                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endif %}
-
-                                {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                    <div class="modal fade modal-fix" id="deleteParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="deleteParticipantModalLabel{{ participant.id }}" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-danger text-white">
-                                                    <h5 class="modal-title" id="deleteParticipantModalLabel{{ participant.id }}">
-                                                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmer la Suppression
-                                                    </h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body p-4">
-                                                    <div class="alert alert-warning">
-                                                        <i class="fas fa-exclamation-circle me-2"></i>Attention ! Cette action est irréversible.
-                                                    </div>
-                                                    <p>Êtes-vous sûr de vouloir supprimer le participant <strong>{{ participant.prenom }} {{ participant.nom }}</strong> ?</p>
-                                                    <p class="text-danger"><small>Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées.</small></p>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                    <form action="{{ url_for('delete_participant', id=participant.id) }}" method="post" class="d-inline">
-                                                        <button type="submit" class="btn btn-danger">
-                                                            <i class="fas fa-trash-alt me-2"></i>Supprimer Définitivement
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endif %}
                             </td>
                         </tr>
-                         {% else %}
+                        {% endfor %}
+                        {% if not participants_data or participants_data|length == 0 %}
                           <tr id="no-participants-row">
                               <td colspan="6" class="text-center text-muted p-4">
                                   <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
@@ -402,7 +169,7 @@
                                   {% endif %}
                               </td>
                           </tr>
-                        {% endfor %}
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -415,83 +182,596 @@
 </div>
 {% endblock %}
 
-{% block scripts_extra %}
-<script src="{{ url_for('static', filename='js/modal-manager.js') }}"></script>
+{% block modals %}
+<!-- Modal Ajouter Participant -->
+{% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+<div class="modal fade modal-fix" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addParticipantModalGlobalLabel"><i class="fas fa-user-plus me-2"></i>Ajouter un Nouveau Participant</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                 <form action="{{ url_for('add_participant') }}" method="post" class="needs-validation" novalidate>
+                    <input type="hidden" name="from_page" value="participants_page">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="add_nom_global" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="add_nom_global" name="nom" required>
+                            <div class="invalid-feedback">Le nom est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_prenom_global" class="form-label">Prénom*</label>
+                            <input type="text" class="form-control" id="add_prenom_global" name="prenom" required>
+                            <div class="invalid-feedback">Le prénom est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_email_global" class="form-label">Email*</label>
+                            <input type="email" class="form-control" id="add_email_global" name="email" required>
+                            <div class="invalid-feedback">Un email valide est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_service_id_global" class="form-label">Service*</label>
+                            <select class="form-select" id="add_service_id_global" name="service_id" required>
+                                <option value="" disabled selected>-- Choisir un service --</option>
+                                {% for service in services|sort(attribute='nom') %} 
+                                <option value="{{ service.id }}">{{ service.nom }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">Le service est requis.</div>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-plus-circle me-2"></i>Ajouter le Participant</button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
+<!-- Modal Détails Participant pour chaque participant -->
+{% for p_data in participants_data %}
+    {% set participant = p_data.obj %}
+    
+    <!-- Modal Vue Détails -->
+    <div class="modal fade modal-fix" id="viewParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="viewParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="viewParticipantModalLabel{{ participant.id }}">
+                        <i class="fas fa-user-circle me-2"></i>Détails de {{ participant.prenom }} {{ participant.nom }}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <p class="mb-1"><strong class="text-primary"><i class="fas fa-envelope me-2"></i>Email:</strong> {{ participant.email }}</p>
+                            <p class="mb-0"><strong class="text-primary"><i class="fas fa-sitemap me-2"></i>Service:</strong>
+                                <span class="badge fs-6 ms-1" style="background-color: {{ participant.service.couleur or '#6c757d' }}; color: white;">
+                                    {{ participant.service.nom }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-0"><strong class="text-primary"><i class="fas fa-user-tie me-2"></i>Responsable Service:</strong> {{ participant.service.responsable }}
+                                (<a href="mailto:{{ participant.service.email_responsable }}" class="text-decoration-none">{{ participant.service.email_responsable }}</a>)
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <ul class="nav nav-tabs nav-fill mb-3" id="participantTabs{{ participant.id }}" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="view-inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-inscriptions{{ participant.id }}" type="button" role="tab" aria-controls="view-inscriptions{{ participant.id }}" aria-selected="true">
+                                <i class="fas fa-check-circle text-success me-1"></i>Confirmées <span class="badge bg-success ms-1">{{ p_data.inscriptions_count }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="view-pending-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-pending{{ participant.id }}" type="button" role="tab" aria-controls="view-pending{{ participant.id }}" aria-selected="false">
+                                <i class="fas fa-hourglass-half text-secondary me-1"></i>En Attente <span class="badge bg-secondary ms-1">{{ p_data.pending_count }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="view-attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-attente{{ participant.id }}" type="button" role="tab" aria-controls="view-attente{{ participant.id }}" aria-selected="false">
+                                <i class="fas fa-clock text-warning me-1"></i>Liste d'attente <span class="badge bg-warning text-dark ms-1">{{ p_data.attente_count }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content pt-2" id="participantTabsContent{{ participant.id }}">
+                        <!-- Onglet inscriptions confirmées -->
+                        <div class="tab-pane fade show active" id="view-inscriptions{{ participant.id }}" role="tabpanel" aria-labelledby="view-inscriptions-tab{{ participant.id }}">
+                            {% set confirmed_inscriptions = p_data.loaded_confirmed_inscriptions %}
+                            {% if confirmed_inscriptions %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped table-hover">
+                                    <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Salle</th><th>Actions</th></tr></thead>
+                                    <tbody>
+                                    {% for inscription in confirmed_inscriptions %}
+                                        <tr>
+                                            <td><span class="theme-badge" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
+                                            <td>{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
+                                            <td><span class="badge bg-light text-dark border">{{ inscription.session.salle.nom if inscription.session.salle else '-' }}</span></td>
+                                            <td>
+                                                <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation .ics"><i class="far fa-calendar-plus"></i></a>
+                                                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                                 <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
+                                                     <input type="hidden" name="action" value="annuler">
+                                                     <button type="submit" class="btn btn-sm btn-outline-danger btn-cancel-inscription" title="Annuler l'inscription" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');">
+                                                        <i class="fas fa-ban"></i>
+                                                     </button>
+                                                 </form>
+                                                 {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription confirmée.</p>
+                            {% endif %}
+                        </div>
+                         <!-- Onglet inscriptions en attente -->
+                        <div class="tab-pane fade" id="view-pending{{ participant.id }}" role="tabpanel" aria-labelledby="view-pending-tab{{ participant.id }}">
+                              {% set pending_inscriptions = p_data.loaded_pending_inscriptions %}
+                            {% if pending_inscriptions %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped table-hover">
+                                     <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Demandé le</th><th>Actions</th></tr></thead>
+                                    <tbody>
+                                       {% for inscription in pending_inscriptions %}
+                                        <tr>
+                                            <td><span class="theme-badge" data-theme="{{ inscription.session.theme.nom }}">{{ inscription.session.theme.nom }}</span></td>
+                                            <td>{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
+                                            <td>{{ inscription.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
+                                            <td>
+                                                {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button type="button" class="btn btn-sm btn-success validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="valider" {{ 'disabled' if inscription.session.get_places_restantes(p_data.inscriptions_count) <= 0 else '' }}>
+                                                            <i class="fas fa-check"></i> Valider
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-danger validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="refuser">
+                                                            <i class="fas fa-times"></i> Refuser
+                                                        </button>
+                                                    </div>
+                                                {% else %}
+                                                    <span class="badge bg-light text-dark border">Validation requise</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                       {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription en attente de validation.</p>
+                            {% endif %}
+                        </div>
+                        <!-- Onglet liste d'attente -->
+                        <div class="tab-pane fade" id="view-attente{{ participant.id }}" role="tabpanel" aria-labelledby="view-attente-tab{{ participant.id }}">
+                            {% set waitlist_entries = p_data.loaded_waitlist %}
+                            {% if waitlist_entries %}
+                            <div class="table-responsive">
+                                 <table class="table table-sm table-striped table-hover">
+                                    <thead class="small"><tr><th>Session</th><th>Date & Horaire</th><th>Position</th><th>Inscrit le</th><th>Statut</th></tr></thead>
+                                    <tbody>
+                                       {% for attente in waitlist_entries %}
+                                        <tr>
+                                            <td><span class="theme-badge" data-theme="{{ attente.session.theme.nom }}">{{ attente.session.theme.nom }}</span></td>
+                                            <td>{{ attente.session.formatage_date }} <small class="text-muted">({{ attente.session.formatage_horaire }})</small></td>
+                                            <td><span class="badge bg-secondary rounded-pill">{{ attente.position }}</span></td>
+                                            <td>{{ attente.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
+                                            <td>
+                                                {% if attente.notification_envoyee %}<span class="badge bg-info">Notifié</span>
+                                                {% else %}<span class="badge bg-light text-dark border">En attente</span>{% endif %}
+                                            </td>
+                                        </tr>
+                                       {% endfor %}
+                                    </tbody>
+                                 </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted text-center fst-italic mt-3 py-3">Aucune inscription en liste d'attente.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Édition Participant -->
+    {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
+    <div class="modal fade modal-fix" id="editParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="editParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title" id="editParticipantModalLabel{{ participant.id }}">
+                        <i class="fas fa-user-edit me-2"></i>Modifier - {{ participant.prenom }} {{ participant.nom }}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="{{ url_for('update_participant', id=participant.id) }}" method="post" class="needs-validation" novalidate>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="edit_nom_{{ participant.id }}" class="form-label">Nom*</label>
+                                <input type="text" class="form-control" id="edit_nom_{{ participant.id }}" name="nom" value="{{ participant.nom }}" required>
+                                <div class="invalid-feedback">Le nom est requis.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="edit_prenom_{{ participant.id }}" class="form-label">Prénom*</label>
+                                <input type="text" class="form-control" id="edit_prenom_{{ participant.id }}" name="prenom" value="{{ participant.prenom }}" required>
+                                <div class="invalid-feedback">Le prénom est requis.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="edit_email_{{ participant.id }}" class="form-label">Email*</label>
+                                <input type="email" class="form-control" id="edit_email_{{ participant.id }}" name="email" value="{{ participant.email }}" required>
+                                <div class="invalid-feedback">Un email valide est requis.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="edit_service_id_{{ participant.id }}" class="form-label">Service*</label>
+                                <select class="form-select" id="edit_service_id_{{ participant.id }}" name="service_id" required>
+                                    {% for service_item in services|sort(attribute='nom') %}
+                                    <option value="{{ service_item.id }}" {% if service_item.id == participant.service_id %}selected{% endif %}>{{ service_item.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback">Le service est requis.</div>
+                            </div>
+                        </div>
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Enregistrer les modifications
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Modal Supprimer Participant -->
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    <div class="modal fade modal-fix" id="deleteParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="deleteParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteParticipantModalLabel{{ participant.id }}">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmer la Suppression
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>Attention ! Cette action est irréversible.
+                    </div>
+                    <p>Êtes-vous sûr de vouloir supprimer le participant <strong>{{ participant.prenom }} {{ participant.nom }}</strong> ?</p>
+                    <p class="text-danger"><small>Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées.</small></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form action="{{ url_for('delete_participant', id=participant.id) }}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash-alt me-2"></i>Supprimer Définitivement
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+{% endblock %}
+
+{% block scripts_extra %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
         
-        // Fonctionnalité de recherche
-        const searchInput = document.getElementById('searchParticipant');
-        const participantsTableBody = document.getElementById('participants-table')?.querySelector('tbody');
-        const noParticipantsRowOriginalHTML = document.getElementById('no-participants-row')?.innerHTML;
-        const participantCountFooter = document.getElementById('participant-count-footer');
-        const searchResultsInfo = document.getElementById('search-results-info');
-
-        function filterParticipants() {
-            if (!searchInput || !participantsTableBody) return;
-            const searchValue = searchInput.value.toLowerCase().trim();
-            const rows = participantsTableBody.querySelectorAll('tr.participant-row');
-            let visibleCount = 0;
+        // Applique les correctifs CSS pour tous les modaux lors de l'affichage
+        function enhanceModal(modalElement) {
+            if (!modalElement) return;
             
-            rows.forEach(row => {
-                const nameCell = row.querySelector('td:nth-child(1)');
-                const serviceCell = row.querySelector('td:nth-child(2) span.badge');
-                const emailCell = row.querySelector('td:nth-child(3) a');
-                const nameText = nameCell ? nameCell.textContent.toLowerCase() : '';
-                const serviceText = serviceCell ? serviceCell.textContent.toLowerCase() : '';
-                const emailText = emailCell ? emailCell.textContent.toLowerCase() : '';
-                const isVisible = nameText.includes(searchValue) || serviceText.includes(searchValue) || emailText.includes(searchValue);
+            if (DASH_CONFIG.debugMode) console.log(`Enhancing modal: ${modalElement.id}`);
+            
+            // S'assurer que tous les éléments sont visibles
+            const formElements = modalElement.querySelectorAll('input:not([type="hidden"]), select, textarea, .form-select, button:not(.btn-close)');
+            formElements.forEach(el => {
+                el.style.display = el.tagName === 'BUTTON' || el.classList.contains('btn') ? 'inline-block' : 'block';
+                el.style.visibility = 'visible';
+                el.style.opacity = '1';
+                el.style.position = 'relative';
+                el.style.zIndex = '1060';
                 
-                row.style.display = isVisible ? '' : 'none';
-                if (isVisible) visibleCount++;
+                if (el.tagName === 'SELECT' || el.classList.contains('form-select')) {
+                    el.style.appearance = 'menulist';
+                    el.style.webkitAppearance = 'menulist';
+                    el.style.mozAppearance = 'menulist';
+                    el.style.width = '100%';
+                }
             });
             
-            const noParticipantsRow = document.getElementById('no-participants-row');
-            if (noParticipantsRow) {
-                const hasVisibleRows = Array.from(rows).some(row => row.style.display !== 'none');
+            // Améliorer les badges de thème
+            if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+                window.enhanceThemeBadgesGlobally(modalElement);
+            }
+            
+            // Initialiser les tooltips dans le modal
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                const tooltips = modalElement.querySelectorAll('[data-bs-toggle="tooltip"]');
+                tooltips.forEach(el => {
+                    const instance = bootstrap.Tooltip.getInstance(el);
+                    if (instance) instance.dispose();
+                    new bootstrap.Tooltip(el);
+                });
+            }
+            
+            // S'assurer que les onglets et leur contenu sont correctement affichés
+            const tabs = modalElement.querySelectorAll('.nav-tabs .nav-link');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const target = document.querySelector(this.getAttribute('data-bs-target') || this.getAttribute('href'));
+                    if (!target) return;
+                    
+                    // Désactiver tous les onglets
+                    tabs.forEach(t => {
+                        t.classList.remove('active');
+                        t.setAttribute('aria-selected', 'false');
+                    });
+                    
+                    // Activer cet onglet
+                    this.classList.add('active');
+                    this.setAttribute('aria-selected', 'true');
+                    
+                    // Désactiver tous les panneaux
+                    const tabPanes = modalElement.querySelectorAll('.tab-pane');
+                    tabPanes.forEach(pane => {
+                        pane.classList.remove('show', 'active');
+                        pane.style.display = 'none';
+                    });
+                    
+                    // Activer ce panneau
+                    target.classList.add('show', 'active');
+                    target.style.display = 'block';
+                    
+                    // Réappliquer les styles aux éléments de formulaire du nouveau panneau
+                    enhanceModal(modalElement);
+                });
+            });
+            
+            // Focus automatique sur le premier champ de formulaire
+            setTimeout(() => {
+                const activeTab = modalElement.querySelector('.tab-pane.active') || modalElement;
+                const firstInput = activeTab.querySelector('input:not([type="hidden"]), select, textarea');
+                if (firstInput) {
+                    try {
+                        firstInput.focus();
+                    } catch (e) {
+                        if (DASH_CONFIG.debugMode) console.warn(`Could not focus on first field in ${modalElement.id}:`, e);
+                    }
+                }
+            }, 100);
+        }
+        
+        // Initialiser les gestionnaires de validation pour les formulaires
+        function initializeFormValidation() {
+            document.querySelectorAll('form.needs-validation').forEach(form => {
+                form.addEventListener('submit', function(event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        }
+        
+        // Initialiser les gestionnaires de validation AJAX
+        function initializeAjaxValidation() {
+            document.querySelectorAll('.validation-ajax').forEach(button => {
+                // Éviter les doublons d'écouteurs
+                if (button.dataset.ajaxListenerAttached === 'true') return;
+                button.dataset.ajaxListenerAttached = 'true';
                 
-                if (!hasVisibleRows && rows.length > 0) { 
-                    noParticipantsRow.style.display = ''; 
-                    noParticipantsRow.querySelector('td').innerHTML = `<i class="fas fa-search fa-2x mb-2 d-block"></i> Aucun participant ne correspond à votre recherche.`;
-                } else if (rows.length === 0 && searchValue === '' && noParticipantsRowOriginalHTML) { 
-                    noParticipantsRow.style.display = '';
-                    noParticipantsRow.querySelector('td').innerHTML = noParticipantsRowOriginalHTML;
-                } else {
-                    noParticipantsRow.style.display = 'none';
+                button.addEventListener('click', function() {
+                    this.disabled = true;
+                    const originalHTML = this.innerHTML;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                    
+                    const inscriptionId = this.getAttribute('data-inscription-id');
+                    const action = this.getAttribute('data-action');
+                    
+                    fetch('/validation_inscription_ajax', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            inscription_id: inscriptionId,
+                            action: action
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(errData => Promise.reject({
+                                status: response.status,
+                                message: errData.message || `Error ${response.status}`
+                            }));
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            if (typeof window.showToast === 'function') {
+                                window.showToast(data.message, 'success');
+                            } else {
+                                alert(data.message);
+                            }
+                            
+                            // Rafraîchir la page après une courte pause
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            if (typeof window.showToast === 'function') {
+                                window.showToast(data.message || 'Erreur lors de la validation', 'danger');
+                            } else {
+                                alert(data.message || 'Erreur lors de la validation');
+                            }
+                            this.disabled = false;
+                            this.innerHTML = originalHTML;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur AJAX:', error);
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(error.message || 'Erreur de communication', 'danger');
+                        } else {
+                            alert(error.message || 'Erreur de communication');
+                        }
+                        this.disabled = false;
+                        this.innerHTML = originalHTML;
+                    });
+                });
+            });
+        }
+        
+        // Initialiser la recherche de participants
+        function initializeParticipantSearch() {
+            const searchInput = document.getElementById('searchParticipant');
+            const participantsTableBody = document.getElementById('participants-table')?.querySelector('tbody');
+            const noParticipantsRowOriginalHTML = document.getElementById('no-participants-row')?.innerHTML;
+            const participantCountFooter = document.getElementById('participant-count-footer');
+            const searchResultsInfo = document.getElementById('search-results-info');
+
+            if (!searchInput || !participantsTableBody) return;
+            
+            function filterParticipants() {
+                const searchValue = searchInput.value.toLowerCase().trim();
+                const rows = participantsTableBody.querySelectorAll('tr.participant-row');
+                let visibleCount = 0;
+                
+                rows.forEach(row => {
+                    const nameCell = row.querySelector('td:nth-child(1)');
+                    const serviceCell = row.querySelector('td:nth-child(2) span.badge');
+                    const emailCell = row.querySelector('td:nth-child(3) a');
+                    const nameText = nameCell ? nameCell.textContent.toLowerCase() : '';
+                    const serviceText = serviceCell ? serviceCell.textContent.toLowerCase() : '';
+                    const emailText = emailCell ? emailCell.textContent.toLowerCase() : '';
+                    const isVisible = nameText.includes(searchValue) || serviceText.includes(searchValue) || emailText.includes(searchValue);
+                    
+                    row.style.display = isVisible ? '' : 'none';
+                    if (isVisible) visibleCount++;
+                });
+                
+                const noParticipantsRow = document.getElementById('no-participants-row');
+                if (noParticipantsRow) {
+                    const hasVisibleRows = Array.from(rows).some(row => row.style.display !== 'none');
+                    
+                    if (!hasVisibleRows && rows.length > 0) { 
+                        noParticipantsRow.style.display = ''; 
+                        noParticipantsRow.querySelector('td').innerHTML = `
+                            <i class="fas fa-search fa-2x mb-2 d-block"></i> 
+                            Aucun participant ne correspond à votre recherche.
+                        `;
+                    } else if (rows.length === 0 && searchValue === '' && noParticipantsRowOriginalHTML) { 
+                        noParticipantsRow.style.display = '';
+                        noParticipantsRow.querySelector('td').innerHTML = noParticipantsRowOriginalHTML;
+                    } else {
+                        noParticipantsRow.style.display = 'none';
+                    }
+                }
+                
+                if (participantCountFooter && searchResultsInfo) {
+                    searchResultsInfo.textContent = searchValue ? `(${visibleCount} trouvé(s))` : '';
                 }
             }
             
-            if (participantCountFooter && searchResultsInfo) {
-                searchResultsInfo.textContent = searchValue ? `(${visibleCount} trouvé(s))` : '';
-            }
+            searchInput.addEventListener('input', filterParticipants);
+            filterParticipants(); // Exécuter une fois au chargement
         }
         
-        if (searchInput) {
-            searchInput.addEventListener('input', filterParticipants);
-            filterParticipants();
-        }
-
-        // Validation des formulaires
-        document.querySelectorAll('form.needs-validation').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                if (!form.checkValidity()) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                form.classList.add('was-validated');
-            }, false);
+        // Ajouter des écouteurs aux événements d'ouverture de modal
+        document.querySelectorAll('.modal').forEach(modalElement => {
+            // Ajouter la classe modal-fix pour les correctifs CSS
+            modalElement.classList.add('modal-fix');
+            
+            // Configurer les écouteurs d'événements
+            modalElement.addEventListener('shown.bs.modal', function() {
+                enhanceModal(this);
+            });
         });
         
-        // Initialiser le gestionnaire de modaux avec debug mode si nécessaire
-        if (window.ModalManager) {
-            window.ModalManager.init({
-                debugMode: DASH_CONFIG.debugMode || false
-            });
+        // Créer une fonction showToast globale si elle n'existe pas
+        if (typeof window.showToast !== 'function') {
+            window.showToast = function(message, type = 'info') {
+                if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
+                    alert(message);
+                    return;
+                }
+                
+                // Créer le conteneur de toast s'il n'existe pas
+                let toastContainer = document.querySelector('.toast-container');
+                if (!toastContainer) {
+                    toastContainer = document.createElement('div');
+                    toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                    toastContainer.style.zIndex = '11000';
+                    document.body.appendChild(toastContainer);
+                }
+                
+                // Créer l'élément toast
+                const toastElement = document.createElement('div');
+                toastElement.className = `toast bg-${type} text-white`;
+                toastElement.setAttribute('role', 'alert');
+                toastElement.setAttribute('aria-live', 'assertive');
+                toastElement.setAttribute('aria-atomic', 'true');
+                
+                // Contenu du toast
+                toastElement.innerHTML = `
+                    <div class="toast-header bg-${type} text-white">
+                        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'danger' ? 'fa-exclamation-circle' : 'fa-info-circle'} me-2"></i>
+                        <strong class="me-auto">Notification</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                `;
+                
+                // Ajouter au conteneur
+                toastContainer.appendChild(toastElement);
+                
+                // Initialiser et afficher le toast
+                const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+                toast.show();
+                
+                // Supprimer l'élément une fois caché
+                toastElement.addEventListener('hidden.bs.toast', function() {
+                    this.remove();
+                });
+            };
         }
         
-        // Améliorer les badges de thème s'ils existent
+        // Initialiser tous les composants
+        initializeFormValidation();
+        initializeAjaxValidation();
+        initializeParticipantSearch();
+        
+        // Améliorer les badges de thème
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
             window.enhanceThemeBadgesGlobally();
         }
@@ -500,12 +780,16 @@
         if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                new bootstrap.Tooltip(tooltipTriggerEl);
+                try {
+                    new bootstrap.Tooltip(tooltipTriggerEl);
+                } catch (e) {
+                    if (DASH_CONFIG.debugMode) console.warn('Error initializing tooltip:', e);
+                }
             });
         }
         
         if (DASH_CONFIG.debugMode) {
-            console.log('Participants Page: Initialized with Modal Manager for robust modal handling.');
+            console.log('Participants page: Initialized with enhanced modals');
         }
     });
 </script>
