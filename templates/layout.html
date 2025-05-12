@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="fr">
-<!-- Modification du head uniquement pour inclure les correctifs modaux -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Plateforme de gestion des formations Microsoft 365">
 
     <title>{% block title %}{{ app_name | default('Gestion Formation') }}{% endblock %}</title>
 
@@ -20,56 +20,248 @@
     <!-- Styles personnalisés consolidés -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-    
-    <!-- Correctifs pour les modaux - Ajout global -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
 
-    {% block head_extra %}{% endblock %}
-
+    <!-- Styles de base pour layout -->
     <style>
-        /* Style pour le spinner de chargement global */
+        :root {
+            --navbar-height: 56px;
+            --spinner-size: 3rem;
+            --spinner-border-width: 0.25em;
+            --spinner-animation-speed: 0.75s;
+            --toast-z-index: 11000;
+            --loader-z-index: 10000;
+            --overlay-bg-color: rgba(255, 255, 255, 0.85);
+        }
+
+        /* Structure de base */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            padding-top: var(--navbar-height);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f4f7fc;
+            color: #212529;
+            line-height: 1.6;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        .content-wrapper {
+            flex: 1 0 auto;
+            width: 100%;
+            padding-bottom: 1rem;
+        }
+        
+        footer {
+            flex-shrink: 0;
+        }
+
+        /* Loader global */
         #loading-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(255, 255, 255, 0.85);
-            z-index: 10000; /* Au-dessus de tout */
-            display: flex; /* Affiché par défaut, caché par JS */
+            background-color: var(--overlay-bg-color);
+            z-index: var(--loader-z-index);
+            display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            transition: opacity 0.3s ease-out;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
         }
+        
         #loading-overlay.hidden {
             opacity: 0;
+            visibility: hidden;
             pointer-events: none;
         }
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
+        
+        #loading-overlay .spinner-border {
+            width: var(--spinner-size);
+            height: var(--spinner-size);
+            border-width: var(--spinner-border-width);
+            animation-duration: var(--spinner-animation-speed);
         }
-        .loading-text {
+        
+        #loading-overlay .loading-text {
             margin-top: 1rem;
             font-size: 1.1rem;
             color: var(--bs-primary, #0d6efd);
         }
-        /* Structure Flex pour pousser le footer en bas */
-        body {
-            padding-top: 70px; /* Ajuster selon la hauteur de votre navbar fixe */
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        .content-wrapper {
-            flex: 1; /* Le contenu principal prend l'espace disponible */
-        }
-        /* Style pour les toasts */
+
+        /* Toast notifications */
         .toast-container {
-             z-index: 11000 !important; /* S'assurer que les toasts sont au-dessus des modales */
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: var(--toast-z-index);
+            padding: 0.5rem;
+        }
+        
+        .toast {
+            width: 350px;
+            max-width: 100%;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: transform 0.15s ease-in-out, opacity 0.15s ease-in-out;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .toast:not(.show) {
+            display: none;
+        }
+        
+        /* Navbar optimisations */
+        .navbar-brand {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+        
+        .navbar-brand i {
+            margin-right: 0.5rem;
+        }
+        
+        .navbar-nav .nav-link {
+            transition: all 0.2s ease;
+        }
+        
+        .navbar-nav .nav-link:hover {
+            opacity: 0.9;
+        }
+        
+        .navbar-nav .nav-link.active {
+            font-weight: 600;
+        }
+        
+        /* Commun à toutes les pages */
+        .card {
+            border: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
         }
     </style>
+
+    <!-- Styles pour les modals -->
+    <style>
+        /* Base modal fixes */
+        .modal {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+        
+        .modal-content {
+            border: none;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal-header, 
+        .modal-footer {
+            border-width: 1px;
+        }
+        
+        .modal-header {
+            background: var(--bs-gray-100, #f8f9fa);
+        }
+        
+        .modal-header .btn-close:focus {
+            box-shadow: none;
+        }
+        
+        .modal-backdrop {
+            transition: opacity 0.2s ease-in-out;
+        }
+        
+        /* Éléments de formulaire dans les modals */
+        .modal input:not([type="hidden"]),
+        .modal select,
+        .modal textarea,
+        .modal .form-control,
+        .modal .form-select {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            z-index: 1 !important;
+            width: 100% !important;
+        }
+        
+        .modal select,
+        .modal .form-select {
+            -webkit-appearance: menulist !important;
+            -moz-appearance: menulist !important;
+            appearance: menulist !important;
+        }
+        
+        .modal button,
+        .modal .btn {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            z-index: 2 !important;
+        }
+        
+        /* Onglets dans les modals */
+        .modal .nav-tabs,
+        .modal .tab-content,
+        .modal .tab-pane {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .modal .tab-pane:not(.active) {
+            display: none !important;
+        }
+        
+        /* Animations pour une meilleure UX */
+        .modal.fade .modal-dialog {
+            transform: scale(0.95);
+            transition: transform 0.2s ease-out;
+        }
+        
+        .modal.show .modal-dialog {
+            transform: scale(1);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .modal-dialog {
+                margin: 0.75rem;
+            }
+            
+            .modal-content {
+                max-height: calc(100vh - 2.5rem);
+                overflow-y: auto;
+            }
+        }
+    </style>
+
+    {% block head_extra %}{% endblock %}
 </head>
 <body>
     <!-- Spinner de chargement global -->
@@ -83,8 +275,8 @@
     <!-- ==================== Barre de navigation ==================== -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top shadow-sm">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">
-                <i class="fas fa-users-cog me-2"></i>{{ app_name | default('Gestion Formation') }}
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="fas fa-users-cog"></i>{{ app_name | default('Gestion Formation') }}
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -121,7 +313,7 @@
                         <a class="nav-link dropdown-toggle {% if request.endpoint in ['admin', 'salles_page', 'themes_page', 'activites_journal'] %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-shield-alt me-1"></i>Administration
                         </a>
-                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                        <ul class="dropdown-menu shadow-sm" aria-labelledby="adminDropdown">
                             <li><a class="dropdown-item {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}">Panel Admin</a></li>
                             <li><a class="dropdown-item {% if request.endpoint == 'salles_page' %}active{% endif %}" href="{{ url_for('salles_page') }}">Gérer les Salles</a></li>
                             <li><a class="dropdown-item {% if request.endpoint == 'themes_page' %}active{% endif %}" href="{{ url_for('themes_page') }}">Gérer les Thèmes</a></li>
@@ -191,149 +383,605 @@
     {% block modals %}{% endblock %}
 
     <!-- Conteneur pour les Toasts/Notifications -->
-    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3">
-        <!-- Les toasts seront ajoutés ici par JavaScript -->
-    </div>
+    <div class="toast-container position-fixed top-0 end-0 p-3" id="toast-container"></div>
 
-    <!-- Scripts JavaScript -->
- <!-- Scripts JavaScript à ajouter en fin de layout.html -->
-    <!-- Scripts JavaScript -->
-    <!-- Bootstrap JS Bundle (inclut Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <!-- ==================== Scripts ==================== -->
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous" defer></script>
 
     <!-- Configuration JS (DOIT ÊTRE AVANT les scripts qui l'utilisent) -->
     <script>
-        window.dashboardConfig = window.dashboardConfig || {};
-        window.dashboardConfig.debugMode = {{ debug_mode | default(false) | tojson }};
-        window.dashboardConfig.socketEnabled = true; 
-        window.dashboardConfig.pollingEnabled = true; 
-        window.dashboardConfig.autoRefreshInterval = 30000; 
-        window.dashboardConfig.preferredMode = 'auto'; 
-        window.dashboardConfig.errorResilience = true;
+        // Configuration globale
+        window.dashboardConfig = {
+            debugMode: {{ debug_mode | default(false) | tojson }},
+            socketEnabled: true,
+            pollingEnabled: true,
+            autoRefreshInterval: 30000,
+            preferredMode: 'auto',
+            errorResilience: true,
+            appName: "{{ app_name | default('Gestion Formation') }}"
+        };
         
-        // Accéder directement à la configuration de l'application Flask
+        // Données pour les graphiques et badges
         window.themesDataForChart = {{ config.THEMES_DATA_FOR_CHART|default({})|tojson|safe }};
         window.servicesDataForChart = {{ config.SERVICES_DATA_FOR_CHART|default({})|tojson|safe }};
     </script>
 
-    <!-- Scripts personnalisés (l'ordre est important) -->
-    <script src="{{ url_for('static', filename='js/api-error-handler.js') }}"></script>
-    
-    <!-- Scripts dashboard -->
-    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-
-    <!-- Gestionnaire de modaux - Ajout global -->
-    <script src="{{ url_for('static', filename='js/modal-manager.js') }}"></script>
-
-    {% block scripts_extra %}{% endblock %}
-
-    <!-- Script final pour gérer le loader, les tooltips globaux et les badges de thème -->
+    <!-- Base utilities -->
     <script>
-        function hideGlobalLoader() {
-            const overlay = document.getElementById('loading-overlay');
-            if (overlay && !overlay.classList.contains('hidden')) {
-                overlay.classList.add('hidden');
+        // Module de gestion des erreurs
+        const ErrorHandler = {
+            handleError(error, context = 'general') {
+                console.error(`[${context}] Error:`, error);
+                
+                // Afficher une notification si la fonction est disponible
+                if (typeof window.showToast === 'function') {
+                    let message = 'Une erreur est survenue';
+                    if (error && error.message) {
+                        message = error.message;
+                    } else if (typeof error === 'string') {
+                        message = error;
+                    }
+                    window.showToast(message, 'danger');
+                }
+                
+                return false;
+            },
+            
+            // Handler pour les erreurs de réseau
+            handleNetworkError(response, url = '') {
+                let message = `Erreur réseau (${response.status})`;
+                if (response.status === 404) {
+                    message = `La ressource demandée n'existe pas (${url})`;
+                } else if (response.status === 403) {
+                    message = 'Accès refusé';
+                } else if (response.status === 500) {
+                    message = 'Erreur serveur interne';
+                }
+                
+                this.handleError(new Error(message), 'network');
+                return false;
+            }
+        };
+
+        // Module de chargement
+        const LoaderManager = {
+            loaderElement: null,
+            loaderTimeout: null,
+            isHidden: false,
+            
+            init() {
+                this.loaderElement = document.getElementById('loading-overlay');
+                
+                // Fallback pour masquer le loader après un certain temps
+                this.loaderTimeout = setTimeout(() => {
+                    this.hideLoader();
+                    if (window.dashboardConfig && window.dashboardConfig.debugMode) {
+                        console.warn('LoaderManager: Forcing loader hide (timeout)');
+                    }
+                }, 7000);
+                
+                // Masquer automatiquement lors du chargement
+                window.addEventListener('load', () => {
+                    setTimeout(() => this.hideLoader(), 200);
+                });
+            },
+            
+            hideLoader() {
+                if (this.loaderElement && !this.isHidden) {
+                    this.loaderElement.classList.add('hidden');
+                    this.isHidden = true;
+                    
+                    if (this.loaderTimeout) {
+                        clearTimeout(this.loaderTimeout);
+                        this.loaderTimeout = null;
+                    }
+                }
+            },
+            
+            showLoader() {
+                if (this.loaderElement) {
+                    this.loaderElement.classList.remove('hidden');
+                    this.isHidden = false;
+                }
+            }
+        };
+
+        // Toast notifications manager
+        class ToastManager {
+            constructor() {
+                this.container = document.getElementById('toast-container');
+                if (!this.container) {
+                    this.container = document.createElement('div');
+                    this.container.className = 'toast-container position-fixed top-0 end-0 p-3';
+                    this.container.id = 'toast-container';
+                    document.body.appendChild(this.container);
+                }
+            }
+            
+            showToast(message, type = 'info', duration = 5000) {
+                const id = `toast-${Date.now()}`;
+                const icon = this.getIconForType(type);
+                
+                const toastElement = document.createElement('div');
+                toastElement.className = `toast bg-${type} text-white`;
+                toastElement.id = id;
+                toastElement.setAttribute('role', 'alert');
+                toastElement.setAttribute('aria-live', 'assertive');
+                toastElement.setAttribute('aria-atomic', 'true');
+                
+                toastElement.innerHTML = `
+                    <div class="toast-header bg-${type} text-white">
+                        <i class="fas ${icon} me-2"></i>
+                        <strong class="me-auto">Notification</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                `;
+                
+                this.container.appendChild(toastElement);
+                
+                const toast = new bootstrap.Toast(toastElement, { 
+                    delay: duration,
+                    animation: true
+                });
+                
+                toast.show();
+                
+                toastElement.addEventListener('hidden.bs.toast', () => {
+                    toastElement.remove();
+                });
+                
+                return toast;
+            }
+            
+            getIconForType(type) {
+                switch (type) {
+                    case 'success': return 'fa-check-circle';
+                    case 'danger': return 'fa-exclamation-circle';
+                    case 'warning': return 'fa-exclamation-triangle';
+                    default: return 'fa-info-circle';
+                }
             }
         }
 
-        let loaderHidden = false;
-        const hideLoaderTimeout = setTimeout(() => {
-            if (!loaderHidden) {
-                hideGlobalLoader();
-                if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-                    console.warn("Layout.html: Forcing loading overlay hide (fallback timeout).");
-                }
-                loaderHidden = true;
-            }
-        }, 7000);
-
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const isUpdating = window.dashboardCore && window.dashboardCore.getState && window.dashboardCore.getState().updating;
-                if (!isUpdating && !loaderHidden) {
-                    hideGlobalLoader();
-                    loaderHidden = true;
-                    clearTimeout(hideLoaderTimeout);
-                }
-            }, 200);
-        });
-        document.addEventListener('dashboardDataRefreshed', () => {
-             if (!loaderHidden) {
-                 hideGlobalLoader();
-                 loaderHidden = true;
-                 clearTimeout(hideLoaderTimeout);
-             }
-        }, { once: true });
-
-        // Fonction globale pour améliorer les badges de thème
-        window.enhanceThemeBadgesGlobally = function(parentElement = document) {
-            const badgesToEnhance = parentElement.querySelectorAll('.theme-badge');
-
-            badgesToEnhance.forEach(badge => {
-                if (badge.dataset.enhanced === 'true' && parentElement === document) return; 
-
-                const themeName = badge.dataset.theme || badge.textContent.trim();
-                badge.textContent = ''; 
-                badge.classList.remove('theme-comm', 'theme-planner', 'theme-onedrive', 'theme-sharepoint', 'bg-secondary');
-
-                let iconClass = 'fa-info-circle'; 
-                let themeClass = 'bg-secondary'; 
-                let themeDescription = 'Information sur le thème.';
-                const themesConfig = window.themesDataForChart || {}; // Utiliser la variable JS globale
-
-                if (themesConfig[themeName]) {
-                    const themeConfig = themesConfig[themeName];
-                    themeDescription = themeConfig.description || themeDescription;
-                    if (themeName.includes('Communiquer avec Teams')) { themeClass = 'theme-comm'; iconClass = 'fa-comments'; }
-                    else if (themeName.includes('Gérer les tâches')) { themeClass = 'theme-planner'; iconClass = 'fa-tasks'; }
-                    else if (themeName.includes('Gérer mes fichiers')) { themeClass = 'theme-onedrive'; iconClass = 'fa-file-alt'; }
-                    else if (themeName.includes('Collaborer avec Teams')) { themeClass = 'theme-sharepoint'; iconClass = 'fa-users'; }
-                } else { 
-                    if (themeName.includes('Communiquer avec Teams')) { themeClass = 'theme-comm'; iconClass = 'fa-comments'; }
-                    else if (themeName.includes('Gérer les tâches')) { themeClass = 'theme-planner'; iconClass = 'fa-tasks'; }
-                    else if (themeName.includes('Gérer mes fichiers')) { themeClass = 'theme-onedrive'; iconClass = 'fa-file-alt'; }
-                    else if (themeName.includes('Collaborer avec Teams')) { themeClass = 'theme-sharepoint'; iconClass = 'fa-users'; }
-                }
-                
-                badge.classList.add(themeClass);
-                badge.innerHTML = `<i class="fas ${iconClass} me-1"></i>${themeName}`; 
-
-                badge.setAttribute('data-bs-toggle', 'tooltip');
-                badge.setAttribute('data-bs-placement', 'top');
-                badge.setAttribute('title', themeDescription);
-                
-                const existingTooltip = bootstrap.Tooltip.getInstance(badge);
-                if (existingTooltip) existingTooltip.dispose();
-                new bootstrap.Tooltip(badge);
-                
-                badge.dataset.enhanced = 'true';
-            });
+        // Ajout de la fonction showToast à l'objet window pour un accès global
+        window.showToast = function(message, type = 'info', duration = 5000) {
+            const toastMgr = new ToastManager();
+            return toastMgr.showToast(message, type, duration);
         };
 
-        // Initialiser les tooltips Bootstrap et les badges de thème après le chargement du DOM
-        document.addEventListener('DOMContentLoaded', function () {
-            // Initialiser notre gestionnaire de modaux avec le mode debug depuis dashboardConfig
-            if (window.ModalManager) {
-                window.ModalManager.init({
-                    debugMode: window.dashboardConfig && window.dashboardConfig.debugMode,
-                    autoInitialize: true
-                });
+        // Badge Manager - Permet d'améliorer les badges de thème
+        class BadgeManager {
+            constructor(config = {}) {
+                this.config = {
+                    debugMode: window.dashboardConfig?.debugMode || false,
+                    themesData: window.themesDataForChart || {},
+                    ...config
+                };
             }
             
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                    if (!tooltipTriggerEl.closest('.modal')) { 
-                        const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+            enhanceThemeBadges(parentElement = document) {
+                const badgesToEnhance = parentElement.querySelectorAll('.theme-badge');
+                
+                if (this.config.debugMode && badgesToEnhance.length > 0) {
+                    console.log(`BadgeManager: Enhancing ${badgesToEnhance.length} theme badges`);
+                }
+                
+                badgesToEnhance.forEach(badge => {
+                    // Éviter le traitement multiple des badges déjà améliorés
+                    if (badge.dataset.enhanced === 'true' && parentElement === document) return;
+                    
+                    const themeName = badge.dataset.theme || badge.textContent.trim();
+                    badge.textContent = '';
+                    badge.classList.remove('theme-comm', 'theme-planner', 'theme-onedrive', 'theme-sharepoint', 'bg-secondary');
+                    
+                    let iconClass = 'fa-info-circle';
+                    let themeClass = 'bg-secondary';
+                    let themeDescription = 'Information sur le thème.';
+                    
+                    // Utiliser les données de configuration pour le thème
+                    if (this.config.themesData[themeName]) {
+                        const themeConfig = this.config.themesData[themeName];
+                        themeDescription = themeConfig.description || themeDescription;
+                        
+                        if (themeName.includes('Communiquer avec Teams')) {
+                            themeClass = 'theme-comm';
+                            iconClass = 'fa-comments';
+                        } else if (themeName.includes('Gérer les tâches')) {
+                            themeClass = 'theme-planner';
+                            iconClass = 'fa-tasks';
+                        } else if (themeName.includes('Gérer mes fichiers')) {
+                            themeClass = 'theme-onedrive';
+                            iconClass = 'fa-file-alt';
+                        } else if (themeName.includes('Collaborer avec Teams')) {
+                            themeClass = 'theme-sharepoint';
+                            iconClass = 'fa-users';
+                        }
+                    } else {
+                        // Fallback sans configuration
+                        if (themeName.includes('Communiquer avec Teams')) {
+                            themeClass = 'theme-comm';
+                            iconClass = 'fa-comments';
+                        } else if (themeName.includes('Gérer les tâches')) {
+                            themeClass = 'theme-planner';
+                            iconClass = 'fa-tasks';
+                        } else if (themeName.includes('Gérer mes fichiers')) {
+                            themeClass = 'theme-onedrive';
+                            iconClass = 'fa-file-alt';
+                        } else if (themeName.includes('Collaborer avec Teams')) {
+                            themeClass = 'theme-sharepoint';
+                            iconClass = 'fa-users';
+                        }
+                    }
+                    
+                    badge.classList.add(themeClass);
+                    badge.innerHTML = `<i class="fas ${iconClass} me-1"></i>${themeName}`;
+                    
+                    // Ajouter le tooltip
+                    badge.setAttribute('data-bs-toggle', 'tooltip');
+                    badge.setAttribute('data-bs-placement', 'top');
+                    badge.setAttribute('title', themeDescription);
+                    
+                    // Initialiser le tooltip s'il existe
+                    if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                        const existingTooltip = bootstrap.Tooltip.getInstance(badge);
                         if (existingTooltip) existingTooltip.dispose();
-                        new bootstrap.Tooltip(tooltipTriggerEl);
+                        new bootstrap.Tooltip(badge);
+                    }
+                    
+                    badge.dataset.enhanced = 'true';
+                });
+            }
+        }
+
+        // ModalManager - Gestionnaire central des modales
+        class ModalManager {
+            constructor(config = {}) {
+                this.config = {
+                    debugMode: window.dashboardConfig?.debugMode || false,
+                    autoInitialize: true,
+                    ...config
+                };
+                
+                this.initializedModals = new Set();
+                
+                if (this.config.autoInitialize) {
+                    this.init();
+                }
+            }
+            
+            init() {
+                if (this.config.debugMode) {
+                    console.log('ModalManager: Initializing...');
+                }
+                
+                // Observer les changements dans le DOM pour détecter de nouveaux modals
+                this.setupMutationObserver();
+                
+                // Initialiser tous les modals existants
+                this.initializeExistingModals();
+                
+                // Écouter les événements de modal
+                this.setupGlobalEventListeners();
+                
+                if (this.config.debugMode) {
+                    console.log('ModalManager: Initialization complete');
+                }
+            }
+            
+            initializeExistingModals() {
+                const modals = document.querySelectorAll('.modal');
+                modals.forEach(modal => this.setupModal(modal));
+            }
+            
+            setupModal(modalElement) {
+                if (!modalElement || this.initializedModals.has(modalElement.id)) return;
+                
+                if (this.config.debugMode) {
+                    console.log(`ModalManager: Setting up modal ${modalElement.id || 'unnamed'}`);
+                }
+                
+                // Ajouter la classe modal-fix par sécurité
+                if (!modalElement.classList.contains('modal-fix')) {
+                    modalElement.classList.add('modal-fix');
+                }
+                
+                // Créer ou récupérer l'instance Bootstrap
+                let bsModal;
+                try {
+                    if (typeof bootstrap !== 'undefined' && typeof bootstrap.Modal === 'function') {
+                        bsModal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                    }
+                } catch (error) {
+                    console.error(`ModalManager: Error initializing modal ${modalElement.id}:`, error);
+                }
+                
+                // Stocker l'ID pour éviter la double initialisation
+                if (modalElement.id) {
+                    this.initializedModals.add(modalElement.id);
+                }
+                
+                return bsModal;
+            }
+            
+            setupMutationObserver() {
+                if (!window.MutationObserver) return;
+                
+                const observer = new MutationObserver(mutations => {
+                    let shouldCheckForModals = false;
+                    
+                    mutations.forEach(mutation => {
+                        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                            shouldCheckForModals = true;
+                        }
+                    });
+                    
+                    if (shouldCheckForModals) {
+                        this.checkForNewModals();
+                    }
+                });
+                
+                observer.observe(document.body, { childList: true, subtree: true });
+            }
+            
+            checkForNewModals() {
+                const modals = document.querySelectorAll('.modal');
+                modals.forEach(modal => {
+                    if (!this.initializedModals.has(modal.id)) {
+                        this.setupModal(modal);
                     }
                 });
             }
+            
+            setupGlobalEventListeners() {
+                // Appliquer les améliorations lors de l'affichage du modal
+                document.addEventListener('shown.bs.modal', event => {
+                    const modalElement = event.target;
+                    this.enhanceModalContent(modalElement);
+                });
+                
+                // Nettoyer lors de la fermeture du modal
+                document.addEventListener('hidden.bs.modal', event => {
+                    const modalElement = event.target;
+                    this.cleanupModal(modalElement);
+                });
+            }
+            
+            enhanceModalContent(modalElement) {
+                if (!modalElement) return;
+                
+                if (this.config.debugMode) {
+                    console.log(`ModalManager: Enhancing content in modal ${modalElement.id || 'unnamed'}`);
+                }
+                
+                // 1. Assurer la visibilité des éléments interactifs
+                const interactiveElements = modalElement.querySelectorAll('input:not([type="hidden"]), select, textarea, button:not([type="hidden"]):not(.btn-close), .form-select, .form-control');
+                interactiveElements.forEach(el => {
+                    el.style.visibility = 'visible';
+                    el.style.opacity = '1';
+                    el.style.display = el.tagName === 'BUTTON' || el.classList.contains('btn') ? 'inline-block' : 'block';
+                    el.style.position = 'relative';
+                    el.style.zIndex = '1060';
+                    
+                    // Pour les select et form-select
+                    if (el.tagName === 'SELECT' || el.classList.contains('form-select')) {
+                        el.style.appearance = 'menulist';
+                        el.style.webkitAppearance = 'menulist';
+                        el.style.mozAppearance = 'menulist';
+                    }
+                });
+                
+                // 2. Améliorer les badges de thème
+                if (typeof window.BadgeManager === 'function') {
+                    const badgeManager = new window.BadgeManager();
+                    badgeManager.enhanceThemeBadges(modalElement);
+                } else if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+                    window.enhanceThemeBadgesGlobally(modalElement);
+                }
+                
+                // 3. Initialiser les tooltips
+                this.initTooltips(modalElement);
+                
+                // 4. Gérer l'affichage des onglets
+                this.setupTabs(modalElement);
+                
+                // 5. Focus sur le premier élément interactif après un court délai
+                setTimeout(() => {
+                    const firstField = modalElement.querySelector('input:not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([type="hidden"]):not(.btn-close):not([disabled])');
+                    if (firstField) {
+                        try {
+                            firstField.focus();
+                        } catch (e) {
+                            if (this.config.debugMode) {
+                                console.warn(`ModalManager: Focus error:`, e);
+                            }
+                        }
+                    }
+                }, 100);
+            }
+            
+            cleanupModal(modalElement) {
+                if (!modalElement) return;
+                
+                // Supprimer les tooltips
+                if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                    const tooltips = modalElement.querySelectorAll('[data-bs-toggle="tooltip"]');
+                    tooltips.forEach(el => {
+                        const tooltip = bootstrap.Tooltip.getInstance(el);
+                        if (tooltip) {
+                            tooltip.dispose();
+                        }
+                    });
+                }
+            }
+            
+            initTooltips(containerElement) {
+                if (typeof bootstrap === 'undefined' || typeof bootstrap.Tooltip !== 'function') return;
+                
+                const tooltips = containerElement.querySelectorAll('[data-bs-toggle="tooltip"]');
+                tooltips.forEach(el => {
+                    // Supprimer l'instance existante, s'il y en a une
+                    const existingTooltip = bootstrap.Tooltip.getInstance(el);
+                    if (existingTooltip) {
+                        existingTooltip.dispose();
+                    }
+                    
+                    // Créer une nouvelle instance
+                    try {
+                        new bootstrap.Tooltip(el);
+                    } catch (e) {
+                        if (this.config.debugMode) {
+                            console.warn(`ModalManager: Tooltip error:`, e);
+                        }
+                    }
+                });
+            }
+            
+            setupTabs(modalElement) {
+                const tabLinks = modalElement.querySelectorAll('[data-bs-toggle="tab"]');
+                tabLinks.forEach(tabLink => {
+                    // S'assurer que l'événement de changement d'onglet est bien géré
+                    tabLink.addEventListener('shown.bs.tab', event => {
+                        const target = document.querySelector(event.target.getAttribute('data-bs-target'));
+                        if (target) {
+                            // Chaque fois qu'un onglet est activé, initialiser son contenu
+                            this.enhanceModalContent(target);
+                        }
+                    });
+                });
+                
+                // Activer le premier onglet s'il n'y a pas d'onglet actif
+                const activeTabLink = modalElement.querySelector('.nav-tabs .nav-link.active, .nav-pills .nav-link.active');
+                const firstTabLink = modalElement.querySelector('.nav-tabs .nav-link, .nav-pills .nav-link');
+                
+                if (!activeTabLink && firstTabLink) {
+                    try {
+                        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tab === 'function') {
+                            const tab = new bootstrap.Tab(firstTabLink);
+                            tab.show();
+                        } else {
+                            // Fallback manuel si bootstrap.Tab n'est pas disponible
+                            firstTabLink.classList.add('active');
+                            const targetSelector = firstTabLink.getAttribute('data-bs-target') || firstTabLink.getAttribute('href');
+                            if (targetSelector) {
+                                const targetPane = document.querySelector(targetSelector);
+                                if (targetPane) {
+                                    const allPanes = modalElement.querySelectorAll('.tab-pane');
+                                    allPanes.forEach(pane => {
+                                        pane.classList.remove('show', 'active');
+                                    });
+                                    targetPane.classList.add('show', 'active');
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        if (this.config.debugMode) {
+                            console.warn(`ModalManager: Tab activation error:`, e);
+                        }
+                    }
+                }
+            }
+            
+            // Méthodes publiques pour manipuler les modals
+            showModal(modalId) {
+                const modalElement = document.getElementById(modalId);
+                if (!modalElement) {
+                    if (this.config.debugMode) {
+                        console.warn(`ModalManager: Cannot show modal ${modalId} - not found`);
+                    }
+                    return false;
+                }
+                
+                try {
+                    const bsModal = this.setupModal(modalElement);
+                    if (bsModal) {
+                        bsModal.show();
+                        return true;
+                    }
+                } catch (e) {
+                    if (this.config.debugMode) {
+                        console.error(`ModalManager: Error showing modal ${modalId}:`, e);
+                    }
+                }
+                
+                return false;
+            }
+            
+            hideModal(modalId) {
+                const modalElement = document.getElementById(modalId);
+                if (!modalElement) return false;
+                
+                try {
+                    const bsModal = bootstrap.Modal.getInstance(modalElement);
+                    if (bsModal) {
+                        bsModal.hide();
+                        return true;
+                    }
+                } catch (e) {
+                    if (this.config.debugMode) {
+                        console.error(`ModalManager: Error hiding modal ${modalId}:`, e);
+                    }
+                }
+                
+                return false;
+            }
+        }
+
+        // Exposer les gestionnaires dans l'espace global
+        window.ErrorHandler = ErrorHandler;
+        window.LoaderManager = LoaderManager;
+        window.ToastManager = ToastManager;
+        window.BadgeManager = BadgeManager;
+        window.ModalManager = ModalManager;
+        
+        // Fonction globale pour améliorer les badges de thème (compatibilité rétroactive)
+        window.enhanceThemeBadgesGlobally = function(parentElement = document) {
+            const badgeManager = new BadgeManager();
+            badgeManager.enhanceThemeBadges(parentElement);
+        };
+
+        // Initialisation au chargement du DOM
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialiser le gestionnaire de loader
+            LoaderManager.init();
+            
+            // Initialiser le gestionnaire de modals
+            window.modalManager = new ModalManager({
+                debugMode: window.dashboardConfig?.debugMode || false,
+                autoInitialize: true
+            });
+            
+            // Améliorer tous les badges de thème
             window.enhanceThemeBadgesGlobally();
+            
+            // Initialiser les tooltips globaux (hors modals)
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]:not(.modal *)'));
+                tooltipTriggerList.forEach(function(tooltipTriggerEl) {
+                    try {
+                        new bootstrap.Tooltip(tooltipTriggerEl);
+                    } catch (e) {
+                        console.warn('Error initializing tooltip:', e);
+                    }
+                });
+            }
+            
+            // Notifier que le layout est chargé
+            if (window.dashboardConfig?.debugMode) {
+                console.log('Layout: DOM fully loaded and enhanced');
+            }
         });
     </script>
+
+    <!-- Scripts específicos del dashboard -->
+    <script src="{{ url_for('static', filename='js/api-error-handler.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}"></script>
+
+    <!-- Scripts específicos de cada página -->
+    {% block scripts_extra %}{% endblock %}
 </body>
 </html>
