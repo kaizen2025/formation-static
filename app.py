@@ -2428,6 +2428,34 @@ def salles_page():
         flash("Une erreur interne est survenue lors du chargement des salles.", "danger")
     return redirect(url_for('admin'))
 
+@app.route('/salle/edit/<int:id>', methods=['GET'])
+@login_required
+def edit_salle_page(id):
+    if current_user.role != 'admin':
+        flash("Accès réservé aux administrateurs.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    try:
+        salle = db.session.get(Salle, id)
+        if not salle:
+            flash("Salle introuvable.", "danger")
+            return redirect(url_for('salles_page'))
+        
+        return render_template('salle_form.html', salle=salle, mode='edit')
+    
+    except Exception as e:
+        app.logger.error(f"Erreur lors du chargement du formulaire d'édition de salle {id}: {e}", exc_info=True)
+        flash("Une erreur est survenue lors du chargement du formulaire.", "danger")
+        return redirect(url_for('salles_page'))
+
+
+@app.route('/operation/success', methods=['GET'])
+@login_required
+def operation_success():
+    """Page qui ferme automatiquement la fenêtre popup après une opération réussie."""
+    action = request.args.get('action', 'Operation')
+    return render_template('close_and_refresh.html', action=action)
+
 @app.route('/admin/salle/add', methods=['POST'])
 @login_required
 @db_operation_with_retry(max_retries=2)
@@ -2435,6 +2463,7 @@ def add_salle():
     if current_user.role != 'admin':
         flash("Action réservée aux administrateurs.", "danger")
         return redirect(url_for('dashboard'))
+    
     try:
         nom = request.form.get('nom')
         capacite_str = request.form.get('capacite')
@@ -2443,34 +2472,48 @@ def add_salle():
 
         if not nom or not capacite_str:
             flash("Le nom et la capacité de la salle sont obligatoires.", "warning")
-            return redirect(url_for('salles_page'))
+            return redirect(url_for('add_salle_page'))
+        
         try:
             capacite = int(capacite_str)
-            if capacite <= 0: raise ValueError("Capacity must be positive")
+            if capacite <= 0: 
+                raise ValueError("Capacity must be positive")
         except ValueError:
             flash("La capacité doit être un nombre entier positif.", "warning")
-            return redirect(url_for('salles_page'))
+            return redirect(url_for('add_salle_page'))
 
         existing_salle = Salle.query.filter_by(nom=nom).first()
         if existing_salle:
             flash(f"Une salle nommée '{nom}' existe déjà.", "warning")
-            return redirect(url_for('salles_page'))
+            return redirect(url_for('add_salle_page'))
 
         new_salle = Salle(nom=nom, capacite=capacite, lieu=lieu, description=description)
-        db.session.add(new_salle); db.session.commit()
-        cache.delete_memoized(get_all_salles); cache.delete('dashboard_essential_data')
+        db.session.add(new_salle)
+        db.session.commit()
+        
+        cache.delete_memoized(get_all_salles)
+        cache.delete('dashboard_essential_data')
         add_activity('ajout_salle', f'Ajout salle: {new_salle.nom}', user=current_user)
+        
         flash(f"Salle '{new_salle.nom}' ajoutée avec succès.", "success")
+        
+        # Redirection vers la page de succès qui fermera la fenêtre
+        return redirect(url_for('operation_success', action='Ajout'))
+    
     except IntegrityError:
         db.session.rollback()
         flash(f"Erreur d'intégrité: Une salle nommée '{nom}' existe peut-être déjà.", "danger")
     except SQLAlchemyError as e:
-        db.session.rollback(); app.logger.error(f"Erreur DB ajout salle: {e}", exc_info=True)
+        db.session.rollback()
+        app.logger.error(f"Erreur DB ajout salle: {e}", exc_info=True)
         flash("Erreur de base de données lors de l'ajout de la salle.", "danger")
     except Exception as e:
-        db.session.rollback(); app.logger.error(f"Erreur inattendue ajout salle: {e}", exc_info=True)
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue ajout salle: {e}", exc_info=True)
         flash("Une erreur inattendue est survenue.", "danger")
-    return redirect(url_for('salles_page'))
+    
+    return redirect(url_for('add_salle_page'))
+
 
 @app.route('/admin/salle/update/<int:id>', methods=['POST'])
 @login_required
@@ -2481,26 +2524,60 @@ def update_salle(id):
         return redirect(url_for('dashboard'))
     
     salle = db.session.get(Salle, id)
-    if not salle: flash("Salle introuvable.", "danger"); return redirect(url_for('salles_page'))
+    if not salle: 
+        flash("Salle introuvable.", "danger")
+        return redirect(url_for('salles_page'))
+    
     try:
-        nom = request.form.get('nom'); capacite_str = request.form.get('capacite')
-        lieu = request.form.get('lieu'); description = request.form.get('description')
-        if not nom or not capacite_str: flash("Le nom et la capacité sont obligatoires.", "warning"); return redirect(url_for('salles_page'))
+        nom = request.form.get('nom')
+        capacite_str = request.form.get('capacite')
+        lieu = request.form.get('lieu')
+        description = request.form.get('description')
+        
+        if not nom or not capacite_str: 
+            flash("Le nom et la capacité sont obligatoires.", "warning")
+            return redirect(url_for('edit_salle_page', id=id))
+        
         try:
             capacite = int(capacite_str)
-            if capacite <= 0: raise ValueError("Capacity must be positive")
-        except ValueError: flash("La capacité doit être un nombre entier positif.", "warning"); return redirect(url_for('salles_page'))
-        if nom != salle.nom and Salle.query.filter(Salle.nom == nom, Salle.id != id).first():
-            flash(f"Une autre salle nommée '{nom}' existe déjà.", "warning"); return redirect(url_for('salles_page'))
+            if capacite <= 0: 
+                raise ValueError("Capacity must be positive")
+        except ValueError: 
+            flash("La capacité doit être un nombre entier positif.", "warning")
+            return redirect(url_for('edit_salle_page', id=id))
         
-        salle.nom = nom; salle.capacite = capacite; salle.lieu = lieu; salle.description = description
-        db.session.commit(); cache.delete_memoized(get_all_salles); cache.delete('dashboard_essential_data')
+        if nom != salle.nom and Salle.query.filter(Salle.nom == nom, Salle.id != id).first():
+            flash(f"Une autre salle nommée '{nom}' existe déjà.", "warning")
+            return redirect(url_for('edit_salle_page', id=id))
+        
+        salle.nom = nom
+        salle.capacite = capacite
+        salle.lieu = lieu
+        salle.description = description
+        
+        db.session.commit()
+        cache.delete_memoized(get_all_salles)
+        cache.delete('dashboard_essential_data')
         add_activity('modification_salle', f'Modification salle: {salle.nom}', user=current_user)
+        
         flash(f"Salle '{salle.nom}' mise à jour avec succès.", "success")
-    except IntegrityError: db.session.rollback(); flash(f"Erreur d'intégrité màj salle '{salle.nom}'.", "danger")
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"Erreur DB màj salle {id}: {e}", exc_info=True); flash("Erreur DB màj.", "danger")
-    except Exception as e: db.session.rollback(); app.logger.error(f"Erreur inattendue màj salle {id}: {e}", exc_info=True); flash("Erreur inattendue.", "danger")
-    return redirect(url_for('salles_page'))
+        
+        # Redirection vers la page de succès qui fermera la fenêtre
+        return redirect(url_for('operation_success', action='Modification'))
+    
+    except IntegrityError: 
+        db.session.rollback()
+        flash(f"Erreur d'intégrité màj salle '{salle.nom}'.", "danger")
+    except SQLAlchemyError as e: 
+        db.session.rollback()
+        app.logger.error(f"Erreur DB màj salle {id}: {e}", exc_info=True)
+        flash("Erreur DB màj.", "danger")
+    except Exception as e: 
+        db.session.rollback()
+        app.logger.error(f"Erreur inattendue màj salle {id}: {e}", exc_info=True)
+        flash("Erreur inattendue.", "danger")
+    
+    return redirect(url_for('edit_salle_page', id=id))
 
 @app.route('/admin/salle/delete/<int:id>', methods=['POST'])
 @login_required
