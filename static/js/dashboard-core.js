@@ -1,21 +1,17 @@
 /**
- * dashboard-core.js - Fichier JavaScript optimisé pour le tableau de bord
- * Version: 1.6.1 - Suppression commentaire Jinja dans le rendu JS
+ * dashboard-core.js
+ * Version: 1.6.7 - Corrected escapeHtml, robust initialization and data handling.
  */
-
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard Core: Initializing (v1.6.1)');
-
     if (window.dashboardCoreInitialized) {
-        console.log('Dashboard Core: Already initialized. Skipping.');
+        console.warn('Dashboard Core (v1.6.7): Already initialized. Skipping.');
         return;
     }
     window.dashboardCoreInitialized = true;
+    console.log('Dashboard Core (v1.6.7): Initializing...');
 
     const globalLoadingOverlay = document.getElementById('loading-overlay');
-
     const dashInitConfig = window.dashboardConfig || {};
-
     const config = {
         debugMode: dashInitConfig.debugMode || false,
         refreshInterval: dashInitConfig.autoRefreshInterval || 120000,
@@ -24,1042 +20,225 @@ document.addEventListener('DOMContentLoaded', function() {
         baseApiUrl: dashInitConfig.baseApiUrl || '/api',
         chartRendering: dashInitConfig.chartRendering || 'auto',
         usingDashboardInit: !!dashInitConfig.autoRefreshInterval || !!dashInitConfig.preferredMode,
-        socketEnabled: dashInitConfig.socketEnabled !== undefined ? dashInitConfig.socketEnabled : true,
-        pollingEnabled: dashInitConfig.pollingEnabled !== undefined ? dashInitConfig.pollingEnabled : true,
-        preferredMode: dashInitConfig.preferredMode || 'auto',
         errorThrottleMode: false,
         fetchTimeoutDuration: 15000
     };
 
-    if (config.debugMode) console.log(`Dashboard Core: Configured`, config);
+    if (config.debugMode) console.log(`Dashboard Core: Configured`, JSON.parse(JSON.stringify(config)));
 
     let dashboardState = {
-        lastRefresh: 0,
-        updating: false,
+        lastRefresh: 0, updating: false,
         dataHashes: { sessions: null, participants: null, activites: null },
         rawData: { sessions: [], participants: [], activites: [] },
-        errorCount: 0,
-        maxErrors: 5,
-        pollingActive: true,
-        pollingTimeout: null,
-        pollingTimeoutScheduled: false,
-        themeChart: null,
-        serviceChart: null,
+        errorCount: 0, maxErrors: 5, pollingActive: true,
+        pollingTimeout: null, pollingTimeoutScheduled: false,
         fetchTimeoutId: null
     };
 
     const errorHandler = window.apiErrorHandler || {
-        handleApiError: (endpoint, errorData, statusCode) => {
-            console.error(`Fallback Error Handler: Erreur ${statusCode} sur ${endpoint}`, errorData);
-            if (typeof showToast === 'function') showToast(`Erreur ${statusCode} lors du chargement de ${endpoint}`, 'danger');
-            return false;
-        },
-        checkAndFixBrokenElements: () => {
-            if (config.debugMode) console.log("Dashboard Core: Fixing UI elements with fallback handler");
-            fixDataIssues();
-            enhanceBadgesAndLabels();
-        }
+        handleApiError: (e,d,s) => { console.error(`FallbackErr: ${s} on ${e}`,d); if(typeof window.showToast==='function')window.showToast(`Err ${s} loading ${e}`,'danger'); return false;},
+        checkAndFixBrokenElements: () => { if(config.debugMode)console.log("DB Core: Fallback checkAndFix."); fixDataIssues(); enhanceBadgesAndLabels(); }
     };
 
-    // ====== INITIALISATION ET CYCLE DE VIE ======
     function initializeDashboard() {
         enhanceUI();
-        initializeCharts();
+        if (typeof window.chartModule === 'object' && typeof window.chartModule.initialize === 'function') {
+            window.chartModule.initialize().catch(e => console.error("Chart init error via chartModule:", e));
+        } else {
+            initializeChartsFallback();
+        }
 
         if (!config.usingDashboardInit) {
-            setupEventListeners();
-            startPolling();
+            setupEventListeners(); startPolling();
         } else {
-            window.forcePollingUpdate = (forceRefresh) => debouncedFetchDashboardData(forceRefresh);
-            window.updateStatsCounters = updateStatisticsCounters;
-            window.refreshRecentActivity = () => updateActivityFeed(null);
-            window.chartModule = { initialize: initializeCharts, update: updateCharts };
+            window.forcePollingUpdate = (force) => debouncedFetchDashboardData(force);
+            if (typeof window.updateStatsCounters !== 'function') window.updateStatsCounters = updateStatisticsCounters;
+            if (typeof window.refreshRecentActivity !== 'function') window.refreshRecentActivity = () => updateActivityFeed(null);
+            if (typeof window.chartModule !== 'object' || typeof window.chartModule.initialize !== 'function') {
+                window.chartModule = { initialize: initializeChartsFallback, update: updateChartsFallback };
+            }
         }
-
         debouncedFetchDashboardData(true);
-
-        if (config.debugMode) console.log('Dashboard Core: Initialization sequence complete.');
+        if (config.debugMode) console.log('Dashboard Core: Init sequence complete.');
     }
 
-    // ... (startPolling, setupEventListeners, setupMutationObserver identiques) ...
-     function startPolling() {
-        if (config.usingDashboardInit && config.preferredMode !== 'polling') {
-            if (config.debugMode) console.log("Dashboard Core: Polling not started (managed by dashboard-init or mode is not polling).");
-            return;
-        }
-        if (!config.pollingEnabled) {
-             if (config.debugMode) console.log("Dashboard Core: Polling is disabled.");
-             return;
-        }
-
+    function startPolling() {
+        if (config.usingDashboardInit && config.preferredMode !== 'polling') return;
         if (dashboardState.pollingTimeout) clearTimeout(dashboardState.pollingTimeout);
         dashboardState.pollingTimeoutScheduled = false;
-
         function scheduleNextPoll() {
             if (dashboardState.pollingTimeoutScheduled || !dashboardState.pollingActive) return;
             dashboardState.pollingTimeoutScheduled = true;
-
             dashboardState.pollingTimeout = setTimeout(async () => {
                 dashboardState.pollingTimeoutScheduled = false;
                 if (dashboardState.pollingActive && document.visibilityState === 'visible' && !dashboardState.updating) {
-                    try {
-                        await debouncedFetchDashboardData(false, true);
-                    } catch (err) {
-                        console.error("Dashboard Core: Error during scheduled poll:", err);
-                    } finally {
-                        if (dashboardState.pollingActive) {
-                            scheduleNextPoll();
-                        }
-                    }
-                } else {
-                    if (dashboardState.pollingActive) {
-                         scheduleNextPoll();
-                    }
-                }
+                    try { await debouncedFetchDashboardData(false); } catch (err) { console.error("DB Core: Poll error:", err); }
+                    finally { if (dashboardState.pollingActive) scheduleNextPoll(); }
+                } else if (dashboardState.pollingActive) scheduleNextPoll();
             }, config.refreshInterval);
         }
-
         scheduleNextPoll();
-        if (config.debugMode) console.log(`Dashboard Core: Polling started (interval: ${config.refreshInterval}ms)`);
     }
 
     function setupEventListeners() {
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && dashboardState.pollingActive) {
-                if (config.debugMode) console.log('Dashboard Core: Tab visible, triggering refresh');
-                debouncedFetchDashboardData(false, true);
-            } else if (document.visibilityState === 'hidden') {
-                if (dashboardState.pollingTimeout) {
-                    clearTimeout(dashboardState.pollingTimeout);
-                    dashboardState.pollingTimeoutScheduled = false;
-                    if(config.debugMode) console.log('Dashboard Core: Tab hidden, polling paused.');
-                }
-            }
+            if (document.visibilityState === 'visible' && dashboardState.pollingActive) debouncedFetchDashboardData(false);
+            else if (document.visibilityState === 'hidden' && dashboardState.pollingTimeout) { clearTimeout(dashboardState.pollingTimeout); dashboardState.pollingTimeoutScheduled = false; }
         });
-
-        const refreshButton = document.getElementById('refresh-dashboard');
-        if (refreshButton) {
-            refreshButton.addEventListener('click', function() {
-                this.disabled = true;
-                this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
-                if (globalLoadingOverlay) globalLoadingOverlay.style.display = 'flex';
-
+        const btn = document.getElementById('refresh-dashboard');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                this.disabled = true; this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Actualisation...';
+                if (globalLoadingOverlay) { globalLoadingOverlay.style.display = 'flex'; globalLoadingOverlay.classList.remove('hidden');}
                 debouncedFetchDashboardData(true)
-                    .then((updated) => {
-                        if (typeof showToast === 'function') {
-                            if (updated === true) showToast('Données actualisées avec succès', 'success');
-                            else if (updated === false) showToast('Aucune nouvelle donnée ou erreur lors de l\'actualisation.', 'info');
-                        }
-                        if (!dashboardState.pollingActive) {
-                            dashboardState.pollingActive = true;
-                            dashboardState.errorCount = 0;
-                            showErrorWarning(false);
-                            startPolling();
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Dashboard Core: Error during manual refresh:', err);
-                        if (typeof showToast === 'function') showToast('Erreur lors de l\'actualisation manuelle', 'danger');
-                    })
-                    .finally(() => {
-                        const currentRefreshButton = document.getElementById('refresh-dashboard');
-                        if(currentRefreshButton) {
-                            currentRefreshButton.disabled = false;
-                            currentRefreshButton.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualiser';
-                        }
-                        if (globalLoadingOverlay && !dashboardState.updating) {
-                             globalLoadingOverlay.style.display = 'none';
-                             globalLoadingOverlay.classList.add('hidden');
-                        }
-                    });
+                    .then(u => { if(typeof window.showToast==='function'){if(u===true)window.showToast('Données à jour','success');else if(u===false)window.showToast('Pas de nouveauté.','info');} if(!dashboardState.pollingActive){dashboardState.pollingActive=true;dashboardState.errorCount=0;showErrorWarning(false);startPolling();}})
+                    .catch(e => { if(typeof window.showToast==='function')window.showToast('Erreur refresh.','danger');})
+                    .finally(() => { const cb=document.getElementById('refresh-dashboard'); if(cb){cb.disabled=false;cb.innerHTML='<i class="fas fa-sync-alt me-1"></i>Actualiser';} if(globalLoadingOverlay&&!dashboardState.updating){globalLoadingOverlay.style.display='none';globalLoadingOverlay.classList.add('hidden');}});
             });
         }
-        setupValidationListeners();
-        setupMutationObserver();
+        setupValidationListeners(); setupMutationObserver();
     }
 
-     function setupMutationObserver() {
-         if (!window.MutationObserver) return;
-        let observerTimeout = null;
-        const observer = new MutationObserver(function(mutations) {
-            let important = false;
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    for (const node of mutation.addedNodes) {
-                        if (node.nodeType === 1 && node.classList && (
-                            node.classList.contains('places-dispo') ||
-                            node.classList.contains('theme-badge') ||
-                            node.classList.contains('counter-value') ||
-                            node.querySelector('.places-dispo, .theme-badge, .counter-value')
-                        )) {
-                            important = true;
-                            break;
-                        }
-                    }
-                }
-                if (important) break;
-            }
-            if (important) {
-                clearTimeout(observerTimeout);
-                observerTimeout = setTimeout(() => {
-                    fixDataIssues();
-                    enhanceBadgesAndLabels();
-                }, 300);
-            }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-        if (config.debugMode) console.log('Dashboard Core: Mutation observer initialized');
+    function setupMutationObserver() {
+        if (!window.MutationObserver) return; let t = null;
+        new MutationObserver(m => { if(m.some(mu=>mu.type==='childList'&&mu.addedNodes.length>0&&Array.from(mu.addedNodes).some(n=>n.nodeType===1&&n.classList&&(n.classList.contains('places-dispo')||n.classList.contains('theme-badge')||n.classList.contains('counter-value')||n.querySelector('.places-dispo,.theme-badge,.counter-value'))))){clearTimeout(t);t=setTimeout(()=>{fixDataIssues();enhanceBadgesAndLabels();},300);}}).observe(document.body,{childList:true,subtree:true});
     }
 
-    // ====== COMMUNICATION AVEC L'API ======
-    async function _fetchDashboardData(forceRefresh = false, lightMode = false) {
-        // ... (code identique à la version précédente) ...
-        if (dashboardState.updating && !forceRefresh) {
-            if (config.debugMode) console.log('Dashboard Core: Skipping fetch (update in progress, not forced)');
-            return Promise.resolve(false);
-        }
-
-        if (config.errorThrottleMode && !forceRefresh) {
-            if (config.debugMode) console.log('Dashboard Core: Skipping fetch (error throttle mode active)');
-            return Promise.resolve(false);
-        }
-
+    async function _fetchDashboardData(forceRefresh = false) {
+        if (dashboardState.updating && !forceRefresh) return Promise.resolve(false);
+        if (config.errorThrottleMode && !forceRefresh) return Promise.resolve(false);
         const now = Date.now();
-        if (!forceRefresh && now - dashboardState.lastRefresh < config.minRefreshDelay) {
-            if (config.debugMode) console.log(`Dashboard Core: Skipping fetch (too soon, ${config.minRefreshDelay - (now - dashboardState.lastRefresh)}ms remaining)`);
-            return Promise.resolve(false);
-        }
-
+        if (!forceRefresh && (now - dashboardState.lastRefresh < config.minRefreshDelay)) return Promise.resolve(false);
         dashboardState.updating = true;
-        if (!forceRefresh || (forceRefresh && now - dashboardState.lastRefresh >= config.minRefreshDelay)) {
-             dashboardState.lastRefresh = now;
-        }
-
-        let updateSucceeded = false;
+        if (!forceRefresh || (forceRefresh && (now - dashboardState.lastRefresh >= config.minRefreshDelay))) dashboardState.lastRefresh = now;
         let currentUrl = '';
-
-        if (globalLoadingOverlay && (forceRefresh || !lightMode)) {
-            globalLoadingOverlay.style.display = 'flex';
-            globalLoadingOverlay.classList.remove('hidden');
-        }
-
+        if (globalLoadingOverlay && forceRefresh) { globalLoadingOverlay.style.display = 'flex'; globalLoadingOverlay.classList.remove('hidden'); }
         try {
-            currentUrl = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`; // Toujours fetch complet
-
-            if (config.debugMode) console.log(`Dashboard Core: Fetching data from ${currentUrl}`);
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => {
-                controller.abort();
-                if (config.debugMode) console.warn(`Dashboard Core: Fetch to ${currentUrl} timed out after ${config.fetchTimeoutDuration}ms.`);
-            }, config.fetchTimeoutDuration);
-
-            const response = await fetch(currentUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                },
-                signal: controller.signal
-            });
-
+            currentUrl = `${config.baseApiUrl}/dashboard_essential?_=${Date.now()}`;
+            const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), config.fetchTimeoutDuration);
+            const response = await fetch(currentUrl, { method: 'GET', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }, signal: controller.signal });
             clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                let errorData = { message: `HTTP error ${response.status}`, status: response.status };
-                try {
-                    const clonedResponse = response.clone();
-                    errorData = await clonedResponse.json();
-                } catch (e) {
-                    if (config.debugMode) console.warn('Dashboard Core: Failed to parse error response as JSON.', e);
-                }
-
-                if (response.status >= 500 && !config.errorThrottleMode) {
-                    config.errorThrottleMode = true;
-                    if (config.debugMode) console.warn('Dashboard Core: Error throttle mode activated due to server error.');
-                    setTimeout(() => {
-                        config.errorThrottleMode = false;
-                        if (config.debugMode) console.log('Dashboard Core: Error throttle mode deactivated');
-                    }, 60000);
-                }
-
-                errorHandler.handleApiError(currentUrl, errorData, response.status);
-                return false;
-            }
-
+            if (!response.ok) { let eD={message:`HTTP err ${response.status}`,status:response.status}; try{eD=await response.clone().json();}catch(e){} if(response.status>=500&&!config.errorThrottleMode){config.errorThrottleMode=true;setTimeout(()=>{config.errorThrottleMode=false;},60000);} errorHandler.handleApiError(currentUrl,eD,response.status); return false; }
             const data = await response.json();
-            if (!data || typeof data !== 'object') {
-                console.error('Dashboard Core: Invalid data received from API', data);
-                errorHandler.handleApiError(currentUrl, { message: "Invalid data format from API" }, response.status);
-                return false;
-            }
-
-            dashboardState.rawData = data; // Stocker les données brutes
-
-            const hasChanged = processData(data, forceRefresh);
-            dashboardState.errorCount = 0;
-            showErrorWarning(false);
-            updateSucceeded = true;
-
-            if (hasChanged) {
-                if (config.debugMode) console.log('Dashboard Core: Data updated, triggering dashboardDataRefreshed event');
-                document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: data } }));
-            } else {
-                if (config.debugMode) console.log('Dashboard Core: No significant data changes detected');
-            }
-
+            if (!data || typeof data !== 'object') { errorHandler.handleApiError(currentUrl,{message:"Invalid data format"},response.status); return false; }
+            dashboardState.rawData = data; const hasChanged = processData(data, forceRefresh);
+            dashboardState.errorCount = 0; showErrorWarning(false);
+            if (hasChanged) document.dispatchEvent(new CustomEvent('dashboardDataRefreshed', { detail: { data: data } }));
             return hasChanged;
-
         } catch (error) {
-            console.error(`Dashboard Core: Error fetching dashboard data from ${currentUrl}:`, error.name, error.message);
             errorHandler.handleApiError(currentUrl, { message: error.message, name: error.name }, 0);
-
             dashboardState.errorCount++;
-            if (dashboardState.errorCount >= 3 && !config.errorThrottleMode) {
-                config.errorThrottleMode = true;
-                console.warn('Dashboard Core: Error throttle mode activated due to multiple errors.');
-                setTimeout(() => {
-                    config.errorThrottleMode = false;
-                    if (config.debugMode) console.log('Dashboard Core: Error throttle mode deactivated');
-                }, 120000);
-            }
-
-            if (dashboardState.errorCount >= dashboardState.maxErrors && dashboardState.pollingActive) {
-                console.warn(`Dashboard Core: Too many errors (${dashboardState.errorCount}), pausing polling`);
-                dashboardState.pollingActive = false;
-                if (dashboardState.pollingTimeout) clearTimeout(dashboardState.pollingTimeout);
-                dashboardState.pollingTimeoutScheduled = false;
-                showErrorWarning(true);
-            }
-            return undefined; // Indiquer une erreur
+            if (dashboardState.errorCount >= 3 && !config.errorThrottleMode) { config.errorThrottleMode = true; setTimeout(() => { config.errorThrottleMode = false; }, 120000); }
+            if (dashboardState.errorCount >= dashboardState.maxErrors && dashboardState.pollingActive) { dashboardState.pollingActive = false; if (dashboardState.pollingTimeout) clearTimeout(dashboardState.pollingTimeout); dashboardState.pollingTimeoutScheduled = false; showErrorWarning(true); }
+            return undefined;
         } finally {
             dashboardState.updating = false;
-            if (globalLoadingOverlay && (forceRefresh || !lightMode)) {
-                setTimeout(() => {
-                    if (!dashboardState.updating) {
-                         globalLoadingOverlay.style.display = 'none';
-                         globalLoadingOverlay.classList.add('hidden');
-                    }
-                }, 200);
-            }
-            if (config.debugMode) console.log('Dashboard Core: Fetch cycle finished.');
+            if (globalLoadingOverlay && forceRefresh) { setTimeout(() => { if (!dashboardState.updating) { globalLoadingOverlay.style.display = 'none'; globalLoadingOverlay.classList.add('hidden'); } }, 200); }
         }
     }
 
-    function debouncedFetchDashboardData(forceRefresh = false, lightModeForDebounce = false) {
-        // ... (code identique, mais appelle _fetchDashboardData avec lightMode=false) ...
-         if (forceRefresh) {
-            if (dashboardState.fetchTimeoutId) {
-                clearTimeout(dashboardState.fetchTimeoutId);
-                dashboardState.fetchTimeoutId = null;
-            }
-            if (config.debugMode) console.log("Dashboard Core: Debounced fetch triggered (forced)");
-            // Forcer un fetch complet (non-light)
-            return _fetchDashboardData(true, false);
-        }
-
-        if (dashboardState.fetchTimeoutId) {
-            if (config.debugMode) console.log("Dashboard Core: Debounced fetch skipped (timeout active)");
-            return Promise.resolve(false);
-        }
-
-        if (config.debugMode) console.log(`Dashboard Core: Debounced fetch scheduled (delay: ${config.debounceDelay}ms)`);
-
-        return new Promise((resolve) => {
-            dashboardState.fetchTimeoutId = setTimeout(async () => {
-                dashboardState.fetchTimeoutId = null;
-                try {
-                    // Toujours fetch complet pour avoir les participants pour les graphiques
-                    const result = await _fetchDashboardData(false, false);
-                    resolve(result);
-                } catch (error) {
-                    console.error("Dashboard Core: Error in debounced fetch execution:", error);
-                    resolve(undefined); // Indiquer une erreur
-                }
-            }, config.debounceDelay);
-        });
+    function debouncedFetchDashboardData(forceRefresh = false) {
+        if (forceRefresh) { if (dashboardState.fetchTimeoutId) { clearTimeout(dashboardState.fetchTimeoutId); dashboardState.fetchTimeoutId = null; } return _fetchDashboardData(true); }
+        if (dashboardState.fetchTimeoutId) return Promise.resolve(false);
+        return new Promise(resolve => { dashboardState.fetchTimeoutId = setTimeout(async () => { dashboardState.fetchTimeoutId = null; try { const r = await _fetchDashboardData(false); resolve(r); } catch (e) { resolve(undefined); } }, config.debounceDelay); });
     }
 
     function processData(data, forceRefresh = false) {
-        // ... (code identique à la version précédente) ...
-         if (!data || typeof data !== 'object') {
-             console.error("ProcessData: Invalid data received", data);
-             return false;
-        }
+        if (!data || typeof data !== 'object') { if(config.debugMode)console.warn("ProcessData: Invalid data. Static content kept."); return false; }
         let hasChanged = forceRefresh;
-
         if (data.sessions && Array.isArray(data.sessions)) {
-            const validatedSessions = data.sessions.map(s => {
-                s.places_restantes = s.places_restantes ?? Math.max(0, (s.max_participants || 0) - (s.inscrits || 0));
-                return s;
-            });
-            const sessionsHash = simpleHash(validatedSessions);
-            if (sessionsHash !== dashboardState.dataHashes.sessions) {
-                updateSessionTable(validatedSessions);
-                updateStatisticsCounters(validatedSessions);
-                dashboardState.dataHashes.sessions = sessionsHash;
-                hasChanged = true;
+            const vS = data.sessions.map(s => ({ ...s, inscrits:parseInt(s.inscrits)||0, liste_attente:parseInt(s.liste_attente)||0, max_participants:parseInt(s.max_participants)||0, places_restantes:(s.places_restantes!==undefined&&!isNaN(parseInt(s.places_restantes)))?parseInt(s.places_restantes):Math.max(0,(parseInt(s.max_participants)||0)-(parseInt(s.inscrits)||0))}));
+            const sH = simpleHash(vS);
+            if (sH !== dashboardState.dataHashes.sessions || forceRefresh) {
+                updateSessionTable(vS); updateStatisticsCounters(vS);
+                dashboardState.dataHashes.sessions = sH; hasChanged = true;
             }
-        } else if (dashboardState.dataHashes.sessions !== null) {
-             updateSessionTable([]);
-             updateStatisticsCounters([]);
-             dashboardState.dataHashes.sessions = null;
-             hasChanged = true;
-        }
+        } else if (forceRefresh) { /* Optionally clear if forced and no data */ }
 
-        if (data.participants && Array.isArray(data.participants)) {
-             const participantsHash = simpleHash(data.participants);
-             if (participantsHash !== dashboardState.dataHashes.participants) {
-                 dashboardState.dataHashes.participants = participantsHash;
-                 if (dashboardState.dataHashes.sessions !== null) {
-                     updateCharts(data.sessions, data.participants);
+        if (data.participants && Array.isArray(data.participants) && data.sessions && Array.isArray(data.sessions)) {
+             const pH = simpleHash(data.participants);
+             if (pH !== dashboardState.dataHashes.participants || hasChanged || forceRefresh) {
+                 if (typeof window.chartModule === 'object' && typeof window.chartModule.update === 'function') {
+                    window.chartModule.update(data.sessions, data.participants).catch(e => console.error("Chart update error via chartModule:", e));
+                 } else {
+                    updateChartsFallback(data.sessions, data.participants);
                  }
-                 hasChanged = true;
+                 dashboardState.dataHashes.participants = pH;
+                 if (pH !== dashboardState.dataHashes.participants && !hasChanged) hasChanged = true; // Marquer si seulement les participants ont changé
              }
-        } else if (dashboardState.dataHashes.participants !== null) {
-             dashboardState.dataHashes.participants = null;
-             updateCharts(data.sessions, []);
-             hasChanged = true;
-        }
-
+        } else if (forceRefresh) { /* Optionally clear charts */ }
+        
         if (data.activites && Array.isArray(data.activites)) {
-            const activitiesHash = simpleHash(data.activites);
-            if (activitiesHash !== dashboardState.dataHashes.activites) {
-                updateActivityFeed(data.activites);
-                dashboardState.dataHashes.activites = activitiesHash;
-                hasChanged = true;
+            const aH = simpleHash(data.activites);
+            if (aH !== dashboardState.dataHashes.activites || forceRefresh) {
+                if (typeof window.refreshRecentActivity === 'function') {
+                    window.refreshRecentActivity(data.activites).catch(e => console.error("Activity refresh error via global func:", e));
+                } else {
+                    updateActivityFeed(data.activites);
+                }
+                dashboardState.dataHashes.activites = aH; hasChanged = true;
             }
-        } else if (dashboardState.dataHashes.activites !== null) {
-             updateActivityFeed([]);
-             dashboardState.dataHashes.activites = null;
-             hasChanged = true;
-        }
+        } else if (forceRefresh) { /* Optionally clear activities */ }
 
-        if (hasChanged) {
-            setTimeout(() => {
-                fixDataIssues();
-                enhanceBadgesAndLabels();
-                initTooltips();
-                errorHandler.checkAndFixBrokenElements();
-            }, 100);
-        }
-
+        if (hasChanged) setTimeout(() => { fixDataIssues(); enhanceBadgesAndLabels(); initTooltips(); errorHandler.checkAndFixBrokenElements(); }, 150);
         return hasChanged;
     }
 
-
-    // ====== MISE À JOUR DES COMPOSANTS UI ======
-    // ... (updateSessionTable, updateStatisticsCounters, updateCounter, updateActivityFeed, getActivityIcon identiques) ...
-     function updateSessionTable(sessions) {
+    function updateSessionTable(sessions) {
         if (!sessions || !Array.isArray(sessions)) return;
-        const sessionTableBody = document.querySelector('.session-table tbody, #sessions-table tbody');
-        if (!sessionTableBody) return;
-
-        sessionTableBody.innerHTML = ''; // Vider avant de remplir
-
-        if (sessions.length === 0) {
-             const cols = sessionTableBody.closest('table')?.querySelectorAll('thead th').length || 5;
-             sessionTableBody.innerHTML = `<tr class="no-data-row"><td colspan="${cols}" class="text-center p-4 text-muted">Aucune session à afficher.</td></tr>`;
-             return;
-        }
-
-        sessions.forEach(session => {
-            const maxP = session.max_participants || 0;
-            const placesR = session.places_restantes;
-            let placesClass = 'text-secondary';
-            let placesIcon = 'fa-question-circle';
-
-            if (typeof placesR === 'number' && !isNaN(placesR)) {
-                if (placesR <= 0) { placesClass = 'text-danger'; placesIcon = 'fa-times-circle'; }
-                else if (placesR <= Math.floor(maxP * 0.3)) { placesClass = 'text-warning'; placesIcon = 'fa-exclamation-triangle'; }
-                else { placesClass = 'text-success'; placesIcon = 'fa-check-circle'; }
-            }
-
-            const rowHtml = `
-                <tr class="session-row" data-session-id="${session.id}" data-theme="${session.theme || 'N/A'}" data-full="${placesR <= 0 ? '1' : '0'}">
-                    <td>
-                        <span class="fw-bold d-block">${session.date || 'N/A'}</span>
-                        <small class="text-secondary">${session.horaire || 'N/A'}</small>
-                    </td>
-                    <td class="theme-cell">
-                        <span class="theme-badge" data-theme="${session.theme || 'N/A'}"
-                              title="${window.themesDataForChart?.[session.theme]?.description || ''}"
-                              data-bs-toggle="tooltip" data-bs-placement="top">
-                            ${session.theme || 'N/A'}
-                        </span>
-                    </td>
-                    <td class="places-dispo text-nowrap ${placesClass}">
-                        <i class="fas ${placesIcon} me-1"></i> ${placesR} / ${maxP}
-                    </td>
-                    <td class="js-salle-cell">
-                        ${session.salle || 'Non définie'}
-                    </td>
-                    <td class="text-nowrap text-center">
-                        <button type="button" class="btn btn-sm btn-outline-secondary me-1"
-                                data-bs-toggle="modal" data-bs-target="#participantsModal_${session.id}"
-                                title="Voir les participants" data-bs-placement="top">
-                            <i class="fas fa-users"></i> <span class="badge bg-secondary ms-1">${session.inscrits || 0}</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-primary"
-                                data-bs-toggle="modal" data-bs-target="#inscriptionModal_${session.id}"
-                                title="Inscrire un participant" data-bs-placement="top">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </td>
-                </tr>`;
-            sessionTableBody.insertAdjacentHTML('beforeend', rowHtml);
+        const sTB = document.querySelector('.session-table tbody, #sessions-table tbody'); if (!sTB) return;
+        sTB.innerHTML = ''; if (sessions.length === 0) { const c = sTB.closest('table')?.querySelectorAll('thead th').length || 5; sTB.innerHTML = `<tr class="no-data-row"><td colspan="${c}" class="text-center p-4 text-muted">Aucune session.</td></tr>`; return; }
+        sessions.forEach(s => {
+            const mP=parseInt(s.max_participants)||0; const pR=parseInt(s.places_restantes); let pC='text-secondary',pI='fa-question-circle';
+            if(typeof pR==='number'&&!isNaN(pR)){if(pR<=0){pC='text-danger';pI='fa-times-circle';}else if(pR<=Math.floor(mP*0.3)){pC='text-warning';pI='fa-exclamation-triangle';}else{pC='text-success';pI='fa-check-circle';}}
+            const rH=`<tr class="session-row" data-session-id="${s.id}" data-theme="${s.theme||'N/A'}" data-full="${pR<=0?'1':'0'}"><td><span class="fw-bold d-block">${s.date||'N/A'}</span><small class="text-secondary">${s.horaire||'N/A'}</small></td><td class="theme-cell"><span class="theme-badge" data-theme="${s.theme||'N/A'}" title="${(window.themesDataForChart&&window.themesDataForChart[s.theme])?escapeHtml(window.themesDataForChart[s.theme].description):''}" data-bs-toggle="tooltip">${s.theme||'N/A'}</span></td><td class="places-dispo text-nowrap ${pC}"><i class="fas ${pI} me-1"></i> ${typeof pR==='number'&&!isNaN(pR)?pR:'?'} / ${mP}</td><td class="js-salle-cell">${s.salle||'<span class="badge bg-secondary">Non définie</span>'}</td><td class="text-nowrap text-center"><button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#participantsModal_${s.id}" title="Voir participants"><i class="fas fa-users"></i> <span class="badge bg-secondary ms-1">${parseInt(s.inscrits)||0}</span></button><button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal_${s.id}" title="Inscrire"><i class="fas fa-plus"></i></button></td></tr>`;
+            sTB.insertAdjacentHTML('beforeend',rH);
         });
-         enhanceBadgesAndLabels();
-         initTooltips();
+        enhanceBadgesAndLabels(); initTooltips();
     }
 
     function updateStatisticsCounters(sessions) {
-         let stats = { totalInscriptions: 0, totalEnAttente: 0, totalSessions: 0, totalSessionsCompletes: 0 };
-        if (!sessions || !Array.isArray(sessions)) {
-            updateCounter('total-inscriptions', stats.totalInscriptions);
-            updateCounter('total-en-attente', stats.totalEnAttente);
-            updateCounter('total-sessions', stats.totalSessions);
-            updateCounter('total-sessions-completes', stats.totalSessionsCompletes);
-            return stats;
-        }
-
-        stats.totalSessions = sessions.length;
-        sessions.forEach(session => {
-            stats.totalInscriptions += (session.inscrits || 0);
-            stats.totalEnAttente += (session.liste_attente || 0);
-            if (session.places_restantes <= 0)
-                stats.totalSessionsCompletes++;
-        });
-
-        updateCounter('total-inscriptions', stats.totalInscriptions);
-        updateCounter('total-en-attente', stats.totalEnAttente);
-        updateCounter('total-sessions', stats.totalSessions);
-        updateCounter('total-sessions-completes', stats.totalSessionsCompletes);
+        let stats={totalInscriptions:0,totalEnAttente:0,totalSessions:0,totalSessionsCompletes:0};
+        if(!sessions||!Array.isArray(sessions)){updateCounter('total-inscriptions',0);updateCounter('total-en-attente',0);updateCounter('total-sessions',0);updateCounter('total-sessions-completes',0);return stats;}
+        stats.totalSessions=sessions.length;
+        sessions.forEach(sess=>{const i=parseInt(sess.inscrits)||0;const lA=parseInt(sess.liste_attente)||0;const pR=parseInt(sess.places_restantes);stats.totalInscriptions+=i;stats.totalEnAttente+=lA;if((!isNaN(pR)&&pR<=0)||(isNaN(pR)&&(parseInt(sess.max_participants)||0)-i<=0))stats.totalSessionsCompletes++;});
+        updateCounter('total-inscriptions',stats.totalInscriptions);updateCounter('total-en-attente',stats.totalEnAttente);updateCounter('total-sessions',stats.totalSessions);updateCounter('total-sessions-completes',stats.totalSessionsCompletes);
         return stats;
     }
 
-    function updateCounter(elementId, newValue) {
-         const element = document.getElementById(elementId);
-        if (!element) return;
-
-        const currentValue = parseInt(element.textContent.replace(/[^\d]/g, '')) || 0;
-        if (currentValue !== newValue || element.textContent === '—') {
-            element.textContent = newValue.toLocaleString();
-            element.classList.remove('text-muted');
-            element.classList.add('updated');
-            setTimeout(() => element.classList.remove('updated'), 500);
-        }
+    function updateCounter(id,val){const el=document.getElementById(id);if(!el)return;const cV=parseInt(el.textContent.replace(/[^\d-]/g,''))||0;const nV=parseInt(val)||0;if(cV!==nV||el.textContent==='—'||el.textContent.trim()===''){el.textContent=nV.toLocaleString();el.classList.remove('text-muted');el.classList.add('updated');setTimeout(()=>el.classList.remove('updated'),500);}}
+    
+    function escapeHtml(unsafe){
+        if(typeof unsafe !== 'string') return unsafe;
+        return unsafe
+             .replace(/&/g, "&")
+             .replace(/</g, "<")
+             .replace(/>/g, ">")
+             .replace(/"/g, """)
+             .replace(/'/g, "'");
     }
 
-    function updateActivityFeed(activities) {
-         if (activities === null) {
-            fetch(`${config.baseApiUrl}/activites?limit=5`)
-                .then(response => {
-                    if (!response.ok) throw new Error(`API Error: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    updateActivityFeed(data);
-                })
-                .catch(error => {
-                    console.error("Error fetching activities:", error);
-                    const container = document.getElementById('recent-activity');
-                    if (container) container.innerHTML = '<div class="list-group-item text-center p-3 text-danger"><i class="fas fa-exclamation-triangle me-1"></i> Erreur de chargement des activités.</div>';
-                });
-            return Promise.reject("Fetching activities");
-        }
-
-        if (!activities || !Array.isArray(activities)) return Promise.resolve(false);
-
-        const container = document.getElementById('recent-activity');
-        if (!container) return Promise.resolve(false);
-
-        const spinner = container.querySelector('.loading-spinner');
-        if (spinner) spinner.remove();
-
-        if (activities.length === 0) {
-            container.innerHTML = '<div class="list-group-item text-center p-3 text-muted">Aucune activité récente</div>';
-            return Promise.resolve(true);
-        }
-
-        let html = '';
-        activities.forEach(activity => {
-            const icon = getActivityIcon(activity.type);
-            const userInfo = activity.user ? `<span class="text-primary fw-bold">${activity.user}</span>` : '';
-            html += `<a href="#" class="list-group-item list-group-item-action activity-item type-${activity.type || 'default'}" data-activity-id="${activity.id}">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1 activity-title"><i class="${icon} me-2"></i>${activity.description || 'Activité'} ${userInfo}</h6>
-                            <small class="text-muted activity-time">${activity.date_relative || ''}</small>
-                        </div>
-                        ${activity.details ? `<p class="mb-1 activity-details"><small>${activity.details}</small></p>` : ''}
-                    </a>`;
-        });
-
-        container.innerHTML = html;
-        return Promise.resolve(true);
-    }
-
-    function getActivityIcon(type) {
-         const iconMap = {
-            'connexion': 'fas fa-sign-in-alt text-success',
-            'deconnexion': 'fas fa-sign-out-alt text-warning',
-            'inscription': 'fas fa-user-plus text-primary',
-            'validation': 'fas fa-check-circle text-success',
-            'refus': 'fas fa-times-circle text-danger',
-            'annulation': 'fas fa-ban text-danger',
-            'ajout_participant': 'fas fa-user-plus text-primary',
-            'suppression_participant': 'fas fa-user-minus text-danger',
-            'modification_participant': 'fas fa-user-edit text-warning',
-            'reinscription': 'fas fa-redo text-info',
-            'liste_attente': 'fas fa-clock text-warning',
-            'ajout_theme': 'fas fa-folder-plus text-primary',
-            'ajout_service': 'fas fa-building text-primary',
-            'ajout_salle': 'fas fa-door-open text-primary',
-            'attribution_salle': 'fas fa-map-marker-alt text-info',
-            'systeme': 'fas fa-cog text-secondary',
-            'notification': 'fas fa-bell text-warning',
-            'telecharger_invitation': 'fas fa-file-download text-info',
-            'default': 'fas fa-info-circle text-secondary'
-        };
-        return iconMap[type] || iconMap.default;
-    }
-
-    // ====== AMÉLIORATION ET CORRECTION UI ======
-    // ... (enhanceUI, initTooltips, enhanceBadgesAndLabels, fixDataIssues, checkAndFixHangingModals, enhanceAccessibility, showErrorWarning, setupValidationListeners identiques) ...
-     function enhanceUI() {
-         initTooltips();
-        enhanceBadgesAndLabels();
-        fixDataIssues();
-        enhanceAccessibility();
-    }
-
-    function initTooltips() {
-         if (typeof bootstrap === 'undefined' || typeof bootstrap.Tooltip !== 'function') return;
-        const existingTooltips = document.querySelectorAll('.tooltip');
-        existingTooltips.forEach(tt => tt.remove());
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not(iframe):not(script):not(style)');
-        [...tooltipTriggerList].map(tooltipTriggerEl => {
-             const existingInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-             if (existingInstance) { existingInstance.dispose(); }
-             try { return new bootstrap.Tooltip(tooltipTriggerEl, { container: 'body', boundary: document.body }); }
-             catch (e) { if (config.debugMode) console.warn('Tooltip Error:', e, tooltipTriggerEl); return null; }
-        });
-    }
-
-    function enhanceBadgesAndLabels() {
-         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
-            window.enhanceThemeBadgesGlobally();
-        } else {
-            document.querySelectorAll('.theme-badge').forEach(badge => {
-                if (badge.dataset.enhanced === 'true') return;
-                const themeName = badge.dataset.theme || badge.textContent.trim();
-                badge.textContent = themeName;
-                badge.classList.remove('theme-comm', 'theme-planner', 'theme-onedrive', 'theme-sharepoint');
-
-                if (themeName.includes('Teams') && themeName.includes('Communiquer')) badge.classList.add('theme-comm');
-                else if (themeName.includes('Planner')) badge.classList.add('theme-planner');
-                else if (themeName.includes('OneDrive') || themeName.includes('fichiers')) badge.classList.add('theme-onedrive');
-                else if (themeName.includes('Collaborer')) badge.classList.add('theme-sharepoint');
-
-                if (!badge.querySelector('i.fas')) {
-                     let iconClass = '';
-                     if (themeName.includes('Teams') && themeName.includes('Communiquer')) iconClass = 'fa-comments';
-                     else if (themeName.includes('Planner')) iconClass = 'fa-tasks';
-                     else if (themeName.includes('OneDrive') || themeName.includes('fichiers')) iconClass = 'fa-file-alt';
-                     else if (themeName.includes('Collaborer')) iconClass = 'fa-users';
-                     if (iconClass) badge.insertAdjacentHTML('afterbegin', `<i class="fas ${iconClass} me-1"></i>`);
-                }
-                badge.dataset.enhanced = 'true';
-            });
-        }
-
-        document.querySelectorAll('.js-salle-cell').forEach(cell => {
-            const textContent = cell.textContent.trim();
-            if (!cell.querySelector('.salle-badge') && textContent) {
-                if (textContent === 'Non définie' || textContent === 'N/A') cell.innerHTML = '<span class="badge bg-secondary salle-badge">Non définie</span>';
-                else cell.innerHTML = `<span class="badge bg-info salle-badge">${textContent}</span>`;
-            }
-        });
-    }
-
-    function fixDataIssues() {
-         document.querySelectorAll('.places-dispo').forEach(el => {
-            const text = el.textContent.trim();
-            if (text.includes('/')) {
-                const parts = text.split('/');
-                const available = parseInt(parts[0].trim());
-                const total = parseInt(parts[1].trim());
-
-                if (isNaN(available) || isNaN(total)) {
-                    el.classList.remove('text-success', 'text-warning', 'text-danger');
-                    el.classList.add('text-secondary');
-                    el.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?';
-                    el.title = 'Données temporairement indisponibles';
-                    return;
-                }
-
-                let icon, colorClass;
-                if (available <= 0) { icon = 'fa-times-circle'; colorClass = 'text-danger'; }
-                else if (available <= 0.2 * total) { icon = 'fa-exclamation-circle'; colorClass = 'text-danger'; }
-                else if (available <= 0.4 * total) { icon = 'fa-exclamation-triangle'; colorClass = 'text-warning'; }
-                else { icon = 'fa-check-circle'; colorClass = 'text-success'; }
-
-                const currentIcon = el.querySelector('.fas');
-                const needsUpdate = !currentIcon || !currentIcon.classList.contains(icon) || !el.classList.contains(colorClass);
-
-                if (needsUpdate) {
-                    el.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary');
-                    el.classList.add(colorClass);
-                    el.innerHTML = `<i class="fas ${icon} me-1"></i> ${available} / ${total}`;
-                }
-            } else if (text === 'NaN / NaN' || text.includes('undefined') || text === '/ ' || text === ' / ' || text.includes('null') || text === '? / ?') {
-                if (!el.innerHTML.includes('fa-question-circle')) {
-                    el.classList.remove('text-success', 'text-warning', 'text-danger');
-                    el.classList.add('text-secondary');
-                    el.innerHTML = '<i class="fas fa-question-circle me-1"></i> ? / ?';
-                    el.title = 'Données temporairement indisponibles';
-                }
-            }
-        });
-
-        document.querySelectorAll('.counter-value, .badge-count').forEach(counter => {
-            const text = counter.textContent.trim();
-            if (text === '' || text === 'undefined' || text === 'null' || text === 'NaN' || text === '—') {
-                counter.textContent = '—';
-                counter.classList.add('text-muted');
-                counter.title = 'Valeur temporairement indisponible';
-            }
-        });
-
-        document.querySelectorAll('table tbody').forEach(tbody => {
-            if (!tbody.querySelector('tr') || (tbody.children.length === 1 && tbody.firstElementChild.classList.contains('no-data-row'))) {
-                 if (!tbody.querySelector('tr.no-data-row')) {
-                    const cols = tbody.closest('table')?.querySelectorAll('thead th').length || 5;
-                    const emptyMessage = '<tr class="no-data-row"><td colspan="' + cols + '" class="text-center p-3 text-muted">' +
-                        '<i class="fas fa-info-circle me-2"></i>Aucune donnée disponible pour le moment.' +
-                        (typeof window.forcePollingUpdate === 'function' ?
-                            '<button class="btn btn-sm btn-outline-secondary ms-3" onclick="window.forcePollingUpdate(true);">' +
-                            '<i class="fas fa-sync me-1"></i>Actualiser</button>' : '') +
-                        '</td></tr>';
-                    tbody.innerHTML = emptyMessage;
-                }
-            } else if (tbody.querySelector('tr.no-data-row') && tbody.children.length > 1) {
-                const noDataRow = tbody.querySelector('tr.no-data-row');
-                if (noDataRow) noDataRow.remove();
-            }
-        });
-
-        checkAndFixHangingModals();
-    }
-
-    function checkAndFixHangingModals() {
-         const backdrop = document.querySelector('.modal-backdrop');
-        const visibleModal = document.querySelector('.modal.show');
-
-        if (backdrop && !visibleModal) {
-            backdrop.remove();
-            document.body.classList.remove('modal-open');
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-        }
-
-        const visibleModals = document.querySelectorAll('.modal.show');
-        if (visibleModals.length > 0 && !document.querySelector('.modal-backdrop')) {
-            const newBackdrop = document.createElement('div');
-            newBackdrop.className = 'modal-backdrop fade show';
-            document.body.appendChild(newBackdrop);
-            document.body.classList.add('modal-open');
-        }
-    }
-
-    function enhanceAccessibility() {
-         document.querySelectorAll('img:not([alt])').forEach(img => {
-            const filename = img.src.split('/').pop().split('?')[0];
-            const name = filename.split('.')[0].replace(/[_-]/g, ' ');
-            img.setAttribute('alt', name || 'Image');
-        });
-
-        document.querySelectorAll('button:not([type])').forEach(button => {
-            button.setAttribute('type', button.closest('form') ? 'submit' : 'button');
-        });
-    }
-
-    function showErrorWarning(show) {
-         let errorDiv = document.getElementById('backend-error-warning');
-
-        if (show && !errorDiv) {
-            errorDiv = document.createElement('div');
-            errorDiv.id = 'backend-error-warning';
-            errorDiv.className = 'alert alert-warning alert-dismissible fade show small p-2 mt-2 mx-auto text-center';
-            errorDiv.style.maxWidth = '800px';
-            errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> Problème de communication avec le serveur. Le rafraîchissement automatique est en pause. Veuillez actualiser manuellement. <button type="button" class="btn-close p-2" data-bs-dismiss="alert" aria-label="Close"></button>`;
-
-            const mainContentArea = document.querySelector('.container-fluid, #main-content, main');
-            if (mainContentArea) {
-                mainContentArea.insertBefore(errorDiv, mainContentArea.firstChild);
-            } else {
-                document.body.insertBefore(errorDiv, document.body.firstChild);
-            }
-        } else if (!show && errorDiv) {
-            errorDiv.remove();
-        }
-    }
-
-    function setupValidationListeners() {
-        // ... (code identique) ...
-         document.body.addEventListener('click', function(event) {
-            const button = event.target.closest('.validation-ajax');
-            if (!button) return;
-
-            const inscriptionId = button.getAttribute('data-inscription-id');
-            const action = button.getAttribute('data-action');
-
-            if (!inscriptionId || !action) return;
-
-            button.disabled = true;
-            const originalText = button.innerHTML;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>'; // Spinner seul
-
-            fetch('/validation_inscription_ajax', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-                body: JSON.stringify({ inscription_id: inscriptionId, action: action })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (typeof showToast === 'function') showToast(data.message, 'success');
-                    debouncedFetchDashboardData(true);
-
-                    setTimeout(() => {
-                        const modal = button.closest('.modal');
-                        if (modal && typeof bootstrap !== 'undefined') {
-                            const modalInstance = bootstrap.Modal.getInstance(modal);
-                            if (modalInstance) modalInstance.hide();
-                        }
-                    }, 1000);
-                } else {
-                    if (typeof showToast === 'function') showToast(data.message || 'Erreur lors de la validation', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Validation AJAX error:', error);
-                if (typeof showToast === 'function') showToast('Erreur de communication lors de la validation.', 'danger');
-            })
-            .finally(() => {
-                const currentButton = document.querySelector(`.validation-ajax[data-inscription-id="${inscriptionId}"][data-action="${action}"]`);
-                if(currentButton) {
-                    currentButton.disabled = false;
-                    currentButton.innerHTML = originalText;
-                }
-            });
-        });
-    }
-
-    // ====== GRAPHIQUES ======
-    function initializeCharts() {
-        if (config.chartRendering === 'none') return;
-        // Afficher les placeholders de chargement
-        renderStaticCharts(null, null);
-    }
-
-    function updateCharts(sessions, participants) {
-        if (config.chartRendering === 'none') return;
-        // Toujours rendre les graphiques statiques avec les données reçues
-        renderStaticCharts(sessions, participants);
-    }
-
-    function renderStaticCharts(sessions, participants) {
-        // Rendre le graphique Thème si les données sessions sont valides
-        if (sessions && Array.isArray(sessions)) {
-            renderThemeDistributionChart(sessions);
-        } else {
-            const themeContainer = document.getElementById('themeChartStatic');
-            if (themeContainer && !themeContainer.querySelector('.static-chart-donut')) {
-                themeContainer.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Données des thèmes non disponibles.</div>';
-            }
-        }
-
-        // Rendre le graphique Service si les données participants sont valides
-        if (participants && Array.isArray(participants)) {
-            renderParticipantByServiceChart(participants);
-        } else {
-             const serviceContainer = document.getElementById('serviceChartStatic');
-             if (serviceContainer && !serviceContainer.querySelector('.static-chart-bars')) {
-                 serviceContainer.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Données des participants non disponibles.</div>';
-             }
-        }
-    }
-
-    // CORRECTION: Calculer les inscriptions par thème
-    function renderThemeDistributionChart(sessionsData) {
-        const container = document.getElementById('themeChartStatic');
-        if (!container) return;
-
-        const themeInscriptionCounts = sessionsData.reduce((acc, session) => {
-            const themeName = session.theme || 'Non défini';
-            acc[themeName] = (acc[themeName] || 0) + (session.inscrits || 0); // *** SOMME DES INSCRITS ***
-            return acc;
-        }, {});
-
-        const totalInscriptions = Object.values(themeInscriptionCounts).reduce((sum, count) => sum + count, 0);
-
-        if (totalInscriptions === 0) {
-            container.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucune inscription confirmée pour afficher la répartition par thème.</div>';
-            return;
-        }
-
-        let legendHtml = '';
-        const themeColors = window.themesDataForChart || {};
-        const sortedThemes = Object.entries(themeInscriptionCounts).sort(([, countA], [, countB]) => countB - countA);
-
-        sortedThemes.forEach(([theme, count], index) => {
-            if (count === 0) return;
-            const themeInfo = themeColors[theme] || {};
-            const color = themeInfo.color || getRandomColor(index);
-
-            legendHtml += `
-                <div class="legend-item" title="${themeInfo.description || theme}">
-                    <span class="legend-color" style="background-color: ${color};"></span>
-                    <span class="legend-label">${theme}</span>
-                    <span class="legend-value">${count}</span>
-                </div>`;
-        });
-
-        container.innerHTML = `
-            <div class="static-chart-title">Inscriptions par Thème</div>
-            <div class="static-chart-donut">
-                 <div class="donut-center">
-                    <div class="donut-total">${totalInscriptions}</div>
-                    <div class="donut-label">Inscrits</div>
-                </div>
-            </div>
-            <div class="static-chart-legend">${legendHtml}</div>`;
-    }
-
-    // CORRECTION: Implémentation complète du graphique par service
-    function renderParticipantByServiceChart(participantsData) {
-         const container = document.getElementById('serviceChartStatic');
-        if (!container) return;
-
-        if (!participantsData || !Array.isArray(participantsData)) {
-             container.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-exclamation-triangle me-2"></i>Données participants invalides reçues.</div>';
-             console.error("RenderServiceChart: Invalid participantsData received", participantsData);
-             return;
-        }
-
-        const serviceCounts = participantsData.reduce((acc, participant) => {
-            const serviceName = participant.service || 'Non défini';
-            const serviceColor = participant.service_color || (window.servicesDataForChart?.[serviceName]?.color) || '#6c757d';
-            if (!acc[serviceName]) {
-                acc[serviceName] = { count: 0, color: serviceColor };
-            }
-            acc[serviceName].count++;
-            return acc;
-        }, {});
-
-        const totalParticipants = participantsData.length;
-
-        if (totalParticipants === 0) {
-            container.innerHTML = '<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucun participant trouvé pour afficher la distribution par service.</div>';
-            return;
-        }
-
-        const sortedServices = Object.entries(serviceCounts).sort(([, dataA], [, dataB]) => dataB.count - dataA.count);
-        let barsHtml = '';
-        const maxCount = Math.max(1, ...sortedServices.map(([, data]) => data.count));
-
-        sortedServices.forEach(([service, data], index) => {
-            if (data.count === 0) return;
-            const percentage = (data.count / maxCount) * 100;
-            const serviceClass = service.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'non-defini';
-
-            barsHtml += `
-                <div class="bar-item animate" style="--index: ${index};">
-                    <div class="bar-header">
-                        <span class="bar-label" title="${service} (${data.count} participant(s))">
-                           <span class="service-badge me-2" style="background-color: ${data.color};"></span>
-                           ${service}
-                        </span>
-                        <span class="bar-total">${data.count}</span>
-                    </div>
-                    <div class="bar-container">
-                        <div class="bar-value ${serviceClass}" style="width: ${percentage}%; background-color: ${data.color}; --percent: ${percentage}%;">
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-
-        container.innerHTML = `
-            <div class="static-chart-title">Distribution par Service</div>
-            <div class="static-chart-bars">${barsHtml}</div>`;
-    }
-
-
-    // ====== UTILITAIRES ======
-    function simpleHash(obj) {
-        // ... (code identique) ...
-         const str = JSON.stringify(obj);
-        let hash = 0;
-        if (str.length === 0) return hash;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash |= 0; // Convert to 32bit integer
-        }
-        return hash;
-    }
-
-    function getCsrfToken() {
-        // ... (code identique) ...
-         const meta = document.querySelector('meta[name="csrf-token"]');
-        if (meta) return meta.content;
-        const input = document.querySelector('input[name="csrf_token"]');
-        if (input) return input.value;
-        return '';
-    }
-
-    function getRandomColor(index) {
-        // ... (code identique) ...
-         const colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69', '#fd7e14', '#6f42c1', '#d63384'];
-        return colors[index % colors.length];
-    }
-
-        // Exposer des fonctions si nécessaire
-    window.dashboardCore = {
-        initialize: initializeDashboard,
-        fetchData: debouncedFetchDashboardData,
-        updateCharts: updateCharts, // Garder pour chartModule
-        updateStatistics: updateStatisticsCounters, // Garder pour dashboard-init
-        updateActivity: updateActivityFeed, // Garder pour dashboard-init
-        getState: () => dashboardState,
-        getConfig: () => config,
-        renderThemeChart: renderThemeDistributionChart,
-        renderServiceChart: renderParticipantByServiceChart,
-        initializeCharts: initializeCharts, // Garder pour chartModule
-        startPolling: startPolling,
-        stopPolling: () => {
-             dashboardState.pollingActive = false;
-             if(dashboardState.pollingTimeout) clearTimeout(dashboardState.pollingTimeout);
-             dashboardState.pollingTimeoutScheduled = false;
-             if(config.debugMode) console.log("Dashboard Core: Polling stopped manually.");
-        }
-    };
-
-    // Exposer les fonctions attendues par dashboard-init.js directement sur window
-    window.forcePollingUpdate = debouncedFetchDashboardData; // dashboard-init l'utilise
-    window.updateStatsCounters = updateStatisticsCounters;
-    window.refreshRecentActivity = () => updateActivityFeed(null); // Assurer que c'est une fonction qui peut être appelée sans args
-    window.chartModule = { // dashboard-init s'attend à un objet chartModule
-        initialize: initializeCharts, 
-        update: updateCharts 
-    };
-
-
-    // Démarrer le tableau de bord
+    function updateActivityFeed(activities){if(activities===null){fetch(`${config.baseApiUrl}/activites?limit=5`).then(r=>r.ok?r.json():Promise.reject(r)).then(d=>updateActivityFeed(d)).catch(e=>{const c=document.getElementById('recent-activity');if(c)c.innerHTML='<div class="list-group-item text-center p-3 text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Err load activités.</div>';});return Promise.reject("Fetching");} const c=document.getElementById('recent-activity');if(!c)return Promise.resolve(false); const s=c.querySelector('.loading-spinner');if(s)s.remove(); if(!activities||!Array.isArray(activities)||activities.length===0){c.innerHTML='<div class="list-group-item text-center p-3 text-muted">Aucune activité.</div>';return Promise.resolve(true);} let h='';activities.forEach(a=>{const i=getActivityIcon(a.type);const u=a.user?`<span class="text-primary fw-bold">${escapeHtml(a.user)}</span>`:'';const d=escapeHtml(a.description||'Activité');const dt=a.details?`<p class="mb-1 activity-details"><small>${escapeHtml(a.details)}</small></p>`:'';h+=`<a href="#" class="list-group-item list-group-item-action activity-item type-${a.type||'default'}" data-activity-id="${a.id}"><div class="d-flex w-100 justify-content-between"><h6 class="mb-1 activity-title"><i class="${i} me-2"></i>${d} ${u}</h6><small class="text-muted activity-time">${a.date_relative||''}</small></div>${dt}</a>`;});c.innerHTML=h;return Promise.resolve(true);}
+    function getActivityIcon(type){const m={'connexion':'fas fa-sign-in-alt text-success','deconnexion':'fas fa-sign-out-alt text-warning','inscription':'fas fa-user-plus text-primary','validation':'fas fa-check-circle text-success','refus':'fas fa-times-circle text-danger','annulation':'fas fa-ban text-danger','ajout_participant':'fas fa-user-plus text-primary','suppression_participant':'fas fa-user-minus text-danger','modification_participant':'fas fa-user-edit text-warning','reinscription':'fas fa-redo text-info','liste_attente':'fas fa-clock text-warning','ajout_theme':'fas fa-folder-plus text-primary','ajout_service':'fas fa-building text-primary','ajout_salle':'fas fa-door-open text-primary','attribution_salle':'fas fa-map-marker-alt text-info','systeme':'fas fa-cog text-secondary','notification':'fas fa-bell text-warning','telecharger_invitation':'fas fa-file-download text-info','ajout_document':'fas fa-file-upload text-info','suppression_document':'fas fa-file-excel text-danger','default':'fas fa-info-circle text-secondary'};return m[type]||m.default;}
+    function enhanceUI(){initTooltips();enhanceBadgesAndLabels();fixDataIssues();enhanceAccessibility();}
+    function initTooltips(){if(typeof bootstrap==='undefined'||typeof bootstrap.Tooltip!=='function')return;document.querySelectorAll('.tooltip').forEach(t=>t.remove());[...document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not(iframe):not(script):not(style)')].map(el=>{const i=bootstrap.Tooltip.getInstance(el);if(i)i.dispose();try{return new bootstrap.Tooltip(el,{container:'body',boundary:document.body});}catch(e){return null;}});}
+    function enhanceBadgesAndLabels(){if(typeof window.enhanceThemeBadgesGlobally==='function')window.enhanceThemeBadgesGlobally();else{document.querySelectorAll('.theme-badge').forEach(b=>{if(b.dataset.enhanced==='true')return;const tN=b.dataset.theme||b.textContent.trim();b.textContent=tN;b.classList.remove('theme-comm','theme-planner','theme-onedrive','theme-sharepoint','bg-secondary');let iC='fa-tag';if(tN.includes('Teams')&&tN.includes('Communiquer')){b.classList.add('theme-comm');iC='fa-comments';}else if(tN.includes('Planner')){b.classList.add('theme-planner');iC='fa-tasks';}else if(tN.includes('OneDrive')||tN.includes('fichiers')){b.classList.add('theme-onedrive');iC='fa-file-alt';}else if(tN.includes('Collaborer')){b.classList.add('theme-sharepoint');iC='fa-users';}else b.classList.add('bg-secondary');if(!b.querySelector('i.fas')&&iC)b.insertAdjacentHTML('afterbegin',`<i class="fas ${iC} me-1"></i>`);b.dataset.enhanced='true';});}document.querySelectorAll('.js-salle-cell').forEach(c=>{const tC=c.textContent.trim();if(!c.querySelector('.salle-badge')&&tC)c.innerHTML=(tC==='Non définie'||tC==='N/A'||tC==='')?'<span class="badge bg-secondary salle-badge">Non définie</span>':`<span class="badge bg-info text-dark salle-badge">${escapeHtml(tC)}</span>`;});}
+    function fixDataIssues(){document.querySelectorAll('.places-dispo').forEach(el=>{const txt=el.textContent.trim();if(txt.includes('/')){const p=txt.split('/');const a=parseInt(p[0].trim()),t=parseInt(p[1].trim());if(isNaN(a)||isNaN(t)){el.className='places-dispo text-nowrap text-secondary';el.innerHTML='<i class="fas fa-question-circle me-1"></i> ? / ?';el.title='Données indisponibles';return;}let i,c;if(a<=0){i='fa-times-circle';c='text-danger';}else if(a<=0.2*t){i='fa-exclamation-circle';c='text-danger';}else if(a<=0.4*t){i='fa-exclamation-triangle';c='text-warning';}else{i='fa-check-circle';c='text-success';}const cI=el.querySelector('.fas');if(!cI||!cI.classList.contains(i)||!el.classList.contains(c)){el.className=`places-dispo text-nowrap ${c}`;el.innerHTML=`<i class="fas ${i} me-1"></i> ${a} / ${t}`;}}else if(txt==='NaN / NaN'||txt.includes('undefined')||txt==='/ '||txt===' / '||txt.includes('null')||txt==='? / ?'||txt.trim()===''){if(!el.innerHTML.includes('fa-question-circle')){el.className='places-dispo text-nowrap text-secondary';el.innerHTML='<i class="fas fa-question-circle me-1"></i> ? / ?';el.title='Données indisponibles';}}});document.querySelectorAll('.counter-value, .badge-count').forEach(c=>{const t=c.textContent.trim();if(t===''||t==='undefined'||t==='null'||t==='NaN'||t==='—'){c.textContent='—';c.classList.add('text-muted');c.title='Valeur indisponible';}else if(c.classList.contains('counter-value')&&!isNaN(parseInt(t)))c.textContent=(parseInt(t)).toLocaleString();});document.querySelectorAll('table tbody').forEach(tb=>{if(!tb.querySelector('tr')||(tb.children.length===1&&tb.firstElementChild.classList.contains('no-data-row'))){if(!tb.querySelector('tr.no-data-row')){const co=tb.closest('table')?.querySelectorAll('thead th').length||5;tb.innerHTML=`<tr class="no-data-row"><td colspan="${co}" class="text-center p-3 text-muted"><i class="fas fa-info-circle me-2"></i>Aucune donnée.`+(typeof window.forcePollingUpdate==='function'?'<button class="btn btn-sm btn-outline-secondary ms-3" onclick="window.forcePollingUpdate(true);"><i class="fas fa-sync me-1"></i>Actualiser</button>':'')+'</td></tr>';}}else if(tb.querySelector('tr.no-data-row')&&tb.children.length>1){const ndr=tb.querySelector('tr.no-data-row');if(ndr)ndr.remove();}});checkAndFixHangingModals();}
+    function checkAndFixHangingModals(){const b=document.querySelector('.modal-backdrop.show, .portal-backdrop[style*="display: block"]'),vM=document.querySelector('.modal.show, .portal-modal[style*="display: block"]');if(b&&!vM){b.remove();document.body.classList.remove('modal-open');document.body.style.overflow='';document.body.style.paddingRight='';}const vMs=document.querySelectorAll('.modal.show');if(vMs.length>0&&!document.querySelector('.modal-backdrop.show')){}}
+    function enhanceAccessibility(){document.querySelectorAll('img:not([alt])').forEach(i=>{const fN=i.src.split('/').pop().split('?')[0],n=fN.split('.')[0].replace(/[_-]/g,' ');i.setAttribute('alt',n||'Image');});document.querySelectorAll('button:not([type])').forEach(b=>b.setAttribute('type',b.closest('form')?'submit':'button'));}
+    function showErrorWarning(show){let eD=document.getElementById('backend-error-warning');if(show&&!eD){eD=document.createElement('div');eD.id='backend-error-warning';eD.className='alert alert-danger alert-dismissible fade show small p-2 mt-2 mx-auto text-center';eD.style.maxWidth='800px';eD.setAttribute('role','alert');eD.innerHTML='<i class="fas fa-ethernet me-2"></i> Problème communication serveur. Rafraîchissement auto en pause. <button type="button" class="btn-link text-decoration-underline p-0 ms-2 fw-bold" onclick="document.getElementById(\'refresh-dashboard\')?.click(); this.closest(\'.alert\').remove();">Réessayer</button> <button type="button" class="btn-close p-2" data-bs-dismiss="alert" aria-label="Close"></button>';const mCA=document.querySelector('.container-fluid#main-content, main.content-wrapper, #dashboard-content');if(mCA)mCA.insertBefore(eD,mCA.firstChild);else document.body.insertBefore(eD,document.body.firstChild);}else if(!show&&eD)eD.remove();}
+    function setupValidationListeners(){document.body.addEventListener('click',function(event){const b=event.target.closest('.validation-ajax');if(!b)return;const iId=b.getAttribute('data-inscription-id'),act=b.getAttribute('data-action');if(!iId||!act)return;b.disabled=true;const oT=b.innerHTML;b.innerHTML='<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';fetch('/validation_inscription_ajax',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({inscription_id:iId,action:act})}).then(r=>(!r.ok)?r.json().then(eD=>Promise.reject({status:r.status,data:eD})):r.json()).then(d=>{if(d.success){if(typeof window.showToast==='function')window.showToast(d.message,'success');debouncedFetchDashboardData(true);setTimeout(()=>{const m=b.closest('.modal, .portal-modal');if(m){if(m.classList.contains('portal-modal')&&window.portalModal)window.portalModal.hideModal(m.id);else if(typeof bootstrap!=='undefined'&&bootstrap.Modal.getInstance(m))bootstrap.Modal.getInstance(m).hide();}},1000);}else{if(typeof window.showToast==='function')window.showToast(d.message||'Erreur validation','danger');}}).catch(e=>{const eM=(e.data&&e.data.message)?e.data.message:'Erreur communication validation.';if(typeof window.showToast==='function')window.showToast(eM,'danger');}).finally(()=>{const cB=document.querySelector(`.validation-ajax[data-inscription-id="${iId}"][data-action="${act}"]`);if(cB){cB.disabled=false;cB.innerHTML=oT;}});});}
+    
+    function initializeChartsFallback(){if(config.chartRendering==='none')return Promise.resolve();renderStaticChartsJS(null,null);return Promise.resolve();}
+    function updateChartsFallback(sessions,participants){if(config.chartRendering==='none')return Promise.resolve();const vS=sessions||dashboardState.rawData.sessions||[];const vP=participants||dashboardState.rawData.participants||[];renderStaticChartsJS(vS,vP);return Promise.resolve();}
+    function renderStaticChartsJS(sessions,participants){const tC=document.getElementById('themeChartStatic'),sC=document.getElementById('serviceChartStatic');if(tC){if(sessions&&Array.isArray(sessions)&&sessions.length>0)renderThemeDistributionChartJS(sessions);else if(!tC.querySelector('.static-chart-legend')&&!tC.querySelector('.no-data-message'))tC.innerHTML='<div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div><p>Chargement données thèmes...</p></div>';}if(sC){if(participants&&Array.isArray(participants)&&participants.length>0)renderParticipantByServiceChartJS(participants);else if(!sC.querySelector('.static-chart-bars')&&!sC.querySelector('.no-data-message'))sC.innerHTML='<div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div><p>Chargement données services...</p></div>';}}
+    function renderThemeDistributionChartJS(sessionsData){const c=document.getElementById('themeChartStatic');if(!c)return;const tIC=sessionsData.reduce((acc,s)=>{const tN=s.theme||'Non défini',ins=parseInt(s.inscrits)||0;acc[tN]=(acc[tN]||0)+ins;return acc;},{});const totI=Object.values(tIC).reduce((s,ct)=>s+ct,0);if(totI===0){c.innerHTML='<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucune inscription.</div>';return;}let lH='';const tCFG=window.themesDataForChart||{};const sT=Object.entries(tIC).sort(([,cA],[,cB])=>cB-cA);sT.forEach(([t,cnt],idx)=>{if(cnt===0)return;const tI=tCFG[t]||{};const clr=tI.color||getRandomColor(idx);lH+=`<div class="legend-item" title="${escapeHtml(tI.description||t)}"><span class="legend-color" style="background-color:${clr};"></span><span class="legend-label">${escapeHtml(t)}</span><span class="legend-value">${cnt}</span></div>`;});c.innerHTML=`<div class="static-chart-title">Inscriptions par Thème</div><div class="static-chart-donut-svg-container"><svg viewBox="0 0 36 36" class="donut-svg" width="160" height="160"><circle cx="18" cy="18" r="15.9154943092" fill="transparent" stroke="#e6e6e6" stroke-width="3.8"></circle>{% set offset = 0 %}{% for theme_name, count in chart_theme_data %}{% if count > 0 %}{% set percentage = (count / total_inscriptions_theme) * 100 %}{% set theme_config = themes_config.get(theme_name, {}) %}{% set color = theme_config.color or '#6c757d' %}<circle class="donut-svg-segment" cx="18" cy="18" r="15.9154943092" fill="transparent" stroke="${color}" stroke-width="4" stroke-dasharray="${percentage}, 100" stroke-dashoffset="-${offset}"><title>${escapeHtml(theme_name)}: ${count}</title></circle>{% set offset = offset + percentage %}{% endif %}{% endfor %}<g class="donut-svg-center-text" transform="rotate(90 18 18)"><text x="18" y="18" style="font-size:7px;"><tspan class="donut-total" x="18" dy="-0.1em">${totI}</tspan><tspan class="donut-label" x="18" dy="1.0em">INSCRITS</tspan></text></g></svg></div><div class="static-chart-legend">${lH}</div>`;}
+    function renderParticipantByServiceChartJS(participantsData){const c=document.getElementById('serviceChartStatic');if(!c)return;if(!participantsData||!Array.isArray(participantsData)){c.innerHTML='<div class="no-data-message text-center p-3"><i class="fas fa-exclamation-triangle me-2"></i>Données participants invalides.</div>';return;}const sC=participantsData.reduce((acc,p)=>{const sN=p.service||'Non défini';const sClr=(window.servicesDataForChart&&window.servicesDataForChart[sN]&&window.servicesDataForChart[sN].color)?window.servicesDataForChart[sN].color:(p.service_color||'#6c757d');if(!acc[sN])acc[sN]={count:0,color:sClr};acc[sN].count++;return acc;},{});const totP=participantsData.length;if(totP===0){c.innerHTML='<div class="no-data-message text-center p-3"><i class="fas fa-info-circle me-2"></i>Aucun participant.</div>';return;}const sS=Object.entries(sC).sort(([,dA],[,dB])=>dB.count-dA.count);let bH='';const mC=Math.max(1,...sS.map(([,d])=>d.count));sS.forEach(([s,d],idx)=>{if(d.count===0)return;const pc=(d.count/mC)*100;const sCls=s.toLowerCase().replace(/[^a-z0-9]/g,'-')||'non-defini';bH+=`<div class="bar-item animate" style="--index:${idx};"><div class="bar-header"><span class="bar-label" title="${escapeHtml(s)} (${d.count} participant(s))"><span class="service-badge me-2" style="background-color:${d.color};"></span>${escapeHtml(s)}</span><span class="bar-total">${d.count}</span></div><div class="bar-container"><div class="bar-value ${sCls}" style="width:${pc}%; background-color:${d.color}; --percent:${pc}%;"></div></div></div>`;});c.innerHTML=`<div class="static-chart-title">Distribution par Service</div><div class="static-chart-bars">${bH}</div>`;}
+    function simpleHash(o){const s=JSON.stringify(o);let h=0;if(s.length===0)return h;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h=((h<<5)-h)+c;h|=0;}return h;}
+    function getCsrfToken(){const m=document.querySelector('meta[name="csrf-token"]');if(m)return m.content;const i=document.querySelector('input[name="csrf_token"]');if(i)return i.value;return '';}
+    function getRandomColor(idx){const c=['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69','#fd7e14','#6f42c1','#d63384'];return c[idx%c.length];}
+
+    window.dashboardCore={initialize:initializeDashboard,fetchData:debouncedFetchDashboardData,updateCharts:updateChartsFallback,updateStatistics:updateStatisticsCounters,updateActivity:updateActivityFeed,getState:()=>JSON.parse(JSON.stringify(dashboardState)),getConfig:()=>JSON.parse(JSON.stringify(config)),renderThemeChart:renderThemeDistributionChartJS,renderServiceChart:renderParticipantByServiceChartJS,initializeCharts:initializeChartsFallback,startPolling:startPolling,stopPolling:()=>{dashboardState.pollingActive=false;if(dashboardState.pollingTimeout)clearTimeout(dashboardState.pollingTimeout);dashboardState.pollingTimeoutScheduled=false;}};
+    window.forcePollingUpdate=debouncedFetchDashboardData;window.updateStatsCounters=updateStatisticsCounters;window.refreshRecentActivity=()=>updateActivityFeed(null);window.chartModule={initialize:initializeChartsFallback,update:updateChartsFallback};
     initializeDashboard();
 });

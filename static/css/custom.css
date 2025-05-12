@@ -1,23 +1,32 @@
 /* static/css/custom.css */
-/* Contient les styles personnalisés et ceux des graphiques statiques */
+/* Version: 1.1.0 - Styles pour dashboard, graphiques, navbar et corrections responsives */
 
-/* ===== VARIABLES DE COULEUR ===== */
+/* ===== VARIABLES DE COULEUR (Rappel, peuvent être dans modern.css) ===== */
 :root {
     --primary: #0078d4;
+    --primary-light: #69afe5; /* Utilisé pour les icônes de stat cards */
+    --primary-dark: #005a9e;
     --secondary: #6c757d;
-    --success: #198754;
-    --warning: #ffc107;
-    --danger: #dc3545;
-    --info: #0dcaf0;
+    --success: #198754; /* Bootstrap 5 success, peut être #4caf50 de modern.css */
+    --warning: #ffc107; /* Bootstrap 5 warning, peut être #ff9800 de modern.css */
+    --danger: #dc3545;  /* Bootstrap 5 danger, peut être #f44336 de modern.css */
+    --info: #0dcaf0;    /* Bootstrap 5 info, peut être #03a9f4 de modern.css */
     --light: #f8f9fa;
-    --dark: #212529;
+    --dark: #212529;    /* Bootstrap 5 dark, peut être #343a40 de modern.css */
     --white: #ffffff;
-    --border-radius: 0.375rem;
+    --border-radius: 0.375rem; /* Bootstrap 5 default, modern.css peut avoir 0.5rem */
     --shadow-sm: 0 .125rem .25rem rgba(0,0,0,.075);
     --shadow: 0 .5rem 1rem rgba(0,0,0,.15);
-    --transition-speed: 0.2s;
+    --shadow-lg: 0 1rem 3rem rgba(0,0,0,.175);
+    --transition-speed: 0.2s; /* modern.css peut avoir 0.3s */
 
-    /* Couleurs des services */
+    /* Couleurs des thèmes (cohérence avec modern.css) */
+    --theme-teams: #0078d4;
+    --theme-planner: #7719aa;
+    --theme-onedrive: #0364b8;
+    --theme-sharepoint: #038387;
+
+    /* Couleurs des services (cohérence avec modern.css) */
     --service-commerce: #FFC107;
     --service-comptabilite: #2196F3;
     --service-florensud: #4CAF50;
@@ -25,49 +34,187 @@
     --service-marketing: #9C27B0;
     --service-qualite: #F44336;
     --service-rh: #FF9800;
-
-    /* Couleurs des thèmes */
-    --theme-teams: #0078d4;
-    --theme-planner: #7719aa;
-    --theme-onedrive: #0364b8;
-    --theme-sharepoint: #038387;
 }
 
-/* ===== STYLES COMMUNS POUR TOUS LES GRAPHIQUES ===== */
+/* ===== STYLES GÉNÉRAUX ===== */
+body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #f4f7fc; /* Légèrement différent de #f5f7fa de modern.css, choisir un */
+    color: var(--dark);
+    line-height: 1.6;
+}
+
+/* ===== NAVBAR CORRECTIONS ET AMÉLIORATIONS ===== */
+.navbar {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Ombre un peu plus douce */
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+.navbar-brand {
+    font-weight: 600; /* Un peu moins gras que 700 pour un look plus fin */
+    letter-spacing: 0.25px;
+    margin-right: 1.5rem; /* Espace après le logo/nom */
+    white-space: nowrap; /* Empêche le passage à la ligne */
+}
+.navbar-brand i {
+    font-size: 1.1em; /* Ajuster la taille de l'icône du brand */
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    padding: 0.5rem 0.9rem; /* Ajuster le padding pour l'espacement */
+    white-space: nowrap;
+    transition: color var(--transition-speed) ease-in-out, background-color var(--transition-speed) ease-in-out;
+}
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link:focus {
+    color: var(--white); /* Ou une couleur d'accentuation plus claire */
+    /* background-color: rgba(255, 255, 255, 0.1); /* Léger fond au survol */
+}
+.navbar-nav .nav-link.active {
+    color: var(--white);
+    font-weight: 600; /* Mettre en évidence le lien actif */
+}
+.navbar-nav .nav-link i.fas,
+.navbar-nav .nav-link i.far {
+    margin-right: 0.4em;
+    font-size: 0.95em; /* Icônes légèrement plus petites dans les liens */
+}
+
+/* Dropdown Administration */
+.navbar-nav .nav-item.dropdown .dropdown-menu {
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(0,0,0,0.1);
+    box-shadow: var(--shadow);
+    margin-top: 0.25rem; /* Petit espace par rapport au lien parent */
+}
+.navbar-nav .nav-item.dropdown .dropdown-item {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+}
+.navbar-nav .nav-item.dropdown .dropdown-item:active,
+.navbar-nav .nav-item.dropdown .dropdown-item.active {
+    background-color: var(--primary);
+    color: var(--white);
+}
+
+/* Section utilisateur (droite) */
+.navbar-nav.ms-auto {
+    align-items: center; /* Bon pour l'alignement vertical */
+}
+.navbar-nav.ms-auto .nav-item .navbar-text {
+    color: rgba(255, 255, 255, 0.85); /* Texte un peu moins blanc que les liens */
+    margin-right: 1rem; /* Espace avant le bouton Déconnexion */
+    font-size: 0.875rem;
+}
+.navbar-nav.ms-auto .nav-item .navbar-text i {
+    margin-right: 0.3em;
+}
+.navbar-nav.ms-auto .nav-item .btn-outline-light {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.75rem;
+    border-color: rgba(255, 255, 255, 0.5);
+}
+.navbar-nav.ms-auto .nav-item .btn-outline-light:hover {
+    border-color: var(--white);
+    background-color: var(--white);
+    color: var(--primary);
+}
+
+/* Gérer le wrapping dans la navbar avant le collapse de Bootstrap */
+@media (min-width: 992px) and (max-width: 1200px) { /* Ajuster 1200px si nécessaire */
+    .navbar-nav .nav-link {
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+        font-size: 0.9rem; /* Réduire un peu la police pour gagner de la place */
+    }
+    .navbar-brand {
+        font-size: 1.1rem; /* Réduire un peu le brand */
+    }
+    .navbar-nav.ms-auto .nav-item .navbar-text {
+        margin-right: 0.5rem;
+    }
+}
+@media (min-width: 992px) {
+    #navbarNav.collapse.navbar-collapse {
+        /* S'assurer que les éléments ont de la place pour se répartir */
+        display: flex !important; /* Forcer flex pour éviter des comportements étranges */
+        flex-basis: auto; /* Comportement flex par défaut */
+    }
+}
+
+
+/* ===== STAT CARDS (DASHBOARD) ===== */
+.stat-card .card-body { padding: 1rem; }
+.stat-card .text-xs { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; }
+.stat-card .h5 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0; }
+.stat-card .fa-2x { /* Icônes dans les stat cards */
+    font-size: 2rem; /* Légèrement plus petit que modern.css */
+    opacity: 0.3; /* Plus subtil */
+}
+.border-left-primary .fa-2x { color: var(--primary); }
+.border-left-success .fa-2x { color: var(--success); }
+.border-left-warning .fa-2x { color: var(--warning); }
+.border-left-danger .fa-2x { color: var(--danger); }
+.border-left-info .fa-2x { color: var(--info); }
+
+
+/* ===== TABLE DES SESSIONS (DASHBOARD) ===== */
+.session-table th, .session-table td {
+    padding: 0.5rem 0.6rem; /* Espacement ajusté */
+    font-size: 0.825rem; /* Taille de police légèrement augmentée pour lisibilité */
+    vertical-align: middle;
+}
+.session-table th {
+    font-weight: 600;
+    background-color: var(--light); /* Fond clair pour l'en-tête */
+    border-bottom: 2px solid #dee2e6; /* Bordure plus marquée */
+}
+.session-table .theme-cell .theme-badge {
+    font-size: 0.75rem; /* Taille des badges de thème dans la table */
+}
+.session-table .places-dispo i.fas {
+    font-size: 0.9em; /* Taille des icônes dans la colonne places */
+}
+.session-table .btn-sm {
+    padding: 0.2rem 0.4rem; /* Boutons plus petits */
+    font-size: 0.7rem;
+}
+.session-table .btn-sm i.fas {
+    margin-right: 0.2em; /* Espace pour icônes dans boutons */
+}
+
+
+/* ===== GRAPHIQUES STATIQUES (DASHBOARD) ===== */
 .static-chart-container {
     width: 100%;
-    min-height: 280px; /* Hauteur minimale réduite */
-    padding: 1rem 1.25rem;
-    background-color: var(--white, #ffffff);
-    border-radius: var(--border-radius, 0.375rem);
+    min-height: 300px; /* Hauteur minimale pour une meilleure visualisation */
+    padding: 1.25rem;
+    background-color: var(--white);
+    border-radius: var(--border-radius);
     box-shadow: var(--shadow-sm);
     margin-bottom: 1.5rem;
     overflow: hidden;
-    transition: all var(--transition-speed) ease;
-    position: relative;
     display: flex;
     flex-direction: column;
+    transition: box-shadow var(--transition-speed) ease-in-out;
 }
 .static-chart-container:hover {
-    transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
+
 .static-chart-title {
-    font-size: 0.85rem; /* Taille réduite */
+    font-size: 0.9rem; /* Taille de titre légèrement augmentée */
     font-weight: 600;
-    color: var(--dark, #212529);
-    margin-bottom: 0.8rem; /* Espace réduit */
-    padding-bottom: 0.5rem;
+    color: var(--dark);
+    margin-bottom: 1rem;
+    padding-bottom: 0.6rem;
     text-align: center;
-    position: relative;
+    border-bottom: 1px solid #e9ecef; /* Bordure plus subtile */
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid #eee;
 }
-
-/* Animation de chargement */
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.animate { animation: fadeIn 0.5s ease-out forwards; }
 
 /* Spinner et messages dans les graphiques */
 .static-chart-container .loading-spinner,
@@ -78,144 +225,189 @@
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 1.5rem 1rem; /* Padding réduit */
-    color: var(--secondary, #6c757d);
+    padding: 1.5rem;
+    color: var(--secondary);
 }
 .static-chart-container .loading-spinner .spinner-border {
-    width: 1.5rem; height: 1.5rem; border-width: .2em;
+    width: 2rem; height: 2rem; border-width: .25em; /* Spinner un peu plus grand */
 }
 .static-chart-container .loading-spinner p,
 .static-chart-container .no-data-message {
-    font-size: 0.8rem; /* Taille réduite */
-    margin-top: 0.5rem;
+    font-size: 0.85rem; /* Texte un peu plus grand */
+    margin-top: 0.75rem;
 }
 .static-chart-container .no-data-message i {
-    font-size: 1.1rem; /* Icône réduite */
-    margin-bottom: 0.25rem;
+    font-size: 1.5rem; /* Icône plus grande */
+    margin-bottom: 0.5rem;
 }
 
-
-/* ===== GRAPHIQUE DONUT (THÈMES) ===== */
+/* GRAPHIQUE DONUT (THÈMES) */
 .static-chart-donut {
     position: relative;
-    width: 130px; /* Taille réduite */
-    height: 130px;
+    width: 150px; /* Taille augmentée pour meilleure visibilité */
+    height: 150px;
     border-radius: 50%;
-    margin: 0.5rem auto 0.8rem; /* Marges ajustées */
-    background-color: #f8f9fa;
-    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.05);
+    margin: 0.75rem auto 1rem;
+    background-image: conic-gradient( /* Fallback si JS pour dessiner le donut échoue */
+        var(--theme-teams) 0% 25%,
+        var(--theme-planner) 25% 50%,
+        var(--theme-onedrive) 50% 75%,
+        var(--theme-sharepoint) 75% 100%
+    );
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.08);
 }
 .donut-center {
     position: absolute;
-    top: 28%; left: 28%; width: 44%; height: 44%;
+    top: 25%; left: 25%; width: 50%; height: 50%; /* Centre plus grand */
     border-radius: 50%;
-    background-color: white;
+    background-color: var(--white);
     display: flex; flex-direction: column; justify-content: center; align-items: center;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
     z-index: 3;
 }
-.donut-total { font-size: 1.2rem; font-weight: 700; color: var(--dark, #212529); line-height: 1; }
-.donut-label { font-size: 0.55rem; color: var(--secondary, #6c757d); margin-top: 0.1rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.donut-total { font-size: 1.5rem; font-weight: 700; color: var(--dark); line-height: 1; }
+.donut-label { font-size: 0.65rem; color: var(--secondary); margin-top: 0.15rem; text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* Légende du graphique donut */
 .static-chart-legend {
     display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
-    gap: 0.3rem 0.6rem; padding: 0.4rem 0; font-size: 0.7rem; /* Taille réduite */
-    margin-top: auto;
+    gap: 0.4rem 0.8rem; /* Espacement ajusté */
+    padding: 0.5rem 0;
+    font-size: 0.75rem; /* Police de légende légèrement augmentée */
+    margin-top: auto; /* Pousse la légende en bas si le donut est petit */
 }
 .legend-item {
-    display: flex; align-items: center; padding: 0.2rem 0.4rem; /* Padding réduit */
-    background-color: #f8f9fa; border-radius: 0.25rem; transition: all var(--transition-speed) ease; cursor: default;
+    display: flex; align-items: center; padding: 0.25rem 0.5rem;
+    background-color: #f8f9fa; border-radius: 0.25rem;
+    cursor: default;
 }
-.legend-item:hover { background-color: #e9ecef; }
-.legend-color { width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1); flex-shrink: 0; }
-.legend-label { font-weight: 500; color: var(--dark, #212529); white-space: nowrap; }
-.legend-value { margin-left: 0.3rem; padding: 0.05rem 0.3rem; background-color: #e9ecef; border-radius: 6px; font-size: 0.6rem; font-weight: 600; color: var(--dark, #212529); }
+.legend-color { width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); flex-shrink: 0; }
+.legend-label { font-weight: 500; color: var(--dark); white-space: nowrap; }
+.legend-value { margin-left: 0.4rem; padding: 0.1rem 0.4rem; background-color: #e9ecef; border-radius: 8px; font-size: 0.65rem; font-weight: 600; color: var(--dark); }
 
-/* ===== GRAPHIQUE EN BARRES (SERVICES) ===== */
-.static-chart-bars { width: 100%; padding-top: 0.5rem; flex-grow: 1; }
-.bar-item { margin-bottom: 0.7rem; transition: all var(--transition-speed) ease; position: relative; }
-.bar-item:hover { transform: translateX(2px); }
-.bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem; }
-.bar-label { font-size: 0.75rem; font-weight: 500; color: var(--dark, #212529); margin: 0; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
-.service-badge { width: 8px; height: 8px; display: inline-block; border-radius: 50%; margin-right: 5px; flex-shrink: 0; }
-.bar-total { font-size: 0.7rem; font-weight: 600; color: var(--primary, #0d6efd); background-color: rgba(13, 110, 253, 0.1); padding: 0.1rem 0.35rem; border-radius: 8px; min-width: 20px; text-align: center; flex-shrink: 0; }
-.bar-container { height: 5px; background-color: #e9ecef; border-radius: 3px; position: relative; overflow: hidden; box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04); }
-.bar-value { height: 100%; border-radius: 3px; position: relative; width: 0; transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1); }
+/* GRAPHIQUE EN BARRES (SERVICES) */
+.static-chart-bars { width: 100%; padding-top: 0.75rem; flex-grow: 1; }
+.bar-item { margin-bottom: 0.8rem; position: relative; }
+.bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
+.bar-label { font-size: 0.8rem; font-weight: 500; color: var(--dark); display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 40px); /* Laisser place pour le total */ }
+.service-badge { /* Utilisé dans le bar-label */
+    width: 10px; height: 10px; display: inline-block; border-radius: 50%; margin-right: 6px; flex-shrink: 0;
+}
+.bar-total { font-size: 0.75rem; font-weight: 600; color: var(--primary); background-color: rgba(0, 120, 212, 0.08); padding: 0.15rem 0.45rem; border-radius: 10px; min-width: 25px; text-align: center; flex-shrink: 0; }
+.bar-container { height: 6px; background-color: #e9ecef; border-radius: 3px; position: relative; overflow: hidden; box-shadow: inset 0 1px 1px rgba(0,0,0,0.05); }
+.bar-value { height: 100%; border-radius: 3px; position: relative; width: 0; transition: width 0.7s cubic-bezier(0.25, 1, 0.5, 1); }
+/* Animation pour les barres (déjà dans custom.css, mais rappel) */
 @keyframes barGrow { from { width: 0; } to { width: var(--percent, 0%); } }
 .animate .bar-value { animation: barGrow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; animation-delay: calc(var(--index, 0) * 0.08s); }
 
-/* ===== BADGES DE THÈMES AMÉLIORÉS ===== */
-.theme-badge {
-    display: inline-flex; align-items: center; padding: 0.3em 0.65em; font-size: 0.8rem; font-weight: 500; line-height: 1.2; color: #fff !important; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: 0.25rem; box-shadow: var(--shadow-sm); transition: all var(--transition-speed) ease; margin: 0.1rem 0; position: relative; cursor: help; visibility: visible !important; opacity: 1 !important; z-index: 1;
+
+/* ===== FLUX D'ACTIVITÉS RÉCENTES (DASHBOARD) ===== */
+.activity-container {
+    max-height: 320px; /* Hauteur légèrement augmentée */
+    overflow-y: auto;
+    padding: 0.25rem; /* Petit padding autour du conteneur */
 }
-.theme-badge:hover { transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.15); }
+.activity-item {
+    padding: 0.75rem 1rem; /* Plus de padding interne */
+    margin-bottom: 0.6rem; /* Espace entre items */
+    border-left-width: 4px; /* Bordure gauche plus épaisse */
+    background-color: var(--white); /* Fond blanc pour se détacher */
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-speed) ease;
+    display: flex;
+    align-items: flex-start;
+}
+.activity-item:hover {
+    transform: translateX(3px);
+    box-shadow: 0 3px 7px rgba(0,0,0,0.1);
+    background-color: #fdfdfd; /* Très léger changement au survol */
+}
+.activity-icon {
+    margin-right: 0.8rem; /* Plus d'espace pour l'icône */
+    margin-top: 0.15rem;
+    font-size: 0.9rem;
+    width: 1.5em; /* S'assurer que l'icône a de la place */
+    text-align: center;
+    opacity: 0.8;
+}
+.activity-content { flex-grow: 1; }
+.activity-title {
+    font-weight: 500;
+    font-size: 0.85rem; /* Police du titre légèrement augmentée */
+    color: var(--dark);
+    margin-bottom: 0.15rem;
+    line-height: 1.35;
+}
+.activity-subtitle, .activity-details { /* Style commun pour détails et sous-titre */
+    font-size: 0.75rem; /* Police des détails augmentée */
+    color: var(--secondary);
+    line-height: 1.4;
+    word-break: break-word; /* Pour les longs détails */
+}
+.activity-time {
+    font-size: 0.7rem; /* Temps plus petit */
+    white-space: nowrap; /* Empêcher le temps de passer à la ligne */
+    margin-left: 0.5rem; /* Espace par rapport au titre */
+}
+
+/* Couleurs pour les types d'activité (exemple, à adapter à vos types réels) */
+.activity-item.type-inscription, .activity-item.type-ajout_participant { border-left-color: var(--success); }
+.activity-item.type-validation { border-left-color: var(--primary); }
+.activity-item.type-annulation, .activity-item.type-refus, .activity-item.type-suppression_participant { border-left-color: var(--danger); }
+.activity-item.type-modification_participant, .activity-item.type-liste_attente { border-left-color: var(--warning); }
+.activity-item.type-connexion { border-left-color: var(--success); }
+.activity-item.type-deconnexion { border-left-color: var(--secondary); }
+.activity-item.type-systeme, .activity-item.type-default { border-left-color: var(--info); }
+
+
+/* ===== BADGES DE THÈME (UTILISÉS PARTOUT) ===== */
+.theme-badge {
+    display: inline-flex; align-items: center;
+    padding: 0.35em 0.75em; /* Padding ajusté */
+    font-size: 0.78rem; /* Taille de police ajustée */
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--white) !important;
+    text-align: center; white-space: nowrap; vertical-align: baseline;
+    border-radius: 50rem; /* Badge arrondi */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all var(--transition-speed) ease;
+    margin: 0.1rem;
+    cursor: help; /* Indique qu'il y a un tooltip */
+}
+.theme-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    filter: brightness(1.1); /* Léger éclaircissement au survol */
+}
 .theme-badge.theme-comm { background-color: var(--theme-teams); }
 .theme-badge.theme-planner { background-color: var(--theme-planner); }
 .theme-badge.theme-onedrive { background-color: var(--theme-onedrive); }
 .theme-badge.theme-sharepoint { background-color: var(--theme-sharepoint); }
-.theme-badge i.fas { margin-right: 0.3em; font-size: 0.9em; line-height: 1; }
-.theme-badge .theme-tooltip { visibility: hidden; width: 260px; background-color: rgba(33, 37, 41, 0.95); color: #fff; text-align: left; border-radius: 4px; padding: 8px 10px; position: absolute; z-index: 1081; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: all 0.3s ease; font-weight: normal; font-size: 0.75rem; box-shadow: 0 3px 8px rgba(0,0,0,0.2); pointer-events: none; }
-.theme-badge .theme-tooltip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(33, 37, 41, 0.95) transparent transparent transparent; }
-.theme-badge:hover .theme-tooltip { visibility: visible; opacity: 1; }
+.theme-badge i.fas { margin-right: 0.4em; font-size: 0.9em; }
 
-/* ===== Feed d'activité récentes amélioré ===== */
-.activity-container { max-height: 300px; overflow-y: auto; } /* Hauteur réduite */
-.activity-item { padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; border-left-width: 3px; background-color: #fdfdfd; border-radius: 0 0.25rem 0.25rem 0; transition: all var(--transition-speed) ease; display: flex; align-items: flex-start; }
-.activity-item:hover { transform: translateX(2px); background-color: #f8f9fa; }
-.activity-icon { margin-right: 0.6rem; margin-top: 0.1rem; font-size: 0.85rem; width: 1.2em; text-align: center; }
-.activity-content { flex-grow: 1; }
-.activity-title { font-weight: 500; font-size: 0.8rem; color: var(--dark, #212529); margin-bottom: 0.1rem; line-height: 1.3; }
-.activity-subtitle { font-size: 0.7rem; color: var(--secondary, #6c757d); line-height: 1.3; }
-.activity-subtitle small { font-size: 100%; }
-.activity-time { display: block; margin-top: 0.2rem; }
-/* Couleurs par type (inchangé) */
-.activity-item.type-ajout { border-left-color: var(--success, #198754); }
-.activity-item.type-suppression { border-left-color: var(--danger, #dc3545); }
-.activity-item.type-modification { border-left-color: var(--warning, #ffc107); }
-.activity-item.type-validation { border-left-color: var(--info, #0dcaf0); }
-.activity-item.type-connexion { border-left-color: var(--success); }
-.activity-item.type-deconnexion { border-left-color: var(--secondary); }
-.activity-item.type-systeme { border-left-color: var(--dark); }
 
-/* ===== RESPONSIVITÉ GÉNÉRALE ===== */
-.session-table th, .session-table td { padding: 0.4rem; font-size: 0.8rem; vertical-align: middle; } /* Padding et police réduits */
-.session-table th:nth-child(1), .session-table td:nth-child(1) { width: 120px; }
-.session-table th:nth-child(2), .session-table td:nth-child(2) { min-width: 140px; }
-.session-table th:nth-child(3), .session-table td:nth-child(3) { width: 80px; text-align: center; }
-.session-table th:nth-child(4), .session-table td:nth-child(4) { width: 120px; }
-.session-table th:nth-child(5), .session-table td:nth-child(5) { width: 100px; text-align: center;}
-
-@media (max-width: 1200px) {
-    .session-table th, .session-table td { font-size: 0.75rem; padding: 0.35rem; }
-    .session-table th:nth-child(1), .session-table td:nth-child(1) { width: auto; min-width: 100px; }
-    .session-table th:nth-child(4), .session-table td:nth-child(4) { width: auto; min-width: 90px; }
-    .session-table th:nth-child(5), .session-table td:nth-child(5) { width: auto; min-width: 85px; }
-}
-@media (max-width: 992px) {
-    .static-chart-container { min-height: 260px; }
-    .static-chart-donut { width: 120px; height: 120px; }
-    .donut-total { font-size: 1.1rem; }
-    .donut-label { font-size: 0.55rem; }
-    .static-chart-legend { font-size: 0.7rem; }
-    .legend-label { max-width: 80px; }
-}
-@media (max-width: 768px) {
-    .static-chart-donut { width: 110px; height: 110px; }
-    .bar-label { font-size: 0.75rem; max-width: 65%; }
-    .bar-total { font-size: 0.65rem; padding: 0.1rem 0.3rem;}
-    .session-table .btn-sm { padding: 0.15rem 0.3rem; font-size: 0.65rem; }
-    .session-table .badge { font-size: 0.65rem; }
-    .places-dispo { font-size: 0.75rem; }
-    .theme-badge { font-size: 0.7rem; padding: 0.25em 0.5em;}
-    .activity-title { font-size: 0.75rem; }
-    .activity-subtitle { font-size: 0.65rem; }
+/* Styles pour les éléments mis à jour (animation) */
+.updated { animation: highlightUpdate 0.8s ease-out; }
+@keyframes highlightUpdate {
+    0% { background-color: rgba(255, 230, 150, 0.5); box-shadow: 0 0 8px rgba(255,200,0,0.3); }
+    100% { background-color: transparent; box-shadow: none; }
 }
 
-/* Styles pour les éléments mis à jour */
-.updated { animation: highlightUpdate 0.7s ease-out; }
-@keyframes highlightUpdate { 0% { background-color: rgba(255, 255, 0, 0.3); } 100% { background-color: transparent; } }
+/* Style pour les données invalides/erreur dans les affichages */
+.data-error { color: var(--danger) !important; font-style: italic; opacity: 0.85; }
+.data-error i { margin-right: 0.3em; }
 
-/* Style pour les données invalides/erreur */
-.data-error { color: var(--danger, #dc3545) !important; font-style: italic; opacity: 0.8; }
-.data-error i { margin-right: 0.2em; }
+/* Assurer la visibilité des selects dans les modaux (si portal-modal.js n'est pas suffisant) */
+.modal select, .modal .form-select,
+#portal-modal-container select, #portal-modal-container .form-select {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important; /* Important pour le stacking context */
+    z-index: 1056 !important; /* Au-dessus du backdrop Bootstrap mais en dessous du modal header/footer */
+    pointer-events: auto !important;
+    -webkit-appearance: listbox !important; /* Forcer l'apparence native */
+    appearance: listbox !important;
+}

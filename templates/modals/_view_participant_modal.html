@@ -1,11 +1,4 @@
 <!-- templates/modals/_view_participant_modal.html -->
-{#
-    Attend dans le contexte (passé via {% with ... %}):
-    - participant: L'objet Participant SQLAlchemy.
-    - p_data: Le dictionnaire contenant les comptes et les listes pré-chargées pour ce participant.
-    Attend dans le contexte global:
-    - current_user: L'utilisateur connecté.
-#}
 <div class="modal fade" id="viewParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="viewParticipantModalLabel{{ participant.id }}" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -13,7 +6,7 @@
                 <h5 class="modal-title" id="viewParticipantModalLabel{{ participant.id }}">
                     <i class="fas fa-user-circle me-2"></i>Détails de {{ participant.prenom }} {{ participant.nom }}
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-portal-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <div class="row mb-3">
@@ -34,24 +27,24 @@
                 <hr>
                 <ul class="nav nav-tabs nav-fill mb-3" id="participantTabs{{ participant.id }}" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="view-inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-inscriptions{{ participant.id }}" type="button" role="tab">
+                        <button class="nav-link active" id="view-inscriptions-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-inscriptions{{ participant.id }}" type="button" role="tab" aria-controls="view-inscriptions{{ participant.id }}" aria-selected="true">
                             <i class="fas fa-check-circle text-success me-1"></i>Confirmées <span class="badge bg-success ms-1">{{ p_data.inscriptions_count }}</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="view-pending-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-pending{{ participant.id }}" type="button" role="tab">
+                        <button class="nav-link" id="view-pending-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-pending{{ participant.id }}" type="button" role="tab" aria-controls="view-pending{{ participant.id }}" aria-selected="false">
                             <i class="fas fa-hourglass-half text-secondary me-1"></i>En Attente <span class="badge bg-secondary ms-1">{{ p_data.pending_count }}</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="view-attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-attente{{ participant.id }}" type="button" role="tab">
+                        <button class="nav-link" id="view-attente-tab{{ participant.id }}" data-bs-toggle="tab" data-bs-target="#view-attente{{ participant.id }}" type="button" role="tab" aria-controls="view-attente{{ participant.id }}" aria-selected="false">
                             <i class="fas fa-clock text-warning me-1"></i>Liste d'attente <span class="badge bg-warning text-dark ms-1">{{ p_data.attente_count }}</span>
                         </button>
                     </li>
                 </ul>
                 <div class="tab-content pt-2" id="participantTabsContent{{ participant.id }}">
                     <!-- Onglet inscriptions confirmées -->
-                    <div class="tab-pane fade show active" id="view-inscriptions{{ participant.id }}" role="tabpanel">
+                    <div class="tab-pane fade show active" id="view-inscriptions{{ participant.id }}" role="tabpanel" aria-labelledby="view-inscriptions-tab{{ participant.id }}">
                         {% set confirmed_inscriptions = p_data.loaded_confirmed_inscriptions %}
                         {% if confirmed_inscriptions %}
                         <div class="table-responsive">
@@ -64,11 +57,11 @@
                                         <td>{{ inscription.session.formatage_date }} <small class="text-muted">({{ inscription.session.formatage_horaire }})</small></td>
                                         <td><span class="badge bg-light text-dark border">{{ inscription.session.salle.nom if inscription.session.salle else '-' }}</span></td>
                                         <td>
-                                            <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation .ics" data-bs-toggle="tooltip" data-bs-placement="top"><i class="far fa-calendar-plus"></i></a>
+                                            <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Invitation .ics"><i class="far fa-calendar-plus"></i></a>
                                              {% if current_user.is_authenticated and current_user.role == 'admin' %}
                                              <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
                                                  <input type="hidden" name="action" value="annuler">
-                                                 <button type="submit" class="btn btn-sm btn-outline-danger btn-cancel-inscription" title="Annuler l'inscription" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                 <button type="submit" class="btn btn-sm btn-outline-danger btn-cancel-inscription" title="Annuler l'inscription" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');">
                                                     <i class="fas fa-ban"></i>
                                                  </button>
                                              </form>
@@ -84,7 +77,7 @@
                         {% endif %}
                     </div>
                      <!-- Onglet inscriptions en attente -->
-                    <div class="tab-pane fade" id="view-pending{{ participant.id }}" role="tabpanel">
+                    <div class="tab-pane fade" id="view-pending{{ participant.id }}" role="tabpanel" aria-labelledby="view-pending-tab{{ participant.id }}">
                           {% set pending_inscriptions = p_data.loaded_pending_inscriptions %}
                         {% if pending_inscriptions %}
                         <div class="table-responsive">
@@ -99,10 +92,10 @@
                                         <td>
                                             {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
                                                 <div class="btn-group btn-group-sm">
-                                                    <button type="button" class="btn btn-outline-success validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="valider" title="Valider" data-bs-toggle="tooltip" data-bs-placement="top" {{ 'disabled' if inscription.session.get_places_restantes(p_data.inscriptions_count) <= 0 else '' }}>
+                                                    <button type="button" class="btn btn-outline-success validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="valider" title="Valider" {{ 'disabled' if inscription.session.get_places_restantes(p_data.inscriptions_count) <= 0 else '' }}>
                                                         <i class="fas fa-check"></i>
                                                     </button>
-                                                    <button type="button" class="btn btn-outline-danger validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="refuser" title="Refuser" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                    <button type="button" class="btn btn-outline-danger validation-ajax" data-inscription-id="{{ inscription.id }}" data-action="refuser" title="Refuser">
                                                         <i class="fas fa-times"></i>
                                                     </button>
                                                 </div>
@@ -120,7 +113,7 @@
                         {% endif %}
                     </div>
                     <!-- Onglet liste d'attente -->
-                    <div class="tab-pane fade" id="view-attente{{ participant.id }}" role="tabpanel">
+                    <div class="tab-pane fade" id="view-attente{{ participant.id }}" role="tabpanel" aria-labelledby="view-attente-tab{{ participant.id }}">
                         {% set waitlist_entries = p_data.loaded_waitlist %}
                         {% if waitlist_entries %}
                         <div class="table-responsive">
@@ -149,7 +142,7 @@
                 </div>
             </div>
             <div class="modal-footer bg-light border-top">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-outline-secondary" data-portal-dismiss="modal">Fermer</button>
             </div>
         </div>
     </div>

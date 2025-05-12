@@ -1,0 +1,30 @@
+<!-- templates/modals/_delete_participant_modal.html -->
+{% if current_user.is_authenticated and current_user.role == 'admin' %}
+<div class="modal fade" id="deleteParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="deleteParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteParticipantModalLabel{{ participant.id }}">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmer la Suppression
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-portal-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle me-2"></i>Attention ! Cette action est irréversible.
+                </div>
+                <p>Êtes-vous sûr de vouloir supprimer le participant <strong>{{ participant.prenom }} {{ participant.nom }}</strong> ?</p>
+                <p class="text-danger"><small>Ses inscriptions (confirmées ou non) et présences en liste d'attente seront également supprimées.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-portal-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('delete_participant', id=participant.id) }}" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt me-2"></i>Supprimer Définitivement
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

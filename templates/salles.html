@@ -4,7 +4,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mb-0"><i class="fas fa-building me-2"></i>Gestion des Salles</h1>
     {% if current_user.role == 'admin' %}
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSalleModal">
+    <button class="btn btn-primary" data-portal-target="#addSalleModal">
         <i class="fas fa-plus me-2"></i>Ajouter une Salle
     </button>
     {% endif %}
@@ -18,7 +18,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="addSalleModalLabel">Ajouter une Nouvelle Salle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-portal-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form action="{{ url_for('add_salle') }}" method="post">
@@ -98,10 +98,10 @@
              {% if current_user.role == 'admin' %}
             <div class="card-footer bg-light">
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editSalleModal{{ salle.id }}">
+                     <button type="button" class="btn btn-outline-secondary btn-sm" data-portal-target="#editSalleModal{{ salle.id }}">
                         <i class="fas fa-edit me-1"></i>Modifier
                     </button>
-                     <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteSalleModal{{ salle.id }}">
+                     <button type="button" class="btn btn-outline-danger btn-sm" data-portal-target="#deleteSalleModal{{ salle.id }}">
                         <i class="fas fa-trash me-1"></i>Supprimer
                     </button>
                 </div>
@@ -112,7 +112,7 @@
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title" id="editSalleModalLabel{{ salle.id }}">Modifier - {{ salle.nom }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                <button type="button" class="btn-close" data-portal-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
                                  <form action="{{ url_for('update_salle', id=salle.id) }}" method="post">
@@ -147,13 +147,13 @@
                          <div class="modal-content">
                              <div class="modal-header">
                                  <h5 class="modal-title" id="deleteSalleModalLabel{{ salle.id }}">Confirmer Suppression</h5>
-                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                 <button type="button" class="btn-close" data-portal-dismiss="modal" aria-label="Close"></button>
                              </div>
                              <div class="modal-body">
                                  Êtes-vous sûr de vouloir supprimer la salle "{{ salle.nom }}" ? Les sessions associées devront être réassignées.
                              </div>
                              <div class="modal-footer">
-                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                 <button type="button" class="btn btn-secondary" data-portal-dismiss="modal">Annuler</button>
                                  <form action="{{ url_for('delete_salle', id=salle.id) }}" method="post" class="d-inline"> {# Assurez-vous que cette route existe #}
                                      <button type="submit" class="btn btn-danger">Supprimer</button>
                                  </form>
@@ -170,7 +170,7 @@
         <div class="alert alert-light text-center" role="alert">
            <i class="fas fa-info-circle me-2"></i> Aucune salle n'a été configurée.
              {% if current_user.role == 'admin' %}
-                <a href="#" data-bs-toggle="modal" data-bs-target="#addSalleModal">Ajouter une salle</a>.
+                <a href="#" data-portal-target="#addSalleModal">Ajouter une salle</a>.
             {% endif %}
         </div>
     </div>
@@ -178,30 +178,13 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block scripts_extra %}
 {{ super() }} <!-- Include scripts from layout.html -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Salles JS loaded');
-        // Apply specific JS fixes for modals on this page
-         function applySalleModalFixes() {
-             // No selects in these modals currently, but target buttons
-              {% if current_user.role == 'admin' %}
-                document.querySelectorAll('#addSalleModal button, #addSalleModal .btn, [id^="editSalleModal"] button, [id^="editSalleModal"] .btn, [id^="deleteSalleModal"] button, [id^="deleteSalleModal"] .btn').forEach(button => {
-                    button.style.position = 'relative';
-                    button.style.zIndex = '2001';
-                     button.style.pointerEvents = 'auto';
-                 });
-              {% endif %}
-             // Utiliser la config globale pour le debug mode
-             const isDebug = window.dashboardConfig && window.dashboardConfig.debugMode;
-             if (isDebug) console.log('Salles specific modal JS fixes applied.');
-         }
-        // Apply fixes after a short delay
-         setTimeout(applySalleModalFixes, 500);
-
-         // Add confirmation logic for delete button if implemented
-         // document.body.addEventListener('click', function(e) { ... });
     });
 </script>
+<!-- Inclure le script de correction spécifique pour cette page -->
+<script src="{{ url_for('static', filename='js/page-specific-modal-fix.js') }}"></script>
 {% endblock %}

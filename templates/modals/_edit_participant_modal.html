@@ -1,0 +1,53 @@
+<!-- templates/modals/_edit_participant_modal.html -->
+{% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == participant.service_id)) %}
+<div class="modal fade" id="editParticipantModal{{ participant.id }}" tabindex="-1" aria-labelledby="editParticipantModalLabel{{ participant.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title" id="editParticipantModalLabel{{ participant.id }}">
+                    <i class="fas fa-user-edit me-2"></i>Modifier - {{ participant.prenom }} {{ participant.nom }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-portal-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form action="{{ url_for('update_participant', id=participant.id) }}" method="post" class="needs-validation" novalidate>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_nom_{{ participant.id }}" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="edit_nom_{{ participant.id }}" name="nom" value="{{ participant.nom }}" required>
+                            <div class="invalid-feedback">Le nom est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_prenom_{{ participant.id }}" class="form-label">Prénom*</label>
+                            <input type="text" class="form-control" id="edit_prenom_{{ participant.id }}" name="prenom" value="{{ participant.prenom }}" required>
+                            <div class="invalid-feedback">Le prénom est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_email_{{ participant.id }}" class="form-label">Email*</label>
+                            <input type="email" class="form-control" id="edit_email_{{ participant.id }}" name="email" value="{{ participant.email }}" required>
+                            <div class="invalid-feedback">Un email valide est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_service_id_{{ participant.id }}" class="form-label">Service*</label>
+                            <select class="form-select" id="edit_service_id_{{ participant.id }}" name="service_id" required>
+                                {% for service_item in services|sort(attribute='nom') %}
+                                <option value="{{ service_item.id }}" {% if service_item.id == participant.service_id %}selected{% endif %}>{{ service_item.nom }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">Le service est requis.</div>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save me-2"></i>Enregistrer les modifications
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-portal-dismiss="modal">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

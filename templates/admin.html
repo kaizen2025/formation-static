@@ -6,19 +6,41 @@
 <style>
     .admin-stat-card .card-body {
         padding: 1rem;
+        display: flex; 
+        flex-direction: column;
+        justify-content: center; 
     }
     .admin-stat-card .stat-icon {
         font-size: 2.5rem;
-        opacity: 0.6;
+        opacity: 0.5; 
+        transition: transform 0.2s ease-in-out;
+    }
+    .admin-stat-card:hover .stat-icon {
+        transform: scale(1.1);
     }
     .admin-section-header {
         border-bottom: 2px solid var(--bs-primary);
         padding-bottom: 0.5rem;
         margin-bottom: 1.5rem;
         color: var(--bs-primary);
+        font-weight: 600;
     }
     .list-group-item-action:hover {
         background-color: #f8f9fa;
+        transform: translateX(2px);
+        transition: background-color 0.2s ease-out, transform 0.2s ease-out;
+    }
+    .table-responsive-admin-docs {
+        max-height: 280px; 
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+    }
+    .table th {
+        font-weight: 600;
+    }
+    .card-body p:last-of-type {
+        margin-bottom: 0.5rem;
     }
 </style>
 {% endblock %}
@@ -39,7 +61,7 @@
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sessions Totales</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_sessions_count|default(0) }}</div>
                         </div>
-                        <div class="col-auto stat-icon"><i class="fas fa-calendar-alt text-gray-300"></i></div>
+                        <div class="col-auto stat-icon"><i class="fas fa-calendar-check text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
@@ -52,7 +74,7 @@
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Inscriptions Confirmées</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_inscriptions|default(0) }}</div>
                         </div>
-                        <div class="col-auto stat-icon"><i class="fas fa-users text-gray-300"></i></div>
+                        <div class="col-auto stat-icon"><i class="fas fa-user-check text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
@@ -65,7 +87,7 @@
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Participants Uniques</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ participants|length|default(0) }}</div>
                         </div>
-                        <div class="col-auto stat-icon"><i class="fas fa-user-friends text-gray-300"></i></div>
+                        <div class="col-auto stat-icon"><i class="fas fa-users text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
@@ -87,140 +109,165 @@
 
     <!-- Sections de Gestion -->
     <div class="row">
-        <!-- Colonne de gauche : Gestion Thèmes, Salles, Services -->
         <div class="col-lg-6 mb-4">
             <!-- Gestion des Thèmes -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h5>
+                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h5>
                 </div>
                 <div class="card-body">
                     <p>Gérer les thèmes de formation, leurs descriptions et les sessions associées.</p>
-                    <ul class="list-group list-group-flush mb-3">
-                        {% for theme in themes|sort(attribute='nom') %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ theme.nom }}
-                            <span class="badge bg-primary rounded-pill">{{ theme_session_counts.get(theme.id, 0) }} session(s)</span>
-                        </li>
-                        {% else %}
-                        <li class="list-group-item text-muted">Aucun thème configuré.</li>
-                        {% endfor %}
-                    </ul>
-                    <a href="{{ url_for('themes_page') }}" class="btn btn-primary btn-sm"><i class="fas fa-edit me-1"></i>Gérer les Thèmes</a>
+                    {% if themes is defined and themes %}
+                        <ul class="list-group list-group-flush mb-3">
+                            {% for theme in themes|sort(attribute='nom') %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ theme.nom|escape }}
+                                <span class="badge bg-primary rounded-pill">{{ theme_session_counts.get(theme.id, 0) }} session(s)</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted fst-italic">Aucun thème configuré.</p>
+                    {% endif %}
+                    <a href="{{ url_for('themes_page') }}" class="btn btn-primary btn-sm mt-2"><i class="fas fa-edit me-1"></i>Gérer les Thèmes</a>
                 </div>
             </div>
 
             <!-- Gestion des Salles -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-building me-2"></i>Gestion des Salles</h5>
+                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-building me-2"></i>Gestion des Salles</h5>
                 </div>
                 <div class="card-body">
                     <p>Ajouter, modifier ou supprimer des salles de formation.</p>
-                     <ul class="list-group list-group-flush mb-3">
-                        {% for salle in salles|sort(attribute='nom') %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ salle.nom }}
-                            <span class="badge bg-info rounded-pill">{{ salle.capacite }} places</span>
-                        </li>
-                        {% else %}
-                        <li class="list-group-item text-muted">Aucune salle configurée.</li>
-                        {% endfor %}
-                    </ul>
-                    <a href="{{ url_for('salles_page') }}" class="btn btn-primary btn-sm"><i class="fas fa-door-open me-1"></i>Gérer les Salles</a>
+                     {% if salles is defined and salles %}
+                        <ul class="list-group list-group-flush mb-3">
+                            {% for salle in salles|sort(attribute='nom') %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ salle.nom|escape }}
+                                <span class="badge bg-info rounded-pill">{{ salle.capacite|default(0) }} places</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted fst-italic">Aucune salle configurée.</p>
+                    {% endif %}
+                    <a href="{{ url_for('salles_page') }}" class="btn btn-primary btn-sm mt-2"><i class="fas fa-door-open me-1"></i>Gérer les Salles</a>
                 </div>
             </div>
             
             <!-- Gestion des Services -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-concierge-bell me-2"></i>Gestion des Services</h5>
+                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-concierge-bell me-2"></i>Gestion des Services</h5>
                 </div>
                 <div class="card-body">
                     <p>Gérer les services de l'entreprise et leurs responsables.</p>
-                     <ul class="list-group list-group-flush mb-3">
-                        {% for service in services|sort(attribute='nom') %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span style="color: {{ service.couleur }}; font-weight: bold;">{{ service.nom }}</span>
-                            <span class="text-muted small">{{ service.responsable }}</span>
-                        </li>
-                        {% else %}
-                        <li class="list-group-item text-muted">Aucun service configuré.</li>
-                        {% endfor %}
-                    </ul>
-                    <a href="{{ url_for('services') }}" class="btn btn-primary btn-sm"><i class="fas fa-cogs me-1"></i>Gérer les Services</a>
+                     {% if services is defined and services %}
+                        <ul class="list-group list-group-flush mb-3">
+                            {% for service_item in services|sort(attribute='nom') %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span style="color: {{ service_item.couleur|default('#212529') }}; font-weight: bold;">{{ service_item.nom|escape }}</span>
+                                <span class="text-muted small">{{ service_item.responsable|escape }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted fst-italic">Aucun service configuré.</p>
+                    {% endif %}
+                    <a href="{{ url_for('services') }}" class="btn btn-primary btn-sm mt-2"><i class="fas fa-cogs me-1"></i>Gérer les Services</a>
                 </div>
             </div>
         </div>
 
-        <!-- Colonne de droite : Gestion Documents, Participants, Activités -->
         <div class="col-lg-6 mb-4">
             <!-- Gestion des Documents -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-folder-open me-2"></i>Gestion des Documents</h5>
+                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-folder-open me-2"></i>Gestion des Documents</h5>
                 </div>
                 <div class="card-body">
                     <p>Uploader, organiser et supprimer les documents de support pour les formations.</p>
-                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
-                        <table class="table table-sm table-hover">
-                            <thead>
-                                <tr><th>Nom du Fichier</th><th>Thème</th><th>Date d'Upload</th></tr>
+                    <div class="table-responsive-admin-docs">
+                        <table class="table table-sm table-hover table-striped">
+                            <thead class="table-light">
+                                <tr><th scope="col">Nom du Fichier</th><th scope="col">Thème</th><th scope="col">Date d'Upload</th></tr>
                             </thead>
                             <tbody>
-                            {% for doc in existing_documents|sort(attribute='upload_date', reverse=True)|slice(0, 5) %} {# Affiche les 5 plus récents #}
-                                <tr>
-                                    <td class="text-truncate" style="max-width: 150px;">{{ doc.original_filename }}</td>
-                                    <td><span class="badge bg-secondary">{{ doc.theme.nom if doc.theme else 'Général' }}</span></td>
-                                    <td><small>{{ doc.upload_date.strftime('%d/%m/%y') }}</small></td>
-                                </tr>
+                            {% if existing_documents is defined and existing_documents %}
+                                {% for doc in existing_documents|sort(attribute='upload_date', reverse=True)|slice(5) %}
+                                    {# Vérifier si doc est bien un objet avec les attributs attendus #}
+                                    {% if doc and doc.original_filename is defined and doc.upload_date is defined %}
+                                    <tr>
+                                        <td class="text-truncate" style="max-width: 200px;" title="{{ doc.original_filename|escape }}">{{ doc.original_filename|escape }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                {% if doc.theme and doc.theme.nom is defined %}
+                                                    {{ doc.theme.nom|escape }}
+                                                {% else %}
+                                                    Général
+                                                {% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small>{{ doc.upload_date.strftime('%d/%m/%y %H:%M') }}</small>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="3" class="text-danger small">Erreur d'affichage pour un document.</td>
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
                             {% else %}
-                                <tr><td colspan="3" class="text-muted text-center">Aucun document uploadé.</td></tr>
-                            {% endfor %}
+                                <tr><td colspan="3" class="text-muted text-center p-3">Aucun document uploadé.</td></tr>
+                            {% endif %}
                             </tbody>
                         </table>
                     </div>
-                    <a href="{{ url_for('documents') }}" class="btn btn-info btn-sm mt-2"><i class="fas fa-file-alt me-1"></i>Voir/Gérer les Documents</a>
-                    {# Le formulaire d'upload est maintenant sur la page documents, mais on pourrait ajouter un raccourci ici si besoin #}
+                    <a href="{{ url_for('documents') }}" class="btn btn-info btn-sm mt-3"><i class="fas fa-file-alt me-1"></i>Voir/Gérer les Documents</a>
                 </div>
             </div>
 
             <!-- Gestion des Participants -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-users me-2"></i>Gestion des Participants</h5>
+                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-users me-2"></i>Gestion des Participants</h5>
                 </div>
                 <div class="card-body">
                     <p>Consulter, ajouter, modifier ou supprimer des participants.</p>
-                    <a href="{{ url_for('participants_page') }}" class="btn btn-primary btn-sm"><i class="fas fa-address-book me-1"></i>Gérer les Participants</a>
+                    <p>Nombre total de participants enregistrés : <strong>{{ participants|length|default(0) }}</strong></p>
+                    <a href="{{ url_for('participants_page') }}" class="btn btn-primary btn-sm mt-2"><i class="fas fa-address-book me-1"></i>Gérer les Participants</a>
                 </div>
             </div>
 
             <!-- Journal d'Activités Récentes -->
             <div class="card shadow-sm">
                 <div class="card-header bg-light py-3">
-                    <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-2"></i>Journal d'Activités Récentes</h5>
+                    <h5 class="m-0 font-weight-bold text-primary admin-section-header"><i class="fas fa-history me-2"></i>Journal d'Activités Récentes</h5>
                 </div>
                 <div class="card-body p-0">
-                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
-                        {% for activite in activites_recentes %}
-                        <a href="{{ url_for('activites_journal', type=activite.type) }}" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 small">
-                                    <i class="{{ getActivityIcon(activite.type) }} me-1"></i> {# Utilisation d'une fonction helper si définie, sinon à adapter #}
-                                    {{ activite.description }}
-                                </h6>
-                                <small class="text-muted">{{ activite.date_relative }}</small>
-                            </div>
-                            {% if activite.details %}<p class="mb-1 small text-muted">{{ activite.details }}</p>{% endif %}
-                            {% if activite.utilisateur %}<small class="text-muted">Par: {{ activite.utilisateur.username }}</small>{% endif %}
-                        </a>
+                    <div class="list-group list-group-flush" style="max-height: 330px; overflow-y: auto;">
+                        {% if activites_recentes is defined and activites_recentes %}
+                            {% for activite in activites_recentes %}
+                            <a href="{{ url_for('activites_journal', type=activite.type) }}" class="list-group-item list-group-item-action px-3 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 small fw-normal">
+                                        <i class="{{ getActivityIcon(activite.type) }} me-2 fa-fw"></i>
+                                        {{ activite.description|escape }}
+                                    </h6>
+                                    <small class="text-muted text-nowrap ms-2">{{ activite.date_relative }}</small>
+                                </div>
+                                {% if activite.details %}<p class="mb-1 small text-muted ps-4">{{ activite.details|truncate(80)|escape }}</p>{% endif %}
+                                {% if activite.utilisateur and activite.utilisateur.username is defined %}<small class="text-muted ps-4">Par: {{ activite.utilisateur.username|escape }}</small>{% endif %}
+                            </a>
+                            {% endfor %}
                         {% else %}
-                        <div class="list-group-item text-muted text-center">Aucune activité récente.</div>
-                        {% endfor %}
+                            <div class="list-group-item text-muted text-center p-3">Aucune activité récente.</div>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="card-footer text-center">
+                <div class="card-footer text-center bg-light">
                     <a href="{{ url_for('activites_journal') }}" class="btn btn-outline-secondary btn-sm">Voir tout le journal</a>
                 </div>
             </div>
@@ -231,36 +278,18 @@
 
 {% block scripts_extra %}
 <script>
-    // Fonction helper pour les icônes d'activité (similaire à celle dans dashboard-core.js)
-    // Vous pourriez la mettre dans un fichier JS global si elle est utilisée ailleurs.
-    function getActivityIcon(type) {
-        const iconMap = {
-            'connexion': 'fas fa-sign-in-alt text-success',
-            'deconnexion': 'fas fa-sign-out-alt text-warning',
-            'inscription': 'fas fa-user-plus text-primary',
-            'validation': 'fas fa-check-circle text-success',
-            'refus': 'fas fa-times-circle text-danger',
-            'annulation': 'fas fa-ban text-danger',
-            'ajout_participant': 'fas fa-user-plus text-primary',
-            'suppression_participant': 'fas fa-user-minus text-danger',
-            'modification_participant': 'fas fa-user-edit text-warning',
-            'ajout_theme': 'fas fa-folder-plus text-primary',
-            'ajout_salle': 'fas fa-door-open text-primary',
-            'systeme': 'fas fa-cog text-secondary',
-            'notification': 'fas fa-bell text-warning',
-            'ajout_document': 'fas fa-file-upload text-info',
-            'suppression_document': 'fas fa-file-excel text-danger',
-            'default': 'fas fa-info-circle text-secondary'
-        };
-        return iconMap[type] || iconMap.default;
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+        setTimeout(function() { 
+             window.enhanceThemeBadgesGlobally(document.getElementById('admin-panel-content'));
+        }, 100);
     }
-    // Appliquer les icônes après le chargement du DOM
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.list-group-item-action i[class*="getActivityIcon"]').forEach(iconElement => {
-            // Si l'icône est déjà définie par une classe getActivityIcon, on la remplace par le résultat de la fonction
-            // Ceci est un exemple, il faudrait adapter en fonction de comment vous passez le type à l'icône
-            // L'idéal est de générer la classe directement dans la boucle Jinja comme fait ci-dessus.
+    if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
-    });
+    }
+});
 </script>
 {% endblock %}

@@ -19,7 +19,8 @@
     <!-- Styles personnalisés consolidés -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
+    <!-- Solution unique pour les modaux -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-modal-fixes.css') }}">
 
     {% block head_extra %}{% endblock %}
 
@@ -64,7 +65,7 @@
         }
         /* Style pour les toasts */
         .toast-container {
-             z-index: 1100 !important; /* S'assurer que les toasts sont au-dessus des modales */
+             z-index: 11000 !important; /* S'assurer que les toasts sont au-dessus des modales */
         }
     </style>
 </head>
@@ -227,12 +228,15 @@
 
     <!-- Scripts personnalisés (l'ordre est important) -->
     <script src="{{ url_for('static', filename='js/api-error-handler.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/modal-fix.js') }}" defer></script>
-    <!-- <script src="{{ url_for('static', filename='js/modal-fix-patch.js') }}" defer></script> --> {# Toujours commenté pour l'instant #}
+    
+    <!-- Notre solution de portail pour les modals -->
+    <script src="{{ url_for('static', filename='js/portal-modal.js') }}" defer></script>
 
     <script src="{{ url_for('static', filename='js/dashboard-core.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/dashboard-init.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script> {# Peut contenir des logiques spécifiques non couvertes #}
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+	<!-- Ajouter après les autres scripts dashboard -->
+<script src="{{ url_for('static', filename='js/dashboard-compatibility-fix.js') }}" defer></script>
 
     {% block scripts_extra %}{% endblock %}
 
@@ -323,11 +327,11 @@
 
         // Initialiser les tooltips Bootstrap et les badges de thème après le chargement du DOM
         document.addEventListener('DOMContentLoaded', function () {
-            // Tooltips globaux (hors modales, qui sont gérés par modal-fix.js)
+            // Tooltips globaux (hors modales, qui sont gérés par notre global-modal-fix.js)
             if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
                 const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
                 tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                    // Ne pas réinitialiser si c'est à l'intérieur d'une modale, modal-fix.js s'en chargera
+                    // Ne pas réinitialiser si c'est à l'intérieur d'une modale
                     if (!tooltipTriggerEl.closest('.modal')) {
                         const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
                         if (existingTooltip) existingTooltip.dispose();
@@ -339,6 +343,5 @@
             window.enhanceThemeBadgesGlobally();
         });
     </script>
-
 </body>
 </html>

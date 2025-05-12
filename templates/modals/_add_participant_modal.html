@@ -1,0 +1,51 @@
+<!-- templates/modals/_add_participant_modal.html -->
+{% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
+<div class="modal fade" id="addParticipantModalGlobal" tabindex="-1" aria-labelledby="addParticipantModalGlobalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addParticipantModalGlobalLabel"><i class="fas fa-user-plus me-2"></i>Ajouter un Nouveau Participant</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                 <form action="{{ url_for('add_participant') }}" method="post" class="needs-validation" novalidate>
+                    <input type="hidden" name="from_page" value="participants_page">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="add_nom_global" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="add_nom_global" name="nom" required>
+                            <div class="invalid-feedback">Le nom est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_prenom_global" class="form-label">Prénom*</label>
+                            <input type="text" class="form-control" id="add_prenom_global" name="prenom" required>
+                            <div class="invalid-feedback">Le prénom est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_email_global" class="form-label">Email*</label>
+                            <input type="email" class="form-control" id="add_email_global" name="email" required>
+                            <div class="invalid-feedback">Un email valide est requis.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="add_service_id_global" class="form-label">Service*</label>
+                            <select class="form-select" id="add_service_id_global" name="service_id" required>
+                                <option value="" disabled selected>-- Choisir un service --</option>
+                                {% for service in services|sort(attribute='nom') %} 
+                                <option value="{{ service.id }}">{{ service.nom }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">Le service est requis.</div>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-plus-circle me-2"></i>Ajouter le Participant</button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
