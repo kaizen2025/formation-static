@@ -211,14 +211,16 @@
       </div>
       
       <!-- Pied du modal -->
-      <div class="modal-footer bg-light">
+      <div class="modal-footer bg-light justify-content-between">
         <div>
           {% if session_data.places_restantes|default(0) > 0 %}
-            <a href="{{ url_for('inscription', session_id=session.id) }}" class="btn btn-primary">
+            <button type="button" class="btn btn-primary"
+                    onclick="showInscriptionModal('{{ session.id }}')">
               <i class="fas fa-user-plus me-1"></i> Inscrire un participant
-            </a>
+            </button>
           {% elif current_user.is_authenticated %}
-            <a href="{{ url_for('liste_attente', session_id=session.id) }}" class="btn btn-warning">
+            <a href="{{ url_for('liste_attente', session_id=session.id) }}" 
+               class="btn btn-warning">
               <i class="fas fa-clock me-1"></i> Liste d'attente
             </a>
           {% else %}
@@ -232,3 +234,174 @@
     </div>
   </div>
 </div>
+
+<script>
+// Fonction pour afficher la modale d'inscription après avoir fermé la modale de participants
+// Version corrigée pour une meilleure gestion des transitions Bootstrap
+function showInscriptionModal(sessionId) {
+    const debugMode = window.dashboardConfig && window.dashboardConfig.debugMode;
+    if (debugMode) console.log(`ModalManager (showInscriptionModal): Attempting for session ${sessionId}`);
+
+    const participantsModalElement = document.getElementById(`participantsModal_${sessionId}`);
+    const inscriptionModalElement = document.getElementById(`inscriptionModal_${sessionId}`);
+
+    if (!participantsModalElement || !inscriptionModalElement) {
+        console.error("ModalManager (showInscriptionModal): Critical Error - One or both modals not found in DOM for transition.");
+        return;
+    }
+
+    let bsParticipantsModal = bootstrap.Modal.getInstance(participantsModalElement);
+    if (!bsParticipantsModal) {
+        if (debugMode) console.warn(`ModalManager (showInscriptionModal): Participants modal ${sessionId} instance not found, creating new.`);
+        bsParticipantsModal = new bootstrap.Modal(participantsModalElement);
+    }
+
+    let bsInscriptionModal = bootstrap.Modal.getInstance(inscriptionModalElement);
+    if (!bsInscriptionModal) {
+        if (debugMode) console.warn(`ModalManager (showInscriptionModal): Inscription modal ${sessionId} instance not found, creating new.`);
+        bsInscriptionModal = new bootstrap.Modal(inscriptionModalElement);
+    }
+
+    if (participantsModalElement.dataset.isTransitioning === 'true') {
+        if (debugMode) console.log("ModalManager (showInscriptionModal): Transition already in progress, aborting.");
+        return;
+    }
+    participantsModalElement.dataset.isTransitioning = 'true';
+    
+    // Utiliser l'événement 'hidden.bs.modal' pour chaîner l'ouverture
+    participantsModalElement.addEventListener('hidden.bs.modal', function onParticipantsModalHidden() {
+        if (debugMode) console.log(`ModalManager (showInscriptionModal): Participants modal ${sessionId} is hidden. Now showing inscription modal.`);
+        
+        // Bootstrap devrait gérer le nettoyage du body et du backdrop.
+        // Si des problèmes persistent (ex: double backdrop), un nettoyage manuel peut être tenté ici,
+        // mais c'est généralement un signe d'un autre problème.
+        // const existingBackdrops = document.querySelectorAll('.modal-backdrop');
+        // if (existingBackdrops.length > 1) {
+        //    if (debugMode) console.warn("ModalManager: Multiple backdrops detected, attempting cleanup.");
+        //    existingBackdrops[0].remove(); // Supposer que le plus ancien est le fautif
+        // }
+        // if (!document.body.classList.contains('modal-open') && inscriptionModalElement.classList.contains('show')) {
+        //    document.body.classList.add('modal-open'); // S'assurer que le body a la classe si le nouveau modal est déjà 'show'
+        // }
+
+
+        setTimeout(() => { // Léger délai pour s'assurer que le DOM est prêt
+            bsInscriptionModal.show();
+            if (debugMode) console.log(`ModalManager (showInscriptionModal): Inscription modal ${sessionId} show command issued.`);
+            delete participantsModalElement.dataset.isTransitioning;
+        }, 150); // Ajuster si nécessaire, 50-150ms est souvent suffisant
+        
+        participantsModalElement.removeEventListener('hidden.bs.modal', onParticipantsModalHidden);
+    }, { once: true }); // { once: true } est crucial
+
+    // Cacher le modal actuel
+    bsParticipantsModal.hide();
+    if (debugMode) console.log(`ModalManager (showInscriptionModal): Participants modal ${sessionId} hide command issued.`);
+}
+
+// Le reste du script pour participantsModal_{{ session.id }} (validation AJAX, etc.) reste inchangé
+// ... (copier le script existant de _participants_modal_simple.html ici, à partir de document.addEventListener('DOMContentLoaded', ...))
+// Assurez-vous que ce script est bien à l'intérieur d'une balise <script> distincte ou bien géré.
+// Pour la propreté, il est préférable de le garder dans le même bloc <script> que la fonction showInscriptionModal.
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modalId = 'participantsModal_{{ session.id }}';
+    const modalElement = document.getElementById(modalId);
+    const debugMode = window.dashboardConfig && window.dashboardConfig.debugMode;
+    
+    if (!modalElement) {
+        if (debugMode) console.warn(`ModalManager (participants_modal_simple): Modal with ID ${modalId} not found.`);
+        return;
+    }
+
+    if (debugMode) console.log(`ModalManager (participants_modal_simple): Initializing script for participants modal: ${modalId}`);
+    
+    modalElement.addEventListener('shown.bs.modal', function () {
+        if (debugMode) console.log(`ModalManager (participants_modal_simple): Modal ${modalId} shown, initializing tooltips.`);
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+            const tooltipTriggerList = Array.from(modalElement.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(tooltipTriggerEl => {
+                let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (tooltipInstance) {
+                    tooltipInstance.dispose();
+                }
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+    });
+    
+    modalElement.querySelectorAll('.validation-ajax').forEach(button => {
+        button.addEventListener('click', function() {
+            this.disabled = true;
+            const originalText = this.innerHTML;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            
+            const inscriptionId = this.getAttribute('data-inscription-id');
+            const action = this.getAttribute('data-action');
+            
+            fetch("{{ url_for('validation_inscription_ajax') }}", { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest' // Important si votre backend vérifie cela
+                },
+                body: JSON.stringify({
+                    inscription_id: inscriptionId,
+                    action: action
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.message || `Erreur HTTP ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message, 'success');
+                    } else { 
+                        alert(data.message); 
+                    }
+                    
+                    setTimeout(() => {
+                        // Tenter de rafraîchir les données du dashboard si possible
+                        if (typeof window.dashboardCore !== 'undefined' && typeof window.dashboardCore.fetchData === 'function') {
+                            window.dashboardCore.fetchData(true); // true pour forcer le rafraîchissement
+                        } else if (typeof window.forcePollingUpdate === 'function') { // Ancien nom
+                            window.forcePollingUpdate(true);
+                        }
+                        // Fermer le modal actuel
+                        const bsModal = bootstrap.Modal.getInstance(modalElement);
+                        if (bsModal) {
+                            bsModal.hide();
+                        }
+                    }, 1200);
+                } else {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message || 'Erreur lors de la validation.', 'danger');
+                    } else { 
+                        alert(data.message || 'Erreur lors de la validation.'); 
+                    }
+                    this.disabled = false;
+                    this.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('Erreur AJAX:', error);
+                if (typeof window.showToast === 'function') {
+                    window.showToast(error.message || 'Erreur de communication avec le serveur.', 'danger');
+                } else { 
+                    alert(error.message || 'Erreur de communication avec le serveur.'); 
+                }
+                this.disabled = false;
+                this.innerHTML = originalText;
+            });
+        });
+    });
+    
+    if (debugMode) console.log(`ModalManager (participants_modal_simple): Modal ${modalId} initialization complete.`);
+});
+</script>
