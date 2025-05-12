@@ -1,309 +1,366 @@
 /**
- * modern-modal-fixes.css - Solution unifiée pour tous les modaux de l'application
- * v2.1.0 - Optimisé et consolidé pour résoudre les problèmes de visibilité des éléments de formulaire
+ * modern-modal-fixes.css - Solution optimisée pour tous les modaux de l'application
+ * v3.0.0 - Complètement repensé pour éliminer les conflits
  */
 
-/* ===== STYLES DE BASE POUR LES MODAUX PORTAL ===== */
-/* Structure de base de l'environnement du portal */
-#portal-modal-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%; 
-    z-index: 99999;
-    pointer-events: none;
-}
-
-/* Backdrop du portal (fond semi-transparent) */
-#portal-modal-container .portal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 999999;
-    pointer-events: auto;
-}
-
-/* Modal en lui-même */
-#portal-modal-container .portal-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: auto;
-    max-width: 90vw;
-    max-height: 90vh;
-    background-color: white;
-    border-radius: 6px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-    z-index: 1000000;
-    pointer-events: auto;
-    overflow: auto;
-}
-
-/* Contenu du modal */
-#portal-modal-container .modal-content {
-    border: none;
-    border-radius: 0.5rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
-    background-color: #fff;
-}
-
-/* En-têtes des modaux */
-#portal-modal-container .modal-header {
-    position: relative;
-    z-index: auto;
-    border-bottom: 1px solid #dee2e6;
-    padding: 1rem 1rem;
-}
-
-/* Corps des modaux */
-#portal-modal-container .modal-body {
-    position: relative;
-    z-index: auto;
-    padding: 1rem;
-}
-
-/* Pieds des modaux */
-#portal-modal-container .modal-footer {
-    position: relative;
-    z-index: auto;
-    border-top: 1px solid #dee2e6;
-    padding: 0.75rem;
-}
-
-/* ===== FIXES UNIVERSELS POUR BOOTSTRAP MODALS ===== */
-/* Ces règles s'appliquent à TOUS les modaux Bootstrap, même sans portal */
-.modal-open {
-    overflow: hidden;
-    padding-right: 0 !important; /* Éviter le décalage */
-}
-
+/* ===== STYLES DE BASE POUR TOUS LES MODAUX ===== */
 .modal {
-    z-index: 1050 !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1055;
+    display: none;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    outline: 0;
 }
 
 .modal-dialog {
-    z-index: 1060 !important;
+    position: relative;
+    width: auto;
+    margin: 0.5rem;
+    pointer-events: none;
 }
 
-.modal-backdrop {
-    z-index: 1040 !important;
+@media (min-width: 576px) {
+    .modal-dialog {
+        max-width: 500px;
+        margin: 1.75rem auto;
+    }
+    .modal-dialog-centered {
+        display: flex;
+        align-items: center;
+        min-height: calc(100% - 3.5rem);
+    }
+    .modal-dialog-scrollable {
+        height: calc(100% - 3.5rem);
+    }
+}
+
+@media (min-width: 992px) {
+    .modal-lg, .modal-xl {
+        max-width: 800px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .modal-xl {
+        max-width: 1140px;
+    }
 }
 
 .modal-content {
-    position: relative !important;
-    display: flex !important;
-    flex-direction: column !important;
-    width: 100% !important;
-    background-color: #fff !important;
-    border-radius: 0.5rem !important;
-    outline: 0 !important;
-    z-index: 1050 !important;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    pointer-events: auto;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 0.5rem;
+    outline: 0;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
 }
 
-/* ===== FIXES POUR LES CONTRÔLES DE FORMULAIRE ===== */
-/* Correction critique pour les selects dans n'importe quel modal */
-.modal select,
-.modal .form-select,
-#portal-modal-container select,
-#portal-modal-container .form-select {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    z-index: 1056 !important;
-    position: relative !important;
-    pointer-events: auto !important;
-    -webkit-appearance: listbox !important;
-    appearance: listbox !important;
-    width: 100% !important;
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1050;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000;
 }
 
-/* Correction pour les inputs dans n'importe quel modal */
+.modal-backdrop.fade {
+    opacity: 0;
+}
+
+.modal-backdrop.show {
+    opacity: 0.5;
+}
+
+.modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out;
+    transform: translate(0, -50px);
+}
+
+.modal.show .modal-dialog {
+    transform: none;
+}
+
+.modal-open {
+    overflow: hidden;
+}
+
+.modal-open .modal {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+/* ===== STYLES POUR LES ÉLÉMENTS À L'INTÉRIEUR DES MODAUX ===== */
+
+/* Correction pour les en-têtes et pieds de page des modaux */
+.modal-header,
+.modal-footer {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.modal-header {
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+    border-top-left-radius: calc(0.5rem - 1px);
+    border-top-right-radius: calc(0.5rem - 1px);
+}
+
+.modal-footer {
+    justify-content: flex-end;
+    padding: 0.75rem;
+    border-top: 1px solid #dee2e6;
+    border-bottom-left-radius: calc(0.5rem - 1px);
+    border-bottom-right-radius: calc(0.5rem - 1px);
+}
+
+.modal-title {
+    margin-bottom: 0;
+    line-height: 1.5;
+}
+
+.modal-body {
+    position: relative;
+    flex: 1 1 auto;
+    padding: 1rem;
+}
+
+/* Correction pour les formulaires dans les modaux */
 .modal input:not([type="hidden"]),
 .modal textarea,
-.modal .form-control,
-#portal-modal-container input:not([type="hidden"]),
-#portal-modal-container textarea,
-#portal-modal-container .form-control {
+.modal .form-control {
     display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: relative !important;
-    z-index: 1055 !important;
-    pointer-events: auto !important;
     width: 100% !important;
+    padding: 0.375rem 0.75rem !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    line-height: 1.5 !important;
+    color: #212529 !important;
+    background-color: #fff !important;
+    background-clip: padding-box !important;
+    border: 1px solid #ced4da !important;
+    appearance: auto !important;
+    border-radius: 0.375rem !important;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: static !important;
 }
 
-/* Correction pour les boutons dans n'importe quel modal */
+/* Correction pour les selects, qui sont particulièrement problématiques */
+.modal select,
+.modal .form-select {
+    display: block !important;
+    width: 100% !important;
+    padding: 0.375rem 2.25rem 0.375rem 0.75rem !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    line-height: 1.5 !important;
+    color: #212529 !important;
+    background-color: #fff !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 16px 12px !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 0.375rem !important;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
+    appearance: menulist !important;
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: static !important;
+    z-index: auto !important;
+}
+
+/* Correction pour les boutons dans les modaux */
 .modal button:not(.btn-close),
-.modal .btn:not(.btn-close),
-#portal-modal-container button:not(.btn-close),
-#portal-modal-container .btn:not(.btn-close) {
-    position: relative !important;
-    z-index: 1057 !important; 
-    pointer-events: auto !important;
+.modal .btn:not(.btn-close) {
+    display: inline-block !important;
+    font-weight: 400 !important;
+    line-height: 1.5 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    vertical-align: middle !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    background-color: transparent !important;
+    border: 1px solid transparent !important;
+    padding: 0.375rem 0.75rem !important;
+    font-size: 1rem !important;
+    border-radius: 0.375rem !important;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
     opacity: 1 !important;
     visibility: visible !important;
+    position: static !important;
 }
 
-/* Bouton de fermeture spécifique */
-.modal .btn-close,
-.modal [data-portal-dismiss="modal"],
-.modal [data-bs-dismiss="modal"],
-#portal-modal-container .btn-close,
-#portal-modal-container [data-portal-dismiss="modal"] {
-    position: relative !important;
-    z-index: 1060 !important;
-    pointer-events: auto !important;
-    opacity: 1 !important;
+.modal .btn-close {
+    box-sizing: content-box !important;
+    width: 1em !important;
+    height: 1em !important;
+    padding: 0.25em 0.25em !important;
+    color: #000 !important;
+    border: 0 !important;
+    border-radius: 0.375rem !important;
+    opacity: 0.5 !important;
     visibility: visible !important;
+    position: static !important;
 }
 
-/* Corrections pour les labels et autres textes */
-.modal label,
-.modal .form-label,
-.modal .invalid-feedback,
-.modal .form-text,
-#portal-modal-container label,
-#portal-modal-container .form-label,
-#portal-modal-container .invalid-feedback,
-#portal-modal-container .form-text {
+/* ===== CORRECTION POUR LES ONGLETS DANS LES MODAUX ===== */
+.modal .nav-tabs {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    padding-left: 0 !important;
+    margin-bottom: 0 !important;
+    list-style: none !important;
+    border-bottom: 1px solid #dee2e6 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.modal .nav-tabs .nav-link {
+    display: block !important;
+    padding: 0.5rem 1rem !important;
+    color: #0d6efd !important;
+    text-decoration: none !important;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out !important;
+    margin-bottom: -1px !important;
+    background: none !important;
+    border: 1px solid transparent !important;
+    border-top-left-radius: 0.375rem !important;
+    border-top-right-radius: 0.375rem !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+.modal .nav-tabs .nav-link.active {
+    color: #495057 !important;
+    background-color: #fff !important;
+    border-color: #dee2e6 #dee2e6 #fff !important;
+}
+
+.modal .tab-content {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
-    position: relative !important;
-    z-index: 1054 !important;
 }
 
-/* ===== CORRECTIONS POUR LES ONGLETS DANS LES MODAUX ===== */
-/* Onglets et contenu d'onglets */
-.modal .nav-tabs,
-.modal .nav-pills,
-.modal .tab-content,
-.modal .tab-pane,
-#portal-modal-container .nav-tabs,
-#portal-modal-container .nav-pills,
-#portal-modal-container .tab-content,
-#portal-modal-container .tab-pane {
-    position: relative !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    z-index: 1053 !important;
+.modal .tab-content > .tab-pane {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
-/* Réparation spécifique pour les onglets actifs */
-.modal .tab-pane.active,
-#portal-modal-container .tab-pane.active {
+.modal .tab-content > .active {
     display: block !important;
-}
-
-/* Réparation spécifique pour les boutons d'onglets */
-.modal .nav-link,
-#portal-modal-container .nav-link {
-    z-index: 1058 !important;
-    position: relative !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-}
-
-/* ===== STYLES SPÉCIFIQUES POUR LES THÈMES ===== */
-/* Badges de thème dans les modaux */
-.modal .theme-badge,
-#portal-modal-container .theme-badge {
-    position: relative !important;
-    z-index: 5 !important;
-    display: inline-flex !important;
-    align-items: center !important;
     visibility: visible !important;
     opacity: 1 !important;
 }
 
-/* ===== CORRECTIONS POUR LES TABLEAUX DANS LES MODAUX ===== */
-.modal table,
-.modal .table,
-.modal .table-responsive,
-#portal-modal-container table,
-#portal-modal-container .table,
-#portal-modal-container .table-responsive {
+/* ===== CORRECTION POUR LES TABLEAUX DANS LES MODAUX ===== */
+.modal .table {
+    width: 100% !important;
+    margin-bottom: 1rem !important;
+    color: #212529 !important;
+    vertical-align: top !important;
+    border-color: #dee2e6 !important;
+    border-collapse: collapse !important;
     display: table !important;
     visibility: visible !important;
     opacity: 1 !important;
-    position: relative !important;
-    z-index: 1052 !important;
 }
 
-.modal thead, 
-.modal tbody,
-#portal-modal-container thead,
-#portal-modal-container tbody {
+.modal .table > :not(caption) > * > * {
+    padding: 0.5rem 0.5rem !important;
+    border-bottom-width: 1px !important;
+    box-shadow: inset 0 0 0 9999px transparent !important;
+}
+
+.modal .table thead {
+    display: table-header-group !important;
+    vertical-align: middle !important;
+    border-color: inherit !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.modal .table tbody {
     display: table-row-group !important;
+    vertical-align: middle !important;
+    border-color: inherit !important;
     visibility: visible !important;
     opacity: 1 !important;
 }
 
-.modal tr,
-#portal-modal-container tr {
+.modal .table tr {
     display: table-row !important;
+    vertical-align: inherit !important;
+    border-color: inherit !important;
     visibility: visible !important;
     opacity: 1 !important;
 }
 
-.modal th, 
-.modal td,
-#portal-modal-container th,
-#portal-modal-container td {
+.modal .table th {
     display: table-cell !important;
+    vertical-align: inherit !important;
+    font-weight: bold !important;
+    text-align: inherit !important;
+    text-align: -webkit-match-parent !important;
     visibility: visible !important;
     opacity: 1 !important;
 }
 
-/* ===== AJUSTEMENTS POUR LES APPAREILS MOBILES ===== */
-@media (max-width: 576px) {
-    #portal-modal-container .portal-modal,
-    .modal-dialog {
-        width: 90% !important;
-        max-height: 80vh !important;
-    }
-    
-    .modal input,
-    .modal select,
-    .modal textarea,
-    #portal-modal-container input,
-    #portal-modal-container select,
-    #portal-modal-container textarea {
-        font-size: 16px !important; /* Empêcher le zoom sur iOS */
-    }
+.modal .table td {
+    display: table-cell !important;
+    vertical-align: inherit !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
-/* ===== ANIMATIONS LISSES ===== */
-/* Animation d'entrée du backdrop */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+.modal .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    display: block !important;
+    width: 100% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
-/* Animation d'entrée du modal */
-@keyframes slideIn {
-    from { 
-        opacity: 0;
-        transform: translate(-50%, -60%);
-    }
-    to { 
-        opacity: 1;
-        transform: translate(-50%, -50%);
-    }
+/* ===== STYLES POUR LES BADGES ET AUTRES COMPOSANTS ===== */
+.modal .badge {
+    display: inline-block !important;
+    padding: 0.35em 0.65em !important;
+    font-size: 0.75em !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    color: #fff !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    vertical-align: baseline !important;
+    border-radius: 0.375rem !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
-/* Application des animations */
-#portal-modal-container .portal-backdrop {
-    animation: fadeIn 0.15s ease-out forwards;
-}
-
-#portal-modal-container .portal-modal {
-    animation: slideIn 0.2s ease-out forwards;
+/* Classe ajoutée aux éléments corrigés pour debugger */
+.modal-fixed {
+    /* Aucun style supplémentaire requis, juste un marqueur */
 }
