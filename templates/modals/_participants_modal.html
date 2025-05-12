@@ -239,74 +239,66 @@
 <script>
 // Fonction pour afficher la modale d'inscription après avoir fermé la modale de participants
 function showInscriptionModal(sessionId) {
+    console.log(`Attempting to show inscription modal for session ${sessionId}`);
     const participantsModalElement = document.getElementById(`participantsModal_${sessionId}`);
     const inscriptionModalElement = document.getElementById(`inscriptionModal_${sessionId}`);
 
-    if (!participantsModalElement) {
-        console.error(`Participants modal with ID participantsModal_${sessionId} not found.`);
-        return;
-    }
-    if (!inscriptionModalElement) {
-        console.error(`Inscription modal with ID inscriptionModal_${sessionId} not found.`);
+    if (!participantsModalElement || !inscriptionModalElement) {
+        console.error("Erreur critique: Une ou les deux modales n'ont pas été trouvées dans le DOM.", `participantsModal_${sessionId}`, `inscriptionModal_${sessionId}`);
         return;
     }
 
-    const bsParticipantsModal = bootstrap.Modal.getInstance(participantsModalElement);
-    let bsInscriptionModal = bootstrap.Modal.getInstance(inscriptionModalElement);
+    const bsParticipantsModal = bootstrap.Modal.getOrCreateInstance(participantsModalElement);
+    const bsInscriptionModal = bootstrap.Modal.getOrCreateInstance(inscriptionModalElement);
 
-    if (!bsInscriptionModal) {
-        bsInscriptionModal = new bootstrap.Modal(inscriptionModalElement);
+    if (participantsModalElement.dataset.isTransitioning === 'true') {
+        console.log("Transition déjà en cours, annulation.");
+        return;
     }
+    participantsModalElement.dataset.isTransitioning = 'true';
+    console.log("Participants modal instance:", bsParticipantsModal);
+    console.log("Inscription modal instance:", bsInscriptionModal);
 
-    if (bsParticipantsModal) {
-        // Utiliser un dataset pour éviter les déclenchements multiples si l'utilisateur clique rapidement
-        if (participantsModalElement.dataset.isHidingForNextModal === 'true') return;
-        participantsModalElement.dataset.isHidingForNextModal = 'true';
-
-        participantsModalElement.addEventListener('hidden.bs.modal', function onHidden() {
-            bsInscriptionModal.show();
-            // Nettoyer le dataset et l'écouteur
-            delete participantsModalElement.dataset.isHidingForNextModal;
-            participantsModalElement.removeEventListener('hidden.bs.modal', onHidden); // Suppression explicite
-        }, { once: true });
+    participantsModalElement.addEventListener('hidden.bs.modal', function onHidden() {
+        console.log(`Participants modal ${sessionId} is hidden. Now showing inscription modal.`);
         
-        bsParticipantsModal.hide();
-    } else {
-        // Fallback si l'instance de la modale des participants n'est pas trouvée (moins probable)
-        // Cacher manuellement la modale actuelle
-        participantsModalElement.classList.remove('show');
-        participantsModalElement.style.display = 'none';
-        // Retirer le backdrop s'il y en a un
-        const backdrop = document.querySelector('.modal-backdrop.fade.show');
-        if (backdrop) backdrop.remove();
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = ''; // Restaurer le scroll
+        // Forcer le body à ne plus être en mode modal-open pour que la nouvelle modale puisse le remettre correctement
+        // Cela peut aider si le backdrop de la première modale n'est pas correctement retiré.
+        // document.body.classList.remove('modal-open');
+        // document.body.style.overflow = '';
+        // document.body.style.paddingRight = '';
+        // const existingBackdrops = document.querySelectorAll('.modal-backdrop');
+        // existingBackdrops.forEach(b => b.remove()); // Un peu agressif, mais peut aider
 
-        // Afficher la nouvelle modale
         bsInscriptionModal.show();
-    }
+        
+        delete participantsModalElement.dataset.isTransitioning;
+        // L'écouteur est déjà { once: true }, donc pas besoin de le retirer manuellement ici.
+        console.log(`Inscription modal ${sessionId} should be visible now.`);
+    }, { once: true });
+    
+    console.log(`Hiding participants modal ${sessionId}`);
+    bsParticipantsModal.hide();
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     const modalParticipantsEl_{{ session.id }} = document.getElementById('participantsModal_{{ session.id }}');
     if (modalParticipantsEl_{{ session.id }}) {
+        console.log(`Initializing script for participants modal: participantsModal_{{ session.id }}`);
         modalParticipantsEl_{{ session.id }}.addEventListener('shown.bs.modal', function () {
-            // Initialiser les tooltips lorsque la modale est affichée
+            console.log(`Participants modal participantsModal_{{ session.id }} shown. Initializing tooltips.`);
             if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
                 const tooltipTriggerList = [].slice.call(modalParticipantsEl_{{ session.id }}.querySelectorAll('[data-bs-toggle="tooltip"]'));
                 tooltipTriggerList.forEach(function (tooltipTriggerEl) {
                     let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-                    if (!tooltipInstance) {
-                        tooltipInstance = new bootstrap.Tooltip(tooltipTriggerEl);
+                    if (tooltipInstance) { // Dispose old to re-init, or just ensure it exists
+                        tooltipInstance.dispose(); 
                     }
+                    new bootstrap.Tooltip(tooltipTriggerEl);
                 });
             }
-            
-            // La gestion des onglets est normalement prise en charge par Bootstrap via data-bs-toggle="tab"
-            // Pas besoin de code JS manuel pour changer les classes active/show des onglets ici.
         });
         
-        // Assurer que les boutons d'action AJAX fonctionnent
         modalParticipantsEl_{{ session.id }}.querySelectorAll('.validation-ajax').forEach(button => {
             button.addEventListener('click', function() {
                 this.disabled = true;
@@ -316,12 +308,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const inscriptionId = this.getAttribute('data-inscription-id');
                 const action = this.getAttribute('data-action');
                 
-                fetch('/validation_inscription_ajax', { // Assurez-vous que cette URL est correcte
+                fetch('/validation_inscription_ajax', { 
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        // Ajoutez un token CSRF si nécessaire pour votre application Flask
-                        // 'X-CSRFToken': '{' + '{ csrf_token() }' + '}' // Modifié pour ne pas être interprété par Jinja
                     },
                     body: JSON.stringify({
                         inscription_id: inscriptionId,
@@ -330,7 +320,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                 .then(response => {
                     if (!response.ok) {
-                        // Gérer les erreurs HTTP (ex: 404, 500)
                         return response.json().then(errData => {
                             throw new Error(errData.message || `Erreur HTTP ${response.status}`);
                         });
@@ -341,27 +330,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (data.success) {
                         if (typeof window.showToast === 'function') {
                             window.showToast(data.message, 'success');
-                        } else {
-                            alert(data.message);
-                        }
+                        } else { alert(data.message); }
                         
-                        // Recharger les données ou la page après un court délai
                         setTimeout(() => {
                             if (typeof window.forcePollingUpdate === 'function') {
-                                window.forcePollingUpdate(true); // Si vous avez un système de polling
-                            } else {
-                                location.reload(); // Fallback simple
-                            }
-                            // Il peut être nécessaire de fermer la modale actuelle si elle n'est plus pertinente
-                            // const currentModalInstance = bootstrap.Modal.getInstance(modalParticipantsEl_{{ session.id }});
-                            // if (currentModalInstance) currentModalInstance.hide();
+                                window.forcePollingUpdate(true); 
+                            } else { location.reload(); }
                         }, 1200);
                     } else {
                         if (typeof window.showToast === 'function') {
                             window.showToast(data.message || 'Erreur lors de la validation.', 'danger');
-                        } else {
-                            alert(data.message || 'Erreur lors de la validation.');
-                        }
+                        } else { alert(data.message || 'Erreur lors de la validation.'); }
                         this.disabled = false;
                         this.innerHTML = originalText;
                     }
@@ -370,14 +349,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.error('Erreur AJAX:', error);
                     if (typeof window.showToast === 'function') {
                         window.showToast(error.message || 'Erreur de communication avec le serveur.', 'danger');
-                    } else {
-                        alert(error.message || 'Erreur de communication avec le serveur.');
-                    }
+                    } else { alert(error.message || 'Erreur de communication avec le serveur.'); }
                     this.disabled = false;
                     this.innerHTML = originalText;
                 });
             });
         });
+    } else {
+        console.warn(`Participants modal element not found: participantsModal_{{ session.id }}`);
     }
 });
 </script>
