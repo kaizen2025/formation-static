@@ -2154,7 +2154,6 @@ def participants_page():
         return redirect(url_for('dashboard'))
 
 @app.route('/participant/add', methods=['POST'])
-@login_required
 @db_operation_with_retry(max_retries=2)
 def add_participant():
     if not (current_user.role == 'admin' or current_user.role == 'responsable'):
