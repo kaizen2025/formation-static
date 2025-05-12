@@ -873,7 +873,59 @@ def handle_heartbeat(data):
 # ==============================================================================
 # === Flask Routes ===
 # ==============================================================================
-
+@app.route('/emergency/fix_document_queries')
+def emergency_fix_document_queries():
+    """
+    Route d'urgence pour désactiver temporairement l'utilisation du champ file_content
+    dans les requêtes Document. Cela permet de contourner l'erreur lorsque la colonne
+    n'existe pas encore dans la table.
+    """
+    try:
+        # Définir une variable globale/flag pour indiquer de ne pas utiliser file_content
+        app.config['IGNORE_FILE_CONTENT'] = True
+        
+        # Vérifier si la colonne existe
+        with db.engine.connect() as conn:
+            check_query = """
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'document' AND column_name = 'file_content'
+            """
+            result = conn.execute(db.text(check_query))
+            has_column = result.rowcount > 0
+            
+            message = None
+            if has_column:
+                message = """
+                <html>
+                    <body>
+                        <h1>La colonne file_content existe déjà!</h1>
+                        <p>La colonne est présente dans la base de données.</p>
+                        <p>Les requêtes SQLAlchemy sont maintenant configurées pour ignorer temporairement cette colonne.</p>
+                        <p><a href="/dashboard">Retour au dashboard</a></p>
+                    </body>
+                </html>
+                """
+            else:
+                message = """
+                <html>
+                    <body>
+                        <h1>Configuration temporaire appliquée</h1>
+                        <p>Les requêtes SQLAlchemy sont maintenant configurées pour ignorer temporairement la colonne file_content.</p>
+                        <p><a href="/emergency/add_file_content">Cliquez ici pour ajouter la colonne à la base de données</a></p>
+                        <p><a href="/dashboard">Retour au dashboard</a></p>
+                    </body>
+                </html>
+                """
+            return message
+    except Exception as e:
+        return f"""
+        <html>
+            <body>
+                <h1>Erreur!</h1>
+                <p>Une erreur s'est produite: {str(e)}</p>
+            </body>
+        </html>
+        """
 # --- Core Navigation & Auth ---
 @app.route('/')
 def index():
