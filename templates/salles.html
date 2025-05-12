@@ -1,188 +1,346 @@
 {% extends "layout.html" %}
 
+{% block title %}Gestion des Salles - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .salle-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .salle-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+    .card-header h5 {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: calc(100% - 80px);
+    }
+    .session-list {
+        max-height: 150px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    .session-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    .session-list::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+    }
+    .badge.theme-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35em 0.65em;
+    }
+    /* Style pour la boîte de dialogue de confirmation */
+    #deleteConfirmDialog {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        animation: fadeIn 0.2s ease-out;
+    }
+    #deleteConfirmContent {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        width: 400px;
+        max-width: 90%;
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
+        animation: scaleIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes scaleIn {
+        from { transform: translate(-50%, -50%) scale(0.9); opacity: 0; }
+        to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="mb-0"><i class="fas fa-building me-2"></i>Gestion des Salles</h1>
-    {% if current_user.role == 'admin' %}
-    <button class="btn btn-primary" data-portal-target="#addSalleModal">
-        <i class="fas fa-plus me-2"></i>Ajouter une Salle
-    </button>
-    {% endif %}
-</div>
-
-
-<!-- Add Salle Modal -->
-{% if current_user.role == 'admin' %}
-<div class="modal fade" id="addSalleModal" tabindex="-1" aria-labelledby="addSalleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addSalleModalLabel">Ajouter une Nouvelle Salle</h5>
-                <button type="button" class="btn-close" data-portal-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form action="{{ url_for('add_salle') }}" method="post">
-                    <div class="mb-3">
-                        <label for="add_nom_salle" class="form-label">Nom de la salle*</label>
-                        <input type="text" class="form-control" id="add_nom_salle" name="nom" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="add_capacite_salle" class="form-label">Capacité*</label>
-                        <input type="number" class="form-control" id="add_capacite_salle" name="capacite" min="1" value="15" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="add_lieu_salle" class="form-label">Emplacement</label>
-                        <input type="text" class="form-control" id="add_lieu_salle" name="lieu" placeholder="Ex: Bâtiment A, 1er étage">
-                    </div>
-                    <div class="mb-3">
-                        <label for="add_description_salle" class="form-label">Description</label>
-                        <textarea class="form-control" id="add_description_salle" name="description" rows="3" placeholder="Équipement, particularités..."></textarea>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-plus-circle me-2"></i>Ajouter la Salle
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+<div class="container-fluid px-4">
+    <!-- En-tête de la page -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-primary"><i class="fas fa-building me-2"></i>Gestion des Salles</h1>
+        {% if current_user.role == 'admin' %}
+        <button class="btn btn-primary shadow-sm" onclick="openPopup('{{ url_for('add_salle_page') }}')">
+            <i class="fas fa-plus me-2"></i>Ajouter une Salle
+        </button>
+        {% endif %}
     </div>
-</div>
-{% endif %}
 
-
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-    {# Itération sur salles_data au lieu de salles #}
-    {% for s_data in salles_data|sort(attribute='obj.nom') %}
-    {% set salle = s_data.obj %} {# Accès à l'objet salle #}
-    <div class="col">
-        <div class="card h-100 shadow-sm salle-card">
-             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 text-truncate"><i class="fas fa-door-open me-2"></i>{{ salle.nom }}</h5>
-                <span class="badge bg-light text-dark rounded-pill">{{ salle.capacite }} places</span>
+    <!-- Messages flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="row justify-content-center mb-3">
+                <div class="col-md-10">
+                    {% for category, message in messages %}
+                        {% set alert_category = 'warning' if category == 'info' else category %}
+                        <div class="alert alert-{{ alert_category }} alert-dismissible fade show shadow-sm" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
             </div>
-            <div class="card-body">
-                 {% if salle.lieu %}
-                <p class="card-text"><i class="fas fa-map-marker-alt text-secondary me-2"></i>{{ salle.lieu }}</p>
-                {% endif %}
-                 {% if salle.description %}
-                <p class="card-text small text-muted">{{ salle.description }}</p>
-                {% endif %}
+        {% endif %}
+    {% endwith %}
 
-                {# Utilisation du compteur pré-calculé #}
-                <h6 class="mt-3 mb-2 text-muted">
-                    Sessions programmées :
-                    <span class="badge bg-secondary ms-1">{{ s_data.sessions_count if s_data.sessions_count != -1 else 'Erreur' }}</span>
-                </h6>
-                 <div style="max-height: 150px; overflow-y: auto;">
-                    {# Utilisation de la liste pré-chargée #}
-                    {% set sessions_associees = s_data.sessions_associees %}
-                    {% if sessions_associees %}
-                    <ul class="list-group list-group-flush">
-                        {% for session in sessions_associees %} {# Pas besoin de sort ici, déjà trié dans la route #}
-                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
-                            <span class="small text-truncate">
-                                {# Accès au thème via la relation chargée #}
-                                <span class="badge theme-badge {% if session.theme.nom == 'Communiquer avec Teams' %}theme-comm{% elif session.theme.nom == 'Gérer les tâches (Planner)' %}theme-planner{% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}theme-onedrive{% elif session.theme.nom == 'Collaborer avec Teams' %}theme-sharepoint{% endif %} me-1" title="{{ session.theme.nom }}"></span>
-                                {{ session.formatage_date }}
-                            </span>
-                            <span class="badge bg-info rounded-pill small">{{ session.formatage_horaire }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                    <p class="text-muted small fst-italic">Aucune session programmée.</p>
+    <!-- Grille des salles -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="salles-container">
+        {% if salles_data %}
+            {% for s_data in salles_data|sort(attribute='obj.nom') %}
+            {% set salle = s_data.obj %}
+            <div class="col">
+                <div class="card h-100 shadow-sm salle-card" data-salle-id="{{ salle.id }}">
+                    <!-- En-tête de la carte -->
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
+                        <h5 class="mb-0 fw-bold text-truncate" title="{{ salle.nom }}">
+                            <i class="fas fa-door-open me-2"></i>{{ salle.nom }}
+                        </h5>
+                        <span class="badge bg-light text-dark rounded-pill fw-semibold">{{ salle.capacite }} places</span>
+                    </div>
+                    <!-- Corps de la carte -->
+                    <div class="card-body d-flex flex-column">
+                        {% if salle.lieu %}
+                        <p class="card-text">
+                            <i class="fas fa-map-marker-alt text-secondary me-2"></i>{{ salle.lieu }}
+                        </p>
+                        {% endif %}
+                        
+                        {% if salle.description %}
+                        <p class="card-text small text-muted mb-3">{{ salle.description }}</p>
+                        {% endif %}
+
+                        <!-- Sessions programmées -->
+                        <h6 class="mt-3 mb-2 text-muted border-bottom pb-2">
+                            Sessions programmées :
+                            <span class="badge bg-secondary ms-1">{{ s_data.sessions_count if s_data.sessions_count != -1 else 'Erreur' }}</span>
+                        </h6>
+                        
+                        <div class="session-list flex-grow-1">
+                            {% set sessions_associees = s_data.sessions_associees %}
+                            {% if sessions_associees %}
+                            <ul class="list-group list-group-flush">
+                                {% for session in sessions_associees %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+                                    <span class="small text-truncate" title="{{ session.theme.nom }} - {{ session.formatage_date }}">
+                                        <span class="badge theme-badge {% if session.theme.nom == 'Communiquer avec Teams' %}bg-primary{% elif session.theme.nom == 'Gérer les tâches (Planner)' %}bg-purple{% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}bg-info{% elif session.theme.nom == 'Collaborer avec Teams' %}bg-success{% else %}bg-secondary{% endif %} text-white me-1">
+                                            <i class="fas {% if session.theme.nom == 'Communiquer avec Teams' %}fa-comments{% elif session.theme.nom == 'Gérer les tâches (Planner)' %}fa-tasks{% elif session.theme.nom == 'Gérer mes fichiers (OneDrive/SharePoint)' %}fa-file-alt{% elif session.theme.nom == 'Collaborer avec Teams' %}fa-users{% else %}fa-tag{% endif %} me-1"></i>
+                                            {{ session.theme.nom|truncate(15) }}
+                                        </span>
+                                        {{ session.formatage_date }}
+                                    </span>
+                                    <span class="badge bg-info text-white rounded-pill small">{{ session.formatage_horaire }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-muted small fst-italic text-center py-2">Aucune session programmée.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Pied de carte avec boutons d'action -->
+                    {% if current_user.role == 'admin' %}
+                    <div class="card-footer bg-light">
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openPopup('{{ url_for('edit_salle_page', id=salle.id) }}')">
+                                <i class="fas fa-edit me-1"></i>Modifier
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmDelete({{ salle.id }}, '{{ salle.nom }}')">
+                                <i class="fas fa-trash me-1"></i>Supprimer
+                            </button>
+                        </div>
+                    </div>
                     {% endif %}
                 </div>
             </div>
-             {% if current_user.role == 'admin' %}
-            <div class="card-footer bg-light">
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                     <button type="button" class="btn btn-outline-secondary btn-sm" data-portal-target="#editSalleModal{{ salle.id }}">
-                        <i class="fas fa-edit me-1"></i>Modifier
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-light text-center py-4" role="alert">
+                    <i class="fas fa-info-circle fa-2x mb-3 d-block text-muted"></i>
+                    <p class="mb-2">Aucune salle n'a été configurée.</p>
+                    {% if current_user.role == 'admin' %}
+                    <button class="btn btn-sm btn-primary mt-2" onclick="openPopup('{{ url_for('add_salle_page') }}')">
+                        <i class="fas fa-plus me-2"></i>Ajouter une salle
                     </button>
-                     <button type="button" class="btn btn-outline-danger btn-sm" data-portal-target="#deleteSalleModal{{ salle.id }}">
-                        <i class="fas fa-trash me-1"></i>Supprimer
-                    </button>
+                    {% endif %}
                 </div>
-
-                 <!-- Modal d'édition -->
-                <div class="modal fade" id="editSalleModal{{ salle.id }}" tabindex="-1" aria-labelledby="editSalleModalLabel{{ salle.id }}" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editSalleModalLabel{{ salle.id }}">Modifier - {{ salle.nom }}</h5>
-                                <button type="button" class="btn-close" data-portal-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                 <form action="{{ url_for('update_salle', id=salle.id) }}" method="post">
-                                    <div class="mb-3">
-                                        <label for="edit_nom{{ salle.id }}" class="form-label">Nom*</label>
-                                        <input type="text" class="form-control" id="edit_nom{{ salle.id }}" name="nom" value="{{ salle.nom }}" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_capacite{{ salle.id }}" class="form-label">Capacité*</label>
-                                        <input type="number" class="form-control" id="edit_capacite{{ salle.id }}" name="capacite" value="{{ salle.capacite }}" min="1" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_lieu{{ salle.id }}" class="form-label">Emplacement</label>
-                                        <input type="text" class="form-control" id="edit_lieu{{ salle.id }}" name="lieu" value="{{ salle.lieu or '' }}">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_description{{ salle.id }}" class="form-label">Description</label>
-                                        <textarea class="form-control" id="edit_description{{ salle.id }}" name="description" rows="3">{{ salle.description or '' }}</textarea>
-                                    </div>
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary">Enregistrer</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                 <!-- Modal de suppression -->
-                 <div class="modal fade" id="deleteSalleModal{{ salle.id }}" tabindex="-1" aria-labelledby="deleteSalleModalLabel{{ salle.id }}" aria-hidden="true">
-                     <!-- Structure de confirmation de suppression -->
-                      <div class="modal-dialog">
-                         <div class="modal-content">
-                             <div class="modal-header">
-                                 <h5 class="modal-title" id="deleteSalleModalLabel{{ salle.id }}">Confirmer Suppression</h5>
-                                 <button type="button" class="btn-close" data-portal-dismiss="modal" aria-label="Close"></button>
-                             </div>
-                             <div class="modal-body">
-                                 Êtes-vous sûr de vouloir supprimer la salle "{{ salle.nom }}" ? Les sessions associées devront être réassignées.
-                             </div>
-                             <div class="modal-footer">
-                                 <button type="button" class="btn btn-secondary" data-portal-dismiss="modal">Annuler</button>
-                                 <form action="{{ url_for('delete_salle', id=salle.id) }}" method="post" class="d-inline"> {# Assurez-vous que cette route existe #}
-                                     <button type="submit" class="btn btn-danger">Supprimer</button>
-                                 </form>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
             </div>
-            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Boîte de dialogue de confirmation de suppression -->
+<div id="deleteConfirmDialog">
+    <div id="deleteConfirmContent">
+        <h4 class="text-danger mb-3">
+            <i class="fas fa-exclamation-triangle me-2"></i>Confirmer la suppression
+        </h4>
+        <p>Êtes-vous sûr de vouloir supprimer la salle <strong id="deleteRoomName" class="text-primary"></strong> ?</p>
+        <p class="small text-muted">Cette action est irréversible. Les sessions associées devront être réassignées.</p>
+        <div class="d-flex justify-content-between mt-4">
+            <button class="btn btn-outline-secondary" onclick="closeDeleteDialog()">
+                <i class="fas fa-times me-1"></i>Annuler
+            </button>
+            <button class="btn btn-danger" id="confirmDeleteBtn">
+                <i class="fas fa-trash-alt me-1"></i>Supprimer définitivement
+            </button>
         </div>
     </div>
-     {% else %}
-     <div class="col-12">
-        <div class="alert alert-light text-center" role="alert">
-           <i class="fas fa-info-circle me-2"></i> Aucune salle n'a été configurée.
-             {% if current_user.role == 'admin' %}
-                <a href="#" data-portal-target="#addSalleModal">Ajouter une salle</a>.
-            {% endif %}
-        </div>
-    </div>
-    {% endfor %}
 </div>
 {% endblock %}
 
 {% block scripts_extra %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/stable-modal-fix.js') }}"></script>
 <script>
-    // Activer le mode debug si nécessaire
-    // window.stableModal.setDebug(true);
+    // Variables globales
+    let deleteRoomId = null;
+    const popupWindows = {};
+    
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configurer le bouton de confirmation de suppression
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+            if (deleteRoomId) {
+                // Désactiver le bouton pendant le traitement
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Suppression...';
+                
+                // Créer un formulaire dynamique pour la suppression
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ url_for("delete_salle", id="__id__") }}'.replace('__id__', deleteRoomId);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+        
+        // Vérifier s'il y a eu une opération réussie récemment
+        checkAndHandleSuccessfulOperation();
+        
+        // Configurer une vérification périodique pour les changements
+        setInterval(checkAndHandleSuccessfulOperation, 1000);
+        
+        // Améliorer les badges de thème si la fonction existe
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            window.enhanceThemeBadgesGlobally(document.getElementById('salles-container'));
+        }
+    });
+    
+    // Vérifier et gérer les opérations réussies
+    function checkAndHandleSuccessfulOperation() {
+        const formSuccess = localStorage.getItem('formSubmitSuccess');
+        const lastUpdate = localStorage.getItem('lastUpdate');
+        
+        if (formSuccess === 'true' || (lastUpdate && (Date.now() - parseInt(lastUpdate) < 2000))) {
+            // Nettoyer les indicateurs de succès
+            localStorage.removeItem('formSubmitSuccess');
+            localStorage.removeItem('lastUpdate');
+            
+            // Rafraîchir la page pour voir les changements
+            location.reload();
+            return true;
+        }
+        return false;
+    }
+    
+    // Ouvrir une popup pour l'édition ou l'ajout
+    function openPopup(url) {
+        // Dimensions et position de la popup
+        const width = Math.min(600, window.innerWidth * 0.9);
+        const height = Math.min(650, window.innerHeight * 0.9);
+        const left = (screen.width - width) / 2;
+        const top = (screen.height - height) / 2;
+        
+        // Fermer toute popup existante
+        for (const [key, popup] of Object.entries(popupWindows)) {
+            if (!popup.closed) {
+                popup.close();
+            }
+            delete popupWindows[key];
+        }
+        
+        // Ouvrir la nouvelle popup
+        const popupWindow = window.open(url, 'FormPopup', 
+            `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no,location=no,menubar=no`);
+        
+        // Stocker la référence
+        const popupId = 'popup_' + Date.now();
+        popupWindows[popupId] = popupWindow;
+        
+        // Vérifier périodiquement si la popup a été fermée
+        const checkPopupClosed = setInterval(function() {
+            if (popupWindow.closed) {
+                clearInterval(checkPopupClosed);
+                delete popupWindows[popupId];
+                
+                // Vérifier s'il y a eu succès
+                checkAndHandleSuccessfulOperation();
+            }
+        }, 500);
+        
+        // Focus sur la popup
+        if (popupWindow) {
+            popupWindow.focus();
+        } else {
+            // Si le navigateur a bloqué la popup
+            alert("Le navigateur a bloqué l'ouverture de la fenêtre. Veuillez autoriser les popups pour ce site.");
+        }
+        
+        return false;
+    }
+    
+    // Gérer la confirmation de suppression
+    function confirmDelete(id, name) {
+        deleteRoomId = id;
+        document.getElementById('deleteRoomName').textContent = name;
+        document.getElementById('deleteConfirmDialog').style.display = 'block';
+        
+        // Ajouter un gestionnaire pour fermer la boîte de dialogue en cliquant à l'extérieur
+        setTimeout(function() {
+            document.getElementById('deleteConfirmDialog').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeDeleteDialog();
+                }
+            }, { once: true });
+        }, 100);
+    }
+    
+    // Fermer la boîte de dialogue de confirmation
+    function closeDeleteDialog() {
+        const dialog = document.getElementById('deleteConfirmDialog');
+        dialog.style.animation = 'fadeIn 0.2s ease-out reverse';
+        document.getElementById('deleteConfirmContent').style.animation = 'scaleIn 0.2s ease-out reverse';
+        
+        setTimeout(function() {
+            dialog.style.display = 'none';
+            // Réinitialiser les animations pour la prochaine ouverture
+            dialog.style.animation = '';
+            document.getElementById('deleteConfirmContent').style.animation = '';
+        }, 200);
+    }
+    
+    // Gestionnaire pour la touche Echap qui ferme la boîte de dialogue
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.getElementById('deleteConfirmDialog').style.display === 'block') {
+            closeDeleteDialog();
+        }
+    });
 </script>
 {% endblock %}
