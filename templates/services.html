@@ -1,5 +1,68 @@
-<!-- templates/services.html -->
 {% extends "layout.html" %}
+
+{% block title %}Gestion des Services - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* Styles pour les cards de service */
+    .service-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    }
+    
+    /* Styles spécifiques aux modals */
+    .modal-fix {
+        z-index: 1055 !important;
+    }
+    .modal-fix .modal-dialog {
+        z-index: 1056 !important;
+    }
+    .modal-fix .modal-content {
+        z-index: 1057 !important;
+    }
+    
+    /* Correction pour les éléments de formulaire dans les modals */
+    .modal-fix select, 
+    .modal-fix .form-select, 
+    .modal-fix input:not([type="hidden"]), 
+    .modal-fix textarea,
+    .modal-fix .form-control,
+    .modal-fix .form-control-color {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 1060 !important;
+        pointer-events: auto !important;
+    }
+    
+    .modal-fix .form-select,
+    .modal-fix select {
+        -webkit-appearance: menulist !important;
+        -moz-appearance: menulist !important;
+        appearance: menulist !important;
+        width: 100% !important;
+    }
+    
+    .modal-fix button, 
+    .modal-fix .btn {
+        position: relative !important;
+        z-index: 1060 !important;
+        pointer-events: auto !important;
+        display: inline-block !important;
+    }
+    
+    /* Éviter les scintillements */
+    .modal-backdrop {
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -10,7 +73,6 @@
      </button>
      {% endif %}
 </div>
-
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
     {# Itérer sur services_data passé depuis app.py #}
@@ -67,35 +129,43 @@
 
     <!-- Modal Ajouter Participant (Spécifique à ce service) -->
      {% if current_user.is_authenticated %}
-    <div class="modal fade" id="addParticipantModal{{ service.id }}" tabindex="-1" aria-labelledby="addParticipantModalLabel{{ service.id }}" aria-hidden="true">
+    <div class="modal fade modal-fix" id="addParticipantModal{{ service.id }}" tabindex="-1" aria-labelledby="addParticipantModalLabel{{ service.id }}" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addParticipantModalLabel{{ service.id }}">Ajouter Participant - {{ service.nom }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="addParticipantModalLabel{{ service.id }}">
+                        <i class="fas fa-user-plus me-2"></i>Ajouter Participant - {{ service.nom }}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form action="{{ url_for('add_participant') }}" method="post">
+                    <form action="{{ url_for('add_participant') }}" method="post" class="needs-validation" novalidate>
                         <input type="hidden" name="service_id" value="{{ service.id }}">
-                         <input type="hidden" name="from_page" value="services">
+                        <input type="hidden" name="from_page" value="services">
                         <div class="mb-3">
                             <label for="nom_{{service.id}}" class="form-label">Nom*</label>
                             <input type="text" class="form-control" id="nom_{{service.id}}" name="nom" required>
+                            <div class="invalid-feedback">Le nom est requis.</div>
                         </div>
                         <div class="mb-3">
                             <label for="prenom_{{service.id}}" class="form-label">Prénom*</label>
                             <input type="text" class="form-control" id="prenom_{{service.id}}" name="prenom" required>
+                            <div class="invalid-feedback">Le prénom est requis.</div>
                         </div>
                         <div class="mb-3">
                             <label for="email_{{service.id}}" class="form-label">Email*</label>
                             <input type="email" class="form-control" id="email_{{service.id}}" name="email" required>
+                            <div class="invalid-feedback">Un email valide est requis.</div>
                         </div>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">
+                            <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-plus me-2"></i>Ajouter Participant
                             </button>
                         </div>
                     </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
                 </div>
             </div>
         </div>
@@ -104,36 +174,44 @@
 
      <!-- Modal Edit Service (Admin only) -->
      {% if current_user.is_authenticated and current_user.role == 'admin' %}
-     <div class="modal fade" id="editServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="editServiceModalLabel{{ service.id }}" aria-hidden="true">
+     <div class="modal fade modal-fix" id="editServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="editServiceModalLabel{{ service.id }}" aria-hidden="true">
          <div class="modal-dialog">
              <div class="modal-content">
-                 <div class="modal-header">
-                     <h5 class="modal-title" id="editServiceModalLabel{{ service.id }}">Modifier - {{ service.nom }}</h5>
-                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                 <div class="modal-header bg-secondary text-white">
+                     <h5 class="modal-title" id="editServiceModalLabel{{ service.id }}">
+                        <i class="fas fa-edit me-2"></i>Modifier - {{ service.nom }}
+                     </h5>
+                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                  </div>
                  <div class="modal-body">
-                     <form action="{{ url_for('update_service', service_id=service.id) }}" method="post">
+                     <form action="{{ url_for('update_service', service_id=service.id) }}" method="post" class="needs-validation" novalidate>
                          <div class="mb-3">
                              <label for="edit_nom_{{service.id}}" class="form-label">Nom Service*</label>
                              <input type="text" class="form-control" id="edit_nom_{{service.id}}" name="nom" value="{{ service.nom }}" required>
+                             <div class="invalid-feedback">Le nom du service est requis.</div>
                          </div>
                          <div class="mb-3">
                              <label for="edit_responsable_{{service.id}}" class="form-label">Responsable*</label>
                              <input type="text" class="form-control" id="edit_responsable_{{service.id}}" name="responsable" value="{{ service.responsable }}" required>
+                             <div class="invalid-feedback">Le nom du responsable est requis.</div>
                          </div>
                          <div class="mb-3">
                              <label for="edit_email_{{service.id}}" class="form-label">Email Responsable*</label>
                              <input type="email" class="form-control" id="edit_email_{{service.id}}" name="email_responsable" value="{{ service.email_responsable }}" required>
+                             <div class="invalid-feedback">Un email valide est requis.</div>
                          </div>
                          <div class="mb-3">
                             <label for="edit_couleur_{{service.id}}" class="form-label">Couleur</label>
                             <input type="color" class="form-control form-control-color" id="edit_couleur_{{service.id}}" name="couleur" value="{{ service.couleur or '#6c757d' }}" title="Choisir une couleur">
                         </div>
                          <div class="d-grid">
-                             <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">Enregistrer</button>
+                             <button type="submit" class="btn btn-primary">Enregistrer</button>
                          </div>
                      </form>
                  </div>
+                 <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                </div>
              </div>
          </div>
      </div>
@@ -153,39 +231,48 @@
 
 <!-- Modal Add Service (Admin only) -->
 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-<div class="modal fade" id="addServiceModal" tabindex="-1" aria-labelledby="addServiceModalLabel" aria-hidden="true">
+<div class="modal fade modal-fix" id="addServiceModal" tabindex="-1" aria-labelledby="addServiceModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addServiceModalLabel">Ajouter un Nouveau Service</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addServiceModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>Ajouter un Nouveau Service
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form action="{{ url_for('add_service') }}" method="post">
+                <form action="{{ url_for('add_service') }}" method="post" class="needs-validation" novalidate>
                     <div class="mb-3">
                         <label for="add_nom" class="form-label">Nom Service*</label>
                         <input type="text" class="form-control" id="add_nom" name="nom" required>
+                        <div class="invalid-feedback">Le nom du service est requis.</div>
                     </div>
                      <div class="mb-3">
                         <label for="add_id" class="form-label">ID Service* <small>(court, minuscules, ex: 'qualite')</small></label>
                         <input type="text" class="form-control" id="add_id" name="id" pattern="[a-z0-9_]+" title="Utiliser uniquement minuscules, chiffres et underscores" required>
+                        <div class="invalid-feedback">L'ID doit contenir uniquement des minuscules, chiffres et underscores.</div>
                     </div>
                     <div class="mb-3">
                         <label for="add_responsable" class="form-label">Responsable*</label>
                         <input type="text" class="form-control" id="add_responsable" name="responsable" required>
+                        <div class="invalid-feedback">Le nom du responsable est requis.</div>
                     </div>
                     <div class="mb-3">
                         <label for="add_email" class="form-label">Email Responsable*</label>
                         <input type="email" class="form-control" id="add_email" name="email_responsable" required>
+                        <div class="invalid-feedback">Un email valide est requis.</div>
                     </div>
                      <div class="mb-3">
                         <label for="add_couleur" class="form-label">Couleur</label>
                         <input type="color" class="form-control form-control-color" id="add_couleur" name="couleur" value="#6c757d" title="Choisir une couleur">
                     </div>
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary" style="z-index: 2001 !important; position: relative !important; pointer-events: auto !important;">Ajouter Service</button>
+                        <button type="submit" class="btn btn-primary">Ajouter Service</button>
                     </div>
                 </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
             </div>
         </div>
     </div>
@@ -194,40 +281,142 @@
 
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
+{% block scripts_extra %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Services JS loaded');
-        // const config = window.config || { debugMode: false }; // Assuming window.config might be set elsewhere
-        // For simplicity, let's assume debugMode is false if not explicitly set.
-        const debugMode = (typeof window.dashboardConfig !== 'undefined' && window.dashboardConfig.debugMode) || false;
-
-         function applyServiceModalFixes() {
-            document.querySelectorAll('.modal button, .modal .btn').forEach(button => {
-                 if (!button.classList.contains('btn-close')) { // Avoid affecting the close button's default styling too much
-                    button.style.position = 'relative'; // Keep relative for layout
-                    button.style.zIndex = '2001'; // Ensure buttons are above other modal content
-                    button.style.pointerEvents = 'auto'; // Ensure clickable
-                 }
-             });
-             const closeButtons = document.querySelectorAll('.modal .btn-close');
-             closeButtons.forEach(btn => {
-                btn.style.zIndex = '2005'; // Ensure close button is on top
-                btn.style.position = 'relative'; // Ensure z-index applies
-             });
-             if (debugMode) console.log('Services specific modal JS fixes applied.');
-         }
-         // Apply fixes after a short delay to ensure modals are in the DOM if loaded dynamically
-         // and also on modal show events if needed.
-         setTimeout(applyServiceModalFixes, 300);
-
-         // If modals are dynamically added or shown, you might need to re-apply fixes:
-         document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('shown.bs.modal', function () {
-                applyServiceModalFixes();
+        const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
+        
+        if (DASH_CONFIG.debugMode) {
+            console.log('Services page script initialized');
+        }
+        
+        // Améliorer l'expérience modale
+        function enhanceModals() {
+            // Appliquer la classe modale-fix à toutes les modales
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.classList.add('modal-fix');
+                
+                // S'assurer que tous les éléments de formulaire sont bien visibles et fonctionnels
+                modal.addEventListener('shown.bs.modal', function() {
+                    // Rendre visible tous les éléments de formulaire
+                    const formElements = this.querySelectorAll('input, select, textarea, button:not(.btn-close), .form-control, .form-select');
+                    formElements.forEach(element => {
+                        element.style.display = element.tagName === 'BUTTON' || element.classList.contains('btn') ? 'inline-block' : 'block';
+                        element.style.visibility = 'visible';
+                        element.style.opacity = '1';
+                        element.style.position = 'relative';
+                        element.style.zIndex = '1060';
+                        element.style.pointerEvents = 'auto';
+                        
+                        // Traitement spécial pour les selects et form-selects
+                        if (element.tagName === 'SELECT' || element.classList.contains('form-select')) {
+                            element.style.appearance = 'menulist';
+                            element.style.webkitAppearance = 'menulist';
+                            element.style.mozAppearance = 'menulist';
+                            element.style.width = '100%';
+                        }
+                    });
+                    
+                    // Donner le focus au premier champ
+                    setTimeout(() => {
+                        const firstField = this.querySelector('input:not([type="hidden"]), select, textarea');
+                        if (firstField) {
+                            try {
+                                firstField.focus();
+                            } catch(e) {
+                                if (DASH_CONFIG.debugMode) {
+                                    console.warn('Failed to set focus on first field:', e);
+                                }
+                            }
+                        }
+                    }, 100);
+                });
             });
-         });
+        }
+        
+        // Initialiser la validation des formulaires
+        function initFormValidation() {
+            document.querySelectorAll('form.needs-validation').forEach(form => {
+                form.addEventListener('submit', function(event) {
+                    if (!this.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    this.classList.add('was-validated');
+                });
+            });
+        }
+        
+        // Initialiser les tooltips
+        function initTooltips() {
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not([title=""])');
+                tooltips.forEach(element => {
+                    try {
+                        new bootstrap.Tooltip(element);
+                    } catch(e) {
+                        if (DASH_CONFIG.debugMode) {
+                            console.warn('Failed to initialize tooltip:', e);
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Créer une fonction showToast globale si elle n'existe pas
+        if (typeof window.showToast !== 'function') {
+            window.showToast = function(message, type = 'info') {
+                if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
+                    alert(message);
+                    return;
+                }
+                
+                // Créer le conteneur de toast s'il n'existe pas
+                let toastContainer = document.querySelector('.toast-container');
+                if (!toastContainer) {
+                    toastContainer = document.createElement('div');
+                    toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                    toastContainer.style.zIndex = '11000';
+                    document.body.appendChild(toastContainer);
+                }
+                
+                // Créer l'élément toast
+                const toastElement = document.createElement('div');
+                toastElement.className = `toast bg-${type} text-white`;
+                toastElement.setAttribute('role', 'alert');
+                toastElement.setAttribute('aria-live', 'assertive');
+                toastElement.setAttribute('aria-atomic', 'true');
+                
+                // Contenu du toast
+                toastElement.innerHTML = `
+                    <div class="toast-header bg-${type} text-white">
+                        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'danger' ? 'fa-exclamation-circle' : 'fa-info-circle'} me-2"></i>
+                        <strong class="me-auto">Notification</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                `;
+                
+                // Ajouter au conteneur
+                toastContainer.appendChild(toastElement);
+                
+                // Initialiser et afficher le toast
+                const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+                toast.show();
+                
+                // Supprimer l'élément une fois caché
+                toastElement.addEventListener('hidden.bs.toast', function() {
+                    this.remove();
+                });
+            };
+        }
+        
+        // Initialiser tout
+        enhanceModals();
+        initFormValidation();
+        initTooltips();
     });
 </script>
 {% endblock %}
