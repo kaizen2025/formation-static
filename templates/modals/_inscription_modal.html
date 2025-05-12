@@ -59,8 +59,7 @@
               
               <div class="mb-3">
                 <label for="participant_id_{{ session.id }}" class="form-label">Sélectionner un participant*</label>
-                <select class="form-select form-select-lg" id="participant_id_{{ session.id }}" name="participant_id" required
-                       style="display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1001 !important; position: relative !important; pointer-events: auto !important;">
+                <select class="form-select form-select-lg" id="participant_id_{{ session.id }}" name="participant_id" required>
                   <option value="" selected disabled>-- Choisir dans la liste --</option>
                   {% for participant in participants|sort(attribute='prenom')|sort(attribute='nom') %} 
                   <option value="{{ participant.id }}">{{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})</option>
@@ -105,8 +104,7 @@
                 </div>
                 <div class="col-12">
                   <label for="service_id_nouveau_{{ session.id }}" class="form-label">Service*</label>
-                  <select class="form-select" id="service_id_nouveau_{{ session.id }}" name="service_id" required
-                         style="display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 1001 !important; position: relative !important; pointer-events: auto !important;">
+                  <select class="form-select" id="service_id_nouveau_{{ session.id }}" name="service_id" required>
                     <option value="" selected disabled>-- Choisir un service --</option>
                     {% for service_item in services|sort(attribute='nom') %}
                     <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
@@ -144,34 +142,65 @@
 document.addEventListener('DOMContentLoaded', function() {
     const modalId = 'inscriptionModal_{{ session.id }}';
     const modalElement = document.getElementById(modalId);
-    if (!modalElement) return;
+    if (!modalElement) {
+        console.warn(`Modal with ID ${modalId} not found.`);
+        return;
+    }
 
-    // Fonction pour réappliquer les styles aux éléments de formulaire (très important)
-    function applyFormElementStyles(modalEl) {
-        modalEl.querySelectorAll('select, .form-select').forEach(select => {
-            select.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
-        });
-        modalEl.querySelectorAll('button:not(.btn-close), .btn:not(.btn-close), input, textarea').forEach(el => {
-            el.style.position = 'relative';
-            el.style.zIndex = (el.tagName === 'BUTTON' || el.classList.contains('btn')) ? '2001' : '1999';
-            el.style.pointerEvents = 'auto';
+    // Fonction pour appliquer les styles aux éléments de formulaire et autres éléments importants
+    function applyFormElementStyles(containerEl) {
+        const elementsToStyle = containerEl.querySelectorAll(
+            'select, .form-select, input:not([type="hidden"]), textarea, button:not(.btn-close), .btn:not(.btn-close), label, .form-label, .invalid-feedback, p.small.text-muted, .row, .col-md-6, .col-12, .d-grid'
+        );
+        
+        elementsToStyle.forEach(el => {
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('pointer-events', 'auto', 'important'); // Assurer l'interaction
+
+            if (el.tagName === 'SELECT' || el.classList.contains('form-select')) {
+                el.style.setProperty('display', 'block', 'important');
+                el.style.setProperty('z-index', '2000', 'important'); // Au-dessus des autres inputs
+                el.style.setProperty('position', 'relative', 'important');
+                el.style.setProperty('-webkit-appearance', 'listbox', 'important');
+                el.style.setProperty('appearance', 'listbox', 'important');
+            } else if (el.tagName === 'BUTTON' || (el.classList.contains('btn') && !el.classList.contains('btn-close'))) {
+                el.style.setProperty('position', 'relative', 'important');
+                el.style.setProperty('z-index', '2001', 'important'); // Au-dessus des selects
+            } else if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.style.setProperty('position', 'relative', 'important');
+                el.style.setProperty('z-index', '1999', 'important'); // En dessous des selects
+                if (!el.classList.contains('form-control')) { // form-control est déjà display: block
+                    el.style.setProperty('display', 'block', 'important');
+                }
+            } else if (el.classList.contains('row') || el.classList.contains('col-md-6') || el.classList.contains('col-12') || el.classList.contains('d-grid')) {
+                 el.style.setProperty('display', 'flex', 'important'); // Pour les rows/cols, flex est souvent mieux, ou laisser Bootstrap gérer.
+                                                                      // Pour d-grid, c'est grid.
+                 if (el.classList.contains('d-grid')) el.style.setProperty('display', 'grid', 'important');
+                 else if (el.classList.contains('row')) el.style.setProperty('display', 'flex', 'important'); // Bootstrap row est flex
+                 else el.style.setProperty('display', 'block', 'important'); // Pour les cols individuels, block est ok
+            } else {
+                 // Pour labels, p, invalid-feedback, etc., on ne force pas 'display' pour ne pas casser le layout.
+                 // 'visibility' et 'opacity' suffisent.
+            }
         });
     }
     
-    // Appliquer les styles au chargement du DOM et quand la modale est affichée
-    applyFormElementStyles(modalElement);
-    
+    // Appliquer les styles quand la modale est complètement affichée
     modalElement.addEventListener('shown.bs.modal', function () {
-        applyFormElementStyles(this);
+        applyFormElementStyles(this); // Appliquer à toute la modale
         
-        // Focus sur le premier select visible après un délai
-        setTimeout(() => {
-            const activeTabPane = this.querySelector('.tab-pane.active');
-            if (activeTabPane) {
-                const firstInput = activeTabPane.querySelector('select, input');
-                if (firstInput) firstInput.focus();
-            }
-        }, 300);
+        const activeTabPane = this.querySelector('.tab-pane.active');
+        if (activeTabPane) {
+            applyFormElementStyles(activeTabPane); // Réappliquer spécifiquement au panneau actif
+            
+            setTimeout(() => {
+                const firstField = activeTabPane.querySelector('select:not([style*="display: none"]), input:not([type="hidden"]):not([style*="display: none"])');
+                if (firstField && (firstField.offsetWidth > 0 || firstField.offsetHeight > 0 || firstField.getClientRects().length > 0)) {
+                    firstField.focus();
+                }
+            }, 150);
+        }
     });
 
     // Validation Bootstrap améliorée pour les formulaires
@@ -179,7 +208,6 @@ document.addEventListener('DOMContentLoaded', function() {
     formsInThisModal.forEach(form => {
         form.addEventListener('submit', function(event) {
             const parentTabPane = form.closest('.tab-pane');
-            // Valider uniquement si le formulaire est dans l'onglet actif
             if (parentTabPane && !parentTabPane.classList.contains('active')) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -189,56 +217,41 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!form.checkValidity()) {
                 event.preventDefault();
                 event.stopPropagation();
-                
-                // Amélioration: Trouver et mettre en évidence le premier champ invalide
                 const firstInvalid = form.querySelector(':invalid');
                 if (firstInvalid) {
                     firstInvalid.focus();
-                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }
             form.classList.add('was-validated');
         }, false);
     });
 
-    // Réinitialiser la validation lors du changement d'onglet
+    // Gestion après changement d'onglet (Bootstrap s'occupe du changement effectif)
     const tabButtonsInThisModal = modalElement.querySelectorAll('button[data-bs-toggle="tab"]');
     tabButtonsInThisModal.forEach(tabButton => {
-        tabButton.addEventListener('click', function (event) {
-            // S'assurer que les onglets fonctionnent correctement
-            const targetId = this.getAttribute('data-bs-target');
-            if (targetId) {
-                // Désactiver tous les onglets et cacher tous les contenus
-                modalElement.querySelectorAll('.nav-link').forEach(link => {
-                    link.classList.remove('active');
-                    link.setAttribute('aria-selected', 'false');
-                });
-                modalElement.querySelectorAll('.tab-pane').forEach(pane => {
-                    pane.classList.remove('show', 'active');
-                });
-                
-                // Activer l'onglet et le contenu cliqués
-                this.classList.add('active');
-                this.setAttribute('aria-selected', 'true');
-                const targetPane = modalElement.querySelector(targetId);
+        tabButton.addEventListener('shown.bs.tab', function (event) {
+            const activeTabButton = event.target; // L'onglet qui vient d'être activé
+            const targetPaneId = activeTabButton.getAttribute('data-bs-target');
+            
+            if (targetPaneId) {
+                const targetPane = modalElement.querySelector(targetPaneId);
                 if (targetPane) {
-                    targetPane.classList.add('show', 'active');
-                    
-                    // Réinitialiser le formulaire dans ce panneau
-                    const form = targetPane.querySelector('form');
+                    applyFormElementStyles(targetPane); // Appliquer les styles au nouveau panneau actif
+
+                    const form = targetPane.querySelector('form.needs-validation');
                     if (form) {
                         form.classList.remove('was-validated');
                         form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+                        // form.reset(); // Optionnel: réinitialiser les champs du formulaire
                     }
                     
-                    // Appliquer les styles aux formulaires dans le nouvel onglet actif
-                    applyFormElementStyles(targetPane);
-                    
-                    // Focus sur le premier champ du nouvel onglet
                     setTimeout(() => {
-                        const firstField = targetPane.querySelector('select, input');
-                        if (firstField) firstField.focus();
-                    }, 300);
+                        const firstField = targetPane.querySelector('select:not([style*="display: none"]), input:not([type="hidden"]):not([style*="display: none"])');
+                         if (firstField && (firstField.offsetWidth > 0 || firstField.offsetHeight > 0 || firstField.getClientRects().length > 0)) {
+                            firstField.focus();
+                        }
+                    }, 150);
                 }
             }
         });
