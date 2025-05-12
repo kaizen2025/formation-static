@@ -1,15 +1,15 @@
 // --- START OF FILE static/js/dashboard-core.js ---
 /**
  * dashboard-core.js
- * Version: 1.6.8 - Corrected SyntaxError in renderThemeDistributionChartJS, robust initialization and data handling.
+ * Version: 1.6.9 - Corrected SyntaxError in updateActivityFeed, robust initialization and data handling.
  */
 document.addEventListener('DOMContentLoaded', function() {
     if (window.dashboardCoreInitialized) {
-        console.warn('Dashboard Core (v1.6.8): Already initialized. Skipping.');
+        console.warn('Dashboard Core (v1.6.9): Already initialized. Skipping.');
         return;
     }
     window.dashboardCoreInitialized = true;
-    console.log('Dashboard Core (v1.6.8): Initializing...');
+    console.log('Dashboard Core (v1.6.9): Initializing...');
 
     const globalLoadingOverlay = document.getElementById('loading-overlay');
     const dashInitConfig = window.dashboardConfig || {};
@@ -52,7 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!config.usingDashboardInit) {
             setupEventListeners(); startPolling();
         } else {
-            // Ensure these are available for dashboard-init.js
             if (typeof window.forcePollingUpdate !== 'function') window.forcePollingUpdate = (force) => debouncedFetchDashboardData(force);
             if (typeof window.updateStatsCounters !== 'function') window.updateStatsCounters = updateStatisticsCounters;
             if (typeof window.refreshRecentActivity !== 'function') window.refreshRecentActivity = () => updateActivityFeed(null);
@@ -232,7 +231,45 @@ document.addEventListener('DOMContentLoaded', function() {
              .replace(/'/g, "'");
     }
 
-    function updateActivityFeed(activities){if(activities===null){fetch(`${config.baseApiUrl}/activites?limit=5`).then(r=>r.ok?r.json():Promise.reject(r)).then(d=>updateActivityFeed(d)).catch(e=>{const c=document.getElementById('recent-activity');if(c)c.innerHTML='<div class="list-group-item text-center p-3 text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Err load activités.</div>';});return Promise.reject("Fetching");} const c=document.getElementById('recent-activity');if(!c)return Promise.resolve(false); const s=c.querySelector('.loading-spinner');if(s)s.remove(); if(!activities||!Array.isArray(activities)||activities.length===0){c.innerHTML='<div class="list-group-item text-center p-3 text-muted">Aucune activité.</div>';return Promise.resolve(true);} let h='';activities.forEach(a=>{const i=getActivityIcon(a.type);const u=a.user?`<span class="text-primary fw-bold ms-1">(${escapeHtml(a.user)})</span>`:'';const d=escapeHtml(a.description||'Activité');const dt=a.details?`<p class="mb-1 activity-details"><small>${escapeHtml(a.details)}</small></p>`:'';h+=`<a href="${config.baseApiUrl}/../activites_journal?type=${encodeURIComponent(a.type||'default')}" class="list-group-item list-group-item-action activity-item type-${a.type||'default'}" data-activity-id="${a.id}"><div class="d-flex w-100 justify-content-between"><h6 class="mb-1 activity-title"><i class="${i} me-2 activity-icon"></i>${d} ${u}</h6><small class="text-muted activity-time">${a.date_relative||''}</small></div>${dt}</a>`;});c.innerHTML=h;return Promise.resolve(true);}
+    function updateActivityFeed(activities) {
+        if (activities === null) {
+            fetch(`${config.baseApiUrl}/activites?limit=5`)
+                .then(r => r.ok ? r.json() : Promise.reject(r))
+                .then(d => updateActivityFeed(d)) // Appel récursif avec les données
+                .catch(e => {
+                    const c = document.getElementById('recent-activity');
+                    if (c) c.innerHTML = '<div class="list-group-item text-center p-3 text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Err load activités.</div>';
+                });
+            return Promise.reject("Fetching activities..."); // Indiquer que le fetch est en cours
+        }
+    
+        const c = document.getElementById('recent-activity');
+        if (!c) return Promise.resolve(false); // Conteneur non trouvé
+    
+        const s = c.querySelector('.loading-spinner');
+        if (s) s.remove();
+    
+        if (!activities || !Array.isArray(activities) || activities.length === 0) {
+            c.innerHTML = '<div class="list-group-item text-center p-3 text-muted">Aucune activité.</div>';
+            return Promise.resolve(true); // Données traitées (aucune activité)
+        }
+    
+        let h = '';
+        activities.forEach(a => {
+            const i = getActivityIcon(a.type);
+            const u = a.user ? `<span class="text-primary fw-bold ms-1">(${escapeHtml(a.user)})</span>` : '';
+            const d = escapeHtml(a.description || 'Activité');
+            const dt = a.details ? `<p class="mb-1 activity-details"><small>${escapeHtml(a.details)}</small></p>` : '';
+            h += `<a href="${config.baseApiUrl}/../activites_journal?type=${encodeURIComponent(a.type || 'default')}" class="list-group-item list-group-item-action activity-item type-${a.type || 'default'}" data-activity-id="${a.id}">` +
+                 `<div class="d-flex w-100 justify-content-between">` +
+                 `<h6 class="mb-1 activity-title"><i class="${i} me-2 activity-icon"></i>${d} ${u}</h6>` +
+                 `<small class="text-muted activity-time">${a.date_relative || ''}</small>` +
+                 `</div>${dt}</a>`;
+        });
+        c.innerHTML = h;
+        return Promise.resolve(true); // Données traitées avec succès
+    }
+    
     function getActivityIcon(type){const m={'connexion':'fas fa-sign-in-alt text-success','deconnexion':'fas fa-sign-out-alt text-warning','inscription':'fas fa-user-plus text-primary','validation':'fas fa-check-circle text-success','refus':'fas fa-times-circle text-danger','annulation':'fas fa-ban text-danger','ajout_participant':'fas fa-user-plus text-primary','suppression_participant':'fas fa-user-minus text-danger','modification_participant':'fas fa-user-edit text-warning','reinscription':'fas fa-redo text-info','liste_attente':'fas fa-clock text-warning','ajout_theme':'fas fa-folder-plus text-primary','ajout_service':'fas fa-building text-primary','ajout_salle':'fas fa-door-open text-primary','attribution_salle':'fas fa-map-marker-alt text-info','systeme':'fas fa-cog text-secondary','notification':'fas fa-bell text-warning','telecharger_invitation':'fas fa-file-download text-info','ajout_document':'fas fa-file-upload text-info','suppression_document':'fas fa-file-excel text-danger','default':'fas fa-info-circle text-secondary'};return m[type]||m.default;}
     function enhanceUI(){initTooltips();enhanceBadgesAndLabels();fixDataIssues();enhanceAccessibility();}
     function initTooltips(){if(typeof bootstrap==='undefined'||typeof bootstrap.Tooltip!=='function')return;document.querySelectorAll('.tooltip').forEach(t=>t.remove());[...document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not(iframe):not(script):not(style)')].map(el=>{const i=bootstrap.Tooltip.getInstance(el);if(i)i.dispose();try{return new bootstrap.Tooltip(el,{container:'body',boundary:document.body});}catch(e){return null;}});}
@@ -271,24 +308,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let legendHtml = '';
     let svgSegmentsHtml = '';
-    const themesConfig = window.themesDataForChart || {}; // S'assurer que c'est bien défini globalement
+    const themesConfig = window.themesDataForChart || {}; 
     const sortedThemes = Object.entries(themeInscriptionCounts).sort(([, countA], [, countB]) => countB - countA);
     
     const radius = 15.9154943092; 
     const strokeWidth = 5; 
-    let currentRotationAngle = 0; // Angle de rotation pour chaque segment
+    let currentRotationAngle = 0; 
 
     sortedThemes.forEach(([themeName, count], index) => {
         if (count === 0) return;
 
         const percentage = (count / totalInscriptionsTheme) * 100;
         const themeConfig = themesConfig[themeName] || {};
-        const color = themeConfig.color || getRandomColor(index); // getRandomColor doit être définie
+        const color = themeConfig.color || getRandomColor(index); 
         const description = themeConfig.description || themeName;
 
-        // Le stroke-dashoffset est toujours 0 pour cette méthode de dessin de segments avec rotation
-        // Chaque segment est un cercle complet, mais seulement une portion est visible grâce à stroke-dasharray
-        // et il est tourné pour se positionner correctement.
         svgSegmentsHtml += `
             <circle class="donut-svg-segment"
                     cx="21" cy="21" r="${radius}"
@@ -299,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     transform="rotate(${currentRotationAngle} 21 21)">
                 <title>${escapeHtml(themeName)}: ${count} (${percentage.toFixed(1)}%)</title>
             </circle>`;
-        currentRotationAngle += (percentage * 3.6); // Mettre à jour l'angle pour le prochain segment
+        currentRotationAngle += (percentage * 3.6); 
 
         legendHtml += `
             <div class="legend-item" title="${escapeHtml(description)}">
@@ -338,7 +372,6 @@ function renderParticipantByServiceChartJS(participantsData) {
     
     const serviceCounts = participantsData.reduce((acc, participant) => {
         const serviceName = participant.service || 'Non défini';
-        // Utiliser servicesDataForChart pour la couleur si disponible, sinon la couleur du participant, sinon gris
         const serviceConfig = (window.servicesDataForChart && window.servicesDataForChart[serviceName]) ? window.servicesDataForChart[serviceName] : {};
         const color = serviceConfig.color || participant.service_color || '#6c757d';
 
@@ -358,7 +391,7 @@ function renderParticipantByServiceChartJS(participantsData) {
 
     const sortedServices = Object.entries(serviceCounts).sort(([, dataA], [, dataB]) => dataB.count - dataA.count);
     let barsHtml = '';
-    const maxCount = Math.max(1, ...sortedServices.map(([, data]) => data.count)); // Eviter division par zéro
+    const maxCount = Math.max(1, ...sortedServices.map(([, data]) => data.count)); 
 
     sortedServices.forEach(([serviceName, data], index) => {
         if (data.count === 0) return;
@@ -385,7 +418,6 @@ function renderParticipantByServiceChartJS(participantsData) {
         <div class="static-chart-bars">${barsHtml}</div>`;
 }
 
-// S'assurer que getRandomColor et escapeHtml sont définies si elles sont utilisées
 function getRandomColor(index) {
     const colors = ['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69','#fd7e14','#6f42c1','#d63384'];
     return colors[index % colors.length];
@@ -394,7 +426,6 @@ function getRandomColor(index) {
 
     window.dashboardCore={initialize:initializeDashboard,fetchData:debouncedFetchDashboardData,updateCharts:updateChartsFallback,updateStatistics:updateStatisticsCounters,updateActivity:updateActivityFeed,getState:()=>JSON.parse(JSON.stringify(dashboardState)),getConfig:()=>JSON.parse(JSON.stringify(config)),renderThemeChart:renderThemeDistributionChartJS,renderServiceChart:renderParticipantByServiceChartJS,initializeCharts:initializeChartsFallback,startPolling:startPolling,stopPolling:()=>{dashboardState.pollingActive=false;if(dashboardState.pollingTimeout)clearTimeout(dashboardState.pollingTimeout);dashboardState.pollingTimeoutScheduled=false;}};
     
-    // S'assurer que les fonctions sont bien exposées globalement AVANT que dashboard-init.js ne s'exécute
     if (typeof window.forcePollingUpdate === 'undefined') window.forcePollingUpdate = debouncedFetchDashboardData;
     if (typeof window.updateStatsCounters === 'undefined') window.updateStatsCounters = updateStatisticsCounters;
     if (typeof window.refreshRecentActivity === 'undefined') window.refreshRecentActivity = () => updateActivityFeed(null);
