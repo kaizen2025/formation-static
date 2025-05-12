@@ -147,111 +147,120 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Fonction pour appliquer les styles aux éléments de formulaire et autres éléments importants
-    function applyFormElementStyles(containerEl) {
+    console.log(`Initializing script for modal: ${modalId}`);
+
+    function applyInteractiveStyles(containerEl) {
+        console.log(`Applying interactive styles to container:`, containerEl);
+        if (!containerEl) return;
+
+        // Rendre le conteneur lui-même visible et interactif
+        containerEl.style.setProperty('visibility', 'visible', 'important');
+        containerEl.style.setProperty('opacity', '1', 'important');
+        containerEl.style.setProperty('pointer-events', 'auto', 'important'); 
+        // Ne pas forcer 'display' sur le containerEl lui-même car c'est géré par Bootstrap (tab-pane)
+
         const elementsToStyle = containerEl.querySelectorAll(
-            'select, .form-select, input:not([type="hidden"]), textarea, button:not(.btn-close), .btn:not(.btn-close), label, .form-label, .invalid-feedback, p.small.text-muted, .row, .col-md-6, .col-12, .d-grid'
+            'input:not([type="hidden"]), select, textarea, button:not(.btn-close), .form-select, label, .form-label, .invalid-feedback, p.small.text-muted, .row, [class*="col-"], .d-grid, .mb-3'
         );
         
         elementsToStyle.forEach(el => {
+            el.style.setProperty('position', 'relative', 'important'); 
             el.style.setProperty('visibility', 'visible', 'important');
             el.style.setProperty('opacity', '1', 'important');
-            el.style.setProperty('pointer-events', 'auto', 'important'); // Assurer l'interaction
-
+            el.style.setProperty('pointer-events', 'auto', 'important');
+            
+            // Ajustement des z-index pour éviter les superpositions internes
             if (el.tagName === 'SELECT' || el.classList.contains('form-select')) {
+                el.style.setProperty('z-index', '10', 'important');
                 el.style.setProperty('display', 'block', 'important');
-                el.style.setProperty('z-index', '2000', 'important'); // Au-dessus des autres inputs
-                el.style.setProperty('position', 'relative', 'important');
-                el.style.setProperty('-webkit-appearance', 'listbox', 'important');
-                el.style.setProperty('appearance', 'listbox', 'important');
-            } else if (el.tagName === 'BUTTON' || (el.classList.contains('btn') && !el.classList.contains('btn-close'))) {
-                el.style.setProperty('position', 'relative', 'important');
-                el.style.setProperty('z-index', '2001', 'important'); // Au-dessus des selects
+                 el.style.setProperty('-webkit-appearance', 'listbox', 'important');
+                 el.style.setProperty('appearance', 'listbox', 'important');
             } else if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                el.style.setProperty('position', 'relative', 'important');
-                el.style.setProperty('z-index', '1999', 'important'); // En dessous des selects
-                if (!el.classList.contains('form-control')) { // form-control est déjà display: block
-                    el.style.setProperty('display', 'block', 'important');
-                }
-            } else if (el.classList.contains('row') || el.classList.contains('col-md-6') || el.classList.contains('col-12') || el.classList.contains('d-grid')) {
-                 el.style.setProperty('display', 'flex', 'important'); // Pour les rows/cols, flex est souvent mieux, ou laisser Bootstrap gérer.
-                                                                      // Pour d-grid, c'est grid.
-                 if (el.classList.contains('d-grid')) el.style.setProperty('display', 'grid', 'important');
-                 else if (el.classList.contains('row')) el.style.setProperty('display', 'flex', 'important'); // Bootstrap row est flex
-                 else el.style.setProperty('display', 'block', 'important'); // Pour les cols individuels, block est ok
-            } else {
-                 // Pour labels, p, invalid-feedback, etc., on ne force pas 'display' pour ne pas casser le layout.
-                 // 'visibility' et 'opacity' suffisent.
+                el.style.setProperty('z-index', '5', 'important');
+                el.style.setProperty('display', 'block', 'important');
+            } else if (el.tagName === 'BUTTON' && !el.classList.contains('btn-close')) {
+                el.style.setProperty('z-index', '15', 'important');
+            } else if (el.tagName === 'LABEL' || el.classList.contains('form-label')) {
+                el.style.setProperty('z-index', '1', 'important');
+                 el.style.setProperty('display', 'block', 'important');
+            }
+            // Pour les éléments de layout (row, col-*, d-grid, mb-3), on s'assure de leur visibilité
+            // et on laisse Bootstrap gérer leur 'display' autant que possible.
+            if (el.classList.contains('row') || el.matches('[class*="col-"]') || el.classList.contains('d-grid') || el.classList.contains('mb-3')) {
+                 // el.style.setProperty('display', '', ''); // On ne force pas le display ici pour ne pas casser BS
             }
         });
+        console.log("Styles applied to elements within:", containerEl);
     }
     
-    // Appliquer les styles quand la modale est complètement affichée
     modalElement.addEventListener('shown.bs.modal', function () {
-        applyFormElementStyles(this); // Appliquer à toute la modale
-        
+        console.log(`Modal ${modalId} shown. Applying styles to active tab.`);
         const activeTabPane = this.querySelector('.tab-pane.active');
         if (activeTabPane) {
-            applyFormElementStyles(activeTabPane); // Réappliquer spécifiquement au panneau actif
-            
+            applyInteractiveStyles(activeTabPane);
             setTimeout(() => {
-                const firstField = activeTabPane.querySelector('select:not([style*="display: none"]), input:not([type="hidden"]):not([style*="display: none"])');
+                const firstField = activeTabPane.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
                 if (firstField && (firstField.offsetWidth > 0 || firstField.offsetHeight > 0 || firstField.getClientRects().length > 0)) {
+                    console.log(`Initial focus on:`, firstField);
                     firstField.focus();
+                } else {
+                    console.log("No initial focusable field or field not visible in:", activeTabPane);
                 }
-            }, 150);
+            }, 250); // Augmenté le délai légèrement
+        } else {
+            console.log("Modal shown, but no active tab pane found.");
         }
     });
 
-    // Validation Bootstrap améliorée pour les formulaires
     const formsInThisModal = modalElement.querySelectorAll('form.needs-validation');
     formsInThisModal.forEach(form => {
         form.addEventListener('submit', function(event) {
             const parentTabPane = form.closest('.tab-pane');
             if (parentTabPane && !parentTabPane.classList.contains('active')) {
+                console.log("Form submission prevented: form not in active tab.");
                 event.preventDefault();
                 event.stopPropagation();
                 return; 
             }
-
             if (!form.checkValidity()) {
                 event.preventDefault();
                 event.stopPropagation();
                 const firstInvalid = form.querySelector(':invalid');
                 if (firstInvalid) {
                     firstInvalid.focus();
-                    // firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }
             form.classList.add('was-validated');
         }, false);
     });
 
-    // Gestion après changement d'onglet (Bootstrap s'occupe du changement effectif)
     const tabButtonsInThisModal = modalElement.querySelectorAll('button[data-bs-toggle="tab"]');
     tabButtonsInThisModal.forEach(tabButton => {
         tabButton.addEventListener('shown.bs.tab', function (event) {
-            const activeTabButton = event.target; // L'onglet qui vient d'être activé
+            const activeTabButton = event.target;
             const targetPaneId = activeTabButton.getAttribute('data-bs-target');
+            console.log(`Tab ${targetPaneId} shown. Applying styles and focus.`);
             
             if (targetPaneId) {
                 const targetPane = modalElement.querySelector(targetPaneId);
                 if (targetPane) {
-                    applyFormElementStyles(targetPane); // Appliquer les styles au nouveau panneau actif
+                    applyInteractiveStyles(targetPane);
 
                     const form = targetPane.querySelector('form.needs-validation');
                     if (form) {
                         form.classList.remove('was-validated');
                         form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                        // form.reset(); // Optionnel: réinitialiser les champs du formulaire
                     }
                     
                     setTimeout(() => {
-                        const firstField = targetPane.querySelector('select:not([style*="display: none"]), input:not([type="hidden"]):not([style*="display: none"])');
-                         if (firstField && (firstField.offsetWidth > 0 || firstField.offsetHeight > 0 || firstField.getClientRects().length > 0)) {
-                            firstField.focus();
+                        const firstField = targetPane.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+                        if (firstField && (firstField.offsetWidth > 0 || firstField.offsetHeight > 0 || firstField.getClientRects().length > 0)) {
+                           console.log(`Focusing on field in new tab:`, firstField);
+                           firstField.focus();
+                        } else {
+                            console.log("No focusable field found or field not visible in new tab:", targetPane);
                         }
-                    }, 150);
+                    }, 250); // Augmenté le délai légèrement
                 }
             }
         });
