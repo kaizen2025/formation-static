@@ -76,6 +76,42 @@
     .validation-badge i {
         margin-right: 0.35em;
     }
+    
+    /* Styles pour les modales */
+    .modal-fix {
+        z-index: 1055 !important;
+    }
+    .modal-fix .modal-dialog {
+        z-index: 1056 !important;
+    }
+    .modal-fix .modal-content {
+        z-index: 1057 !important;
+    }
+    .modal-fix select, 
+    .modal-fix .form-select, 
+    .modal-fix input:not([type="hidden"]), 
+    .modal-fix textarea {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 1060 !important;
+    }
+    .modal-fix .form-select,
+    .modal-fix select {
+        -webkit-appearance: menulist !important;
+        appearance: menulist !important;
+    }
+    .modal-fix .nav-tabs,
+    .modal-fix .tab-content,
+    .modal-fix .tab-pane {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    .modal-fix .tab-pane:not(.active) {
+        display: none !important;
+    }
 </style>
 {% endblock %}
 
@@ -229,14 +265,14 @@
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewParticipantsModal{{ session_item.obj.id }}">
+                                        <button type="button" class="btn btn-outline-primary" onclick="showParticipantsModal({{ session_item.obj.id }})">
                                             <i class="fas fa-users"></i>
                                         </button>
-                                        <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#inscriptionModal{{ session_item.obj.id }}">
+                                        <button type="button" class="btn btn-outline-success" onclick="showInscriptionModal({{ session_item.obj.id }})">
                                             <i class="fas fa-plus-circle"></i>
                                         </button>
                                         {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#attribuerSalleModal{{ session_item.obj.id }}">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="showAttribuerSalleModal({{ session_item.obj.id }})">
                                             <i class="fas fa-door-open"></i>
                                         </button>
                                         {% endif %}
@@ -416,6 +452,9 @@
         </div>
     </div>
 </div>
+
+<!-- Container pour les modales dynamiques -->
+<div id="modalContainer"></div>
 {% endblock %}
 
 {% block modals %}
@@ -449,6 +488,176 @@
     if (typeof window.themesDataForChart !== 'object' || window.themesDataForChart === null) { console.warn("themesDataForChart n'est pas un objet valide"); window.themesDataForChart = {}; }
     if (typeof window.servicesDataForChart !== 'object' || window.servicesDataForChart === null) { console.warn("servicesDataForChart n'est pas un objet valide"); window.servicesDataForChart = {}; }
 
+    // Gestionnaire des modales pour le dashboard
+    const dashboardModals = {
+        // Stocke les instances de modales
+        instances: {},
+        
+        // Crée ou récupère une instance de modale
+        getInstance: function(id) {
+            if (!this.instances[id]) {
+                const modalElement = document.getElementById(id);
+                if (modalElement) {
+                    // Ajouter les classes de correction
+                    modalElement.classList.add('modal-fix');
+                    
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                        this.instances[id] = new bootstrap.Modal(modalElement);
+                    }
+                }
+            }
+            return this.instances[id];
+        },
+        
+        // Affiche une modale par son ID
+        show: function(id) {
+            const instance = this.getInstance(id);
+            if (instance) {
+                instance.show();
+                
+                // Améliorer les éléments de la modale après affichage
+                const modalElement = document.getElementById(id);
+                if (modalElement) {
+                    setTimeout(() => {
+                        this.enhanceModalElements(modalElement);
+                    }, 300);
+                }
+            } else {
+                console.error(`Modale avec ID ${id} non trouvée.`);
+            }
+        },
+        
+        // Ferme une modale par son ID
+        hide: function(id) {
+            const instance = this.instances[id];
+            if (instance) {
+                instance.hide();
+            }
+        },
+        
+        // Améliore les éléments à l'intérieur d'une modale
+        enhanceModalElements: function(modalElement) {
+            if (!modalElement) return;
+            
+            // Améliorer les selects
+            modalElement.querySelectorAll('select, .form-select').forEach(select => {
+                select.style.display = 'block';
+                select.style.visibility = 'visible';
+                select.style.opacity = '1';
+                select.style.position = 'relative';
+                select.style.zIndex = '1060';
+                select.style.appearance = 'menulist';
+                select.style.webkitAppearance = 'menulist';
+            });
+            
+            // Améliorer les badges de thème
+            if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+                window.enhanceThemeBadgesGlobally(modalElement);
+            }
+            
+            // Initialiser les tooltips
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                modalElement.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not([title=""])').forEach(el => {
+                    const tooltipInstance = bootstrap.Tooltip.getInstance(el);
+                    if (tooltipInstance) {
+                        tooltipInstance.dispose();
+                    }
+                    new bootstrap.Tooltip(el);
+                });
+            }
+            
+            // Activer le premier onglet si des onglets sont présents
+            const tabNavs = modalElement.querySelectorAll('.nav-tabs, .nav-pills');
+            tabNavs.forEach(tabNav => {
+                const firstTab = tabNav.querySelector('.nav-link');
+                if (firstTab && !tabNav.querySelector('.nav-link.active')) {
+                    firstTab.classList.add('active');
+                    const targetSelector = firstTab.getAttribute('data-bs-target');
+                    if (targetSelector) {
+                        const targetPane = modalElement.querySelector(targetSelector);
+                        if (targetPane) {
+                            targetPane.classList.add('show', 'active');
+                        }
+                    }
+                }
+            });
+            
+            // Fixer la navigation par onglets
+            modalElement.querySelectorAll('[data-bs-toggle="tab"]').forEach(tabLink => {
+                tabLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const targetSelector = this.getAttribute('data-bs-target');
+                    if (!targetSelector) return;
+                    
+                    // Désactiver tous les onglets
+                    const tabContainer = this.closest('.nav-tabs, .nav-pills');
+                    if (tabContainer) {
+                        tabContainer.querySelectorAll('.nav-link').forEach(link => {
+                            link.classList.remove('active');
+                            link.setAttribute('aria-selected', 'false');
+                        });
+                    }
+                    
+                    // Activer cet onglet
+                    this.classList.add('active');
+                    this.setAttribute('aria-selected', 'true');
+                    
+                    // Désactiver tous les contenus d'onglets
+                    const tabContentContainer = modalElement.querySelector('.tab-content');
+                    if (tabContentContainer) {
+                        tabContentContainer.querySelectorAll('.tab-pane').forEach(pane => {
+                            pane.classList.remove('show', 'active');
+                        });
+                    }
+                    
+                    // Activer le contenu de cet onglet
+                    const targetPane = modalElement.querySelector(targetSelector);
+                    if (targetPane) {
+                        targetPane.classList.add('show', 'active');
+                        
+                        // Focus sur le premier champ
+                        setTimeout(() => {
+                            const firstInput = targetPane.querySelector('select, input:not([type="hidden"]), textarea');
+                            if (firstInput) {
+                                try {
+                                    firstInput.focus();
+                                } catch (e) {
+                                    console.error('Erreur de focus:', e);
+                                }
+                            }
+                        }, 100);
+                    }
+                });
+            });
+            
+            // Donner le focus au premier champ de formulaire
+            setTimeout(() => {
+                const firstField = modalElement.querySelector('select, input:not([type="hidden"]), textarea');
+                if (firstField) {
+                    try {
+                        firstField.focus();
+                    } catch (e) {
+                        console.error('Erreur de focus:', e);
+                    }
+                }
+            }, 100);
+        }
+    };
+
+    // Fonctions pour afficher les modales
+    function showParticipantsModal(sessionId) {
+        dashboardModals.show(`participantsModal_${sessionId}`);
+    }
+    
+    function showInscriptionModal(sessionId) {
+        dashboardModals.show(`inscriptionModal_${sessionId}`);
+    }
+    
+    function showAttribuerSalleModal(sessionId) {
+        dashboardModals.show(`attribuerSalleModal_${sessionId}`);
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Initialiser les tooltips
         if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
@@ -463,71 +672,124 @@
             window.enhanceThemeBadgesGlobally(); 
         }
         
-        // Script pour gérer les modaux
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            // S'assurer que les select et autres éléments de formulaire sont visibles
-            const formElements = modal.querySelectorAll('select, input:not([type="hidden"]), textarea, button:not(.btn-close)');
-            formElements.forEach(el => {
-                el.style.display = el.tagName === 'SELECT' ? 'block' : 'inline-block';
-                el.style.visibility = 'visible';
-                el.style.opacity = '1';
-                el.classList.add('modal-fixed');
-            });
+        // Initialiser toutes les modales pour le dashboard
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.classList.add('modal-fix');
+            dashboardModals.getInstance(modal.id);
             
-            // S'assurer que les onglets fonctionnent correctement
-            const tabPanes = modal.querySelectorAll('.tab-pane');
-            tabPanes.forEach(pane => {
-                if (pane.classList.contains('active')) {
-                    pane.style.display = 'block';
-                    pane.style.visibility = 'visible';
-                    pane.style.opacity = '1';
-                }
-            });
-            
-            // Événement d'affichage du modal
+            // Gestionnaire d'événement pour l'affichage de la modale
             modal.addEventListener('shown.bs.modal', function() {
-                // Focus sur le premier champ
-                const firstField = this.querySelector('select, input:not([type="hidden"])');
-                if (firstField) {
-                    setTimeout(() => {
-                        firstField.focus();
-                    }, 100);
-                }
-                
-                // S'assurer que les éléments sont visibles
-                const formElements = this.querySelectorAll('select, input:not([type="hidden"]), textarea, button:not(.btn-close)');
-                formElements.forEach(el => {
-                    el.style.display = el.tagName === 'SELECT' ? 'block' : 'inline-block';
-                    el.style.visibility = 'visible';
-                    el.style.opacity = '1';
-                });
+                dashboardModals.enhanceModalElements(this);
             });
-            
-            // Gestion des changements d'onglets
-            const tabButtons = modal.querySelectorAll('[data-bs-toggle="tab"]');
-            tabButtons.forEach(button => {
-                button.addEventListener('shown.bs.tab', function(event) {
-                    const targetId = event.target.getAttribute('data-bs-target');
-                    if (targetId) {
-                        const targetPane = document.querySelector(targetId);
-                        if (targetPane) {
-                            targetPane.style.display = 'block';
-                            targetPane.style.visibility = 'visible';
-                            targetPane.style.opacity = '1';
-                            
-                            // Focus sur le premier champ de l'onglet
-                            const firstField = targetPane.querySelector('select, input:not([type="hidden"])');
-                            if (firstField) {
-                                setTimeout(() => {
-                                    firstField.focus();
-                                }, 100);
-                            }
+        });
+        
+        // Correction de la validation AJAX sur les validations-inscriptions
+        document.querySelectorAll('.validation-ajax').forEach(button => {
+            button.addEventListener('click', function() {
+                // Désactiver le bouton pour éviter les doubles clics
+                this.disabled = true;
+                const originalHTML = this.innerHTML;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                
+                // Récupérer les données
+                const inscriptionId = this.getAttribute('data-inscription-id');
+                const action = this.getAttribute('data-action');
+                
+                // Faire la requête AJAX
+                fetch('/validation_inscription_ajax', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        inscription_id: inscriptionId,
+                        action: action
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Gérer la réponse
+                    if (data.success) {
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(data.message, 'success');
+                        } else {
+                            alert(data.message);
                         }
+                        
+                        // Rafraîchir la page après un court délai
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(data.message || 'Erreur lors de la validation', 'danger');
+                        } else {
+                            alert(data.message || 'Erreur lors de la validation');
+                        }
+                        this.disabled = false;
+                        this.innerHTML = originalHTML;
                     }
+                })
+                .catch(error => {
+                    console.error('Erreur AJAX:', error);
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('Erreur de communication', 'danger');
+                    } else {
+                        alert('Erreur de communication');
+                    }
+                    this.disabled = false;
+                    this.innerHTML = originalHTML;
                 });
             });
         });
     });
+
+    // Fonction pour afficher des toasts de notification
+    window.showToast = function(message, type = 'info') {
+        if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
+            alert(message);
+            return;
+        }
+        
+        // Créer le conteneur de toast s'il n'existe pas
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Créer l'élément toast
+        const toastElement = document.createElement('div');
+        toastElement.className = `toast bg-${type} text-white fade`;
+        toastElement.setAttribute('role', 'alert');
+        toastElement.setAttribute('aria-live', 'assertive');
+        toastElement.setAttribute('aria-atomic', 'true');
+        
+        // Contenu du toast
+        toastElement.innerHTML = `
+            <div class="toast-header bg-${type} text-white">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'danger' ? 'fa-exclamation-circle' : 'fa-info-circle'} me-2"></i>
+                <strong class="me-auto">Notification</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        `;
+        
+        // Ajouter au conteneur
+        toastContainer.appendChild(toastElement);
+        
+        // Initialiser et afficher le toast
+        const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+        toast.show();
+        
+        // Supprimer l'élément une fois caché
+        toastElement.addEventListener('hidden.bs.toast', function() {
+            this.remove();
+        });
+    };
 </script>
 {% endblock %}
