@@ -1,0 +1,47 @@
+{% extends "layout_minimal.html" %}
+
+{% block title %}{{ "Ajouter" if mode == "add" else "Modifier" }} une salle - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                {% if mode == "edit" %}Modifier - {{ salle.nom }}{% else %}Ajouter une nouvelle salle{% endif %}
+            </h5>
+        </div>
+        <div class="card-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form action="{{ url_for('update_salle', id=salle.id) if mode == 'edit' else url_for('add_salle') }}" method="post">
+                <div class="mb-3">
+                    <label for="nom" class="form-label">Nom*</label>
+                    <input type="text" class="form-control" id="nom" name="nom" value="{{ salle.nom if salle else '' }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="capacite" class="form-label">Capacité*</label>
+                    <input type="number" class="form-control" id="capacite" name="capacite" value="{{ salle.capacite if salle else 15 }}" min="1" required>
+                </div>
+                <div class="mb-3">
+                    <label for="lieu" class="form-label">Emplacement</label>
+                    <input type="text" class="form-control" id="lieu" name="lieu" value="{{ salle.lieu if salle else '' }}">
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3">{{ salle.description if salle else '' }}</textarea>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" onclick="window.close()">Annuler</button>
+                    <button type="submit" class="btn btn-primary">{{ "Ajouter" if mode == "add" else "Enregistrer" }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
