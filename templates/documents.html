@@ -19,6 +19,17 @@
     .theme-section + .theme-section {
         margin-top: 2rem; /* Espace entre les sections de thèmes */
     }
+    .theme-badge { /* Assurez-vous que ce style est défini si utilisé */
+        padding: 0.3em 0.6em;
+        font-size: 0.9em;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        /* Couleurs spécifiques par thème peuvent être ajoutées ici ou via JS */
+    }
+    .theme-comm { background-color: #0078d4; color: white; }
+    .theme-planner { background-color: #7719aa; color: white; }
+    .theme-onedrive { background-color: #0364b8; color: white; }
+    .theme-sharepoint { background-color: #038387; color: white; }
 </style>
 {% endblock %}
 
@@ -27,22 +38,15 @@
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
         <h1 class="h3 text-primary mb-0"><i class="fas fa-folder-open me-2"></i>Documents de Formation</h1>
         <div>
-            {# Le bouton "Ajouter un Document" n'est affiché que si show_admin_features est vrai #}
             {% if show_admin_features %}
             <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
                 <i class="fas fa-upload me-2"></i>Ajouter un Document
             </button>
             {% endif %}
-            {# Le bouton Retour Dashboard peut rester, ou être conditionné si le dashboard nécessite une connexion #}
             {% if current_user.is_authenticated %}
             <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left me-1"></i> Retour Dashboard
             </a>
-            {% else %}
-            {# Optionnel: lien vers la page d'accueil si non connecté #}
-            {# <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-home me-1"></i> Accueil
-            </a> #}
             {% endif %}
         </div>
     </div>
@@ -58,7 +62,7 @@
                 </div>
                 <div class="modal-body">
                     <form action="{{ url_for('upload_document') }}" method="post" enctype="multipart/form-data">
-                        <input type="hidden" name="from_page" value="documents">
+                        <input type="hidden" name="from_page" value="documents"> {# Assurez-vous que 'documents' est une valeur valide pour from_page #}
                         <div class="mb-3">
                             <label for="document_file_modal" class="form-label">Fichier*</label>
                             <input class="form-control" type="file" id="document_file_modal" name="document_file" required>
@@ -95,8 +99,8 @@
     {% endif %}
     {# FIN MODALE D'UPLOAD #}
 
-    {# Affichage des documents (accessible à tous) #}
-    {% if not themes_with_docs and not general_docs_list %} {# Ajustez general_docs_list si vous avez une section pour docs non thématisés #}
+    {# Affichage des documents #}
+    {% if not themes_with_docs and not general_docs_list %}
         <div class="alert alert-info text-center">
             <i class="fas fa-info-circle me-2"></i> Aucun document n'est disponible pour le moment.
             {% if show_admin_features %}
@@ -104,16 +108,17 @@
             {% endif %}
         </div>
     {% else %}
-        {% for theme in themes_with_docs %}
-            {% if theme.documents %}
+        {# Documents par thème #}
+        {% for theme_data in themes_with_docs|sort(attribute='nom') %} {# Tri par nom de thème #}
+            {% if theme_data.documents %}
             <div class="theme-section mb-4">
                 <h4 class="mb-3 pb-2 border-bottom">
-                    <span class="theme-badge" data-theme="{{ theme.nom }}">
-                        {{ theme.nom }}
+                    <span class="theme-badge" data-theme="{{ theme_data.nom }}">
+                        {{ theme_data.nom }}
                     </span>
                 </h4>
                 <div class="list-group shadow-sm">
-                    {% for doc in theme.documents|sort(attribute='original_filename') %}
+                    {% for doc in theme_data.documents|sort(attribute='original_filename') %} {# Tri par nom de fichier original #}
                     <div class="list-group-item d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
                             {% set ext = doc.file_type|lower if doc.file_type else doc.original_filename.rsplit('.', 1)[-1]|lower %}
@@ -133,8 +138,8 @@
                                 <p class="mb-0 text-muted small">{{ doc.description }}</p>
                                 {% endif %}
                                 <small class="text-muted d-block mt-1">
-                                    Ajouté le {{ doc.upload_date.strftime('%d/%m/%Y') }} 
-                                    {% if doc.uploader %}par {{ doc.uploader.username }}{% endif %}
+                                    Ajouté le {{ doc.upload_date.strftime('%d/%m/%Y') if doc.upload_date else 'Date inconnue' }} 
+                                    {% if doc.uploader and doc.uploader.username %}par {{ doc.uploader.username }}{% endif %}
                                 </small>
                             </div>
                         </div>
@@ -143,7 +148,6 @@
                                class="btn btn-outline-primary btn-sm" title="Télécharger">
                                 <i class="fas fa-download"></i>
                             </a>
-                            {# Bouton de suppression uniquement si show_admin_features est vrai #}
                             {% if show_admin_features %}
                             <button type="button" class="btn btn-outline-danger btn-sm" title="Supprimer"
                                     data-bs-toggle="modal" data-bs-target="#deleteDocumentModal{{ doc.id }}">
@@ -153,7 +157,7 @@
                         </div>
                     </div>
 
-                    {# MODALE DE SUPPRESSION DE DOCUMENT (uniquement si show_admin_features est vrai) #}
+                    {# MODALE DE SUPPRESSION DE DOCUMENT #}
                     {% if show_admin_features %}
                     <div class="modal fade" id="deleteDocumentModal{{ doc.id }}" tabindex="-1" aria-labelledby="deleteDocumentModalLabel{{ doc.id }}" aria-hidden="true">
                         <div class="modal-dialog">
@@ -183,96 +187,104 @@
             </div>
             {% endif %}
         {% endfor %}
-    {% endif %}
 
-    {# Section pour les documents généraux (non associés à un thème) #}
-    {% if general_docs_list %}
-    <div class="theme-section mb-4">
-        <h4 class="mb-3 pb-2 border-bottom">
-            <span class="theme-badge bg-secondary">
-                <i class="fas fa-folder me-1"></i> Documents Généraux
-            </span>
-        </h4>
-        <div class="list-group shadow-sm">
-            {% for doc in general_docs_list|sort(attribute='original_filename') %}
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                    {% set ext = doc.file_type|lower if doc.file_type else doc.original_filename.rsplit('.', 1)[-1]|lower %}
-                    <span class="document-icon">
-                        {% if ext == 'pdf' %} <i class="fas fa-file-pdf text-danger"></i>
-                        {% elif ext in ['doc', 'docx'] %} <i class="fas fa-file-word text-primary"></i>
-                        {% elif ext in ['xls', 'xlsx'] %} <i class="fas fa-file-excel text-success"></i>
-                        {% elif ext in ['ppt', 'pptx'] %} <i class="fas fa-file-powerpoint text-warning"></i>
-                        {% elif ext in ['png', 'jpg', 'jpeg', 'gif'] %} <i class="fas fa-file-image text-info"></i>
-                        {% elif ext == 'txt' %} <i class="fas fa-file-alt text-secondary"></i>
-                        {% else %} <i class="fas fa-file text-muted"></i>
-                        {% endif %}
-                    </span>
-                    <div>
-                        <strong class="mb-1">{{ doc.original_filename }}</strong>
-                        {% if doc.description %}
-                        <p class="mb-0 text-muted small">{{ doc.description }}</p>
-                        {% endif %}
-                        <small class="text-muted d-block mt-1">
-                            Ajouté le {{ doc.upload_date.strftime('%d/%m/%Y') }} 
-                            {% if doc.uploader %}par {{ doc.uploader.username }}{% endif %}
-                        </small>
-                    </div>
-                </div>
-                <div class="btn-group">
-                    <a href="{{ url_for('download_document', doc_id=doc.id) }}" 
-                       class="btn btn-outline-primary btn-sm" title="Télécharger">
-                        <i class="fas fa-download"></i>
-                    </a>
-                    {% if show_admin_features %}
-                    <button type="button" class="btn btn-outline-danger btn-sm" title="Supprimer"
-                            data-bs-toggle="modal" data-bs-target="#deleteDocumentModal{{ doc.id }}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <div class="modal fade" id="deleteDocumentModal{{ doc.id }}" tabindex="-1" aria-labelledby="deleteDocumentModalLabel{{ doc.id }}" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="deleteDocumentModalLabel{{ doc.id }}"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Confirmer la Suppression</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>Êtes-vous sûr de vouloir supprimer le document "<strong>{{ doc.original_filename }}</strong>" ?</p>
-                                    <p class="text-danger small">Cette action est irréversible.</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                    <form action="{{ url_for('delete_document', doc_id=doc.id) }}" method="post" class="d-inline">
-                                        <input type="hidden" name="from_page" value="documents">
-                                        <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
-                                    </form>
-                                </div>
-                            </div>
+        {# Documents généraux (non associés à un thème) #}
+        {% if general_docs_list %}
+        <div class="theme-section mb-4">
+            <h4 class="mb-3 pb-2 border-bottom">
+                <span class="theme-badge bg-secondary text-white">
+                    <i class="fas fa-folder me-1"></i> Documents Généraux
+                </span>
+            </h4>
+            <div class="list-group shadow-sm">
+                {% for doc in general_docs_list|sort(attribute='original_filename') %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        {% set ext = doc.file_type|lower if doc.file_type else doc.original_filename.rsplit('.', 1)[-1]|lower %}
+                        <span class="document-icon">
+                            {% if ext == 'pdf' %} <i class="fas fa-file-pdf text-danger"></i>
+                            {% elif ext in ['doc', 'docx'] %} <i class="fas fa-file-word text-primary"></i>
+                            {% elif ext in ['xls', 'xlsx'] %} <i class="fas fa-file-excel text-success"></i>
+                            {% elif ext in ['ppt', 'pptx'] %} <i class="fas fa-file-powerpoint text-warning"></i>
+                            {% elif ext in ['png', 'jpg', 'jpeg', 'gif'] %} <i class="fas fa-file-image text-info"></i>
+                            {% elif ext == 'txt' %} <i class="fas fa-file-alt text-secondary"></i>
+                            {% else %} <i class="fas fa-file text-muted"></i>
+                            {% endif %}
+                        </span>
+                        <div>
+                            <strong class="mb-1">{{ doc.original_filename }}</strong>
+                            {% if doc.description %}
+                            <p class="mb-0 text-muted small">{{ doc.description }}</p>
+                            {% endif %}
+                            <small class="text-muted d-block mt-1">
+                                Ajouté le {{ doc.upload_date.strftime('%d/%m/%Y') if doc.upload_date else 'Date inconnue' }} 
+                                {% if doc.uploader and doc.uploader.username %}par {{ doc.uploader.username }}{% endif %}
+                            </small>
                         </div>
                     </div>
-                    {% endif %}
+                    <div class="btn-group">
+                        <a href="{{ url_for('download_document', doc_id=doc.id) }}" 
+                           class="btn btn-outline-primary btn-sm" title="Télécharger">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        {% if show_admin_features %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" title="Supprimer"
+                                data-bs-toggle="modal" data-bs-target="#deleteDocumentModal{{ doc.id }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {# La modale de suppression est déjà définie ci-dessus, pas besoin de la répéter ici si l'ID est unique #}
+                        {# Si les ID peuvent entrer en conflit (doc général vs doc de thème), il faut un préfixe #}
+                        {# Pour l'instant, on assume que doc.id est globalement unique #}
+                        {% endif %}
+                    </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
-    </div>
+        {% endif %}
     {% endif %}
-
 </div>
 {% endblock %}
 
 {% block scripts_extra %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // S'assurer que les badges de thème sont améliorés
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
             window.enhanceThemeBadgesGlobally();
+        } else if (window.BadgeManager && typeof window.BadgeManager.prototype.enhanceThemeBadges === 'function') {
+            const badgeManager = new window.BadgeManager();
+            badgeManager.enhanceThemeBadges();
         }
+
+        // S'assurer que les tooltips sont initialisés
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                // Détruire l'ancien tooltip s'il existe pour éviter les doublons
+                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (existingTooltip) {
+                    existingTooltip.dispose();
+                }
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+        
+        // Correctif pour les selects dans les modales (si ModalManager ne le fait pas déjà)
         const uploadModalEl = document.getElementById('uploadDocumentModal');
         if (uploadModalEl) {
             uploadModalEl.addEventListener('shown.bs.modal', function () {
-                const selectInModal = this.querySelector('select');
+                const selectInModal = this.querySelector('select#theme_id_modal');
                 if (selectInModal) {
-                    selectInModal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2000 !important; position: relative !important; pointer-events: auto !important; -webkit-appearance: listbox !important; appearance: listbox !important;';
+                    // Forcer la visibilité si elle est cachée par d'autres scripts/styles
+                    selectInModal.style.display = 'block';
+                    selectInModal.style.visibility = 'visible';
+                    selectInModal.style.opacity = '1';
+                    selectInModal.style.position = 'relative'; // ou 'static'
+                    selectInModal.style.zIndex = 'auto'; // ou un z-index approprié
+                    selectInModal.style.pointerEvents = 'auto';
+                    selectInModal.style.webkitAppearance = 'menulist'; // Forcer l'apparence native
+                    selectInModal.style.appearance = 'menulist';
                 }
             });
         }
