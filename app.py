@@ -996,9 +996,9 @@ def dashboard():
 
         # Initialisation des compteurs globaux et de la liste des sessions pour le template
 total_inscriptions_confirmees_global = 0
-total_en_attente_global_pending = 0  # Renommé pour clarifier qu'il s'agit des inscriptions en attente
-total_sessions_completes_global = 0
-sessions_data_for_template = [] # Pour la table des sessions à venir
+    total_en_attente_global_pending = 0  # Compteur pour les inscriptions en attente
+    total_sessions_completes_global = 0
+    sessions_data_for_template = []
 
 for s_obj in sessions_from_db:
     try:
