@@ -2456,147 +2456,165 @@ def operation_success():
     action = request.args.get('action', 'Operation')
     return render_template('close_and_refresh.html', action=action)
 
-@app.route('/admin/salle/add', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=2)
+@app.route('/add_salle', methods=['POST'])
 def add_salle():
-    if current_user.role != 'admin':
-        flash("Action réservée aux administrateurs.", "danger")
-        return redirect(url_for('dashboard'))
-    
+    """Route d'ajout d'une salle qui prend en charge à la fois les requêtes AJAX et traditionnelles."""
     try:
+        # Récupérer les données du formulaire
         nom = request.form.get('nom')
-        capacite_str = request.form.get('capacite')
+        capacite = request.form.get('capacite', type=int)
         lieu = request.form.get('lieu')
         description = request.form.get('description')
-
-        if not nom or not capacite_str:
-            flash("Le nom et la capacité de la salle sont obligatoires.", "warning")
-            return redirect(url_for('add_salle_page'))
         
-        try:
-            capacite = int(capacite_str)
-            if capacite <= 0: 
-                raise ValueError("Capacity must be positive")
-        except ValueError:
-            flash("La capacité doit être un nombre entier positif.", "warning")
-            return redirect(url_for('add_salle_page'))
-
-        existing_salle = Salle.query.filter_by(nom=nom).first()
-        if existing_salle:
-            flash(f"Une salle nommée '{nom}' existe déjà.", "warning")
-            return redirect(url_for('add_salle_page'))
-
-        new_salle = Salle(nom=nom, capacite=capacite, lieu=lieu, description=description)
-        db.session.add(new_salle)
+        # Valider les données
+        if not nom or not capacite or capacite <= 0:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': 'Données invalides. Le nom et une capacité positive sont requis.'}), 400
+            else:
+                flash('Données invalides. Le nom et une capacité positive sont requis.', 'danger')
+                return redirect(url_for('salles_page'))
+        
+        # Créer une nouvelle salle
+        salle = Salle(
+            nom=nom,
+            capacite=capacite,
+            lieu=lieu,
+            description=description
+        )
+        
+        # Sauvegarder en base de données
+        db.session.add(salle)
         db.session.commit()
         
-        cache.delete_memoized(get_all_salles)
-        cache.delete('dashboard_essential_data')
-        add_activity('ajout_salle', f'Ajout salle: {new_salle.nom}', user=current_user)
+        # Ajouter une entrée dans le journal d'activité si cette fonction existe
+        if 'add_activity' in globals():
+            add_activity(
+                type='ajout_salle',
+                description=f'Ajout de la salle {salle.nom}',
+                details=f'Capacité: {salle.capacite}, Lieu: {salle.lieu}'
+            )
         
-        flash(f"Salle '{new_salle.nom}' ajoutée avec succès.", "success")
-        
-        # Redirection vers la page de succès qui fermera la fenêtre
-        return redirect(url_for('operation_success', action='Ajout'))
-    
-    except IntegrityError:
-        db.session.rollback()
-        flash(f"Erreur d'intégrité: Une salle nommée '{nom}' existe peut-être déjà.", "danger")
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        app.logger.error(f"Erreur DB ajout salle: {e}", exc_info=True)
-        flash("Erreur de base de données lors de l'ajout de la salle.", "danger")
+        # Répondre en fonction du type de requête
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': 'Salle ajoutée avec succès', 'id': salle.id})
+        else:
+            flash('Salle ajoutée avec succès', 'success')
+            return redirect(url_for('salles_page'))
+            
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Erreur inattendue ajout salle: {e}", exc_info=True)
-        flash("Une erreur inattendue est survenue.", "danger")
-    
-    return redirect(url_for('add_salle_page'))
+        app.logger.error(f"Erreur lors de l'ajout de la salle: {str(e)}")
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': f'Erreur lors de l\'ajout: {str(e)}'}), 500
+        else:
+            flash(f'Erreur lors de l\'ajout: {str(e)}', 'danger')
+            return redirect(url_for('salles_page'))
 
 
-@app.route('/admin/salle/update/<int:id>', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=2)
+@app.route('/update_salle/<int:id>', methods=['POST'])
 def update_salle(id):
-    if current_user.role != 'admin':
-        flash("Action réservée aux administrateurs.", "danger")
-        return redirect(url_for('dashboard'))
-    
-    salle = db.session.get(Salle, id)
-    if not salle: 
-        flash("Salle introuvable.", "danger")
-        return redirect(url_for('salles_page'))
-    
+    """Route de modification d'une salle qui prend en charge à la fois les requêtes AJAX et traditionnelles."""
     try:
+        # Récupérer la salle existante
+        salle = Salle.query.get_or_404(id)
+        
+        # Récupérer les données du formulaire
         nom = request.form.get('nom')
-        capacite_str = request.form.get('capacite')
+        capacite = request.form.get('capacite', type=int)
         lieu = request.form.get('lieu')
         description = request.form.get('description')
         
-        if not nom or not capacite_str: 
-            flash("Le nom et la capacité sont obligatoires.", "warning")
-            return redirect(url_for('edit_salle_page', id=id))
+        # Valider les données
+        if not nom or not capacite or capacite <= 0:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': 'Données invalides. Le nom et une capacité positive sont requis.'}), 400
+            else:
+                flash('Données invalides. Le nom et une capacité positive sont requis.', 'danger')
+                return redirect(url_for('edit_salle', id=id))
         
-        try:
-            capacite = int(capacite_str)
-            if capacite <= 0: 
-                raise ValueError("Capacity must be positive")
-        except ValueError: 
-            flash("La capacité doit être un nombre entier positif.", "warning")
-            return redirect(url_for('edit_salle_page', id=id))
-        
-        if nom != salle.nom and Salle.query.filter(Salle.nom == nom, Salle.id != id).first():
-            flash(f"Une autre salle nommée '{nom}' existe déjà.", "warning")
-            return redirect(url_for('edit_salle_page', id=id))
-        
+        # Mettre à jour les données de la salle
         salle.nom = nom
         salle.capacite = capacite
         salle.lieu = lieu
         salle.description = description
         
+        # Sauvegarder en base de données
         db.session.commit()
-        cache.delete_memoized(get_all_salles)
-        cache.delete('dashboard_essential_data')
-        add_activity('modification_salle', f'Modification salle: {salle.nom}', user=current_user)
         
-        flash(f"Salle '{salle.nom}' mise à jour avec succès.", "success")
+        # Ajouter une entrée dans le journal d'activité si cette fonction existe
+        if 'add_activity' in globals():
+            add_activity(
+                type='modification_salle',
+                description=f'Modification de la salle {salle.nom}',
+                details=f'Capacité: {salle.capacite}, Lieu: {salle.lieu}'
+            )
         
-        # Redirection vers la page de succès qui fermera la fenêtre
-        return redirect(url_for('operation_success', action='Modification'))
-    
-    except IntegrityError: 
-        db.session.rollback()
-        flash(f"Erreur d'intégrité màj salle '{salle.nom}'.", "danger")
-    except SQLAlchemyError as e: 
-        db.session.rollback()
-        app.logger.error(f"Erreur DB màj salle {id}: {e}", exc_info=True)
-        flash("Erreur DB màj.", "danger")
-    except Exception as e: 
-        db.session.rollback()
-        app.logger.error(f"Erreur inattendue màj salle {id}: {e}", exc_info=True)
-        flash("Erreur inattendue.", "danger")
-    
-    return redirect(url_for('edit_salle_page', id=id))
-
-@app.route('/admin/salle/delete/<int:id>', methods=['POST'])
-@login_required
-@db_operation_with_retry(max_retries=2)
-def delete_salle(id):
-    if current_user.role != 'admin': flash("Action réservée aux administrateurs.", "danger"); return redirect(url_for('dashboard'))
-    salle = db.session.get(Salle, id)
-    if not salle: flash("Salle introuvable.", "danger"); return redirect(url_for('salles_page'))
-    try:
-        if salle.sessions.first():
-            flash(f"Impossible de supprimer '{salle.nom}', elle est utilisée. Réassignez d'abord les sessions.", "warning")
+        # Répondre en fonction du type de requête
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': 'Salle modifiée avec succès'})
+        else:
+            flash('Salle modifiée avec succès', 'success')
             return redirect(url_for('salles_page'))
-        salle_nom = salle.nom; db.session.delete(salle); db.session.commit()
-        cache.delete_memoized(get_all_salles); cache.delete('dashboard_essential_data')
-        add_activity('suppression_salle', f'Suppression salle: {salle_nom}', user=current_user)
-        flash(f"Salle '{salle_nom}' supprimée.", "success")
-    except SQLAlchemyError as e: db.session.rollback(); app.logger.error(f"Erreur DB suppression salle {id}: {e}", exc_info=True); flash("Erreur DB suppression.", "danger")
-    except Exception as e: db.session.rollback(); app.logger.error(f"Erreur inattendue suppression salle {id}: {e}", exc_info=True); flash("Erreur inattendue.", "danger")
-    return redirect(url_for('salles_page'))
+            
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur lors de la modification de la salle: {str(e)}")
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': f'Erreur lors de la modification: {str(e)}'}), 500
+        else:
+            flash(f'Erreur lors de la modification: {str(e)}', 'danger')
+            return redirect(url_for('salles_page'))
+
+@app.route('/delete_salle/<int:id>', methods=['POST'])
+def delete_salle(id):
+    """Route de suppression d'une salle qui prend en charge à la fois les requêtes AJAX et traditionnelles."""
+    try:
+        # Récupérer la salle existante
+        salle = Salle.query.get_or_404(id)
+        nom_salle = salle.nom  # Mémoriser pour le log d'activité
+        
+        # Vérifier si la salle est utilisée dans des sessions
+        sessions_associees = Session.query.filter_by(salle_id=id).all()
+        if sessions_associees:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False, 
+                    'message': f'La salle est utilisée dans {len(sessions_associees)} session(s). Veuillez d\'abord réaffecter ces sessions.'
+                }), 400
+            else:
+                flash(f'La salle est utilisée dans {len(sessions_associees)} session(s). Veuillez d\'abord réaffecter ces sessions.', 'warning')
+                return redirect(url_for('salles_page'))
+        
+        # Supprimer la salle
+        db.session.delete(salle)
+        db.session.commit()
+        
+        # Ajouter une entrée dans le journal d'activité si cette fonction existe
+        if 'add_activity' in globals():
+            add_activity(
+                type='suppression_salle',
+                description=f'Suppression de la salle {nom_salle}',
+                details=f'ID: {id}'
+            )
+        
+        # Répondre en fonction du type de requête
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': 'Salle supprimée avec succès'})
+        else:
+            flash('Salle supprimée avec succès', 'success')
+            return redirect(url_for('salles_page'))
+            
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur lors de la suppression de la salle: {str(e)}")
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': f'Erreur lors de la suppression: {str(e)}'}), 500
+        else:
+            flash(f'Erreur lors de la suppression: {str(e)}', 'danger')
+            return redirect(url_for('salles_page'))
 
 # --- Admin CRUD Routes for Thèmes ---
 @app.route('/admin/theme/add', methods=['POST'])
