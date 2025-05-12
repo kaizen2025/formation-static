@@ -1,0 +1,133 @@
+<!-- templates/modals/_inscription_modal_simple.html -->
+<!-- Version simplifiée et épurée du modal d'inscription -->
+<div class="modal fade" id="inscriptionModal_{{ session.id }}" tabindex="-1" aria-labelledby="inscriptionModalLabel_{{ session.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <!-- En-tête du modal -->
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="inscriptionModalLabel_{{ session.id }}">
+          <i class="fas fa-user-plus me-2"></i>Inscription: {{ session.theme.nom }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      
+      <!-- Corps du modal -->
+      <div class="modal-body">
+        <!-- Informations sur la session -->
+        <div class="alert alert-light border mb-4">
+          <div class="d-flex align-items-center">
+             <i class="fas fa-calendar-check fa-2x me-3 text-primary"></i>
+             <div>
+                <h6 class="mb-1 fw-bold">Session du {{ session.formatage_date }}</h6>
+                <p class="mb-1 small text-muted">
+                    <i class="far fa-clock fa-fw me-1"></i>Horaire: {{ session.formatage_horaire }}
+                </p>
+                <p class="mb-1 small text-muted">
+                    <i class="fas fa-chair fa-fw me-1"></i>Places disponibles: 
+                    <strong class="badge {% if session_data.places_restantes == 0 %}bg-danger{% elif session_data.places_restantes <= 3 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                        {{ session_data.places_restantes }} / {{ session.max_participants }}
+                    </strong>
+                </p>
+                <p class="mb-0 small text-muted">
+                    <i class="fas fa-building fa-fw me-1"></i>Salle: 
+                    <span class="badge bg-light text-dark border">{{ session.salle.nom if session.salle else "Non définie" }}</span>
+                </p>
+             </div>
+          </div>
+        </div>
+
+        <!-- Navigation simple par onglets -->
+        <ul class="nav nav-tabs mb-3" id="inscriptionTabs_{{ session.id }}" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="participant-existant-tab_{{ session.id }}" data-bs-toggle="tab" data-bs-target="#participant-existant_{{ session.id }}" type="button" role="tab" aria-selected="true">
+              <i class="fas fa-user me-1"></i> Participant existant
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="nouveau-participant-tab_{{ session.id }}" data-bs-toggle="tab" data-bs-target="#nouveau-participant_{{ session.id }}" type="button" role="tab" aria-selected="false">
+              <i class="fas fa-user-plus me-1"></i> Nouveau participant
+            </button>
+          </li>
+        </ul>
+
+        <!-- Contenu des onglets -->
+        <div class="tab-content" id="inscriptionTabsContent_{{ session.id }}">
+          
+          <!-- Onglet participant existant -->
+          <div class="tab-pane fade show active" id="participant-existant_{{ session.id }}" role="tabpanel">
+            <form action="{{ url_for('inscription') }}" method="post" id="inscription-form-{{ session.id }}">
+              <input type="hidden" name="session_id" value="{{ session.id }}">
+              <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}">
+              
+              <div class="mb-3">
+                <label for="participant_id_{{ session.id }}" class="form-label">Sélectionner un participant*</label>
+                <select class="form-control" id="participant_id_{{ session.id }}" name="participant_id" required>
+                  <option value="" selected disabled>-- Choisir dans la liste --</option>
+                  {% for participant in participants|sort(attribute='prenom')|sort(attribute='nom') %} 
+                  <option value="{{ participant.id }}">{{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})</option>
+                  {% endfor %}
+                </select>
+                <div class="text-danger small mt-1">
+                  Veuillez sélectionner un participant.
+                </div>
+              </div>
+              
+              <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-primary btn-lg">
+                  <i class="fas fa-check-circle me-2"></i>Confirmer l'inscription
+                </button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- Onglet nouveau participant -->
+          <div class="tab-pane fade" id="nouveau-participant_{{ session.id }}" role="tabpanel">
+            <p class="small text-muted mb-3">Ajoutez un nouveau participant. Il sera automatiquement inscrit à cette session.</p>
+            <form action="{{ url_for('add_participant') }}" method="post" id="new-participant-form-{{ session.id }}">
+              <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}"> 
+              <input type="hidden" name="redirect_session_id" value="{{ session.id }}">
+              <input type="hidden" name="action_after_add" value="inscription">
+              
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="nom_nouveau_{{ session.id }}" class="form-label">Nom*</label>
+                  <input type="text" class="form-control" id="nom_nouveau_{{ session.id }}" name="nom" required>
+                </div>
+                <div class="col-md-6">
+                  <label for="prenom_nouveau_{{ session.id }}" class="form-label">Prénom*</label>
+                  <input type="text" class="form-control" id="prenom_nouveau_{{ session.id }}" name="prenom" required>
+                </div>
+                <div class="col-12">
+                  <label for="email_nouveau_{{ session.id }}" class="form-label">Email*</label>
+                  <input type="email" class="form-control" id="email_nouveau_{{ session.id }}" name="email" required>
+                </div>
+                <div class="col-12">
+                  <label for="service_id_nouveau_{{ session.id }}" class="form-label">Service*</label>
+                  <select class="form-control" id="service_id_nouveau_{{ session.id }}" name="service_id" required>
+                    <option value="" selected disabled>-- Choisir un service --</option>
+                    {% for service_item in services|sort(attribute='nom') %}
+                    <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+              
+              <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-success btn-lg">
+                  <i class="fas fa-user-plus me-2"></i>Ajouter et Inscrire
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pied du modal -->
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i> Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
