@@ -1,6 +1,6 @@
 /**
  * modern-modal-fixes.css - Solution unifiée pour tous les modaux de l'application
- * v2.0.0 - Optimisé et consolidé pour fixer les problèmes de scintillement
+ * v2.1.0 - Optimisé et consolidé pour résoudre les problèmes de visibilité des éléments de formulaire
  */
 
 /* ===== STYLES DE BASE POUR LES MODAUX PORTAL ===== */
@@ -75,8 +75,40 @@
     padding: 0.75rem;
 }
 
+/* ===== FIXES UNIVERSELS POUR BOOTSTRAP MODALS ===== */
+/* Ces règles s'appliquent à TOUS les modaux Bootstrap, même sans portal */
+.modal-open {
+    overflow: hidden;
+    padding-right: 0 !important; /* Éviter le décalage */
+}
+
+.modal {
+    z-index: 1050 !important;
+}
+
+.modal-dialog {
+    z-index: 1060 !important;
+}
+
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+.modal-content {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    background-color: #fff !important;
+    border-radius: 0.5rem !important;
+    outline: 0 !important;
+    z-index: 1050 !important;
+}
+
 /* ===== FIXES POUR LES CONTRÔLES DE FORMULAIRE ===== */
-/* Correction critique pour les selects */
+/* Correction critique pour les selects dans n'importe quel modal */
+.modal select,
+.modal .form-select,
 #portal-modal-container select,
 #portal-modal-container .form-select {
     display: block !important;
@@ -90,7 +122,10 @@
     width: 100% !important;
 }
 
-/* Correction pour les inputs */
+/* Correction pour les inputs dans n'importe quel modal */
+.modal input:not([type="hidden"]),
+.modal textarea,
+.modal .form-control,
 #portal-modal-container input:not([type="hidden"]),
 #portal-modal-container textarea,
 #portal-modal-container .form-control {
@@ -103,7 +138,9 @@
     width: 100% !important;
 }
 
-/* Correction pour les boutons */
+/* Correction pour les boutons dans n'importe quel modal */
+.modal button:not(.btn-close),
+.modal .btn:not(.btn-close),
 #portal-modal-container button:not(.btn-close),
 #portal-modal-container .btn:not(.btn-close) {
     position: relative !important;
@@ -114,6 +151,9 @@
 }
 
 /* Bouton de fermeture spécifique */
+.modal .btn-close,
+.modal [data-portal-dismiss="modal"],
+.modal [data-bs-dismiss="modal"],
 #portal-modal-container .btn-close,
 #portal-modal-container [data-portal-dismiss="modal"] {
     position: relative !important;
@@ -123,8 +163,57 @@
     visibility: visible !important;
 }
 
+/* Corrections pour les labels et autres textes */
+.modal label,
+.modal .form-label,
+.modal .invalid-feedback,
+.modal .form-text,
+#portal-modal-container label,
+#portal-modal-container .form-label,
+#portal-modal-container .invalid-feedback,
+#portal-modal-container .form-text {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 1054 !important;
+}
+
+/* ===== CORRECTIONS POUR LES ONGLETS DANS LES MODAUX ===== */
+/* Onglets et contenu d'onglets */
+.modal .nav-tabs,
+.modal .nav-pills,
+.modal .tab-content,
+.modal .tab-pane,
+#portal-modal-container .nav-tabs,
+#portal-modal-container .nav-pills,
+#portal-modal-container .tab-content,
+#portal-modal-container .tab-pane {
+    position: relative !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 1053 !important;
+}
+
+/* Réparation spécifique pour les onglets actifs */
+.modal .tab-pane.active,
+#portal-modal-container .tab-pane.active {
+    display: block !important;
+}
+
+/* Réparation spécifique pour les boutons d'onglets */
+.modal .nav-link,
+#portal-modal-container .nav-link {
+    z-index: 1058 !important;
+    position: relative !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
 /* ===== STYLES SPÉCIFIQUES POUR LES THÈMES ===== */
 /* Badges de thème dans les modaux */
+.modal .theme-badge,
 #portal-modal-container .theme-badge {
     position: relative !important;
     z-index: 5 !important;
@@ -134,13 +223,56 @@
     opacity: 1 !important;
 }
 
+/* ===== CORRECTIONS POUR LES TABLEAUX DANS LES MODAUX ===== */
+.modal table,
+.modal .table,
+.modal .table-responsive,
+#portal-modal-container table,
+#portal-modal-container .table,
+#portal-modal-container .table-responsive {
+    display: table !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 1052 !important;
+}
+
+.modal thead, 
+.modal tbody,
+#portal-modal-container thead,
+#portal-modal-container tbody {
+    display: table-row-group !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.modal tr,
+#portal-modal-container tr {
+    display: table-row !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.modal th, 
+.modal td,
+#portal-modal-container th,
+#portal-modal-container td {
+    display: table-cell !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
 /* ===== AJUSTEMENTS POUR LES APPAREILS MOBILES ===== */
 @media (max-width: 576px) {
-    #portal-modal-container .portal-modal {
+    #portal-modal-container .portal-modal,
+    .modal-dialog {
         width: 90% !important;
         max-height: 80vh !important;
     }
     
+    .modal input,
+    .modal select,
+    .modal textarea,
     #portal-modal-container input,
     #portal-modal-container select,
     #portal-modal-container textarea {
@@ -174,11 +306,4 @@
 
 #portal-modal-container .portal-modal {
     animation: slideIn 0.2s ease-out forwards;
-}
-
-/* Suppression des transitions conflictuelles */
-#portal-modal-container *,
-#portal-modal-container *::before,
-#portal-modal-container *::after {
-    transition-property: none !important;
 }
