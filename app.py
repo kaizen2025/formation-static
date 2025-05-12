@@ -1616,107 +1616,94 @@ def validation_inscription_ajax():
 # Routes adaptées pour document - compatible avec table existante
 # Remplacez les routes existantes dans votre app.py par ces versions
 
+# Version optimisée de la route documents pour Render gratuit
+# Cette version utilise moins de connexions à la base de données
+
 @app.route('/documents')
 @db_operation_with_retry(max_retries=3)
 def documents():
     """
     Affiche tous les documents regroupés par thème.
+    Optimisé pour limiter l'utilisation des connexions à la base de données.
     """
     try:
-        # Pour éviter l'erreur avec file_content qui n'existe peut-être pas encore
-        # Utiliser une requête qui ne sélectionne pas explicitement file_content
-        conn = db.engine.connect()
-        
-        # Requête pour les thèmes avec documents
-        themes_query = """
-        SELECT t.id, t.nom, t.description 
-        FROM theme t
-        WHERE EXISTS (SELECT 1 FROM document d WHERE d.theme_id = t.id)
-        ORDER BY t.nom
-        """
-        themes_result = conn.execute(db.text(themes_query))
-        themes_with_docs_list = []
-        
-        # Pour chaque thème, récupérer ses documents
-        for theme_row in themes_result:
-            theme_id = theme_row[0]
-            theme_obj = {
-                'id': theme_id,
-                'nom': theme_row[1],
-                'description': theme_row[2],
-                'documents': []
-            }
-            
-            # Récupérer les documents du thème
-            docs_query = """
-            SELECT d.id, d.filename, d.original_filename, d.description, 
-                   d.upload_date, d.uploader_id, d.file_type,
-                   u.username
-            FROM document d
-            LEFT JOIN "user" u ON d.uploader_id = u.id
-            WHERE d.theme_id = :theme_id
-            ORDER BY d.original_filename
+        # Utiliser une seule connexion pour toutes les requêtes
+        with db.engine.connect() as conn:
+            # Un seul query pour récupérer TOUTES les données nécessaires
+            query = """
+            WITH theme_docs AS (
+                SELECT 
+                    t.id as theme_id, 
+                    t.nom as theme_nom, 
+                    t.description as theme_description,
+                    d.id as doc_id, 
+                    d.filename as doc_filename, 
+                    d.original_filename as doc_original_filename, 
+                    d.description as doc_description,
+                    d.upload_date as doc_upload_date, 
+                    d.uploader_id as doc_uploader_id,
+                    d.file_type as doc_file_type,
+                    u.username as uploader_username
+                FROM document d
+                LEFT JOIN "user" u ON d.uploader_id = u.id
+                LEFT JOIN theme t ON d.theme_id = t.id
+                ORDER BY t.nom, d.original_filename
+            )
+            SELECT * FROM theme_docs
             """
-            docs_result = conn.execute(db.text(docs_query), {'theme_id': theme_id})
             
-            for doc_row in docs_result:
-                uploader = {'username': doc_row[7]} if doc_row[7] else None
-                doc_obj = {
-                    'id': doc_row[0],
-                    'filename': doc_row[1],
-                    'original_filename': doc_row[2],
-                    'description': doc_row[3],
-                    'upload_date': doc_row[4],
-                    'uploader_id': doc_row[5],
-                    'file_type': doc_row[6],
-                    'uploader': uploader
+            result = conn.execute(db.text(query))
+            
+            # Organiser les données
+            themes_with_docs_dict = {}
+            general_docs_list = []
+            
+            # Traiter les résultats
+            for row in result:
+                doc = {
+                    'id': row.doc_id,
+                    'filename': row.doc_filename,
+                    'original_filename': row.doc_original_filename,
+                    'description': row.doc_description,
+                    'upload_date': row.doc_upload_date,
+                    'uploader_id': row.doc_uploader_id,
+                    'file_type': row.doc_file_type,
+                    'uploader': {'username': row.uploader_username} if row.uploader_username else None
                 }
-                theme_obj['documents'].append(doc_obj)
+                
+                if row.theme_id:
+                    # Document associé à un thème
+                    if row.theme_id not in themes_with_docs_dict:
+                        themes_with_docs_dict[row.theme_id] = {
+                            'id': row.theme_id,
+                            'nom': row.theme_nom,
+                            'description': row.theme_description,
+                            'documents': []
+                        }
+                    themes_with_docs_dict[row.theme_id]['documents'].append(doc)
+                else:
+                    # Document sans thème
+                    general_docs_list.append(doc)
             
-            themes_with_docs_list.append(theme_obj)
+            # Convertir le dictionnaire en liste
+            themes_with_docs_list = list(themes_with_docs_dict.values())
+            
+            # Récupérer les thèmes pour le formulaire d'upload
+            themes_for_upload_form = []
+            if current_user.is_authenticated and current_user.role == 'admin':
+                theme_query = "SELECT id, nom FROM theme ORDER BY nom"
+                theme_result = conn.execute(db.text(theme_query))
+                themes_for_upload_form = [{'id': row.id, 'nom': row.nom} for row in theme_result]
         
-        # Documents sans thème (theme_id IS NULL)
-        general_docs_query = """
-        SELECT d.id, d.filename, d.original_filename, d.description, 
-               d.upload_date, d.uploader_id, d.file_type,
-               u.username
-        FROM document d
-        LEFT JOIN "user" u ON d.uploader_id = u.id
-        WHERE d.theme_id IS NULL
-        ORDER BY d.original_filename
-        """
-        general_docs_result = conn.execute(db.text(general_docs_query))
-        general_docs = []
-        
-        for doc_row in general_docs_result:
-            uploader = {'username': doc_row[7]} if doc_row[7] else None
-            doc_obj = {
-                'id': doc_row[0],
-                'filename': doc_row[1],
-                'original_filename': doc_row[2],
-                'description': doc_row[3],
-                'upload_date': doc_row[4],
-                'uploader_id': doc_row[5],
-                'file_type': doc_row[6],
-                'uploader': uploader
-            }
-            general_docs.append(doc_obj)
-        
-        # Options pour le formulaire d'upload
-        themes_for_upload_form = []
-        if current_user.is_authenticated and current_user.role == 'admin':
-            themes_for_upload_form = get_all_themes()
-
         show_admin_features = current_user.is_authenticated and current_user.role == 'admin'
 
         return render_template('documents.html', 
                                themes_with_docs=themes_with_docs_list,
-                               general_docs_list=general_docs,
+                               general_docs_list=general_docs_list,
                                themes_for_upload=themes_for_upload_form,
                                show_admin_features=show_admin_features,
                                ALLOWED_EXTENSIONS=ALLOWED_EXTENSIONS)
     except Exception as e:
-        db.session.rollback()
         app.logger.error(f"Error loading documents page: {e}", exc_info=True)
         flash("Une erreur est survenue lors du chargement des documents.", "danger")
         return redirect(url_for('dashboard'))
