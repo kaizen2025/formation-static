@@ -1,40 +1,41 @@
+<!-- templates/themes.html -->
 {% extends "layout.html" %}
+
+{% block title %}Gestion des Thèmes - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="mb-0"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h1>
+    <h1 class="h3 mb-0 text-primary"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h1>
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
-    <button class="btn btn-primary" data-portal-target="#addThemeModal">
-        <i class="fas fa-plus me-2"></i>Ajouter un Thème
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addThemeModal"> {# btn-sm #}
+        <i class="fas fa-plus me-1"></i>Ajouter un Thème
     </button>
     {% endif %}
 </div>
 
 <!-- Add Theme Modal -->
 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-<div class="modal fade" id="addThemeModal" tabindex="-1" aria-labelledby="addThemeModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade modal-fix" id="addThemeModal" tabindex="-1" aria-labelledby="addThemeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"> {# modal-dialog-centered #}
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addThemeModalLabel">Ajouter un Nouveau Thème</h5>
-                <button type="button" class="btn-close" data-portal-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header py-2 bg-primary text-white"> {# py-2 #}
+                <h5 class="modal-title fs-6" id="addThemeModalLabel"><i class="fas fa-plus-circle me-2"></i>Ajouter un Thème</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-3"> {# p-3 #}
                 <form action="{{ url_for('add_theme') }}" method="post" class="needs-validation" novalidate>
-                    {{ csrf_token_field() if csrf_token_field else '' }} {# Include CSRF token if your app uses Flask-WTF or similar #}
+                    {{ csrf_token_field() if csrf_token_field else '' }}
                     <div class="mb-3">
-                        <label for="add_nom_theme" class="form-label">Nom du thème*</label>
-                        <input type="text" class="form-control" id="add_nom_theme" name="nom" required>
-                        <div class="invalid-feedback">Le nom du thème est obligatoire.</div>
+                        <label for="add_nom_theme" class="form-label small fw-bold">Nom du thème*</label> {# small fw-bold #}
+                        <input type="text" class="form-control form-control-sm" id="add_nom_theme" name="nom" required> {# form-control-sm #}
+                        <div class="invalid-feedback small">Le nom du thème est obligatoire.</div>
                     </div>
                     <div class="mb-3">
-                        <label for="add_description_theme" class="form-label">Description</label>
-                        <textarea class="form-control" id="add_description_theme" name="description" rows="4" placeholder="Décrivez brièvement le contenu de la formation..."></textarea>
+                        <label for="add_description_theme" class="form-label small fw-bold">Description</label>
+                        <textarea class="form-control form-control-sm" id="add_description_theme" name="description" rows="3" placeholder="Décrivez brièvement..."></textarea> {# rows="3" #}
                     </div>
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-plus-circle me-2"></i>Ajouter le Thème
-                        </button>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-plus-circle me-2"></i>Ajouter</button> {# btn-sm #}
                     </div>
                 </form>
             </div>
@@ -43,126 +44,119 @@
 </div>
 {% endif %}
 
-<div class="row row-cols-1 row-cols-md-2 g-4">
+<div class="row row-cols-1 row-cols-md-2 g-3"> {# g-3 pour moins d'espace #}
     {% if themes_data %}
         {% for theme_item in themes_data %}
         {% set theme = theme_item.obj %}
         <div class="col">
             <div class="card theme-card h-100 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                     <h5 class="mb-0 text-truncate js-theme-cell" title="{{ theme.nom }}">
-                         {{ theme.nom }} {# JS will enhance this with icon and badge styling #}
+                <div class="card-header py-2 d-flex justify-content-between align-items-center"> {# py-2 #}
+                     <h5 class="mb-0 fs-6 text-truncate js-theme-cell" title="{{ theme.nom }}"> {# fs-6 #}
+                         {{ theme.nom }}
                      </h5>
                      {% if current_user.is_authenticated and current_user.role == 'admin' %}
                      <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-light btn-sm" data-portal-target="#editThemeModal{{ theme.id }}" title="Modifier le thème">
+                        <button type="button" class="btn btn-light btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editThemeModal{{ theme.id }}" title="Modifier"> {# py-0 px-1 #}
                             <i class="fas fa-edit"></i>
                         </button>
-                         <button type="button" class="btn btn-light btn-sm btn-delete-theme" data-portal-target="#deleteThemeModal{{ theme.id }}" title="Supprimer le thème" data-theme-id="{{ theme.id }}" data-theme-name="{{ theme.nom }}">
+                         <button type="button" class="btn btn-light btn-sm py-0 px-1 btn-delete-theme" data-bs-toggle="modal" data-bs-target="#deleteThemeModal{{ theme.id }}" title="Supprimer" data-theme-id="{{ theme.id }}" data-theme-name="{{ theme.nom }}">
                              <i class="fas fa-trash"></i>
                          </button>
                      </div>
                      {% endif %}
                 </div>
-                <div class="card-body d-flex flex-column">
-                    <p class="card-text flex-grow-1">{{ theme.description or 'Aucune description fournie.' }}</p>
+                <div class="card-body p-2 d-flex flex-column"> {# p-2 #}
+                    <p class="card-text small flex-grow-1 mb-2">{{ theme.description or 'Aucune description.' }}</p> {# small mb-2 #}
 
-                    <h6 class="mt-3 mb-2 text-muted">Sessions associées :</h6>
-                     <div style="max-height: 150px; overflow-y: auto;">
+                    <h6 class="mt-2 mb-1 text-muted small fw-bold">Sessions :</h6> {# small fw-bold #}
+                     <div style="max-height: 120px; overflow-y: auto;"> {# max-height réduite #}
                         {% set theme_sessions_detailed = theme_item.sessions_detailed %}
                         {% if theme_sessions_detailed %}
                         <ul class="list-group list-group-flush">
                             {% for session_detail in theme_sessions_detailed %}
                             {% set session = session_detail.obj %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
-                                <span class="small" title="{{ session.formatage_date }} {{ session.formatage_horaire }}">
+                            <li class="list-group-item small d-flex justify-content-between align-items-center px-0 py-1 border-0">
+                                <span title="{{ session.formatage_date }} {{ session.formatage_horaire }}">
                                     {{ session.formatage_date }}
                                     <small class="text-secondary">({{ session.formatage_horaire }})</small>
                                 </span>
                                  {% set inscrits_count = session_detail.confirmed_count %}
                                  {% set places_restantes = session_detail.places_restantes %}
-                                 {% if inscrits_count == -1 %}
-                                     <span class="badge bg-danger rounded-pill small">Erreur</span>
-                                 {% else %}
-                                     <span class="badge {% if places_restantes == 0 %}bg-danger{% elif (inscrits_count / (session.max_participants or 1) * 100) >= 75 %}bg-warning text-dark{% else %}bg-success{% endif %} rounded-pill small"
-                                           title="{{ places_restantes }} place(s) restante(s)">
-                                         {{ inscrits_count }} / {{ session.max_participants }}
-                                     </span>
-                                 {% endif %}
+                                 <span class="badge fs-7 {% if places_restantes == 0 %}bg-danger{% elif (inscrits_count / (session.max_participants or 1) * 100) >= 75 %}bg-warning text-dark{% else %}bg-success{% endif %} rounded-pill"
+                                       title="{{ places_restantes }} place(s) restante(s)">
+                                     {{ inscrits_count }}/{{ session.max_participants }}
+                                 </span>
                             </li>
                             {% endfor %}
                         </ul>
                         {% else %}
-                        <p class="text-muted small fst-italic">Aucune session programmée.</p>
+                        <p class="text-muted small fst-italic">Aucune session.</p>
                         {% endif %}
                      </div>
                 </div>
-                 <div class="card-footer bg-light text-center small text-muted">
-                    {{ theme_item.total_sessions }} session(s) programmée(s)
+                 <div class="card-footer bg-light text-center small text-muted py-1"> {# py-1 #}
+                    {{ theme_item.total_sessions }} session(s)
                 </div>
 
-                 <!-- Modal d'édition -->
                  {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                <div class="modal fade" id="editThemeModal{{ theme.id }}" tabindex="-1" aria-labelledby="editThemeModalLabel{{ theme.id }}" aria-hidden="true">
-                    <div class="modal-dialog">
+                <div class="modal fade modal-fix" id="editThemeModal{{ theme.id }}" tabindex="-1" aria-labelledby="editThemeModalLabel{{ theme.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editThemeModalLabel{{ theme.id }}">Modifier - {{ theme.nom }}</h5>
-                                <button type="button" class="btn-close" data-portal-dismiss="modal" aria-label="Close"></button>
+                            <div class="modal-header py-2 bg-secondary text-white">
+                                <h5 class="modal-title fs-6" id="editThemeModalLabel{{ theme.id }}"><i class="fas fa-edit me-2"></i>Modifier: {{ theme.nom }}</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
-                            <div class="modal-body">
+                            <div class="modal-body p-3">
                                 <form action="{{ url_for('update_theme', id=theme.id) }}" method="post" class="needs-validation" novalidate>
                                     {{ csrf_token_field() if csrf_token_field else '' }}
                                     <div class="mb-3">
-                                        <label for="edit_nom{{ theme.id }}" class="form-label">Nom*</label>
-                                        <input type="text" class="form-control" id="edit_nom{{ theme.id }}" name="nom" value="{{ theme.nom }}" required>
-                                        <div class="invalid-feedback">Le nom du thème est obligatoire.</div>
+                                        <label for="edit_nom{{ theme.id }}" class="form-label small fw-bold">Nom*</label>
+                                        <input type="text" class="form-control form-control-sm" id="edit_nom{{ theme.id }}" name="nom" value="{{ theme.nom }}" required>
+                                        <div class="invalid-feedback small">Le nom est obligatoire.</div>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="edit_description{{ theme.id }}" class="form-label">Description</label>
-                                        <textarea class="form-control" id="edit_description{{ theme.id }}" name="description" rows="4">{{ theme.description or '' }}</textarea>
+                                        <label for="edit_description{{ theme.id }}" class="form-label small fw-bold">Description</label>
+                                        <textarea class="form-control form-control-sm" id="edit_description{{ theme.id }}" name="description" rows="3">{{ theme.description or '' }}</textarea>
                                     </div>
                                     <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-2"></i>Enregistrer</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
                     </div>
                 </div>
-                 <!-- Modal de suppression -->
-                 <div class="modal fade" id="deleteThemeModal{{ theme.id }}" tabindex="-1" aria-labelledby="deleteThemeModalLabel{{ theme.id }}" aria-hidden="true">
-                     <div class="modal-dialog">
+                 <div class="modal fade modal-fix" id="deleteThemeModal{{ theme.id }}" tabindex="-1" aria-labelledby="deleteThemeModalLabel{{ theme.id }}" aria-hidden="true">
+                     <div class="modal-dialog modal-dialog-centered">
                          <div class="modal-content">
-                             <div class="modal-header">
-                                 <h5 class="modal-title" id="deleteThemeModalLabel{{ theme.id }}">Confirmer la Suppression</h5>
-                                 <button type="button" class="btn-close" data-portal-dismiss="modal" aria-label="Close"></button>
+                             <div class="modal-header py-2 bg-danger text-white">
+                                 <h5 class="modal-title fs-6" id="deleteThemeModalLabel{{ theme.id }}"><i class="fas fa-exclamation-triangle me-2"></i>Confirmer Suppression</h5>
+                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                              </div>
-                             <div class="modal-body">
-                                 <p>Êtes-vous sûr de vouloir supprimer le thème "<strong>{{ theme.nom }}</strong>" ?</p>
-                                 <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Attention : Toutes les sessions associées à ce thème seront également supprimées. Cette action est irréversible.</p>
+                             <div class="modal-body p-3">
+                                 <p class="small">Supprimer "<strong>{{ theme.nom }}</strong>" ?</p>
+                                 <p class="text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>Sessions associées supprimées. Irréversible.</p>
                              </div>
-                             <div class="modal-footer">
-                                 <button type="button" class="btn btn-secondary" data-portal-dismiss="modal">Annuler</button>
+                             <div class="modal-footer py-2">
+                                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
                                  <form id="deleteThemeForm{{ theme.id }}" action="{{ url_for('delete_theme', id=theme.id) }}" method="post" class="d-inline">
                                      {{ csrf_token_field() if csrf_token_field else '' }}
-                                     <button type="submit" class="btn btn-danger">Supprimer Définitivement</button>
+                                     <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt me-1"></i>Supprimer</button>
                                  </form>
                              </div>
                          </div>
                      </div>
                  </div>
                  {% endif %}
-
             </div>
         </div>
         {% endfor %}
     {% else %}
          <div class="col-12">
             <div class="alert alert-info text-center" role="alert">
-                <i class="fas fa-info-circle me-2"></i> Aucun thème n'a été configuré pour le moment.
+                <i class="fas fa-info-circle me-2"></i> Aucun thème configuré.
                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                   <a href="#" data-portal-target="#addThemeModal">Ajouter un thème</a>.
+                   <a href="#" data-bs-toggle="modal" data-bs-target="#addThemeModal">Ajouter un thème</a>.
                 {% endif %}
             </div>
         </div>
@@ -177,20 +171,8 @@
         if (window.dashboardConfig && window.dashboardConfig.debugMode) {
             console.log('Themes page specific JS loaded');
         }
-
-        // Bootstrap Form Validation
-        const forms = document.querySelectorAll('.needs-validation');
-        Array.from(forms).forEach(form => {
-            form.addEventListener('submit', event => {
-            if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            form.classList.add('was-validated');
-            }, false);
-        });
+        // ModalManager s'occupe de l'initialisation globale des modaux.
+        // Les formulaires Bootstrap 'needs-validation' sont gérés par ModalManager ou un script global.
     });
 </script>
-<!-- Inclure le script de correction spécifique pour cette page -->
-<script src="{{ url_for('static', filename='js/page-specific-modal-fix.js') }}"></script>
 {% endblock %}
