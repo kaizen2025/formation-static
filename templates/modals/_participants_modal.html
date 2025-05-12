@@ -113,68 +113,69 @@
           </div>
           
           <!-- Participants en attente de validation -->
-          <div class="tab-pane fade" id="en-attente-{{ session.id }}" role="tabpanel" aria-labelledby="en-attente-tab-{{ session.id }}">
-            {% set pending_list = session_data.loaded_pending_inscriptions %}
-            {% if pending_list %}
-              <div class="alert alert-warning small mb-3 p-2">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Ces inscriptions sont en attente de validation par un responsable ou un administrateur.
-              </div>
-              <div class="table-responsive">
-                <table class="table table-sm table-hover table-striped">
-                  <thead class="table-light small">
-                    <tr>
-                      <th style="width: 35%">Participant</th>
-                      <th style="width: 25%">Service</th>
-                      <th style="width: 25%">Date Demande</th>
-                      <th style="width: 15%" class="text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for inscription in pending_list %}
-                      <tr>
-                        <td>{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
-                        <td>
-                          <span class="badge" style="background-color: {{ inscription.participant.service.couleur|default('#6c757d') }}; color: white; padding: 0.3em 0.5em;">
-                            {{ inscription.participant.service.nom|escape }}
-                          </span>
-                        </td>
-                        <td><small>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</small></td>
-                        <td class="text-center">
-                          {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
-                            <div class="btn-group btn-group-sm" role="group">
-                              <button type="button" class="btn btn-outline-success validation-ajax" 
-                                      data-inscription-id="{{ inscription.id }}" 
-                                      data-action="valider" 
-                                      title="Valider l'inscription"
-                                      data-bs-toggle="tooltip" data-bs-placement="top"
-                                      {{ 'disabled' if session_data.places_restantes|default(0) <= 0 else '' }}>
-                                <i class="fas fa-check"></i>
-                              </button>
-                              <button type="button" class="btn btn-outline-danger validation-ajax" 
-                                      data-inscription-id="{{ inscription.id }}" 
-                                      data-action="refuser" 
-                                      title="Refuser l'inscription"
-                                      data-bs-toggle="tooltip" data-bs-placement="top">
-                                <i class="fas fa-times"></i>
-                              </button>
-                            </div>
-                          {% else %}
-                            <span class="badge bg-light text-dark border" data-bs-toggle="tooltip" data-bs-placement="top" title="Validation par le responsable du service ou un administrateur.">Validation requise</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            {% else %}
-              <div class="alert alert-light text-center py-4 border">
-                <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
-                <p class="mb-0">Aucune inscription en attente de validation pour cette session.</p>
-              </div>
-            {% endif %}
-          </div>
+          <!-- Extrait amélioré pour la section "En attente" dans _participants_modal.html -->
+<div class="tab-pane fade" id="en-attente-{{ session.id }}" role="tabpanel" aria-labelledby="en-attente-tab-{{ session.id }}">
+  {% set pending_list = session_data.loaded_pending_inscriptions %}
+  {% if pending_list and pending_list|length > 0 %}
+    <div class="alert alert-warning small mb-3 p-2">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      Ces inscriptions sont en attente de validation par un responsable ou un administrateur.
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover table-striped">
+        <thead class="table-light small">
+          <tr>
+            <th style="width: 35%">Participant</th>
+            <th style="width: 25%">Service</th>
+            <th style="width: 25%">Date Demande</th>
+            <th style="width: 15%" class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inscription in pending_list %}
+            <tr>
+              <td>{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
+              <td>
+                <span class="badge" style="background-color: {{ inscription.participant.service.couleur|default('#6c757d') }}; color: white; padding: 0.3em 0.5em;">
+                  {{ inscription.participant.service.nom|escape }}
+                </span>
+              </td>
+              <td><small>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</small></td>
+              <td class="text-center">
+                {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
+                  <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-success validation-ajax" 
+                            data-inscription-id="{{ inscription.id }}" 
+                            data-action="valider" 
+                            title="Valider l'inscription"
+                            data-bs-toggle="tooltip" data-bs-placement="top"
+                            {{ 'disabled' if session_data.places_restantes|default(0) <= 0 else '' }}>
+                      <i class="fas fa-check"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger validation-ajax" 
+                            data-inscription-id="{{ inscription.id }}" 
+                            data-action="refuser" 
+                            title="Refuser l'inscription"
+                            data-bs-toggle="tooltip" data-bs-placement="top">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                {% else %}
+                  <span class="badge bg-light text-dark border" data-bs-toggle="tooltip" data-bs-placement="top" title="Validation par le responsable du service ou un administrateur.">Validation requise</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-light text-center py-4 border">
+      <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
+      <p class="mb-0">Aucune inscription en attente de validation pour cette session.</p>
+    </div>
+  {% endif %}
+</div>
           
           <!-- Liste d'attente -->
           <div class="tab-pane fade" id="liste-attente-{{ session.id }}" role="tabpanel" aria-labelledby="liste-attente-tab-{{ session.id }}">
