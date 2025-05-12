@@ -29,11 +29,6 @@
         background-color: rgba(0, 0, 0, 0.2);
         border-radius: 3px;
     }
-    .badge.theme-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.35em 0.65em;
-    }
     /* Style pour la boîte de dialogue de confirmation */
     #deleteConfirmDialog {
         display: none;
@@ -59,6 +54,31 @@
         box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
         animation: scaleIn 0.3s ease-out;
     }
+    /* Style pour les formulaires en ligne */
+    .inline-form-container {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        animation: fadeIn 0.2s ease-out;
+    }
+    .inline-form {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        width: 500px;
+        max-width: 95%;
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
+        animation: scaleIn 0.3s ease-out;
+    }
     @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -76,7 +96,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-primary"><i class="fas fa-building me-2"></i>Gestion des Salles</h1>
         {% if current_user.role == 'admin' %}
-        <button class="btn btn-primary shadow-sm" onclick="openPopup('{{ url_for('add_salle_page') }}')">
+        <button class="btn btn-primary shadow-sm" onclick="showAddForm()">
             <i class="fas fa-plus me-2"></i>Ajouter une Salle
         </button>
         {% endif %}
@@ -158,7 +178,7 @@
                     {% if current_user.role == 'admin' %}
                     <div class="card-footer bg-light">
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openPopup('{{ url_for('edit_salle_page', id=salle.id) }}')">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="showEditForm({{ salle.id }}, '{{ salle.nom }}', {{ salle.capacite }}, '{{ salle.lieu|default('') }}', '{{ salle.description|default('') }}')">
                                 <i class="fas fa-edit me-1"></i>Modifier
                             </button>
                             <button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmDelete({{ salle.id }}, '{{ salle.nom }}')">
@@ -176,7 +196,7 @@
                     <i class="fas fa-info-circle fa-2x mb-3 d-block text-muted"></i>
                     <p class="mb-2">Aucune salle n'a été configurée.</p>
                     {% if current_user.role == 'admin' %}
-                    <button class="btn btn-sm btn-primary mt-2" onclick="openPopup('{{ url_for('add_salle_page') }}')">
+                    <button class="btn btn-sm btn-primary mt-2" onclick="showAddForm()">
                         <i class="fas fa-plus me-2"></i>Ajouter une salle
                     </button>
                     {% endif %}
@@ -204,6 +224,78 @@
         </div>
     </div>
 </div>
+
+<!-- Formulaire d'ajout de salle inline -->
+<div id="addFormContainer" class="inline-form-container">
+    <div class="inline-form">
+        <h4 class="mb-3 d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-plus-circle me-2"></i>Ajouter une nouvelle salle</span>
+            <button type="button" class="btn-close" onclick="hideAddForm()"></button>
+        </h4>
+        <form id="addSalleForm" action="{{ url_for('add_salle') }}" method="post">
+            <div class="mb-3">
+                <label for="add_nom" class="form-label">Nom*</label>
+                <input type="text" class="form-control" id="add_nom" name="nom" required>
+            </div>
+            <div class="mb-3">
+                <label for="add_capacite" class="form-label">Capacité*</label>
+                <input type="number" class="form-control" id="add_capacite" name="capacite" value="15" min="1" required>
+            </div>
+            <div class="mb-3">
+                <label for="add_lieu" class="form-label">Emplacement</label>
+                <input type="text" class="form-control" id="add_lieu" name="lieu">
+            </div>
+            <div class="mb-3">
+                <label for="add_description" class="form-label">Description</label>
+                <textarea class="form-control" id="add_description" name="description" rows="3"></textarea>
+            </div>
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-outline-secondary" onclick="hideAddForm()">
+                    <i class="fas fa-times me-1"></i>Annuler
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus-circle me-1"></i>Ajouter la salle
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Formulaire de modification de salle inline -->
+<div id="editFormContainer" class="inline-form-container">
+    <div class="inline-form">
+        <h4 class="mb-3 d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-edit me-2"></i>Modifier <span id="editRoomTitle"></span></span>
+            <button type="button" class="btn-close" onclick="hideEditForm()"></button>
+        </h4>
+        <form id="editSalleForm" action="{{ url_for('update_salle', id=0) }}" method="post">
+            <div class="mb-3">
+                <label for="edit_nom" class="form-label">Nom*</label>
+                <input type="text" class="form-control" id="edit_nom" name="nom" required>
+            </div>
+            <div class="mb-3">
+                <label for="edit_capacite" class="form-label">Capacité*</label>
+                <input type="number" class="form-control" id="edit_capacite" name="capacite" min="1" required>
+            </div>
+            <div class="mb-3">
+                <label for="edit_lieu" class="form-label">Emplacement</label>
+                <input type="text" class="form-control" id="edit_lieu" name="lieu">
+            </div>
+            <div class="mb-3">
+                <label for="edit_description" class="form-label">Description</label>
+                <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
+            </div>
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-outline-secondary" onclick="hideEditForm()">
+                    <i class="fas fa-times me-1"></i>Annuler
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Enregistrer les modifications
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts_extra %}
@@ -211,7 +303,6 @@
 <script>
     // Variables globales
     let deleteRoomId = null;
-    const popupWindows = {};
     
     // Initialisation
     document.addEventListener('DOMContentLoaded', function() {
@@ -231,79 +322,80 @@
             }
         });
         
-        // Vérifier s'il y a eu une opération réussie récemment
-        checkAndHandleSuccessfulOperation();
-        
-        // Configurer une vérification périodique pour les changements
-        setInterval(checkAndHandleSuccessfulOperation, 1000);
-        
         // Améliorer les badges de thème si la fonction existe
         if (typeof window.enhanceThemeBadgesGlobally === 'function') {
             window.enhanceThemeBadgesGlobally(document.getElementById('salles-container'));
         }
+        
+        // Ajouter des fermetures en dehors des formulaires
+        setupOutsideClickListeners();
+        
+        // Ajouter des gestionnaires pour la touche Echap
+        setupEscKeyListeners();
     });
     
-    // Vérifier et gérer les opérations réussies
-    function checkAndHandleSuccessfulOperation() {
-        const formSuccess = localStorage.getItem('formSubmitSuccess');
-        const lastUpdate = localStorage.getItem('lastUpdate');
+    // Configurer les écouteurs pour fermer les formulaires en cliquant à l'extérieur
+    function setupOutsideClickListeners() {
+        document.getElementById('deleteConfirmDialog').addEventListener('click', function(e) {
+            if (e.target === this) closeDeleteDialog();
+        });
         
-        if (formSuccess === 'true' || (lastUpdate && (Date.now() - parseInt(lastUpdate) < 2000))) {
-            // Nettoyer les indicateurs de succès
-            localStorage.removeItem('formSubmitSuccess');
-            localStorage.removeItem('lastUpdate');
-            
-            // Rafraîchir la page pour voir les changements
-            location.reload();
-            return true;
-        }
-        return false;
+        document.getElementById('addFormContainer').addEventListener('click', function(e) {
+            if (e.target === this) hideAddForm();
+        });
+        
+        document.getElementById('editFormContainer').addEventListener('click', function(e) {
+            if (e.target === this) hideEditForm();
+        });
     }
     
-    // Ouvrir une popup pour l'édition ou l'ajout
-    function openPopup(url) {
-        // Dimensions et position de la popup
-        const width = Math.min(600, window.innerWidth * 0.9);
-        const height = Math.min(650, window.innerHeight * 0.9);
-        const left = (screen.width - width) / 2;
-        const top = (screen.height - height) / 2;
-        
-        // Fermer toute popup existante
-        for (const [key, popup] of Object.entries(popupWindows)) {
-            if (!popup.closed) {
-                popup.close();
+    // Configurer les écouteurs pour la touche Echap
+    function setupEscKeyListeners() {
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (document.getElementById('deleteConfirmDialog').style.display === 'block') {
+                    closeDeleteDialog();
+                }
+                if (document.getElementById('addFormContainer').style.display === 'block') {
+                    hideAddForm();
+                }
+                if (document.getElementById('editFormContainer').style.display === 'block') {
+                    hideEditForm();
+                }
             }
-            delete popupWindows[key];
-        }
+        });
+    }
+    
+    // Fonctions pour le formulaire d'ajout
+    function showAddForm() {
+        document.getElementById('addFormContainer').style.display = 'block';
+        document.getElementById('add_nom').focus();
+    }
+    
+    function hideAddForm() {
+        document.getElementById('addFormContainer').style.display = 'none';
+    }
+    
+    // Fonctions pour le formulaire de modification
+    function showEditForm(id, nom, capacite, lieu, description) {
+        // Mettre à jour l'action du formulaire avec l'ID correct
+        const form = document.getElementById('editSalleForm');
+        form.action = '{{ url_for("update_salle", id=0) }}'.replace('0', id);
         
-        // Ouvrir la nouvelle popup
-        const popupWindow = window.open(url, 'FormPopup', 
-            `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no,location=no,menubar=no`);
+        // Remplir les champs
+        document.getElementById('editRoomTitle').textContent = nom;
+        document.getElementById('edit_nom').value = nom;
+        document.getElementById('edit_capacite').value = capacite;
+        document.getElementById('edit_lieu').value = lieu;
+        document.getElementById('edit_description').value = description;
         
-        // Stocker la référence
-        const popupId = 'popup_' + Date.now();
-        popupWindows[popupId] = popupWindow;
-        
-        // Vérifier périodiquement si la popup a été fermée
-        const checkPopupClosed = setInterval(function() {
-            if (popupWindow.closed) {
-                clearInterval(checkPopupClosed);
-                delete popupWindows[popupId];
-                
-                // Vérifier s'il y a eu succès
-                checkAndHandleSuccessfulOperation();
-            }
-        }, 500);
-        
-        // Focus sur la popup
-        if (popupWindow) {
-            popupWindow.focus();
-        } else {
-            // Si le navigateur a bloqué la popup
-            alert("Le navigateur a bloqué l'ouverture de la fenêtre. Veuillez autoriser les popups pour ce site.");
-        }
-        
-        return false;
+        // Afficher le formulaire
+        document.getElementById('editFormContainer').style.display = 'block';
+        document.getElementById('edit_nom').focus();
+    }
+    
+    function hideEditForm() {
+        document.getElementById('editFormContainer').style.display = 'none';
     }
     
     // Gérer la confirmation de suppression
@@ -311,36 +403,10 @@
         deleteRoomId = id;
         document.getElementById('deleteRoomName').textContent = name;
         document.getElementById('deleteConfirmDialog').style.display = 'block';
-        
-        // Ajouter un gestionnaire pour fermer la boîte de dialogue en cliquant à l'extérieur
-        setTimeout(function() {
-            document.getElementById('deleteConfirmDialog').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    closeDeleteDialog();
-                }
-            }, { once: true });
-        }, 100);
     }
     
-    // Fermer la boîte de dialogue de confirmation
     function closeDeleteDialog() {
-        const dialog = document.getElementById('deleteConfirmDialog');
-        dialog.style.animation = 'fadeIn 0.2s ease-out reverse';
-        document.getElementById('deleteConfirmContent').style.animation = 'scaleIn 0.2s ease-out reverse';
-        
-        setTimeout(function() {
-            dialog.style.display = 'none';
-            // Réinitialiser les animations pour la prochaine ouverture
-            dialog.style.animation = '';
-            document.getElementById('deleteConfirmContent').style.animation = '';
-        }, 200);
+        document.getElementById('deleteConfirmDialog').style.display = 'none';
     }
-    
-    // Gestionnaire pour la touche Echap qui ferme la boîte de dialogue
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && document.getElementById('deleteConfirmDialog').style.display === 'block') {
-            closeDeleteDialog();
-        }
-    });
 </script>
 {% endblock %}
