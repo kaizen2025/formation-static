@@ -465,23 +465,34 @@
 {% endblock %}
 
 {% block modals %}
-    {% for session_item_modal_data in sessions_data %}
-        {% set session_obj_for_modal = session_item_modal_data.obj %}
-        {% set session_data_for_modal = session_item_modal_data %}
-        {% with session=session_obj_for_modal, session_data=session_data_for_modal, participants=participants, services=services %}
-            {% include 'modals/_inscription_modal_simple.html' %}
-        {% endwith %}
-        {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
-            {% include 'modals/_participants_modal_simple.html' %}
-        {% endwith %}
-        {% if current_user.is_authenticated and current_user.role == 'admin' %}
-             {% with session=session_obj_for_modal, salles_all=salles %}
-                 {% include 'modals/_attribuer_salle_modal.html' %}
-             {% endwith %}
-        {% endif %}
-    {% endfor %}
+    {# S'assurer que sessions_data est la bonne variable ici, ou celle qui contient les objets Session #}
+    {% if sessions_data %} {# Ou la variable appropriée qui contient la liste des sessions #}
+        {% for session_item_modal_data in sessions_data %} {# Ajuster si la structure de sessions_data est différente #}
+            {% set session_obj_for_modal = session_item_modal_data.obj %}
+            {% set session_data_for_modal_dict = session_item_modal_data %} {# Renommer pour éviter confusion avec la variable de boucle #}
+            
+            {# Modal Inscription #}
+            {% with session=session_obj_for_modal, session_data=session_data_for_modal_dict, participants=participants, services=services %}
+                {% include 'modals/_inscription_modal_simple.html' %}
+            {% endwith %}
+
+            {# Modal Participants #}
+            {% with session=session_obj_for_modal, session_data=session_data_for_modal_dict, services_config=services_config %} {# Passer services_config #}
+                {% include 'modals/_participants_modal_simple.html' %}
+            {% endwith %}
+
+            {# Modal Attribuer Salle (Admin) #}
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                 {% with session=session_obj_for_modal, salles_all=salles %} {# 'salles' doit être la liste de toutes les salles #}
+                     {% include 'modals/_attribuer_salle_modal.html' %}
+                 {% endwith %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    
+    {# Modal global pour ajouter un participant (si utilisé depuis le dashboard) #}
     {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-        {% with services_list=services %}
+        {% with services_list=services %} {# 'services' doit être la liste de tous les services #}
             {% include 'modals/_add_participant_modal.html' %}
         {% endwith %}
     {% endif %}
