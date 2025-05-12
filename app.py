@@ -1,4 +1,4 @@
-# ==============================================================================
+def down# ==============================================================================
 # app.py - Application Flask pour la Gestion des Formations Microsoft 365
 # Version: 1.1.8 - Corrections erreurs de démarrage et ajout route activites_journal
 # ==============================================================================
@@ -283,45 +283,55 @@ def limit_connections_if_needed():
     except Exception as e: app.logger.error(f"Error in limiting connections: {e}")
     return None # Autoriser la requête par défaut
 
-# --- DB Retry Decorator ---
-def db_operation_with_retry(max_retries=3, retry_delay=0.5,
-                            retry_on_exceptions=(OperationalError, TimeoutError),
-                            fail_on_exceptions=(IntegrityError, SQLAlchemyError)): # SQLAlchemyError est générique, attention
+# Optimisation du décorateur db_operation_with_retry
+def db_operation_with_retry(max_retries=3, retry_delay=0.5):
+    """
+    Décorateur amélioré qui réessaie les opérations de base de données en cas d'erreur,
+    avec une meilleure gestion des connexions.
+    """
     def decorator(func):
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(*args, **kwargs):
             retries = 0
-            last_exception = None
-            while retries < max_retries:
+            while retries <= max_retries:
                 try:
-                    return func(*args, **kwargs)
-                except retry_on_exceptions as e:
+                    result = func(*args, **kwargs)
+                    # Assurer que la session est bien fermée après chaque opération réussie
+                    db.session.close()
+                    return result
+                except SQLAlchemyError as e:
+                    # En cas d'erreur de connexion, annuler la transaction et libérer la connexion
+                    db.session.rollback()
                     retries += 1
-                    last_exception = e
-                    app.logger.warning(f"DB op '{func.__name__}' failed (attempt {retries}/{max_retries}): {type(e).__name__} - {e}")
-                    try: db.session.rollback()
-                    except Exception as rb_ex: app.logger.error(f"Rollback error in retry decorator for '{func.__name__}': {rb_ex}")
-                    if retries >= max_retries:
-                        app.logger.error(f"Max retries ({max_retries}) reached for DB op '{func.__name__}'. Last error: {e}")
-                        raise ServiceUnavailable(f"DB service for '{func.__name__}' unavailable after retries.")
-                    # Exponential backoff with jitter
-                    wait_time = (retry_delay * (2 ** (retries -1))) + random.uniform(0, retry_delay * 0.25)
-                    app.logger.info(f"Retrying DB op '{func.__name__}' in {wait_time:.2f}s...")
-                    time.sleep(wait_time)
-                except fail_on_exceptions as e: # Erreurs non récupérables par retry
+                    
+                    # Tenter de fermer explicitement la session pour libérer les connexions
+                    try:
+                        db.session.close()
+                    except:
+                        pass  # Ignorer les erreurs lors de la fermeture
+                    
+                    if retries <= max_retries:
+                        # Journaliser l'erreur et attendre avant de réessayer
+                        app.logger.warning(f"SQLAlchemyError (retry {retries}/{max_retries}) in DB op '{func.__name__}': {e}")
+                        time.sleep(retry_delay * (2 ** (retries - 1)))  # Backoff exponentiel
+                    else:
+                        # Si tous les essais ont échoué, journaliser et propager l'erreur
+                        app.logger.error(f"SQLAlchemyError (not retried) in DB op '{func.__name__}': {e}")
+                        raise
+                except Exception as e:
+                    # Pour les autres erreurs, annuler et propager
                     db.session.rollback()
-                    app.logger.error(f"SQLAlchemyError (not retried) in DB op '{func.__name__}': {e}", exc_info=True)
-                    raise # Renvoyer l'exception originale
-                except Exception as e: # Autres erreurs Python inattendues
-                    db.session.rollback()
-                    app.logger.error(f"Unexpected Python error in DB op '{func.__name__}': {e}", exc_info=True)
+                    
+                    # Tenter de fermer explicitement la session
+                    try:
+                        db.session.close()
+                    except:
+                        pass
+                    
+                    app.logger.error(f"Unexpected error in DB op '{func.__name__}': {e}")
                     raise
-            # Si la boucle se termine sans return (ne devrait pas arriver si max_retries > 0)
-            if last_exception: raise ServiceUnavailable(f"DB service for '{func.__name__}' unavailable after {max_retries} retries. Last error: {last_exception}")
-            raise ServiceUnavailable(f"DB service for '{func.__name__}' unavailable after {max_retries} retries (unknown reason).") # Fallback
         return wrapper
     return decorator
-
 # ==============================================================================
 # === Database Models ===
 # ==============================================================================
@@ -1708,50 +1718,55 @@ def documents():
         flash("Une erreur est survenue lors du chargement des documents.", "danger")
         return redirect(url_for('dashboard'))
 
+# Route téléchargement optimisée
 @app.route('/download_document/<int:doc_id>')
 @db_operation_with_retry(max_retries=2)
 def download_document(doc_id):
     """
-    Télécharger un document - compatible avec docs existants et nouveaux.
+    Télécharger un document - optimisé pour Render gratuit.
     """
     try:
-        # Récupérer les informations sur le document
-        conn = db.engine.connect()
-        doc_query = """
-        SELECT id, filename, original_filename, file_type 
-        FROM document 
-        WHERE id = :doc_id
-        """
-        doc_result = conn.execute(db.text(doc_query), {'doc_id': doc_id}).fetchone()
-        
-        if not doc_result:
-            flash("Document non trouvé.", "danger")
-            return redirect(url_for('documents'))
-        
-        doc_id, filename, original_filename, file_type = doc_result
-        
-        # Vérifier si file_content existe dans la table
-        has_file_content = False
-        try:
-            # Vérifier si la colonne existe
-            check_query = """
-            SELECT column_name FROM information_schema.columns 
-            WHERE table_name = 'document' AND column_name = 'file_content'
+        # Utiliser une seule connexion pour toutes les opérations
+        with db.engine.connect() as conn:
+            # Récupérer les informations sur le document
+            doc_query = """
+            SELECT id, filename, original_filename, file_type 
+            FROM document 
+            WHERE id = :doc_id
             """
-            check_result = conn.execute(db.text(check_query)).fetchone()
+            doc_result = conn.execute(db.text(doc_query), {'doc_id': doc_id}).fetchone()
             
-            if check_result:
-                # Vérifier si ce document a un contenu
-                content_query = "SELECT file_content FROM document WHERE id = :doc_id"
-                content_result = conn.execute(db.text(content_query), {'doc_id': doc_id}).fetchone()
+            if not doc_result:
+                flash("Document non trouvé.", "danger")
+                return redirect(url_for('documents'))
+            
+            doc_id, filename, original_filename, file_type = doc_result
+            
+            # Vérifier si file_content existe et contient des données
+            has_file_content = False
+            file_content = None
+            
+            try:
+                # Vérifier si la colonne existe
+                check_query = """
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'document' AND column_name = 'file_content'
+                """
+                check_result = conn.execute(db.text(check_query)).fetchone()
                 
-                if content_result and content_result[0]:
-                    has_file_content = True
-                    file_content = content_result[0]
-        except Exception as e:
-            app.logger.warning(f"Erreur lors de la vérification de file_content: {e}")
+                if check_result:
+                    # Vérifier si ce document a un contenu
+                    content_query = "SELECT file_content FROM document WHERE id = :doc_id"
+                    content_result = conn.execute(db.text(content_query), {'doc_id': doc_id}).fetchone()
+                    
+                    if content_result and content_result[0]:
+                        has_file_content = True
+                        file_content = content_result[0]
+            except Exception as e:
+                app.logger.warning(f"Erreur lors de la vérification de file_content: {e}")
         
-        if has_file_content:
+        # Après avoir fermé la connexion, traiter le fichier
+        if has_file_content and file_content:
             # Servir le contenu depuis la base de données
             file_data = BytesIO(file_content)
             file_data.seek(0)
