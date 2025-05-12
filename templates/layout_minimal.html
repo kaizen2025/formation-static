@@ -3,43 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ app_name }} - Édition</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     
-    <!-- Bootstrap CSS uniquement -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>{% block title %}{{ app_name | default('Gestion Formation') }}{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
     <style>
         /* Styles minimalistes pour éviter les conflits */
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f4; }
-        .form-control, .btn { z-index: auto !important; position: static !important; }
-        select { display: block !important; width: 100% !important; appearance: menulist !important; }
+        body { 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f4f7fc;
+            color: #212529;
+            line-height: 1.6;
+        }
+        
+        /* Styles pour éviter les problèmes de z-index et position */
+        .form-control, .form-select, .btn {
+            z-index: auto !important;
+            position: static !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: block !important;
+        }
+        
+        /* Styles pour les selects */
+        select, .form-select {
+            display: block !important;
+            width: 100% !important;
+            appearance: menulist !important;
+            -webkit-appearance: menulist !important;
+            -moz-appearance: menulist !important;
+        }
+        
+        /* Boutons et badges */
+        .btn {
+            display: inline-block !important;
+        }
+        
+        /* En-tête de page simple */
+        .header-minimal {
+            padding: 10px 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        /* Cartes et ombres */
+        .card {
+            border: none;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
     </style>
 </head>
 <body>
-    <div class="container-fluid py-2">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0 text-primary">{{ app_name }}</h4>
+    <header class="header-minimal">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0 text-primary">
+                        <i class="fas fa-users-cog me-2"></i>{{ app_name | default('Gestion Formation') }}
+                    </h5>
+                </div>
+                <div>
+                    <span class="badge bg-secondary">{{ current_user.role if current_user.is_authenticated else 'Non connecté' }}</span>
+                </div>
+            </div>
         </div>
+    </header>
+
+    <div class="container">
         {% block content %}{% endblock %}
     </div>
-    
-    <!-- Bootstrap JS minimal -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Bootstrap JS Bundle (inclut Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
     
     <script>
-        // Script pour rediriger après succès si en mode popup
+        // Notifier le parent du succès après soumission du formulaire
         document.addEventListener('DOMContentLoaded', function() {
-            const forms = document.querySelectorAll('form');
-            forms.forEach(form => {
+            document.querySelectorAll('form').forEach(form => {
                 form.addEventListener('submit', function() {
-                    // Stocker un indicateur de succès
-                    localStorage.setItem('formSubmitSuccess', 'true');
+                    // Indiquer au parent que le formulaire a été soumis avec succès
+                    try {
+                        localStorage.setItem('formSubmitSuccess', 'true');
+                        localStorage.setItem('lastUpdate', Date.now());
+                    } catch (e) {
+                        console.warn("Impossible de stocker l'état dans localStorage:", e);
+                    }
                 });
             });
         });
     </script>
+    
+    {% block scripts_extra %}{% endblock %}
 </body>
 </html>
