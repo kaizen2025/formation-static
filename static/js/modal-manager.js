@@ -1,200 +1,285 @@
 /**
- * modal-fixes.css - Correctifs CSS consolidés pour les modaux de l'application
- * v2.0.0 - Styles robustes pour visibilité, z-index, et interaction.
+ * modal-manager.js - Gestionnaire unifié des modaux pour l'application
+ * v1.1.0 - Amélioration de la robustesse, gestion des contenus dynamiques, focus.
  */
 
-/* Styles fondamentaux pour les modaux (classe .modal-fix à ajouter aux modaux) */
-.modal-fix {
-    z-index: 1055 !important; /* Au-dessus du backdrop par défaut (1050) */
-}
+const ModalManager = {
+    config: {
+        debugMode: false,
+        autoInitialize: true,
+        fixZIndex: true,
+        forceVisibility: true,
+        enhanceSelects: true,
+        fixBootstrapIssues: true,
+        fixScintillation: true
+    },
+    state: {
+        initialized: false,
+        activeModals: [],
+        modalOpenCount: 0,
+        lastOpenedModal: null
+    },
 
-.modal-fix .modal-dialog {
-    z-index: 1056 !important; /* Au-dessus du modal lui-même */
-    margin: 1.75rem auto !important; /* Standard Bootstrap */
-}
+    init: function(options = {}) {
+        this.config = { ...this.config, ...options };
+        if (this.state.initialized && !options.forceReinit) {
+            this.debug('ModalManager already initialized');
+            return;
+        }
+        this.debug('Initializing ModalManager (v1.1.0)');
+        this.createGlobalStyles();
+        if (this.config.autoInitialize) {
+            this.initializeAllModals();
+        }
+        this.setupGlobalEventListeners();
+        this.state.initialized = true;
+        this.debug('ModalManager initialized successfully');
+    },
 
-.modal-fix .modal-content {
-    z-index: 1057 !important; /* Au-dessus du dialog */
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-    border: none !important; /* Supprimer les bordures par défaut si elles causent des problèmes */
-}
+    initializeAllModals: function() {
+        const bootstrapModals = document.querySelectorAll('.modal');
+        bootstrapModals.forEach(modal => this.enhanceModal(modal));
+        this.debug(`Enhanced ${bootstrapModals.length} modals`);
 
-/* Assurer la visibilité et l'interaction des éléments de formulaire et autres */
-.modal-fix input:not([type="hidden"]),
-.modal-fix textarea,
-.modal-fix button:not([type="hidden"]), /* Exclure les boutons cachés */
-.modal-fix label,
-.modal-fix .form-label,
-.modal-fix .form-control, /* Classe générique pour inputs/textareas */
-.modal-fix .invalid-feedback,
-.modal-fix .form-text,
-.modal-fix small, 
-.modal-fix p, 
-.modal-fix h1, .modal-fix h2, .modal-fix h3, .modal-fix h4, .modal-fix h5, .modal-fix h6,
-.modal-fix .badge,
-.modal-fix .alert,
-.modal-fix .btn-group,
-.modal-fix i.fas, .modal-fix i.far, .modal-fix i.fa, .modal-fix i.fab /* Icônes FontAwesome */
- {
-    display: block !important; /* Par défaut, la plupart des éléments de formulaire sont block */
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: relative !important; /* Important pour le contexte de stacking et éviter les problèmes de positionnement absolu */
-    z-index: auto !important; /* Laisser le navigateur gérer dans le contexte du modal-content, sauf si spécifiquement requis */
-    pointer-events: auto !important; /* Assurer qu'ils sont cliquables/interactifs */
-}
+        const modalTriggers = document.querySelectorAll('[data-bs-toggle="modal"]');
+        modalTriggers.forEach(trigger => this.enhanceModalTrigger(trigger));
+        this.debug(`Enhanced ${modalTriggers.length} modal triggers`);
+    },
 
-/* Ajustements spécifiques pour certains éléments inline-block */
-.modal-fix button:not([type="hidden"]):not(.btn-close),
-.modal-fix .btn:not(.btn-close), /* Exclure le bouton de fermeture Bootstrap */
-.modal-fix .badge,
-.modal-fix i.fas, .modal-fix i.far, .modal-fix i.fa, .modal-fix i.fab {
-    display: inline-block !important; /* Les boutons et badges sont souvent inline */
-}
+    enhanceModal: function(modal) {
+        if (!modal || modal.dataset.modalManagerEnhanced === 'true') return;
+        const modalId = modal.id || `modal-${Math.random().toString(36).substr(2, 9)}`;
+        if (!modal.id) modal.id = modalId;
 
-/* Amélioration des sélecteurs (très important) */
-.modal-fix select,
-.modal-fix .form-select {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: relative !important;
-    z-index: 1060 !important; /* Doit être au-dessus du contenu du modal pour être cliquable */
-    pointer-events: auto !important;
-    -webkit-appearance: menulist !important; /* Forcer l'apparence native pour éviter les problèmes de rendu */
-    -moz-appearance: menulist !important;
-    appearance: menulist !important;
-    background-image: none !important; /* Supprimer les flèches custom de Bootstrap si elles posent problème */
-    padding-right: 0.75rem !important; /* Standard Bootstrap */
-    width: 100% !important;
-    color: #212529 !important; /* Assurer la lisibilité du texte */
-    background-color: #ffffff !important; /* Fond blanc standard */
-    cursor: pointer !important;
-    border: 1px solid #ced4da !important; /* Bordure standard Bootstrap */
-    border-radius: 0.375rem !important; /* Rayon standard Bootstrap */
-}
-.modal-fix select option,
-.modal-fix .form-select option {
-    color: #212529 !important;
-    background-color: #ffffff !important;
-}
+        if (this.config.fixBootstrapIssues && !modal.classList.contains('modal-fix')) {
+            modal.classList.add('modal-fix');
+        }
+        this.applyFixesToModalContent(modal);
+        this.attachModalEventListeners(modal);
+        
+        let instance = bootstrap.Modal.getInstance(modal);
+        if (!instance) {
+            try {
+                instance = new bootstrap.Modal(modal);
+            } catch (e) {
+                this.debug(`Error creating Bootstrap modal instance for ${modalId}:`, e);
+                return; // Ne pas ajouter si l'instance ne peut être créée
+            }
+        }
 
+        if (!this.state.activeModals.find(m => m.id === modalId)) {
+            this.state.activeModals.push({ id: modalId, element: modal, isOpen: false, instance: instance });
+        }
+        modal.dataset.modalManagerEnhanced = 'true';
+    },
+    
+    applyFixesToModalContent: function(modalOrContainer) {
+        if (!modalOrContainer) return;
+        if (this.config.enhanceSelects) this.fixSelectElements(modalOrContainer);
+        if (this.config.forceVisibility) this.fixElementsVisibility(modalOrContainer);
+        if (this.config.fixZIndex && modalOrContainer.classList.contains('modal')) this.fixZIndexIssues(modalOrContainer);
+        
+        // Améliorer les badges de thème
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') {
+            window.enhanceThemeBadgesGlobally(modalOrContainer);
+        }
+        // Initialiser les tooltips
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+            const tooltipTriggerList = Array.from(modalOrContainer.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(tooltipTriggerEl => {
+                let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (tooltipInstance) tooltipInstance.dispose();
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+    },
 
-/* Boutons dans le footer ou body */
-.modal-fix .modal-footer .btn,
-.modal-fix .modal-body .btn {
-    position: relative !important; /* Nécessaire pour que z-index s'applique correctement */
-    z-index: 1070 !important; /* Au-dessus des autres éléments du corps/footer */
-    display: inline-block !important;
-    cursor: pointer !important;
-}
+    enhanceModalTrigger: function(trigger) { /* Pas de changement majeur ici, Bootstrap gère bien */ },
 
-/* Correction pour le bouton de fermeture Bootstrap (croix) */
-.modal-fix .btn-close {
-    z-index: 1080 !important; /* Au-dessus de tout dans le modal-header */
-    position: relative !important; /* Pour que z-index s'applique */
-    opacity: 1 !important; /* Assurer la visibilité */
-    pointer-events: auto !important;
-    /* Bootstrap s'occupe du reste du style pour btn-close */
-}
+    attachModalEventListeners: function(modal) {
+        modal.addEventListener('shown.bs.modal', (e) => {
+            const modalId = modal.id;
+            this.debug(`Modal ${modalId} shown`);
+            const modalState = this.state.activeModals.find(m => m.id === modalId);
+            if (modalState) modalState.isOpen = true;
+            this.state.modalOpenCount++;
+            this.state.lastOpenedModal = modal;
+            this.applyPostShowFixes(modal);
+            this.triggerEvent('modalManager.shown', { modalId });
+        });
+        modal.addEventListener('hidden.bs.modal', (e) => {
+            const modalId = modal.id;
+            this.debug(`Modal ${modalId} hidden`);
+            const modalState = this.state.activeModals.find(m => m.id === modalId);
+            if (modalState) modalState.isOpen = false;
+            this.state.modalOpenCount--;
+            if (this.state.lastOpenedModal === modal) this.state.lastOpenedModal = null;
+            this.triggerEvent('modalManager.hidden', { modalId });
+            // Ensure body scroll is restored if no modals are open
+            if (this.state.modalOpenCount === 0 && document.body.classList.contains('modal-open')) {
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                document.querySelectorAll('.modal-backdrop').forEach(b => b.remove()); // Clean up any stray backdrops
+            }
+        });
+        
+        const forms = modal.querySelectorAll('form.needs-validation');
+        forms.forEach(form => {
+            form.addEventListener('submit', (event) => {
+                if (!form.checkValidity()) {
+                    event.preventDefault(); event.stopPropagation();
+                    const firstInvalid = form.querySelector(':invalid');
+                    if (firstInvalid) try { firstInvalid.focus(); } catch (e) { this.debug('Error focusing invalid element', e); }
+                }
+                form.classList.add('was-validated');
+            });
+        });
+        
+        const tabLinks = modal.querySelectorAll('[data-bs-toggle="tab"]');
+        tabLinks.forEach(link => {
+            link.addEventListener('shown.bs.tab', (e) => {
+                const targetSelector = e.target.getAttribute('data-bs-target');
+                if (!targetSelector) return;
+                const targetPane = modal.querySelector(targetSelector);
+                if (targetPane) {
+                    this.applyFixesToModalContent(targetPane); // Appliquer les correctifs au contenu de l'onglet
+                    setTimeout(() => { // Focus après que l'onglet soit pleinement visible
+                        const firstField = targetPane.querySelector('select, input:not([type="hidden"]), textarea, button:not([type="hidden"]):not(.btn-close)');
+                        if (firstField) try { firstField.focus(); } catch (err) { this.debug('Error focusing field in tab', err); }
+                    }, 100);
+                }
+            });
+        });
+    },
 
-/* Gestion des onglets (Tabs) */
-.modal-fix .nav-tabs,
-.modal-fix .nav-pills {
-    display: flex !important; /* Assurer l'affichage correct des onglets */
-    visibility: visible !important;
-    opacity: 1 !important;
-    z-index: 1060 !important; /* Au-dessus du contenu de base du modal */
-}
-.modal-fix .nav-link {
-    pointer-events: auto !important;
-    cursor: pointer !important;
-    position: relative !important; /* Pour z-index et stacking */
-    z-index: 1061 !important; /* Au-dessus du conteneur d'onglets */
-    display: block !important; /* Assurer l'affichage */
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-.modal-fix .tab-content {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-.modal-fix .tab-pane {
-    display: none !important; /* Caché par défaut */
-    visibility: hidden !important; /* Complément à display:none */
-    opacity: 0 !important; /* Transition douce si activée */
-    width: 100% !important; /* S'assurer qu'il prend toute la largeur */
-}
-.modal-fix .tab-pane.active,
-.modal-fix .tab-pane.show { /* Bootstrap 5 utilise .show.active */
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
+    applyPostShowFixes: function(modal) {
+        if (!modal) return;
+        this.applyFixesToModalContent(modal); // Appliquer à tout le modal
+        
+        setTimeout(() => {
+            const activeTab = modal.querySelector('.tab-pane.active');
+            const containerToFocus = activeTab || modal;
+            const firstField = containerToFocus.querySelector('select, input:not([type="hidden"]), textarea, button:not([type="hidden"]):not(.btn-close)');
+            if (firstField) try { firstField.focus(); } catch (e) { this.debug('Error focusing first field', e); }
+        }, 100);
 
-/* Tableaux dans les modaux */
-.modal-fix table,
-.modal-fix .table,
-.modal-fix .table-responsive { /* table-responsive est souvent un div wrapper */
-    display: block !important; /* Pour .table-responsive, sinon 'table' pour <table> */
-    visibility: visible !important;
-    opacity: 1 !important;
-    width: 100% !important;
-}
-.modal-fix table { display: table !important; } /* Spécifique pour l'élément table */
+        if (this.config.fixScintillation) {
+            modal.style.transition = 'none'; modal.style.transform = 'translateZ(0)';
+            modal.offsetHeight; // Force reflow
+            setTimeout(() => { modal.style.transition = ''; }, 50);
+        }
+    },
 
-.modal-fix thead { display: table-header-group !important; visibility: visible !important; opacity: 1 !important; }
-.modal-fix tbody { display: table-row-group !important; visibility: visible !important; opacity: 1 !important; }
-.modal-fix tr { display: table-row !important; visibility: visible !important; opacity: 1 !important; }
-.modal-fix th,
-.modal-fix td { display: table-cell !important; visibility: visible !important; opacity: 1 !important; }
+    fixElementsVisibility: function(container) { // Renommé pour clarté
+        if (!container) return;
+        const elementsToFix = container.querySelectorAll(
+            'input:not([type="hidden"]), select, textarea, button:not([type="hidden"]):not(.btn-close), .form-select, .form-control, ' +
+            'label, .form-label, .invalid-feedback, small, p, h1, h2, h3, h4, h5, h6, .form-text, ' +
+            'table, thead, tbody, tr, th, td, .table-responsive, ' +
+            '.badge, .alert, .btn-group, ' + 
+            '.nav-tabs, .nav-pills, .tab-content, .tab-pane, .nav-link, i.fas, i.far'
+        );
+        elementsToFix.forEach(el => {
+            let displayStyle = 'block'; // Default
+            if (['BUTTON', 'SPAN', 'I', 'A', 'SMALL'].includes(el.tagName) || el.classList.contains('btn') || el.classList.contains('badge') || el.classList.contains('nav-link')) {
+                displayStyle = 'inline-block';
+            } else if (el.tagName === 'TABLE' || el.classList.contains('table')) {
+                displayStyle = 'table';
+            } else if (el.tagName === 'THEAD' || el.tagName === 'TBODY') {
+                displayStyle = 'table-row-group';
+            } else if (el.tagName === 'TR') {
+                displayStyle = 'table-row';
+            } else if (el.tagName === 'TH' || el.tagName === 'TD') {
+                displayStyle = 'table-cell';
+            }
+            
+            el.style.setProperty('display', displayStyle, 'important');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('pointer-events', 'auto', 'important');
+            el.style.setProperty('position', 'relative', 'important'); // Pour le contexte de stacking
+        });
+    },
 
+    fixSelectElements: function(container) {
+        if (!container) return;
+        const selects = container.querySelectorAll('select, .form-select');
+        selects.forEach(select => {
+            select.style.setProperty('display', 'block', 'important');
+            select.style.setProperty('visibility', 'visible', 'important');
+            select.style.setProperty('opacity', '1', 'important');
+            select.style.setProperty('-webkit-appearance', 'menulist', 'important');
+            select.style.setProperty('-moz-appearance', 'menulist', 'important');
+            select.style.setProperty('appearance', 'menulist', 'important');
+            select.style.setProperty('position', 'relative', 'important');
+            select.style.setProperty('z-index', (parseInt(getComputedStyle(select.closest('.modal-content') || select).zIndex) || 1057) + 5, 'important');
+            select.style.setProperty('color', '#212529', 'important');
+            select.style.setProperty('background-color', '#fff', 'important');
+            select.style.setProperty('width', '100%', 'important');
+            select.style.setProperty('pointer-events', 'auto', 'important');
+            select.offsetHeight; // Force reflow
+        });
+    },
 
-/* Anti-scintillement (Peut aider avec les transitions CSS) */
-.modal.fade.show {
-    transform: translateZ(0); /* Force l'accélération matérielle */
-    -webkit-backface-visibility: hidden; /* Pour Safari/Chrome */
-    backface-visibility: hidden;
-}
+    fixZIndexIssues: function(modal) { /* Contenu dans modal-fixes.css, JS peut être redondant ou pour cas dynamiques */ },
+    createGlobalStyles: function() { /* Les styles sont maintenant dans modal-fixes.css */ },
 
-/* Backdrop (arrière-plan sombre) */
-.modal-backdrop {
-    z-index: 1050 !important; /* Standard, mais on le réaffirme */
-}
-.modal-backdrop.fade { opacity: 0 !important; } /* Commence transparent */
-.modal-backdrop.show { opacity: 0.5 !important; } /* Opacité standard de Bootstrap */
+    setupGlobalEventListeners: function() {
+        window.addEventListener('DOMContentLoaded', () => {
+            if (this.config.autoInitialize) this.initializeAllModals();
+        });
+        if ('MutationObserver' in window) {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach(mutation => {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach(node => {
+                            if (node.nodeType === 1 && (node.classList.contains('modal') || node.querySelector('.modal'))) {
+                                this.debug('New modal detected by MutationObserver, enhancing it.');
+                                if (node.classList.contains('modal')) this.enhanceModal(node);
+                                node.querySelectorAll('.modal').forEach(m => this.enhanceModal(m));
+                            }
+                        });
+                    }
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+    },
+    
+    showModal: function(modalId) {
+        const modalState = this.state.activeModals.find(m => m.id === modalId);
+        if (modalState && modalState.instance) {
+            modalState.instance.show(); return true;
+        }
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            this.enhanceModal(modalElement); // Assurer qu'il est amélioré
+            const instance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+            instance.show(); return true;
+        }
+        this.debug(`Modal ${modalId} not found for showModal.`); return false;
+    },
+    hideModal: function(modalId) {
+        const modalState = this.state.activeModals.find(m => m.id === modalId);
+        if (modalState && modalState.instance) {
+            modalState.instance.hide(); return true;
+        }
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const instance = bootstrap.Modal.getInstance(modalElement);
+            if (instance) { instance.hide(); return true; }
+        }
+        this.debug(`Modal ${modalId} not found for hideModal.`); return false;
+    },
+    updateModal: function(modalId, options = {}) { /* Peut être implémenté si besoin de changer contenu dynamiquement */ },
+    triggerEvent: function(name, detail = {}) { document.dispatchEvent(new CustomEvent(name, { detail, bubbles: true, cancelable: true })); },
+    debug: function(message, data) { if (this.config.debugMode) console.log(`[ModalManager] ${message}`, data || ''); }
+};
 
-
-/* Styles pour les navigateurs spécifiques si des problèmes persistent */
-/* Chrome, Safari */
-@media screen and (-webkit-min-device-pixel-ratio:0) { 
-    .modal-fix select,
-    .modal-fix .form-select {
-        -webkit-appearance: menulist !important;
-        background-image: none !important; /* Peut être nécessaire si la flèche par défaut interfère */
-    }
-}
-/* Firefox */
-@-moz-document url-prefix() {
-    .modal-fix select,
-    .modal-fix .form-select {
-        -moz-appearance: menulist !important;
-        background-image: none !important;
-    }
-}
-
-/* Améliorations pour l'affichage mobile */
-@media (max-width: 576px) {
-    .modal-fix .modal-dialog {
-        margin: 0.5rem auto !important; /* Moins de marge sur mobile */
-        max-width: 96% !important; /* Un peu de marge sur les côtés */
-    }
-    .modal-fix .modal-header,
-    .modal-fix .modal-footer {
-        padding: 0.75rem 1rem !important; /* Padding réduit pour petits écrans */
-    }
-    .modal-fix .modal-body {
-        padding: 1rem !important; /* Padding réduit pour petits écrans */
-    }
-}
+// Auto-initialisation lors du chargement du script
+document.addEventListener('DOMContentLoaded', function() {
+    const debugMode = window.dashboardConfig && window.dashboardConfig.debugMode;
+    ModalManager.init({ debugMode: debugMode || false });
+    window.ModalManager = ModalManager; // Exposer globalement
+});
