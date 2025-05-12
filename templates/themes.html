@@ -1,62 +1,125 @@
-<!-- templates/themes.html -->
+```html
 {% extends "layout.html" %}
 
 {% block title %}Gestion des Thèmes - {{ app_name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* Styles spécifiques aux cartes de thèmes */
+    .theme-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .theme-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    }
+    
+    /* Corrections spécifiques aux modals */
+    .modal-fix {
+        z-index: 1055 !important;
+    }
+    .modal-fix .modal-dialog {
+        z-index: 1056 !important;
+    }
+    .modal-fix .modal-content {
+        z-index: 1057 !important;
+    }
+    
+    /* Correction des éléments de formulaire dans les modals */
+    .modal-fix input:not([type="hidden"]),
+    .modal-fix select,
+    .modal-fix textarea,
+    .modal-fix .form-control,
+    .modal-fix .form-select {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 1060 !important;
+        pointer-events: auto !important;
+        width: 100% !important;
+    }
+    
+    .modal-fix .form-select,
+    .modal-fix select {
+        -webkit-appearance: menulist !important;
+        -moz-appearance: menulist !important;
+        appearance: menulist !important;
+    }
+    
+    .modal-fix button,
+    .modal-fix .btn {
+        display: inline-block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 1060 !important;
+        pointer-events: auto !important;
+    }
+    
+    /* Anti-scintillement */
+    .modal-backdrop {
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+    
+    /* Styles pour les thèmes */
+    .theme-badge-display {
+        padding: 0.35em 0.65em;
+        font-size: 0.85em;
+        font-weight: 600;
+        line-height: 1;
+        color: #fff;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 50rem;
+        display: inline-block;
+    }
+    .theme-comm { background-color: #0078d4; }
+    .theme-planner { background-color: #7719aa; }
+    .theme-onedrive { background-color: #0364b8; }
+    .theme-sharepoint { background-color: #038387; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0 text-primary"><i class="fas fa-book-open me-2"></i>Gestion des Thèmes</h1>
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addThemeModal"> {# btn-sm #}
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addThemeModal">
         <i class="fas fa-plus me-1"></i>Ajouter un Thème
     </button>
     {% endif %}
 </div>
 
-<!-- Add Theme Modal -->
-{% if current_user.is_authenticated and current_user.role == 'admin' %}
-<div class="modal fade modal-fix" id="addThemeModal" tabindex="-1" aria-labelledby="addThemeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"> {# modal-dialog-centered #}
-        <div class="modal-content">
-            <div class="modal-header py-2 bg-primary text-white"> {# py-2 #}
-                <h5 class="modal-title fs-6" id="addThemeModalLabel"><i class="fas fa-plus-circle me-2"></i>Ajouter un Thème</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-3"> {# p-3 #}
-                <form action="{{ url_for('add_theme') }}" method="post" class="needs-validation" novalidate>
-                    {{ csrf_token_field() if csrf_token_field else '' }}
-                    <div class="mb-3">
-                        <label for="add_nom_theme" class="form-label small fw-bold">Nom du thème*</label> {# small fw-bold #}
-                        <input type="text" class="form-control form-control-sm" id="add_nom_theme" name="nom" required> {# form-control-sm #}
-                        <div class="invalid-feedback small">Le nom du thème est obligatoire.</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="add_description_theme" class="form-label small fw-bold">Description</label>
-                        <textarea class="form-control form-control-sm" id="add_description_theme" name="description" rows="3" placeholder="Décrivez brièvement..."></textarea> {# rows="3" #}
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-plus-circle me-2"></i>Ajouter</button> {# btn-sm #}
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<div class="row row-cols-1 row-cols-md-2 g-3"> {# g-3 pour moins d'espace #}
+<div class="row row-cols-1 row-cols-md-2 g-3">
     {% if themes_data %}
         {% for theme_item in themes_data %}
         {% set theme = theme_item.obj %}
         <div class="col">
             <div class="card theme-card h-100 shadow-sm">
-                <div class="card-header py-2 d-flex justify-content-between align-items-center"> {# py-2 #}
-                     <h5 class="mb-0 fs-6 text-truncate js-theme-cell" title="{{ theme.nom }}"> {# fs-6 #}
-                         {{ theme.nom }}
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                     <h5 class="mb-0 fs-6 text-truncate js-theme-cell" title="{{ theme.nom }}">
+                         <span class="theme-badge-display
+                            {% if 'Communiquer avec Teams' in theme.nom %}theme-comm
+                            {% elif 'Gérer les tâches' in theme.nom %}theme-planner
+                            {% elif 'Gérer mes fichiers' in theme.nom %}theme-onedrive
+                            {% elif 'Collaborer avec Teams' in theme.nom %}theme-sharepoint
+                            {% else %}bg-secondary{% endif %}">
+                            <i class="fas 
+                                {% if 'Communiquer avec Teams' in theme.nom %}fa-comments
+                                {% elif 'Gérer les tâches' in theme.nom %}fa-tasks
+                                {% elif 'Gérer mes fichiers' in theme.nom %}fa-file-alt
+                                {% elif 'Collaborer avec Teams' in theme.nom %}fa-users
+                                {% else %}fa-tag{% endif %} me-1"></i>
+                            {{ theme.nom }}
+                         </span>
                      </h5>
                      {% if current_user.is_authenticated and current_user.role == 'admin' %}
                      <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-light btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editThemeModal{{ theme.id }}" title="Modifier"> {# py-0 px-1 #}
+                        <button type="button" class="btn btn-light btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editThemeModal{{ theme.id }}" title="Modifier">
                             <i class="fas fa-edit"></i>
                         </button>
                          <button type="button" class="btn btn-light btn-sm py-0 px-1 btn-delete-theme" data-bs-toggle="modal" data-bs-target="#deleteThemeModal{{ theme.id }}" title="Supprimer" data-theme-id="{{ theme.id }}" data-theme-name="{{ theme.nom }}">
@@ -65,11 +128,11 @@
                      </div>
                      {% endif %}
                 </div>
-                <div class="card-body p-2 d-flex flex-column"> {# p-2 #}
-                    <p class="card-text small flex-grow-1 mb-2">{{ theme.description or 'Aucune description.' }}</p> {# small mb-2 #}
+                <div class="card-body p-2 d-flex flex-column">
+                    <p class="card-text small flex-grow-1 mb-2">{{ theme.description or 'Aucune description.' }}</p>
 
-                    <h6 class="mt-2 mb-1 text-muted small fw-bold">Sessions :</h6> {# small fw-bold #}
-                     <div style="max-height: 120px; overflow-y: auto;"> {# max-height réduite #}
+                    <h6 class="mt-2 mb-1 text-muted small fw-bold">Sessions :</h6>
+                     <div style="max-height: 120px; overflow-y: auto;">
                         {% set theme_sessions_detailed = theme_item.sessions_detailed %}
                         {% if theme_sessions_detailed %}
                         <ul class="list-group list-group-flush">
@@ -94,7 +157,7 @@
                         {% endif %}
                      </div>
                 </div>
-                 <div class="card-footer bg-light text-center small text-muted py-1"> {# py-1 #}
+                 <div class="card-footer bg-light text-center small text-muted py-1">
                     {{ theme_item.total_sessions }} session(s)
                 </div>
 
@@ -162,17 +225,197 @@
         </div>
     {% endif %}
 </div>
+
+<!-- Add Theme Modal -->
+{% if current_user.is_authenticated and current_user.role == 'admin' %}
+<div class="modal fade modal-fix" id="addThemeModal" tabindex="-1" aria-labelledby="addThemeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-primary text-white">
+                <h5 class="modal-title fs-6" id="addThemeModalLabel"><i class="fas fa-plus-circle me-2"></i>Ajouter un Thème</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <form action="{{ url_for('add_theme') }}" method="post" class="needs-validation" novalidate>
+                    {{ csrf_token_field() if csrf_token_field else '' }}
+                    <div class="mb-3">
+                        <label for="add_nom_theme" class="form-label small fw-bold">Nom du thème*</label>
+                        <input type="text" class="form-control form-control-sm" id="add_nom_theme" name="nom" required>
+                        <div class="invalid-feedback small">Le nom du thème est obligatoire.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="add_description_theme" class="form-label small fw-bold">Description</label>
+                        <textarea class="form-control form-control-sm" id="add_description_theme" name="description" rows="3" placeholder="Décrivez brièvement..."></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-plus-circle me-2"></i>Ajouter</button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts_extra %}
-{{ super() }}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        if (window.dashboardConfig && window.dashboardConfig.debugMode) {
-            console.log('Themes page specific JS loaded');
+        const DASH_CONFIG = window.dashboardConfig || { debugMode: false };
+        
+        if (DASH_CONFIG.debugMode) {
+            console.log('Themes page specific script initialized');
         }
-        // ModalManager s'occupe de l'initialisation globale des modaux.
-        // Les formulaires Bootstrap 'needs-validation' sont gérés par ModalManager ou un script global.
+        
+        /**
+         * Améliore un modal spécifique en s'assurant que tous les éléments de formulaire sont visibles
+         * @param {HTMLElement} modalElement - L'élément du modal à améliorer
+         */
+        function enhanceModal(modalElement) {
+            if (!modalElement) return;
+            
+            // Assurer que les éléments de formulaire sont visibles et fonctionnels
+            const formElements = modalElement.querySelectorAll('input:not([type="hidden"]), select, textarea, .form-control, .form-select, button:not(.btn-close)');
+            
+            formElements.forEach(element => {
+                // Styles généraux pour tous les éléments
+                element.style.visibility = 'visible';
+                element.style.opacity = '1';
+                element.style.position = 'relative';
+                element.style.zIndex = '1060';
+                element.style.pointerEvents = 'auto';
+                
+                // Styles spécifiques selon le type d'élément
+                if (element.tagName === 'BUTTON' || element.classList.contains('btn')) {
+                    element.style.display = 'inline-block';
+                } else {
+                    element.style.display = 'block';
+                    element.style.width = '100%';
+                }
+                
+                // Styles spécifiques pour les selects
+                if (element.tagName === 'SELECT' || element.classList.contains('form-select')) {
+                    element.style.appearance = 'menulist';
+                    element.style.webkitAppearance = 'menulist';
+                    element.style.mozAppearance = 'menulist';
+                }
+            });
+            
+            // Focus sur le premier champ après un court délai
+            setTimeout(() => {
+                const firstField = modalElement.querySelector('input:not([type="hidden"]), select, textarea');
+                if (firstField) {
+                    try {
+                        firstField.focus();
+                    } catch (e) {
+                        if (DASH_CONFIG.debugMode) {
+                            console.warn('Failed to focus on first field in modal:', e);
+                        }
+                    }
+                }
+            }, 100);
+        }
+        
+        /**
+         * Initialise la validation Bootstrap pour tous les formulaires avec la classe 'needs-validation'
+         */
+        function initializeFormValidation() {
+            document.querySelectorAll('form.needs-validation').forEach(form => {
+                form.addEventListener('submit', function(event) {
+                    if (!this.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    this.classList.add('was-validated');
+                });
+            });
+        }
+        
+        /**
+         * Initialise les tooltips Bootstrap sur tous les éléments qui en ont besoin
+         */
+        function initializeTooltips() {
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                document.querySelectorAll('[data-bs-toggle="tooltip"], [title]:not([title=""])').forEach(element => {
+                    try {
+                        new bootstrap.Tooltip(element);
+                    } catch (e) {
+                        if (DASH_CONFIG.debugMode) {
+                            console.warn('Failed to initialize tooltip:', e);
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Attacher les gestionnaires d'événements aux modals
+        document.querySelectorAll('.modal').forEach(modal => {
+            // Ajouter la classe correctifs CSS
+            modal.classList.add('modal-fix');
+            
+            // Améliorer le modal quand il est affiché
+            modal.addEventListener('shown.bs.modal', function() {
+                enhanceModal(this);
+            });
+        });
+        
+        // Créer une fonction showToast globale si elle n'existe pas
+        if (typeof window.showToast !== 'function') {
+            window.showToast = function(message, type = 'info') {
+                if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
+                    alert(message);
+                    return;
+                }
+                
+                // Créer le conteneur de toast s'il n'existe pas
+                let toastContainer = document.querySelector('.toast-container');
+                if (!toastContainer) {
+                    toastContainer = document.createElement('div');
+                    toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                    toastContainer.style.zIndex = '11000';
+                    document.body.appendChild(toastContainer);
+                }
+                
+                // Créer l'élément toast
+                const toastElement = document.createElement('div');
+                toastElement.className = `toast bg-${type} text-white`;
+                toastElement.setAttribute('role', 'alert');
+                toastElement.setAttribute('aria-live', 'assertive');
+                toastElement.setAttribute('aria-atomic', 'true');
+                
+                // Contenu du toast
+                toastElement.innerHTML = `
+                    <div class="toast-header bg-${type} text-white">
+                        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'danger' ? 'fa-exclamation-circle' : 'fa-info-circle'} me-2"></i>
+                        <strong class="me-auto">Notification</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                `;
+                
+                // Ajouter au conteneur
+                toastContainer.appendChild(toastElement);
+                
+                // Initialiser et afficher le toast
+                const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+                toast.show();
+                
+                // Supprimer l'élément une fois caché
+                toastElement.addEventListener('hidden.bs.toast', function() {
+                    this.remove();
+                });
+            };
+        }
+        
+        // Initialiser tout
+        initializeFormValidation();
+        initializeTooltips();
     });
 </script>
 {% endblock %}
+```
