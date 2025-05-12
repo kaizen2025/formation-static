@@ -1,0 +1,211 @@
+/**
+ * modal-fixes.css - Correctifs CSS pour les modaux de l'application
+ * Ce fichier résout les problèmes d'affichage et d'interaction avec les modaux Bootstrap
+ */
+
+/* Styles fondamentaux pour les modaux */
+.modal-fix {
+    z-index: 1055 !important;
+}
+
+.modal-fix .modal-dialog {
+    z-index: 1056 !important;
+    margin: 1.75rem auto !important;
+}
+
+.modal-fix .modal-content {
+    z-index: 1057 !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Assurer la visibilité et l'interaction des éléments de formulaire */
+.modal-fix select, 
+.modal-fix .form-select, 
+.modal-fix input:not([type="hidden"]), 
+.modal-fix textarea,
+.modal-fix button:not([type="hidden"]) {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 1060 !important;
+    pointer-events: auto !important;
+}
+
+/* Amélioration des sélecteurs */
+.modal-fix .form-select,
+.modal-fix select {
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
+    appearance: menulist !important;
+    background-image: none !important;
+    padding-right: 0.75rem !important;
+    width: 100% !important;
+    color: #212529 !important;
+    background-color: #ffffff !important;
+    cursor: pointer !important;
+}
+
+/* Boutons et groupes de boutons */
+.modal-fix .btn,
+.modal-fix .btn-group {
+    display: inline-block !important;
+    z-index: 1070 !important;
+    margin: auto !important;
+    text-align: center !important;
+}
+
+.modal-fix .modal-footer .btn,
+.modal-fix .modal-body .btn {
+    position: relative !important;
+    display: inline-block !important;
+    cursor: pointer !important;
+}
+
+/* Correction pour le bouton close */
+.modal-fix .btn-close {
+    z-index: 2050 !important;
+    position: relative !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+/* Assurer la visibilité des labels et feedbacks */
+.modal-fix label,
+.modal-fix .form-label,
+.modal-fix .invalid-feedback,
+.modal-fix .form-text,
+.modal-fix small, 
+.modal-fix p, 
+.modal-fix h6 {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 1059 !important;
+}
+
+/* Gestion des onglets */
+.modal-fix .nav-tabs,
+.modal-fix .nav-pills,
+.modal-fix .tab-content,
+.modal-fix .tab-pane {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.modal-fix .tab-pane:not(.active) {
+    display: none !important;
+}
+
+.modal-fix .nav-link {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 1060 !important;
+    position: relative !important;
+}
+
+/* Tableaux dans les modaux */
+.modal-fix table,
+.modal-fix .table {
+    display: table !important;
+    visibility: visible !important;
+    width: 100% !important;
+}
+
+.modal-fix thead,
+.modal-fix tbody {
+    display: table-row-group !important;
+    visibility: visible !important;
+}
+
+.modal-fix tr {
+    display: table-row !important;
+    visibility: visible !important;
+}
+
+.modal-fix th,
+.modal-fix td {
+    display: table-cell !important;
+    visibility: visible !important;
+}
+
+/* Éléments de badge et d'alerte */
+.modal-fix .badge,
+.modal-fix .alert {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: inline-block !important;
+    z-index: 1059 !important;
+}
+
+/* Anti-scintillement */
+.modal.fade.show {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+/* Compatibilité avec le système Portal Modal */
+#portal-modal-container {
+    position: relative;
+    z-index: 1100;
+}
+
+.portal-modal {
+    z-index: 1055 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    outline: 0 !important;
+}
+
+/* Éviter les problèmes avec le backdrop */
+.modal-backdrop {
+    z-index: 1050 !important;
+}
+
+.modal-backdrop.fade {
+    opacity: 0.5 !important;
+}
+
+/* Correctifs pour les navigateurs spécifiques */
+@media screen and (-webkit-min-device-pixel-ratio:0) { 
+    /* Chrome, Safari */
+    .modal-fix select,
+    .modal-fix .form-select {
+        -webkit-appearance: menulist !important;
+        background-image: none !important;
+    }
+}
+
+/* Firefox */
+@-moz-document url-prefix() {
+    .modal-fix select,
+    .modal-fix .form-select {
+        -moz-appearance: menulist !important;
+        background-image: none !important;
+    }
+}
+
+/* Améliorations mobiles */
+@media (max-width: 576px) {
+    .modal-fix .modal-dialog {
+        margin: 0.5rem auto !important;
+        max-width: 96% !important;
+    }
+    
+    .modal-fix .modal-header,
+    .modal-fix .modal-footer {
+        padding: 0.75rem 1rem !important;
+    }
+    
+    .modal-fix .modal-body {
+        padding: 1rem !important;
+    }
+}
