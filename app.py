@@ -1182,7 +1182,7 @@ def sessions():
         if date_str_filter:
             try:
                 date_obj = date.fromisoformat(date_str_filter)
-                query = query.filter(Session.date >= date_obj)
+                query = query.filter(Session.date >= date_obj) # Filtrer pour les dates APRÈS ou ÉGALES à la date fournie
             except ValueError:
                 flash('Format de date invalide (AAAA-MM-JJ).', 'warning')
 
@@ -1197,7 +1197,7 @@ def sessions():
 
             inscrits_count = len(inscrits_confirmes_list)
             attente_count = len(liste_attente_entries_list)
-            pending_count = len(pending_inscriptions_list)
+            pending_count = len(pending_inscriptions_list) # Nombre de demandes en attente de validation
             
             places_rest = s_obj.get_places_restantes(confirmed_count=inscrits_count)
 
@@ -1211,7 +1211,7 @@ def sessions():
                 'places_restantes': places_rest, 
                 'inscrits_confirmes_count': inscrits_count, 
                 'liste_attente_count': attente_count, 
-                'pending_count': pending_count,
+                'pending_count': pending_count, # S'assurer que pending_count est bien ici
                 'loaded_inscrits_confirmes': sorted(inscrits_confirmes_list, key=lambda i: i.date_inscription, reverse=True),
                 'loaded_pending_inscriptions': sorted(pending_inscriptions_list, key=lambda i: i.date_inscription, reverse=True),
                 'loaded_liste_attente': sorted(liste_attente_entries_list, key=lambda la: la.position)
@@ -1220,8 +1220,8 @@ def sessions():
         app.logger.info(f"Prepared {len(sessions_final_data)} sessions for template after all filters.")
 
         themes_for_filter = get_all_themes()
-        participants_for_modal = get_all_participants_with_service()
-        services_for_modal = get_all_services_with_participants()
+        participants_for_modal = get_all_participants_with_service() # Pour les listes déroulantes
+        services_for_modal = get_all_services_with_participants() # Pour les listes déroulantes
         
         salles_for_modal = []
         if current_user.is_authenticated and current_user.role == 'admin':
@@ -1234,8 +1234,11 @@ def sessions():
                               services=services_for_modal, 
                               salles=salles_for_modal,
                               request_args=request.args,
-                              Inscription=Inscription,
-                              ListeAttente=ListeAttente)
+                              Inscription=Inscription, # Pour type hinting dans Jinja si besoin
+                              ListeAttente=ListeAttente, # Pour type hinting dans Jinja si besoin
+                              themes_config=app.config.get('THEMES_DATA_FOR_CHART', {}), # Pour les badges de thème
+                              services_config=app.config.get('SERVICES_DATA_FOR_CHART', {}) # Pour les badges de service
+                              )
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -1247,7 +1250,7 @@ def sessions():
         app.logger.error(f"Unexpected error in /sessions route: {e}", exc_info=True)
         flash("Une erreur interne est survenue lors du chargement des sessions.", "danger")
         return redirect(url_for('dashboard'))
-
+        
 @app.route('/inscription', methods=['POST'])
 @db_operation_with_retry(max_retries=3)
 def inscription():
