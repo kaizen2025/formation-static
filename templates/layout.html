@@ -19,7 +19,7 @@
     <!-- Styles personnalisés consolidés -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-    <!-- Solution unique pour les modaux -->
+    <!-- Solution optimisée pour les modaux -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-modal-fixes.css') }}">
 
     {% block head_extra %}{% endblock %}
@@ -227,15 +227,58 @@
     </script>
 
     <!-- Scripts personnalisés (l'ordre est important) -->
-    <script src="{{ url_for('static', filename='js/api-error-handler.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/api-error-handler.js') }}"></script>
+    
+    <!-- Scripts dashboard -->
+    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 
-    <script src="{{ url_for('static', filename='js/dashboard-core.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/dashboard-init.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
-	<!-- Ajouter après les autres scripts dashboard -->
-<script src="{{ url_for('static', filename='js/dashboard-compatibility-fix.js') }}" defer></script>
+    <!-- Solution simplifiée pour les modaux -->
+    <script src="{{ url_for('static', filename='js/modal-simple.js') }}"></script>
 
     {% block scripts_extra %}{% endblock %}
+
+    <!-- Script d'initialisation des modaux -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialisation des tooltips
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                    new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            }
+            
+            // Initialisation des modaux
+            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Modal === 'function') {
+                document.querySelectorAll('.modal').forEach(function(modalEl) {
+                    // Forcer la visibilité des éléments dans les modaux
+                    modalEl.querySelectorAll('select, input:not([type="hidden"]), textarea').forEach(function(el) {
+                        el.style.display = 'block';
+                        el.style.visibility = 'visible';
+                        el.style.opacity = '1';
+                    });
+                    
+                    // Assurer le bon fonctionnement des onglets
+                    modalEl.addEventListener('shown.bs.modal', function() {
+                        const activePane = this.querySelector('.tab-pane.active');
+                        if (activePane) {
+                            activePane.style.display = 'block';
+                        }
+                        
+                        // Focus sur le premier élément
+                        const firstInput = this.querySelector('select, input:not([type="hidden"])');
+                        if (firstInput) {
+                            setTimeout(function() {
+                                firstInput.focus();
+                            }, 100);
+                        }
+                    });
+                });
+            }
+        });
+    </script>
 
     <!-- Script final pour gérer le loader, les tooltips globaux et les badges de thème -->
     <script>
@@ -340,6 +383,5 @@
             window.enhanceThemeBadgesGlobally();
         });
     </script>
-<script src="{{ url_for('static', filename='js/basic-modal-fix.js') }}"></script>
 </body>
 </html>
