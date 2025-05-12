@@ -1,0 +1,234 @@
+<!-- templates/modals/_participants_modal_simple.html -->
+<!-- Version simplifiée du modal des participants -->
+<div class="modal fade" id="participantsModal_{{ session.id }}" tabindex="-1" aria-labelledby="participantsModalLabel_{{ session.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <!-- En-tête du modal -->
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title" id="participantsModalLabel_{{ session.id }}">
+          <i class="fas fa-users me-2"></i>Participants: {{ session.theme.nom }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      
+      <!-- Corps du modal -->
+      <div class="modal-body">
+        <!-- Informations session -->
+        <div class="alert alert-light border mb-4">
+          <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <h6 class="mb-1 fw-bold text-info me-3">Session du {{ session.formatage_date }} ({{ session.formatage_horaire }})</h6>
+            <span class="badge {% if session_data.places_restantes|default(session.max_participants) == 0 %}bg-danger{% elif session_data.places_restantes|default(session.max_participants) <= 3 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+              {{ session_data.places_restantes|default(0) }} / {{ session.max_participants|default(0) }} places dispo.
+            </span>
+          </div>
+          <hr class="my-2">
+          <p class="mb-0 small text-muted">
+            <i class="fas fa-building fa-fw me-1"></i><strong>Salle:</strong> 
+            <span class="badge bg-light text-dark border">{{ session.salle.nom if session.salle else "Non définie" }}</span>
+          </p>
+        </div>
+
+        <!-- Navigation par onglets simplifiée -->
+        <ul class="nav nav-tabs" id="participantsTabs_{{ session.id }}" role="tablist">
+          <li class="nav-item" role="presentation">
+            <a class="nav-link active" id="confirmes-tab-{{ session.id }}" data-bs-toggle="tab" href="#confirmes-{{ session.id }}" role="tab" aria-selected="true">
+              <i class="fas fa-check-circle text-success me-1"></i> Confirmés 
+              <span class="badge bg-success">{{ session_data.inscrits_confirmes_count|default(0) }}</span>
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link" id="en-attente-tab-{{ session.id }}" data-bs-toggle="tab" href="#en-attente-{{ session.id }}" role="tab" aria-selected="false">
+              <i class="fas fa-clock text-warning me-1"></i> En attente 
+              <span class="badge bg-warning text-dark">{{ session_data.pending_count|default(0) }}</span>
+            </a>
+          </li>
+          <li class="nav-item" role="presentation">
+            <a class="nav-link" id="liste-attente-tab-{{ session.id }}" data-bs-toggle="tab" href="#liste-attente-{{ session.id }}" role="tab" aria-selected="false">
+              <i class="fas fa-hourglass-half text-info me-1"></i> Liste d'attente 
+              <span class="badge bg-info text-dark">{{ session_data.liste_attente_count|default(0) }}</span>
+            </a>
+          </li>
+        </ul>
+
+        <!-- Contenu des onglets -->
+        <div class="tab-content py-3" id="participantsTabsContent_{{ session.id }}">
+          
+          <!-- Tab 1: Participants confirmés -->
+          <div class="tab-pane fade show active" id="confirmes-{{ session.id }}" role="tabpanel">
+            {% set inscrits_list = session_data.loaded_inscrits_confirmes %}
+            {% if inscrits_list and inscrits_list|length > 0 %}
+              <div class="table-responsive">
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Participant</th>
+                      <th>Service</th>
+                      <th>Date Inscription</th>
+                      <th class="text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for inscription in inscrits_list %}
+                      <tr>
+                        <td>{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
+                        <td>
+                          <span class="badge" style="background-color: {{ inscription.participant.service.couleur|default('#6c757d') }};">
+                            {{ inscription.participant.service.nom|escape }}
+                          </span>
+                        </td>
+                        <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td class="text-center">
+                          <div class="btn-group">
+                            <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                              <i class="far fa-calendar-plus"></i>
+                            </a>
+                            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                            <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
+                              <input type="hidden" name="action" value="annuler">
+                              <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');">
+                                <i class="fas fa-ban"></i>
+                              </button>
+                            </form>
+                            {% endif %}
+                          </div>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="alert alert-light text-center py-4">
+                <i class="fas fa-info-circle fa-2x text-muted mb-3 d-block"></i>
+                <p class="mb-0">Aucun participant confirmé pour cette session.</p>
+              </div>
+            {% endif %}
+          </div>
+          
+          <!-- Tab 2: Participants en attente -->
+          <div class="tab-pane fade" id="en-attente-{{ session.id }}" role="tabpanel">
+            {% set pending_list = session_data.loaded_pending_inscriptions %}
+            {% if pending_list and pending_list|length > 0 %}
+              <div class="alert alert-warning small mb-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Ces inscriptions sont en attente de validation par un responsable ou un administrateur.
+              </div>
+              <div class="table-responsive">
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Participant</th>
+                      <th>Service</th>
+                      <th>Date Demande</th>
+                      <th class="text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for inscription in pending_list %}
+                      <tr>
+                        <td>{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
+                        <td>
+                          <span class="badge" style="background-color: {{ inscription.participant.service.couleur|default('#6c757d') }};">
+                            {{ inscription.participant.service.nom|escape }}
+                          </span>
+                        </td>
+                        <td>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td class="text-center">
+                          {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
+                            <div class="btn-group">
+                              <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline">
+                                <input type="hidden" name="action" value="valider">
+                                <button type="submit" class="btn btn-sm btn-success" {{ 'disabled' if session_data.places_restantes|default(0) <= 0 else '' }}>
+                                  <i class="fas fa-check"></i> Valider
+                                </button>
+                              </form>
+                              <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
+                                <input type="hidden" name="action" value="refuser">
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                  <i class="fas fa-times"></i> Refuser
+                                </button>
+                              </form>
+                            </div>
+                          {% else %}
+                            <span class="badge bg-light text-dark border">Validation requise</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="alert alert-light text-center py-4">
+                <i class="fas fa-info-circle fa-2x text-muted mb-3 d-block"></i>
+                <p class="mb-0">Aucune inscription en attente de validation pour cette session.</p>
+              </div>
+            {% endif %}
+          </div>
+          
+          <!-- Tab 3: Liste d'attente -->
+          <div class="tab-pane fade" id="liste-attente-{{ session.id }}" role="tabpanel">
+            {% set waitlist_list = session_data.loaded_liste_attente %}
+            {% if waitlist_list and waitlist_list|length > 0 %}
+              <div class="alert alert-info small mb-3">
+                <i class="fas fa-info-circle me-2"></i>
+                Participants en liste d'attente car la session est/était complète.
+              </div>
+              <div class="table-responsive">
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th class="text-center">Pos.</th>
+                      <th>Participant</th>
+                      <th>Service</th>
+                      <th>Date Inscription</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for attente in waitlist_list %}
+                      <tr>
+                        <td class="text-center"><span class="badge bg-secondary">{{ attente.position }}</span></td>
+                        <td>{{ attente.participant.prenom|escape }} {{ attente.participant.nom|escape }}</td>
+                        <td>
+                          <span class="badge" style="background-color: {{ attente.participant.service.couleur|default('#6c757d') }};">
+                            {{ attente.participant.service.nom|escape }}
+                          </span>
+                        </td>
+                        <td>{{ attente.date_inscription.strftime('%d/%m/%Y %H:%M') }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="alert alert-light text-center py-4">
+                <i class="fas fa-info-circle fa-2x text-muted mb-3 d-block"></i>
+                <p class="mb-0">Aucun participant en liste d'attente pour cette session.</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pied du modal -->
+      <div class="modal-footer bg-light">
+        <div>
+          {% if session_data.places_restantes|default(0) > 0 %}
+            <a href="{{ url_for('inscription', session_id=session.id) }}" class="btn btn-primary">
+              <i class="fas fa-user-plus me-1"></i> Inscrire un participant
+            </a>
+          {% elif current_user.is_authenticated %}
+            <a href="{{ url_for('liste_attente', session_id=session.id) }}" class="btn btn-warning">
+              <i class="fas fa-clock me-1"></i> Liste d'attente
+            </a>
+          {% else %}
+             <span class="text-muted">Session complète.</span>
+          {% endif %}
+        </div>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i> Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
