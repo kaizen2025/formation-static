@@ -1,6 +1,6 @@
 <!-- templates/modals/_participants_modal.html -->
-<div class="modal fade" id="participantsModal_{{ session.id }}" tabindex="-1" aria-labelledby="participantsModalLabel_{{ session.id }}" aria-hidden="true">
-  <div class="modal-dialog modal-xl">
+<div class="modal fade modal-fix" id="participantsModal_{{ session.id }}" tabindex="-1" aria-labelledby="participantsModalLabel_{{ session.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable"> {# Ajout de modal-dialog-scrollable #}
     <div class="modal-content">
       <div class="modal-header bg-info text-white">
         <h5 class="modal-title" id="participantsModalLabel_{{ session.id }}">
@@ -8,56 +8,53 @@
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
-      <div class="modal-body p-4">
+      <div class="modal-body p-3"> {# Padding réduit pour compacité #}
         <!-- Informations session -->
-        <div class="alert alert-light border shadow-sm mb-4 p-3">
+        <div class="alert alert-light border shadow-sm mb-3 p-2"> {# Padding réduit #}
           <div class="d-flex justify-content-between align-items-center flex-wrap">
-            <h6 class="mb-1 fw-bold text-info-emphasis me-3">Session du {{ session.formatage_date }} ({{ session.formatage_horaire }})</h6>
-            <span class="badge fs-6 {% if session_data.places_restantes|default(session.max_participants) == 0 %}bg-danger{% elif session_data.places_restantes|default(session.max_participants) <= 3 %}bg-warning text-dark{% else %}bg-success{% endif %}"
+            <h6 class="mb-1 fw-bold text-info-emphasis me-3 small">Session du {{ session.formatage_date }} ({{ session.formatage_horaire }})</h6>
+            <span class="badge fs-7 {% if session_data.places_restantes|default(session.max_participants) == 0 %}bg-danger{% elif session_data.places_restantes|default(session.max_participants) <= 3 %}bg-warning text-dark{% else %}bg-success{% endif %}"
                   data-bs-toggle="tooltip" data-bs-placement="top"
                   title="{{ session_data.places_restantes|default(0) }} place(s) disponible(s) sur {{ session.max_participants|default(0) }}">
-              {{ session_data.places_restantes|default(0) }} / {{ session.max_participants|default(0) }} places dispo.
+              {{ session_data.places_restantes|default(0) }} / {{ session.max_participants|default(0) }}
             </span>
           </div>
-          <hr class="my-2">
+          <hr class="my-1"> {# Marge réduite #}
           <p class="mb-0 small text-body-secondary">
             <i class="fas fa-building fa-fw me-1"></i><strong>Salle:</strong> 
-            <span class="badge bg-light text-dark border">{{ session.salle.nom if session.salle else "Non définie" }}</span>
+            <span class="badge bg-light text-dark border fs-7">{{ session.salle.nom if session.salle else "Non définie" }}</span>
           </p>
         </div>
 
-        <!-- Onglets des différents statuts -->
-        <ul class="nav nav-pills nav-fill mb-3" id="participantsTabs_{{ session.id }}" role="tablist">
+        <ul class="nav nav-pills nav-fill nav-sm mb-3" id="participantsTabs_{{ session.id }}" role="tablist"> {# nav-sm pour des onglets plus petits #}
           <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="confirmes-tab-{{ session.id }}" data-bs-toggle="tab" data-bs-target="#confirmes-{{ session.id }}" type="button" role="tab" aria-controls="confirmes-{{ session.id }}" aria-selected="true">
+            <button class="nav-link active small py-1 px-2" id="confirmes-tab-{{ session.id }}" data-bs-toggle="tab" data-bs-target="#confirmes-{{ session.id }}" type="button" role="tab" aria-selected="true">
               <i class="fas fa-check-circle text-success me-1"></i> Confirmés 
-              <span class="badge rounded-pill bg-success ms-1">{{ session_data.inscrits_confirmes_count|default(0) }}</span>
+              <span class="badge rounded-pill bg-success ms-1 fs-7">{{ session_data.inscrits_confirmes_count|default(0) }}</span>
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link" id="en-attente-tab-{{ session.id }}" data-bs-toggle="tab" data-bs-target="#en-attente-{{ session.id }}" type="button" role="tab" aria-controls="en-attente-{{ session.id }}" aria-selected="false">
+            <button class="nav-link small py-1 px-2" id="en-attente-tab-{{ session.id }}" data-bs-toggle="tab" data-bs-target="#en-attente-{{ session.id }}" type="button" role="tab" aria-selected="false">
               <i class="fas fa-clock text-warning me-1"></i> En attente 
-              <span class="badge rounded-pill bg-warning text-dark ms-1">{{ session_data.pending_count|default(0) }}</span>
+              <span class="badge rounded-pill bg-warning text-dark ms-1 fs-7">{{ session_data.pending_count|default(0) }}</span>
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link" id="liste-attente-tab-{{ session.id }}" data-bs-toggle="tab" data-bs-target="#liste-attente-{{ session.id }}" type="button" role="tab" aria-controls="liste-attente-{{ session.id }}" aria-selected="false">
+            <button class="nav-link small py-1 px-2" id="liste-attente-tab-{{ session.id }}" data-bs-toggle="tab" data-bs-target="#liste-attente-{{ session.id }}" type="button" role="tab" aria-selected="false">
               <i class="fas fa-hourglass-half text-info me-1"></i> Liste d'attente 
-              <span class="badge rounded-pill bg-info text-dark ms-1">{{ session_data.liste_attente_count|default(0) }}</span>
+              <span class="badge rounded-pill bg-info text-dark ms-1 fs-7">{{ session_data.liste_attente_count|default(0) }}</span>
             </button>
           </li>
         </ul>
 
-        <!-- Contenu des onglets -->
-        <div class="tab-content pt-3" id="participantsTabsContent_{{ session.id }}">
+        <div class="tab-content pt-2" id="participantsTabsContent_{{ session.id }}">
           
-          <!-- Participants confirmés -->
-          <div class="tab-pane fade show active" id="confirmes-{{ session.id }}" role="tabpanel" aria-labelledby="confirmes-tab-{{ session.id }}">
+          <div class="tab-pane fade show active" id="confirmes-{{ session.id }}" role="tabpanel">
             {% set inscrits_list = session_data.loaded_inscrits_confirmes %}
             {% if inscrits_list and inscrits_list|length > 0 %}
-              <div class="table-responsive">
+              <div class="table-responsive" style="max-height: 250px;"> {# Hauteur max pour scroll si besoin #}
                 <table class="table table-sm table-hover table-striped">
-                  <thead class="table-light small">
+                  <thead class="table-light small sticky-top"> {# sticky-top pour l'en-tête #}
                     <tr>
                       <th style="width: 35%">Participant</th>
                       <th style="width: 25%">Service</th>
@@ -68,22 +65,24 @@
                   <tbody>
                     {% for inscription in inscrits_list %}
                       <tr>
-                        <td>{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
-                        <td>
-                          <span class="badge" style="background-color: {{ inscription.participant.service.couleur|default('#6c757d') }}; color: white; padding: 0.3em 0.5em;">
-                            {{ inscription.participant.service.nom|escape }}
+                        <td class="small">{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
+                        <td class="small">
+                          {% set service_name = inscription.participant.service.nom|escape %}
+                          {% set service_color = (services_config.get(service_name, {})).color | default(inscription.participant.service.couleur|default('#6c757d')) %}
+                          <span class="badge fs-7" style="background-color: {{ service_color }}; color: white;">
+                            {{ service_name }}
                           </span>
                         </td>
-                        <td><small>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</small></td>
+                        <td class="small">{{ inscription.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
                         <td class="text-center">
                           <div class="btn-group btn-group-sm" role="group">
-                            <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-outline-primary" title="Télécharger l'invitation .ics" target="_blank" data-bs-toggle="tooltip" data-bs-placement="top">
+                            <a href="{{ url_for('generer_invitation', inscription_id=inscription.id) }}" class="btn btn-outline-primary" title="Télécharger .ics" target="_blank" data-bs-toggle="tooltip">
                               <i class="far fa-calendar-plus"></i>
                             </a>
                             {% if current_user.is_authenticated and current_user.role == 'admin' %}
                             <form action="{{ url_for('validation_inscription', inscription_id=inscription.id) }}" method="post" class="d-inline ms-1">
                               <input type="hidden" name="action" value="annuler">
-                              <button type="submit" class="btn btn-outline-danger" title="Annuler l'inscription" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette inscription ?');" data-bs-toggle="tooltip" data-bs-placement="top">
+                              <button type="submit" class="btn btn-outline-danger" title="Annuler" onclick="return confirm('Annuler cette inscription ?');" data-bs-toggle="tooltip">
                                 <i class="fas fa-ban"></i>
                               </button>
                             </form>
@@ -96,24 +95,23 @@
                 </table>
               </div>
             {% else %}
-              <div class="alert alert-light text-center py-4 border">
-                <i class="fas fa-info-circle fa-2x text-muted mb-3 d-block"></i>
-                <p class="mb-0">Aucun participant confirmé pour cette session.</p>
+              <div class="alert alert-light text-center py-3 border small">
+                <i class="fas fa-info-circle fa-lg text-muted mb-2 d-block"></i>
+                Aucun participant confirmé.
               </div>
             {% endif %}
           </div>
           
-          <!-- Participants en attente de validation -->
-          <div class="tab-pane fade" id="en-attente-{{ session.id }}" role="tabpanel" aria-labelledby="en-attente-tab-{{ session.id }}">
+          <div class="tab-pane fade" id="en-attente-{{ session.id }}" role="tabpanel">
             {% set pending_list = session_data.loaded_pending_inscriptions %}
             {% if pending_list and pending_list|length > 0 %}
-              <div class="alert alert-warning small mb-3 p-2">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Ces inscriptions sont en attente de validation par un responsable ou un administrateur.
+              <div class="alert alert-warning small mb-2 p-2">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                Inscriptions en attente de validation.
               </div>
-              <div class="table-responsive">
+              <div class="table-responsive" style="max-height: 250px;">
                 <table class="table table-sm table-hover table-striped">
-                  <thead class="table-light small">
+                  <thead class="table-light small sticky-top">
                     <tr>
                       <th style="width: 35%">Participant</th>
                       <th style="width: 25%">Service</th>
@@ -124,34 +122,36 @@
                   <tbody>
                     {% for inscription in pending_list %}
                       <tr>
-                        <td>{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
-                        <td>
-                          <span class="badge" style="background-color: {{ inscription.participant.service.couleur|default('#6c757d') }}; color: white; padding: 0.3em 0.5em;">
-                            {{ inscription.participant.service.nom|escape }}
+                        <td class="small">{{ inscription.participant.prenom|escape }} {{ inscription.participant.nom|escape }}</td>
+                        <td class="small">
+                          {% set service_name = inscription.participant.service.nom|escape %}
+                          {% set service_color = (services_config.get(service_name, {})).color | default(inscription.participant.service.couleur|default('#6c757d')) %}
+                          <span class="badge fs-7" style="background-color: {{ service_color }}; color: white;">
+                            {{ service_name }}
                           </span>
                         </td>
-                        <td><small>{{ inscription.date_inscription.strftime('%d/%m/%Y %H:%M') }}</small></td>
+                        <td class="small">{{ inscription.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
                         <td class="text-center">
                           {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'responsable' and current_user.service_id == inscription.participant.service_id)) %}
                             <div class="btn-group btn-group-sm" role="group">
                               <button type="button" class="btn btn-outline-success validation-ajax" 
                                       data-inscription-id="{{ inscription.id }}" 
                                       data-action="valider" 
-                                      title="Valider l'inscription"
-                                      data-bs-toggle="tooltip" data-bs-placement="top"
+                                      title="Valider"
+                                      data-bs-toggle="tooltip"
                                       {{ 'disabled' if session_data.places_restantes|default(0) <= 0 else '' }}>
                                 <i class="fas fa-check"></i>
                               </button>
                               <button type="button" class="btn btn-outline-danger validation-ajax" 
                                       data-inscription-id="{{ inscription.id }}" 
                                       data-action="refuser" 
-                                      title="Refuser l'inscription"
-                                      data-bs-toggle="tooltip" data-bs-placement="top">
+                                      title="Refuser"
+                                      data-bs-toggle="tooltip">
                                 <i class="fas fa-times"></i>
                               </button>
                             </div>
                           {% else %}
-                            <span class="badge bg-light text-dark border" data-bs-toggle="tooltip" data-bs-placement="top" title="Validation par le responsable du service ou un administrateur.">Validation requise</span>
+                            <span class="badge bg-light text-dark border fs-7" data-bs-toggle="tooltip" title="Validation par responsable/admin.">Requise</span>
                           {% endif %}
                         </td>
                       </tr>
@@ -160,24 +160,23 @@
                 </table>
               </div>
             {% else %}
-              <div class="alert alert-light text-center py-4 border">
-                <i class="fas fa-info-circle fa-2x text-muted mb-3 d-block"></i>
-                <p class="mb-0">Aucune inscription en attente de validation pour cette session.</p>
+              <div class="alert alert-light text-center py-3 border small">
+                <i class="fas fa-info-circle fa-lg text-muted mb-2 d-block"></i>
+                Aucune inscription en attente.
               </div>
             {% endif %}
           </div>
           
-          <!-- Liste d'attente -->
-          <div class="tab-pane fade" id="liste-attente-{{ session.id }}" role="tabpanel" aria-labelledby="liste-attente-tab-{{ session.id }}">
+          <div class="tab-pane fade" id="liste-attente-{{ session.id }}" role="tabpanel">
             {% set waitlist_list = session_data.loaded_liste_attente %}
             {% if waitlist_list and waitlist_list|length > 0 %}
-              <div class="alert alert-info small mb-3 p-2">
-                <i class="fas fa-info-circle me-2"></i>
-                Participants en liste d'attente car la session est/était complète.
+              <div class="alert alert-info small mb-2 p-2">
+                <i class="fas fa-info-circle me-1"></i>
+                Participants en liste d'attente.
               </div>
-              <div class="table-responsive">
+              <div class="table-responsive" style="max-height: 250px;">
                 <table class="table table-sm table-hover table-striped">
-                  <thead class="table-light small">
+                  <thead class="table-light small sticky-top">
                     <tr>
                       <th style="width: 10%" class="text-center">Pos.</th>
                       <th style="width: 35%">Participant</th>
@@ -188,276 +187,56 @@
                   <tbody>
                     {% for attente in waitlist_list %}
                       <tr>
-                        <td class="text-center"><span class="badge bg-secondary">{{ attente.position }}</span></td>
-                        <td>{{ attente.participant.prenom|escape }} {{ attente.participant.nom|escape }}</td>
-                        <td>
-                          <span class="badge" style="background-color: {{ attente.participant.service.couleur|default('#6c757d') }}; color: white; padding: 0.3em 0.5em;">
-                            {{ attente.participant.service.nom|escape }}
+                        <td class="text-center small"><span class="badge bg-secondary fs-7">{{ attente.position }}</span></td>
+                        <td class="small">{{ attente.participant.prenom|escape }} {{ attente.participant.nom|escape }}</td>
+                        <td class="small">
+                          {% set service_name = attente.participant.service.nom|escape %}
+                          {% set service_color = (services_config.get(service_name, {})).color | default(attente.participant.service.couleur|default('#6c757d')) %}
+                          <span class="badge fs-7" style="background-color: {{ service_color }}; color: white;">
+                            {{ service_name }}
                           </span>
                         </td>
-                        <td><small>{{ attente.date_inscription.strftime('%d/%m/%Y %H:%M') }}</small></td>
+                        <td class="small">{{ attente.date_inscription.strftime('%d/%m/%y %H:%M') }}</td>
                       </tr>
                     {% endfor %}
                   </tbody>
                 </table>
               </div>
             {% else %}
-              <div class="alert alert-light text-center py-4 border">
-                <i class="fas fa-info-circle fa-2x text-muted mb-3 d-block"></i>
-                <p class="mb-0">Aucun participant en liste d'attente pour cette session.</p>
+              <div class="alert alert-light text-center py-3 border small">
+                <i class="fas fa-info-circle fa-lg text-muted mb-2 d-block"></i>
+                Aucun participant en liste d'attente.
               </div>
             {% endif %}
           </div>
-        </div> <!-- Fin tab-content -->
-      </div> <!-- Fin modal-body -->
-      
-      <div class="modal-footer justify-content-between bg-light border-top">
+        </div>
+      </div>
+      <div class="modal-footer bg-light justify-content-between border-top p-2"> {# Padding réduit #}
         <div>
           {% if session_data.places_restantes|default(0) > 0 %}
-            <button type="button" class="btn btn-primary"
-                    id="inscriptionBtn_{{ session.id }}"
-                    onclick="showInscriptionModal('{{ session.id }}')">
-              <i class="fas fa-user-plus me-1"></i> Inscrire un participant
+            <button type="button" class="btn btn-primary btn-sm"
+                    onclick="ModalManager.showModal('inscriptionModal_{{ session.id }}')"> {# Utiliser ModalManager pour ouvrir l'autre modal #}
+              <i class="fas fa-user-plus me-1"></i> Inscrire
             </button>
           {% elif current_user.is_authenticated %}
             <a href="{{ url_for('liste_attente', session_id=session.id) }}" 
-               class="btn btn-warning">
+               class="btn btn-warning btn-sm">
               <i class="fas fa-clock me-1"></i> Liste d'attente
             </a>
           {% else %}
-             <span class="text-muted">Session complète.</span>
+             <span class="text-muted small">Session complète.</span>
           {% endif %}
         </div>
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
           <i class="fas fa-times me-1"></i> Fermer
         </button>
       </div>
     </div>
   </div>
 </div>
-
-<script>
-// Fonction pour afficher la modale d'inscription après avoir fermé la modale de participants
-function showInscriptionModal(sessionId) {
-    console.log(`Attempting to show inscription modal for session ${sessionId}`);
-    const participantsModalElement = document.getElementById(`participantsModal_${sessionId}`);
-    const inscriptionModalElement = document.getElementById(`inscriptionModal_${sessionId}`);
-
-    if (!participantsModalElement || !inscriptionModalElement) {
-        console.error("Erreur critique: Une ou les deux modales n'ont pas été trouvées dans le DOM.", 
-            participantsModalElement ? "✓ Participants Modal trouvé" : "✗ Participants Modal non trouvé", 
-            inscriptionModalElement ? "✓ Inscription Modal trouvé" : "✗ Inscription Modal non trouvé");
-        return;
-    }
-
-    const bsParticipantsModal = bootstrap.Modal.getInstance(participantsModalElement) || new bootstrap.Modal(participantsModalElement);
-    const bsInscriptionModal = bootstrap.Modal.getInstance(inscriptionModalElement) || new bootstrap.Modal(inscriptionModalElement);
-
-    if (participantsModalElement.dataset.isTransitioning === 'true') {
-        console.log("Transition déjà en cours, annulation.");
-        return;
-    }
-    participantsModalElement.dataset.isTransitioning = 'true';
-
-    // Forcer la fermeture de la modale participants
-    bsParticipantsModal.hide();
-    
-    // Attendre que la modale participants soit cachée avant d'ouvrir la modale d'inscription
-    participantsModalElement.addEventListener('hidden.bs.modal', function onHidden() {
-        console.log(`Participants modal ${sessionId} is hidden. Now showing inscription modal.`);
-        
-        // Réinitialiser l'état du body entre les modales
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-        
-        // Supprimer les backdrops restants
-        const existingBackdrops = document.querySelectorAll('.modal-backdrop');
-        existingBackdrops.forEach(b => b.remove());
-        
-        // Ouvrir la nouvelle modale après un court délai
-        setTimeout(() => {
-            bsInscriptionModal.show();
-            delete participantsModalElement.dataset.isTransitioning;
-            console.log(`Inscription modal ${sessionId} should be visible now.`);
-        }, 300);
-        
-        // Retirer cet écouteur d'événement après une utilisation
-        participantsModalElement.removeEventListener('hidden.bs.modal', onHidden);
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-    const modalId = 'participantsModal_{{ session.id }}';
-    const modalElement = document.getElementById(modalId);
-    
-    if (!modalElement) {
-        console.warn(`Modal with ID ${modalId} not found.`);
-        return;
-    }
-
-    console.log(`Initializing script for participants modal: ${modalId}`);
-
-    // Force l'affichage et l'interaction avec tous les éléments du tableau dans tous les onglets
-    function enforceTabPaneVisibility(container) {
-        if (!container) return;
-        
-        // S'assurer que le conteneur lui-même est visible
-        container.style.display = 'block';
-        container.style.visibility = 'visible';
-        container.style.opacity = '1';
-        
-        // Rendre les tableaux et leurs éléments visibles
-        const tableElements = container.querySelectorAll('table, tr, td, th, thead, tbody, .table-responsive');
-        tableElements.forEach(el => {
-            el.style.cssText = `
-                display: ${el.tagName === 'TABLE' ? 'table' : 
-                          el.tagName === 'TR' ? 'table-row' : 
-                          (el.tagName === 'TD' || el.tagName === 'TH') ? 'table-cell' : 
-                          el.tagName === 'THEAD' || el.tagName === 'TBODY' ? 'table-row-group' : 'block'} !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-                position: relative !important;
-            `;
-        });
-        
-        // Assurer la visibilité des autres éléments (badges, boutons, etc.)
-        const otherElements = container.querySelectorAll('.btn, .badge, .alert, p, i, span, small');
-        otherElements.forEach(el => {
-            el.style.cssText = `
-                visibility: visible !important;
-                opacity: 1 !important;
-                display: ${el.tagName === 'BUTTON' || el.classList.contains('btn') ? 'inline-block' : 
-                          el.tagName === 'P' ? 'block' : 'inline'} !important;
-            `;
-        });
-        
-        console.log(`Tab pane visibility enforced for container:`, container);
-    }
-    
-    // Initialiser l'onglet actif lors de l'affichage du modal
-    modalElement.addEventListener('shown.bs.modal', function () {
-        console.log(`Participants modal ${modalId} shown, initializing tabs and content.`);
-        
-        // Initialiser les tooltips
-        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
-            const tooltipTriggerList = Array.from(modalElement.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.forEach(tooltipTriggerEl => {
-                let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-                if (tooltipInstance) {
-                    tooltipInstance.dispose();
-                }
-                new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-        }
-        
-        // Appliquer les fixes à l'onglet actif
-        const activeTabPane = modalElement.querySelector('.tab-pane.active');
-        if (activeTabPane) {
-            enforceTabPaneVisibility(activeTabPane);
-        } else {
-            console.warn("No active tab pane found in the modal.");
-        }
-        
-        // Précharger tous les onglets pour éviter les problèmes lors du changement
-        const allTabPanes = modalElement.querySelectorAll('.tab-pane');
-        allTabPanes.forEach(pane => {
-            enforceTabPaneVisibility(pane);
-        });
-    });
-    
-    // Gérer le changement d'onglets
-    const tabButtons = modalElement.querySelectorAll('[data-bs-toggle="tab"]');
-    tabButtons.forEach(button => {
-        button.addEventListener('shown.bs.tab', function (event) {
-            console.log(`Tab changed in modal ${modalId}`);
-            const targetId = event.target.getAttribute('data-bs-target');
-            if (targetId) {
-                const targetPane = modalElement.querySelector(targetId);
-                if (targetPane) {
-                    enforceTabPaneVisibility(targetPane);
-                }
-            }
-        });
-    });
-    
-    // Améliorer la fonctionnalité des boutons de validation AJAX
-    modalElement.querySelectorAll('.validation-ajax').forEach(button => {
-        button.addEventListener('click', function() {
-            this.disabled = true;
-            const originalText = this.innerHTML;
-            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Traitement...';
-            
-            const inscriptionId = this.getAttribute('data-inscription-id');
-            const action = this.getAttribute('data-action');
-            
-            fetch('/validation_inscription_ajax', { 
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    inscription_id: inscriptionId,
-                    action: action
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errData => {
-                        throw new Error(errData.message || `Erreur HTTP ${response.status}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    // Afficher un toast de succès
-                    if (typeof window.showToast === 'function') {
-                        window.showToast(data.message, 'success');
-                    } else { 
-                        alert(data.message); 
-                    }
-                    
-                    // Recharger les données après un succès
-                    setTimeout(() => {
-                        if (typeof window.forcePollingUpdate === 'function') {
-                            window.forcePollingUpdate(true); 
-                        } else { 
-                            const bsModal = bootstrap.Modal.getInstance(modalElement);
-                            if (bsModal) {
-                                bsModal.hide();
-                                setTimeout(() => {
-                                    location.reload();
-                                }, 500);
-                            } else {
-                                location.reload();
-                            }
-                        }
-                    }, 1200);
-                } else {
-                    // Afficher un message d'erreur
-                    if (typeof window.showToast === 'function') {
-                        window.showToast(data.message || 'Erreur lors de la validation.', 'danger');
-                    } else { 
-                        alert(data.message || 'Erreur lors de la validation.'); 
-                    }
-                    this.disabled = false;
-                    this.innerHTML = originalText;
-                }
-            })
-            .catch(error => {
-                console.error('Erreur AJAX:', error);
-                if (typeof window.showToast === 'function') {
-                    window.showToast(error.message || 'Erreur de communication avec le serveur.', 'danger');
-                } else { 
-                    alert(error.message || 'Erreur de communication avec le serveur.'); 
-                }
-                this.disabled = false;
-                this.innerHTML = originalText;
-            });
-        });
-    });
-    
-    console.log(`Participants modal ${modalId} initialization complete.`);
-});
-</script>
+<!-- Le script JS spécifique à ce modal (validation AJAX, etc.) est déjà dans _participants_modal_simple.html,
+    mais il est préférable de le rendre plus générique ou de s'assurer que ModalManager gère l'initialisation
+    des composants internes comme les tooltips et les badges de thème.
+    Le script pour la transition showInscriptionModalTransition est déjà dans _participants_modal_simple.html.
+    Ici, on s'assure que les boutons AJAX sont bien initialisés par ModalManager ou un script global.
+-->
