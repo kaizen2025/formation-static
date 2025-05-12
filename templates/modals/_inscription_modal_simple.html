@@ -1,5 +1,4 @@
-<!-- templates/modals/_inscription_modal_simple.html -->
-<!-- Version simplifiée et épurée du modal d'inscription -->
+<!-- templates/modals/_inscription_modal_simple.html (Version finale) -->
 <div class="modal fade" id="inscriptionModal_{{ session.id }}" tabindex="-1" aria-labelledby="inscriptionModalLabel_{{ session.id }}" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -24,20 +23,20 @@
                 </p>
                 <p class="mb-1 small text-muted">
                     <i class="fas fa-chair fa-fw me-1"></i>Places disponibles: 
-                    <strong class="badge {% if session_data.places_restantes == 0 %}bg-danger{% elif session_data.places_restantes <= 3 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                    <strong class="badge text-dark bg-light border">
                         {{ session_data.places_restantes }} / {{ session.max_participants }}
                     </strong>
                 </p>
                 <p class="mb-0 small text-muted">
                     <i class="fas fa-building fa-fw me-1"></i>Salle: 
-                    <span class="badge bg-light text-dark border">{{ session.salle.nom if session.salle else "Non définie" }}</span>
+                    <span class="badge text-dark bg-light border salle-field">{{ session.salle.nom if session.salle else "Non définie" }}</span>
                 </p>
              </div>
           </div>
         </div>
 
         <!-- Navigation simple par onglets -->
-        <ul class="nav nav-tabs mb-3" id="inscriptionTabs_{{ session.id }}" role="tablist">
+        <ul class="nav nav-tabs mb-4" id="inscriptionTabs_{{ session.id }}" role="tablist">
           <li class="nav-item" role="presentation">
             <button class="nav-link active" id="participant-existant-tab_{{ session.id }}" data-bs-toggle="tab" data-bs-target="#participant-existant_{{ session.id }}" type="button" role="tab" aria-selected="true">
               <i class="fas fa-user me-1"></i> Participant existant
@@ -59,21 +58,21 @@
               <input type="hidden" name="session_id" value="{{ session.id }}">
               <input type="hidden" name="from_page" value="{{ request.endpoint or 'dashboard' }}">
               
-              <div class="mb-3">
+              <div class="mb-4">
                 <label for="participant_id_{{ session.id }}" class="form-label">Sélectionner un participant*</label>
-                <select class="form-control" id="participant_id_{{ session.id }}" name="participant_id" required>
+                <select class="form-select form-control" id="participant_id_{{ session.id }}" name="participant_id" required>
                   <option value="" selected disabled>-- Choisir dans la liste --</option>
                   {% for participant in participants|sort(attribute='prenom')|sort(attribute='nom') %} 
-                  <option value="{{ participant.id }}">{{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})</option>
+                  <option value="{{ participant.id }}" style="color: #212529; background-color: #ffffff;">{{ participant.prenom }} {{ participant.nom }} ({{ participant.service.nom }})</option>
                   {% endfor %}
                 </select>
-                <div class="text-danger small mt-1">
+                <div class="text-danger small mt-2" id="participant-error-{{ session.id }}" style="display: none;">
                   Veuillez sélectionner un participant.
                 </div>
               </div>
               
-              <div class="d-grid gap-2 mt-4">
-                <button type="submit" class="btn btn-primary btn-lg">
+              <div class="d-grid mt-4">
+                <button type="submit" class="btn btn-primary btn-lg" id="confirm-inscription-btn-{{ session.id }}">
                   <i class="fas fa-check-circle me-2"></i>Confirmer l'inscription
                 </button>
               </div>
@@ -97,22 +96,22 @@
                   <label for="prenom_nouveau_{{ session.id }}" class="form-label">Prénom*</label>
                   <input type="text" class="form-control" id="prenom_nouveau_{{ session.id }}" name="prenom" required>
                 </div>
-                <div class="col-12">
+                <div class="col-12 mb-2">
                   <label for="email_nouveau_{{ session.id }}" class="form-label">Email*</label>
                   <input type="email" class="form-control" id="email_nouveau_{{ session.id }}" name="email" required>
                 </div>
-                <div class="col-12">
+                <div class="col-12 mb-3">
                   <label for="service_id_nouveau_{{ session.id }}" class="form-label">Service*</label>
-                  <select class="form-control" id="service_id_nouveau_{{ session.id }}" name="service_id" required>
+                  <select class="form-select form-control" id="service_id_nouveau_{{ session.id }}" name="service_id" required>
                     <option value="" selected disabled>-- Choisir un service --</option>
                     {% for service_item in services|sort(attribute='nom') %}
-                    <option value="{{ service_item.id }}">{{ service_item.nom }}</option>
+                    <option value="{{ service_item.id }}" style="color: #212529; background-color: #ffffff;">{{ service_item.nom }}</option>
                     {% endfor %}
                   </select>
                 </div>
               </div>
               
-              <div class="d-grid gap-2 mt-4">
+              <div class="d-grid mt-4">
                 <button type="submit" class="btn btn-success btn-lg">
                   <i class="fas fa-user-plus me-2"></i>Ajouter et Inscrire
                 </button>
@@ -131,3 +130,111 @@
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Obtenir les références aux éléments du modal
+    const modalId = 'inscriptionModal_{{ session.id }}';
+    const modal = document.getElementById(modalId);
+    
+    if (!modal) return;
+    
+    const participantSelect = document.getElementById('participant_id_{{ session.id }}');
+    const errorMessage = document.getElementById('participant-error-{{ session.id }}');
+    const confirmButton = document.getElementById('confirm-inscription-btn-{{ session.id }}');
+    const participantForm = document.getElementById('inscription-form-{{ session.id }}');
+    
+    // S'assurer que les éléments existent
+    if (!participantSelect || !errorMessage || !confirmButton || !participantForm) return;
+    
+    // Validation du formulaire participant existant
+    participantForm.addEventListener('submit', function(event) {
+        if (participantSelect.value === '' || participantSelect.value === null) {
+            event.preventDefault();
+            errorMessage.style.display = 'block';
+            participantSelect.classList.add('is-invalid');
+            return false;
+        } else {
+            errorMessage.style.display = 'none';
+            participantSelect.classList.remove('is-invalid');
+            return true;
+        }
+    });
+    
+    // Actualiser l'état du bouton quand la sélection change
+    participantSelect.addEventListener('change', function() {
+        if (participantSelect.value === '' || participantSelect.value === null) {
+            errorMessage.style.display = 'block';
+            participantSelect.classList.add('is-invalid');
+        } else {
+            errorMessage.style.display = 'none';
+            participantSelect.classList.remove('is-invalid');
+        }
+    });
+    
+    // Lorsque le modal est affiché
+    modal.addEventListener('shown.bs.modal', function() {
+        // Réinitialiser l'état des éléments
+        participantSelect.classList.remove('is-invalid');
+        errorMessage.style.display = 'none';
+        
+        // Forcer le style pour assurer la visibilité
+        participantSelect.style.display = 'block';
+        participantSelect.style.visibility = 'visible';
+        participantSelect.style.opacity = '1';
+        participantSelect.style.color = '#212529';
+        participantSelect.style.backgroundColor = '#ffffff';
+        
+        // Mettre le focus sur le sélecteur
+        setTimeout(function() {
+            try {
+                participantSelect.focus();
+            } catch(e) {
+                console.error('Impossible de mettre le focus sur le sélecteur:', e);
+            }
+        }, 300);
+    });
+    
+    // S'assurer que les onglets fonctionnent correctement
+    const tabButtons = modal.querySelectorAll('.nav-link');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const target = this.getAttribute('data-bs-target');
+            if (!target) return;
+            
+            // Désactiver tous les onglets
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-selected', 'false');
+            });
+            
+            // Activer l'onglet courant
+            this.classList.add('active');
+            this.setAttribute('aria-selected', 'true');
+            
+            // Masquer tous les panneaux
+            modal.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            
+            // Afficher le panneau cible
+            const targetPane = modal.querySelector(target);
+            if (targetPane) {
+                targetPane.classList.add('show', 'active');
+                
+                // Focus sur le premier champ du panneau
+                setTimeout(function() {
+                    const firstInput = targetPane.querySelector('input:visible, select:visible');
+                    if (firstInput) {
+                        try {
+                            firstInput.focus();
+                        } catch(e) {
+                            console.error('Impossible de mettre le focus sur le premier champ:', e);
+                        }
+                    }
+                }, 300);
+            }
+        });
+    });
+});
+</script>
