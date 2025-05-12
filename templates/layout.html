@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+<!-- Modification du head uniquement pour inclure les correctifs modaux -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,8 +20,9 @@
     <!-- Styles personnalisés consolidés -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-    <!-- Solution CSS optimisée pour les modaux -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-modal-fixes.css') }}">
+    
+    <!-- Correctifs pour les modaux - Ajout global -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
 
     {% block head_extra %}{% endblock %}
 
