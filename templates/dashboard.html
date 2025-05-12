@@ -107,12 +107,13 @@
                                 </td>
                                 <td class="js-salle-cell">{% if session_item.obj.salle %}{{ session_item.obj.salle.nom }}{% else %}<span class="badge bg-secondary">Non définie</span>{% endif %}</td>
                                 <td class="text-nowrap text-center">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#participantsModal_{{ session_item.obj.id }}" title="Voir les participants">
+                                    <!-- Boutons d'actions pour les modaux, utilisant directement les attributs data-bs-* -->
+                                    <a href="#participantsModal_{{ session_item.obj.id }}" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#participantsModal_{{ session_item.obj.id }}" title="Voir les participants">
                                         <i class="fas fa-users"></i> <span class="badge bg-secondary ms-1">{{ session_item.inscrits_confirmes_count }}</span>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal_{{ session_item.obj.id }}" title="Inscrire un participant">
+                                    </a>
+                                    <a href="#inscriptionModal_{{ session_item.obj.id }}" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#inscriptionModal_{{ session_item.obj.id }}" title="Inscrire un participant">
                                         <i class="fas fa-plus"></i>
-                                    </button>
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -168,23 +169,17 @@
                                         {% set percentage = (count / total_inscriptions_theme) * 100 %}
                                         {% set theme_config = themes_config.get(theme_name, {}) %}
                                         {% set color = theme_config.color or '#6c757d' %}
-                                        {# stroke-dashoffset est calculé pour que le segment commence après les précédents #}
-                                        {# La rotation globale du SVG (-90deg) fait commencer le premier segment en haut #}
-                                        {# Chaque segment est ensuite dessiné par-dessus les autres, mais comme ils sont décalés... #}
-                                        {# Une meilleure approche pour les segments SVG est d'utiliser des <path> ou de calculer les points. #}
-                                        {# Pour des cercles, on peut superposer avec des stroke-dashoffset bien calculés. #}
-                                        {# Ici, on va simplifier en dessinant chaque segment comme un arc complet puis en le masquant. #}
                                         <circle class="donut-svg-segment"
                                                 cx="21" cy="21" r="{{ radius }}"
                                                 fill="transparent"
                                                 stroke="{{ color }}"
                                                 stroke-width="{{ stroke_width }}"
                                                 stroke-dasharray="{{ percentage }} {{ 100 - percentage }}"
-                                                stroke-dashoffset="{{ -current_offset_angle * 100 / 360 }}" {# Convertir l'angle en % de circonférence #}
+                                                stroke-dashoffset="{{ -current_offset_angle * 100 / 360 }}"
                                                 transform="rotate({{ current_offset_angle }} 21 21)">
                                             <title>{{ theme_name|escape }}: {{ count }} ({{ "%.1f"|format(percentage) }}%)</title>
                                         </circle>
-                                        {% set current_offset_angle = current_offset_angle + (percentage * 3.6) %} {# 1% = 3.6 degrés #}
+                                        {% set current_offset_angle = current_offset_angle + (percentage * 3.6) %}
                                     {% endif %}
                                 {% endfor %}
                                 <g class="donut-svg-center-text" transform="rotate(90 21 21)">
@@ -297,10 +292,10 @@
         {% set session_obj_for_modal = session_item_modal_data.obj %}
         {% set session_data_for_modal = session_item_modal_data %}
         {% with session=session_obj_for_modal, session_data=session_data_for_modal, participants=participants, services=services %}
-            {% include 'modals/_inscription_modal.html' %}
+            {% include 'modals/_inscription_modal_simple.html' %}
         {% endwith %}
         {% with session=session_obj_for_modal, session_data=session_data_for_modal %}
-            {% include 'modals/_participants_modal.html' %}
+            {% include 'modals/_participants_modal_simple.html' %}
         {% endwith %}
         {% if current_user.is_authenticated and current_user.role == 'admin' %}
              {% with session=session_obj_for_modal, salles_all=salles %}
@@ -309,7 +304,7 @@
         {% endif %}
     {% endfor %}
     {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'responsable') %}
-        {% with services_list=services %} {# Assurez-vous que 'services' est la bonne variable ici #}
+        {% with services_list=services %}
             {% include 'modals/_add_participant_modal.html' %}
         {% endwith %}
     {% endif %}
@@ -324,21 +319,84 @@
     if (typeof window.servicesDataForChart !== 'object' || window.servicesDataForChart === null) { console.warn("servicesDataForChart n'est pas un objet valide"); window.servicesDataForChart = {}; }
 
     document.addEventListener('DOMContentLoaded', function() {
-        const nouveauParticipantModalEl = document.getElementById('nouveauParticipantModal');
-        if (nouveauParticipantModalEl) {
-            nouveauParticipantModalEl.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget;
-                if (button) {
-                    const sessionId = button.getAttribute('data-session-id');
-                    const redirectSessionIdInput = document.getElementById('redirect_session_id');
-                    if (redirectSessionIdInput && sessionId) {
-                        redirectSessionIdInput.value = sessionId;
-                    }
-                }
+        // Initialiser les tooltips
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') {
+            const tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltips.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
             });
         }
-        if (typeof window.enhanceThemeBadgesGlobally === 'function') { setTimeout(function() { window.enhanceThemeBadgesGlobally(); }, 150); }
-        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip === 'function') { const tt = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]')); tt.forEach(function (el) { if (!bootstrap.Tooltip.getInstance(el)) new bootstrap.Tooltip(el); }); }
+        
+        // Améliorer les badges de thème
+        if (typeof window.enhanceThemeBadgesGlobally === 'function') { 
+            window.enhanceThemeBadgesGlobally(); 
+        }
+        
+        // Script pour gérer les modaux
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            // S'assurer que les select et autres éléments de formulaire sont visibles
+            const formElements = modal.querySelectorAll('select, input:not([type="hidden"]), textarea, button:not(.btn-close)');
+            formElements.forEach(el => {
+                el.style.display = el.tagName === 'SELECT' ? 'block' : 'inline-block';
+                el.style.visibility = 'visible';
+                el.style.opacity = '1';
+                el.classList.add('modal-fixed');
+            });
+            
+            // S'assurer que les onglets fonctionnent correctement
+            const tabPanes = modal.querySelectorAll('.tab-pane');
+            tabPanes.forEach(pane => {
+                if (pane.classList.contains('active')) {
+                    pane.style.display = 'block';
+                    pane.style.visibility = 'visible';
+                    pane.style.opacity = '1';
+                }
+            });
+            
+            // Événement d'affichage du modal
+            modal.addEventListener('shown.bs.modal', function() {
+                // Focus sur le premier champ
+                const firstField = this.querySelector('select, input:not([type="hidden"])');
+                if (firstField) {
+                    setTimeout(() => {
+                        firstField.focus();
+                    }, 100);
+                }
+                
+                // S'assurer que les éléments sont visibles
+                const formElements = this.querySelectorAll('select, input:not([type="hidden"]), textarea, button:not(.btn-close)');
+                formElements.forEach(el => {
+                    el.style.display = el.tagName === 'SELECT' ? 'block' : 'inline-block';
+                    el.style.visibility = 'visible';
+                    el.style.opacity = '1';
+                });
+            });
+            
+            // Gestion des changements d'onglets
+            const tabButtons = modal.querySelectorAll('[data-bs-toggle="tab"]');
+            tabButtons.forEach(button => {
+                button.addEventListener('shown.bs.tab', function(event) {
+                    const targetId = event.target.getAttribute('data-bs-target');
+                    if (targetId) {
+                        const targetPane = document.querySelector(targetId);
+                        if (targetPane) {
+                            targetPane.style.display = 'block';
+                            targetPane.style.visibility = 'visible';
+                            targetPane.style.opacity = '1';
+                            
+                            // Focus sur le premier champ de l'onglet
+                            const firstField = targetPane.querySelector('select, input:not([type="hidden"])');
+                            if (firstField) {
+                                setTimeout(() => {
+                                    firstField.focus();
+                                }, 100);
+                            }
+                        }
+                    }
+                });
+            });
+        });
     });
 </script>
 {% endblock %}
