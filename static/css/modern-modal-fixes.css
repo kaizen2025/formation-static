@@ -1,6 +1,6 @@
 /**
- * modern-modal-fixes.css - Solution optimisée pour tous les modaux de l'application
- * v3.0.0 - Complètement repensé pour éliminer les conflits
+ * modern-modal-fixes.css - Solution optimisée complète pour tous les modaux de l'application
+ * v3.0.0 - Complètement repensé pour éliminer les conflits et corriger tous les problèmes
  */
 
 /* ===== STYLES DE BASE POUR TOUS LES MODAUX ===== */
@@ -135,7 +135,7 @@
 .modal-body {
     position: relative;
     flex: 1 1 auto;
-    padding: 1rem;
+    padding: 1.5rem;
 }
 
 /* Correction pour les formulaires dans les modaux */
@@ -158,6 +158,17 @@
     opacity: 1 !important;
     visibility: visible !important;
     position: static !important;
+}
+
+/* Style de focus pour les champs de formulaire */
+.modal input:focus,
+.modal textarea:focus,
+.modal .form-control:focus {
+    color: #212529 !important;
+    background-color: #fff !important;
+    border-color: #86b7fe !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
 }
 
 /* Correction pour les selects, qui sont particulièrement problématiques */
@@ -187,6 +198,23 @@
     z-index: auto !important;
 }
 
+/* Style de focus pour les selects */
+.modal select:focus,
+.modal .form-select:focus {
+    border-color: #86b7fe !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+/* Correction pour les options dans les selects */
+.modal select option,
+.modal .form-select option {
+    color: #212529 !important;
+    background-color: #ffffff !important;
+    font-size: 1rem !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
 /* Correction pour les boutons dans les modaux */
 .modal button:not(.btn-close),
 .modal .btn:not(.btn-close) {
@@ -207,6 +235,30 @@
     opacity: 1 !important;
     visibility: visible !important;
     position: static !important;
+}
+
+/* Styles spécifiques pour les boutons primaires */
+.modal .btn-primary {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: white !important;
+}
+
+.modal .btn-primary:hover {
+    background-color: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+}
+
+/* Styles spécifiques pour les boutons de succès */
+.modal .btn-success {
+    background-color: #198754 !important;
+    border-color: #198754 !important;
+    color: white !important;
+}
+
+.modal .btn-success:hover {
+    background-color: #157347 !important;
+    border-color: #146c43 !important;
 }
 
 .modal .btn-close {
@@ -255,12 +307,19 @@
     color: #495057 !important;
     background-color: #fff !important;
     border-color: #dee2e6 #dee2e6 #fff !important;
+    font-weight: bold !important;
+}
+
+.modal .nav-tabs .nav-link:hover:not(.active) {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+    border-color: #e9ecef #e9ecef #dee2e6 !important;
 }
 
 .modal .tab-content {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
+    margin-top: 1rem !important;
 }
 
 .modal .tab-content > .tab-pane {
@@ -351,16 +410,95 @@
     font-size: 0.75em !important;
     font-weight: 700 !important;
     line-height: 1 !important;
-    color: #fff !important;
+    color: #212529 !important;
     text-align: center !important;
     white-space: nowrap !important;
     vertical-align: baseline !important;
     border-radius: 0.375rem !important;
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
     visibility: visible !important;
     opacity: 1 !important;
 }
 
-/* Classe ajoutée aux éléments corrigés pour debugger */
-.modal-fixed {
-    /* Aucun style supplémentaire requis, juste un marqueur */
+/* Correction pour le texte dans les champs de salle et autres éléments blancs */
+.modal .text-white,
+.modal .salle-info,
+.modal .theme-badge,
+.modal .salle-field {
+    color: #212529 !important;
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+/* Amélioration des messages d'erreur */
+.modal .invalid-feedback,
+.modal .text-danger {
+    display: block !important;
+    color: #dc3545 !important;
+    font-size: 0.875em !important;
+    margin-top: 0.25rem !important;
+    width: 100% !important;
+}
+
+/* Amélioration des alertes */
+.modal .alert {
+    position: relative !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+    border: 1px solid transparent !important;
+    border-radius: 0.375rem !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.modal .alert-light {
+    color: #636464 !important;
+    background-color: #fefefe !important;
+    border-color: #e8e8e8 !important;
+}
+
+.modal .alert-warning {
+    color: #664d03 !important;
+    background-color: #fff3cd !important;
+    border-color: #ffecb5 !important;
+}
+
+.modal .alert-info {
+    color: #055160 !important;
+    background-color: #cff4fc !important;
+    border-color: #b6effb !important;
+}
+
+/* ===== AMÉLIORATION DE L'ACCESSIBILITÉ ===== */
+.modal .form-label {
+    margin-bottom: 0.5rem !important;
+    font-weight: 500 !important;
+    display: block !important;
+    color: #212529 !important;
+}
+
+.modal *:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+/* Pour les éléments disabled */
+.modal input:disabled,
+.modal select:disabled,
+.modal textarea:disabled,
+.modal button:disabled {
+    opacity: 0.65 !important;
+    cursor: not-allowed !important;
+}
+
+/* ===== CORRECTION POUR LES ICÔNES FONT AWESOME ===== */
+.modal i.fas,
+.modal i.far,
+.modal i.fa,
+.modal i.fab {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
